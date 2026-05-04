@@ -1,5 +1,6 @@
 #pragma once
 #include "../../../value/ValueType.hpp"
+#include <cstddef>
 #include "../../../value/ValueShim.hpp"
 #include "../../../errors/NullPointerException.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"

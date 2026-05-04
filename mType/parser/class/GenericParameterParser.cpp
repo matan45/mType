@@ -1,4 +1,5 @@
 #include "GenericParameterParser.hpp"
+#include <cstddef>
 #include "../utilities/ParserUtils.hpp"
 #include "../../errors/ParseException.hpp"
 

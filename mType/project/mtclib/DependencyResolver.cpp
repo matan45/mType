@@ -1,4 +1,5 @@
 #include "DependencyResolver.hpp"
+#include <cstddef>
 #include <queue>
 #include <algorithm>
 

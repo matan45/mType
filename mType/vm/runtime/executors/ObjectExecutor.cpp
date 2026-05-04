@@ -1,4 +1,5 @@
 #include "ObjectExecutor.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "ObjectInstanceHelper.hpp"
 #include "FunctionExecutor.hpp"

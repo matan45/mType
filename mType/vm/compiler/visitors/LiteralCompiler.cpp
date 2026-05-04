@@ -1,4 +1,5 @@
 #include "LiteralCompiler.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "../../bytecode/OpCode.hpp"
 

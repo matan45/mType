@@ -1,4 +1,5 @@
 #include "ConstantFoldingPattern.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "PatternSafetyHelper.hpp"
 #include "../../bytecode/OpCode.hpp"

@@ -1,4 +1,5 @@
 #include "OptimizationPassManager.hpp"
+#include <cstddef>
 #include "passes/ConstantFoldingPass.hpp"
 #include "passes/DeadCodeEliminationPass.hpp"
 #include "passes/EscapeAnalysisPass.hpp"

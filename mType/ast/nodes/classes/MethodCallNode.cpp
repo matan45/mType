@@ -1,4 +1,5 @@
-﻿#include "MethodCallNode.hpp"
+#include "MethodCallNode.hpp"
+#include <cstddef>
 
 namespace ast::nodes::classes
 {

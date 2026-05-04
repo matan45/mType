@@ -28,6 +28,7 @@
 // Include appropriate headers
 #ifdef MTYPE_SIMD_SSE2
 #include <emmintrin.h>  // SSE2
+#include <cstddef>
 #include <smmintrin.h>  // SSE4.1
 #endif
 

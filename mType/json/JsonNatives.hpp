@@ -1,5 +1,6 @@
 #pragma once
 #include "../value/ValueType.hpp"
+#include <cstddef>
 #include "../environment/Environment.hpp"
 #include "../environment/registry/NativeRegistry.hpp"
 #include <memory>

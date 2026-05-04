@@ -1,4 +1,5 @@
 #include "NetErrors.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"

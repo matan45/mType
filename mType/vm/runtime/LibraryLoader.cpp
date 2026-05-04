@@ -1,4 +1,5 @@
 #include "LibraryLoader.hpp"
+#include <cstddef>
 #include "../../project/mtclib/MtcLibSerializer.hpp"
 #include "../../project/mtclib/LibrarySymbolProvider.hpp"
 #include <fstream>

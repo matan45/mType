@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../value/ValueType.hpp"
+#include <cstddef>
 #include "../circularDependency/CircularDependencyDetector.hpp"
 #include "GenericTypeSubstitutionContext.hpp"
 #include <string>

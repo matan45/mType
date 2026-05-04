@@ -1,4 +1,5 @@
 #include "ReifiedTypeRegistry.hpp"
+#include <cstddef>
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 
 namespace types

@@ -1,4 +1,5 @@
 #include "ClassDeclarationParser.hpp"
+#include <cstddef>
 #include "GenericParameterParser.hpp"
 #include "../ParserConstants.hpp"
 #include "../ParserValidator.hpp"

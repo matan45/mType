@@ -1,4 +1,5 @@
 #include "TypeValidator.hpp"
+#include <cstddef>
 #include "../../../errors/TypeException.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include <functional>

@@ -1,4 +1,5 @@
 #include "OptimizationContext.hpp"
+#include <cstddef>
 
 namespace optimizer::base {
 

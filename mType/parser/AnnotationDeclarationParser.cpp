@@ -1,4 +1,5 @@
 #include "AnnotationDeclarationParser.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "utilities/AnnotationParser.hpp"
 #include "../token/TokenType.hpp"

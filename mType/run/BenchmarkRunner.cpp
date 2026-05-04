@@ -1,4 +1,5 @@
 #include "BenchmarkRunner.hpp"
+#include <cstddef>
 
 #include "../services/ScriptInterpreter.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"

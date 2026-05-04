@@ -1,4 +1,5 @@
-﻿#include "Scope.hpp"
+#include "Scope.hpp"
+#include <cstddef>
 #include <algorithm>
 #include <unordered_set>
 

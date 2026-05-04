@@ -1,5 +1,6 @@
 #pragma once
 #include "../../../environment/Environment.hpp"
+#include <cstddef>
 #include "../../../ast/ASTNode.hpp"
 #include "../../../value/ParameterType.hpp"
 #include "../../../errors/SourceLocation.hpp"

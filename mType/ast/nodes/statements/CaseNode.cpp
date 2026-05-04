@@ -1,4 +1,5 @@
-﻿#include "CaseNode.hpp"
+#include "CaseNode.hpp"
+#include <cstddef>
 #include "../../utils/ASTNodeUtils.hpp"
 
 namespace ast::nodes::statements

@@ -1,5 +1,6 @@
 #pragma once
 #include "CompilerContext.hpp"
+#include <cstddef>
 #include "../../../ast/ASTNode.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"
 #include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"

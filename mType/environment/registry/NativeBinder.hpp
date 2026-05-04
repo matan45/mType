@@ -1,5 +1,6 @@
 #pragma once
 #include <tuple>
+#include <cstddef>
 #include <cstdint>
 #include <type_traits>
 #include <span>

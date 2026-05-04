@@ -1,4 +1,5 @@
-﻿#include "FunctionCallNode.hpp"
+#include "FunctionCallNode.hpp"
+#include <cstddef>
 
 namespace ast::nodes::functions
 {

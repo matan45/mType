@@ -1,4 +1,5 @@
 #include "JsonValue.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <sstream>
 #include <iomanip>

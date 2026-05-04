@@ -1,4 +1,5 @@
 #include "TransitiveDependencyLoader.hpp"
+#include <cstddef>
 #include "MtcLibSerializer.hpp"
 #include <fstream>
 #include <stdexcept>

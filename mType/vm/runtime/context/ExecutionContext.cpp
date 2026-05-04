@@ -1,4 +1,5 @@
 #include "ExecutionContext.hpp"
+#include <cstddef>
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../value/ObjectInstancePool.hpp"
 #include <sstream>

@@ -1,4 +1,5 @@
 #include "PrimitiveMethodOptimizer.hpp"
+#include <cstddef>
 
 namespace vm::compiler {
 

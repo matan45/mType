@@ -1,5 +1,6 @@
 #pragma once
 #include "WorkspaceConfig.hpp"
+#include <cstddef>
 #include "ProjectBuilder.hpp"
 #include <functional>
 #include <chrono>

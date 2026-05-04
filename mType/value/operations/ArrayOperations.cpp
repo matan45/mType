@@ -1,4 +1,5 @@
 #include "ArrayOperations.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "../../errors/RuntimeException.hpp"
 #include "../simd/SIMDOperations.hpp"

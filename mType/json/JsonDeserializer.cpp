@@ -1,4 +1,5 @@
 #include "JsonDeserializer.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "JsonParser.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"

@@ -1,4 +1,5 @@
-﻿#include "InterfaceNode.hpp"
+#include "InterfaceNode.hpp"
+#include <cstddef>
 
 namespace ast::nodes::classes
 {

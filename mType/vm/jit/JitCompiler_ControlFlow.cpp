@@ -1,4 +1,5 @@
 #include "JitEmissionState.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "JitHelpers.hpp"
 #include "../bytecode/OpCode.hpp"

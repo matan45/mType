@@ -1,4 +1,5 @@
 #include "OverloadResolutionHelper.hpp"
+#include <cstddef>
 #include "OverloadResolver.hpp"
 #include "../../../runtimeTypes/klass/SignatureUtils.hpp"
 #include "../../../errors/NoMatchingOverloadException.hpp"

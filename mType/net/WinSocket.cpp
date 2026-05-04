@@ -1,4 +1,5 @@
 #include "WinSocket.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "WinSockInit.hpp"
 

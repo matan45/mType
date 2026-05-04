@@ -1,4 +1,5 @@
 #include "FloatCache.hpp"
+#include <cstddef>
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include <cstring>
 

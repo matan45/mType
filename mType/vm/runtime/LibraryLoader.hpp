@@ -1,5 +1,6 @@
 #pragma once
 #include "../../project/mtclib/MtcLibFormat.hpp"
+#include <cstddef>
 #include "../../environment/Environment.hpp"
 #include "VirtualMachine.hpp"
 #include <memory>

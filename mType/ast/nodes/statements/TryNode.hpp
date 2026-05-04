@@ -1,5 +1,6 @@
 #pragma once
 #include "../../ASTNode.hpp"
+#include <cstddef>
 #include "CatchNode.hpp"
 #include <memory>
 #include <vector>

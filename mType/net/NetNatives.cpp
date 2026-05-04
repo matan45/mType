@@ -1,4 +1,5 @@
 #include "NetNatives.hpp"
+#include <cstddef>
 #include <cstdint>
 
 // Platform-specific network implementations

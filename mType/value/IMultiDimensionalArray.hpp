@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ValueType.hpp"
+#include <cstddef>
 #include <vector>
 #include <memory>
 

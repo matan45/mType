@@ -1,5 +1,6 @@
 #pragma once
 #include "../NativeArray.hpp"
+#include <cstddef>
 #include "../ValueType.hpp"
 #include "object/FlatMultiObjectArray.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"

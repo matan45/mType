@@ -1,4 +1,5 @@
 #include "TypeParser.hpp"
+#include <cstddef>
 #include "../errors/ParseException.hpp"
 #include "../ast/GenericType.hpp"
 #include "../types/TypeRegistry.hpp"

@@ -1,5 +1,6 @@
 #pragma once
 #include "../context/ExecutionContext.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../errors/RuntimeException.hpp"

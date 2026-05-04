@@ -1,4 +1,5 @@
 #include "WorkspaceBuilder.hpp"
+#include <cstddef>
 #include "../services/ScriptInterpreter.hpp"
 #include "../services/ImportManager.hpp"
 #include <iostream>

@@ -1,5 +1,6 @@
 #pragma once
 #include "CompilerContext.hpp"
+#include <cstddef>
 #include "../../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../../ast/nodes/statements/BlockNode.hpp"
 #include "../../../ast/nodes/statements/ProgramNode.hpp"

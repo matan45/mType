@@ -1,4 +1,5 @@
-﻿#include "Environment.hpp"
+#include "Environment.hpp"
+#include <cstddef>
 #include "../circularDependency/TrueCyclicException.hpp"
 #include "../circularDependency/DepthLimitException.hpp"
 #include "../validation/builtins/BuiltInAnnotations.hpp"

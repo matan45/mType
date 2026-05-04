@@ -1,4 +1,5 @@
 #include "TypeRegistry.hpp"
+#include <cstddef>
 #include <regex>
 #include <sstream>
 #include <algorithm>

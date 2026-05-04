@@ -1,4 +1,5 @@
 #include "ConstructorDefinition.hpp"
+#include <cstddef>
 #include "../../types/TypeConversionUtils.hpp"
 
 namespace runtimeTypes::klass

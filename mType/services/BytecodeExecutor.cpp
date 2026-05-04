@@ -1,4 +1,5 @@
 #include "BytecodeExecutor.hpp"
+#include <cstddef>
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../runtime/EventLoop.hpp"
 #include <stdexcept>

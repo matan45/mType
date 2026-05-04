@@ -1,4 +1,5 @@
 #include "DiagnosticsTestSuite.hpp"
+#include <cstddef>
 
 #include "../../diagnostics/Diagnostic.hpp"
 #include "../../diagnostics/DiagnosticBuilder.hpp"

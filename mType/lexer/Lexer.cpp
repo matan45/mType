@@ -1,4 +1,5 @@
 #include "Lexer.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <cctype>
 #include <charconv>

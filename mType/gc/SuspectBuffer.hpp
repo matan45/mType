@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <cstddef>
 #include <unordered_set>
 #include <mutex>
 #include "GCConfig.hpp"

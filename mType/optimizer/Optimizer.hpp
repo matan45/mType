@@ -1,6 +1,7 @@
 #pragma once
 
 #include "OptimizationConfig.hpp"
+#include <cstddef>
 #include "OptimizationResult.hpp"
 #include "OptimizationPassManager.hpp"
 #include "base/OptimizationContext.hpp"

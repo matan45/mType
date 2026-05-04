@@ -1,4 +1,5 @@
 #include "LambdaExecutor.hpp"
+#include <cstddef>
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../value/ValueObject.hpp"

@@ -1,4 +1,5 @@
-﻿#include "ConstructorNode.hpp"
+#include "ConstructorNode.hpp"
+#include <cstddef>
 #include "SuperConstructorCallNode.hpp"
 
 namespace ast::nodes::classes

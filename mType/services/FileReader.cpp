@@ -1,4 +1,5 @@
 #include "FileReader.hpp"
+#include <cstddef>
 #include <fstream>
 #include <sstream>
 #include <filesystem>

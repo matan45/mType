@@ -1,4 +1,5 @@
 #include "TypeInferenceEngine.hpp"
+#include <cstddef>
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../ast/nodes/expressions/IntegerNode.hpp"
 #include "../../../ast/nodes/expressions/FloatNode.hpp"

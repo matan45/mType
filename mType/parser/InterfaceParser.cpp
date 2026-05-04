@@ -1,4 +1,5 @@
-﻿#include "InterfaceParser.hpp"
+#include "InterfaceParser.hpp"
+#include <cstddef>
 #include "ParserConstants.hpp"
 #include "ParserContextState.hpp"
 #include "class/GenericParameterParser.hpp"

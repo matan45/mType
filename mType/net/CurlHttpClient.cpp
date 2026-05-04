@@ -1,6 +1,7 @@
 #ifndef _WIN32  // This entire file is Linux/macOS only
 
 #include "CurlHttpClient.hpp"
+#include <cstddef>
 #include <stdexcept>
 #include <sstream>
 #include <string>

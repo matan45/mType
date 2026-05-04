@@ -1,4 +1,5 @@
 #include "ObjectArrayBase.hpp"
+#include <cstddef>
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../../ValueTypeUtils.hpp"
 #include "../../ObjectInstancePool.hpp"

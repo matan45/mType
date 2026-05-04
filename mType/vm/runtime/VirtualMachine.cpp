@@ -1,4 +1,5 @@
 #include "VirtualMachine.hpp"
+#include <cstddef>
 #include <cstdint>
 // All executor headers needed for unique_ptr<Executor> default destructor
 #include "executors/StackOperationsExecutor.hpp"

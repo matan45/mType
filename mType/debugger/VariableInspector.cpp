@@ -1,4 +1,5 @@
 #include "VariableInspector.hpp"
+#include <cstddef>
 #include "DebuggerConstants.hpp"
 #include "../environment/manager/VariableManager.hpp"
 #include "../environment/manager/ScopeManager.hpp"

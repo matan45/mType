@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <cstddef>
 #include <unordered_map>
 #include <unordered_set>
 #include "../../bytecode/OpCode.hpp"

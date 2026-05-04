@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 #include "../../runtimeTypes/global/VariableDefinition.hpp"
+#include <cstddef>
 #include <unordered_map>
 #include <memory>
 #include <string>

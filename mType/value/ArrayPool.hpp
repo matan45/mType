@@ -1,5 +1,6 @@
 #pragma once
 #include "FlatMultiArray.hpp"
+#include <cstddef>
 #include "SparseMultiArray.hpp"
 #include <unordered_map>
 #include <vector>

@@ -1,4 +1,5 @@
 #include "ClassCompiler.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "GenericScopeHelper.hpp"
 #include "../validation/CompileTimeValidator.hpp"

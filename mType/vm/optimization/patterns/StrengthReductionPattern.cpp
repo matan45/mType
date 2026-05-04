@@ -1,4 +1,5 @@
 #include "StrengthReductionPattern.hpp"
+#include <cstddef>
 #include "PatternSafetyHelper.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../analysis/ControlFlowAnalyzer.hpp"

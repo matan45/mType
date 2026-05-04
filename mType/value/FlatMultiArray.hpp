@@ -1,5 +1,6 @@
 #pragma once
 #include "MultiArrayBase.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 #include <memory>

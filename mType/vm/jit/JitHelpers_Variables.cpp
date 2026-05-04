@@ -1,4 +1,5 @@
 #include "JitHelpers.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "guards/DeoptimizationHandler.hpp"
 #include "../../errors/RuntimeException.hpp"

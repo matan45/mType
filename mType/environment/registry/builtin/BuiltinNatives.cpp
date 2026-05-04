@@ -1,4 +1,5 @@
 #include "BuiltinNatives.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "ValuePrinter.hpp"
 #include "../NativeBinder.hpp"

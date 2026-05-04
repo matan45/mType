@@ -1,4 +1,5 @@
 #include "CompileTimeValidator.hpp"
+#include <cstddef>
 #include "../../MethodSignature.hpp"
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/EnvironmentException.hpp"

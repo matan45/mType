@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <cstddef>
 #include "../context/ExecutionContext.hpp"
 #include "ErrorLocationHelper.hpp"
 

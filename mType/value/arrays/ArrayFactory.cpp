@@ -1,4 +1,5 @@
 #include "ArrayFactory.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "../FlatMultiArray.hpp"
 #include "../SparseMultiArray.hpp"

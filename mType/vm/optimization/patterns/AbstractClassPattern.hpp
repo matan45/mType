@@ -1,5 +1,6 @@
 #pragma once
 #include "../OptimizationPattern.hpp"
+#include <cstddef>
 #include "../../bytecode/BytecodeProgram.hpp"
 
 namespace vm::optimization::patterns

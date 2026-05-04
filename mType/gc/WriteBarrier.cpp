@@ -1,4 +1,5 @@
 #include "WriteBarrier.hpp"
+#include <cstddef>
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../vm/runtime/context/ExecutionContext.hpp"
 #include "../value/NativeArray.hpp"

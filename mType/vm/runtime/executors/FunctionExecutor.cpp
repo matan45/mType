@@ -1,4 +1,5 @@
 #include "FunctionExecutor.hpp"
+#include <cstddef>
 #include "../../../errors/SourceLocation.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"

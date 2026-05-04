@@ -1,5 +1,6 @@
 #pragma once
 #include "../base/IArray.hpp"
+#include <cstddef>
 #include "../primitive/PrimitiveArray.hpp"
 #include "../string/StringArray.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"

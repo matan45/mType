@@ -1,5 +1,6 @@
 #pragma once
 #include "../context/ExecutionContext.hpp"
+#include <cstddef>
 #include "../../jit/ic/InlineCacheTable.hpp"
 #include "../../jit/ic/InlineCacheTypes.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"

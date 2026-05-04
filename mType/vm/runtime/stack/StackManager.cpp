@@ -1,4 +1,5 @@
 #include "StackManager.hpp"
+#include <cstddef>
 #include "../../../errors/RuntimeException.hpp"
 
 namespace vm::runtime

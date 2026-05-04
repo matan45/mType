@@ -1,4 +1,5 @@
-﻿#include "BlockNode.hpp"
+#include "BlockNode.hpp"
+#include <cstddef>
 #include "../../utils/ASTNodeUtils.hpp"
 
 namespace ast::nodes::statements

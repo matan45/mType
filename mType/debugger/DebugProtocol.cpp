@@ -1,4 +1,5 @@
 #include "DebugProtocol.hpp"
+#include <cstddef>
 #include "VariableInspector.hpp"
 #include "VMVariableInspector.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"

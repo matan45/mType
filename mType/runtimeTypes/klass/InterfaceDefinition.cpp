@@ -1,4 +1,5 @@
 #include "InterfaceDefinition.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "ClassDefinition.hpp"
 #include "MethodDefinition.hpp"

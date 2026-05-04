@@ -1,4 +1,5 @@
 #include "VMVariableInspector.hpp"
+#include <cstddef>
 #include "DebuggerConstants.hpp"
 #include "../vm/runtime/stack/StackManager.hpp"
 #include "../vm/runtime/context/ExecutionContext.hpp"

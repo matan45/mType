@@ -1,5 +1,6 @@
 #pragma once
 #include "../../bytecode/BytecodeProgram.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <stdexcept>
 #include <string>

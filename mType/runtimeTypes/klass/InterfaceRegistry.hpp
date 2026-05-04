@@ -1,6 +1,7 @@
 #pragma once
 
 #include "InterfaceDefinition.hpp"
+#include <cstddef>
 #include "../../circularDependency/CircularDependencyDetector.hpp"
 #include "../../circularDependency/CircularDependencyException.hpp"
 #include "../../circularDependency/DepthLimitException.hpp"

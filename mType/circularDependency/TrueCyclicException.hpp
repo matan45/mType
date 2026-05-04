@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 #include "DependencyType.hpp"
+#include <cstddef>
 #include "CircularDependencyException.hpp"
 #include "DependencyTypeUtils.hpp"
 

@@ -1,4 +1,5 @@
-﻿#include "ClassParser.hpp"
+#include "ClassParser.hpp"
+#include <cstddef>
 #include "ParserContextState.hpp"
 #include "class/ClassDeclarationParser.hpp"
 #include "class/ConstructorParser.hpp"

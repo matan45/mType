@@ -1,4 +1,5 @@
 #include "FieldInitializationValidator.hpp"
+#include <cstddef>
 #include "../../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../../ast/nodes/statements/BlockNode.hpp"
 #include "../../../ast/nodes/statements/ImportNode.hpp"

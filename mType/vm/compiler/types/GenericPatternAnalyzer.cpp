@@ -1,4 +1,5 @@
 #include "GenericPatternAnalyzer.hpp"
+#include <cstddef>
 #include "../../../errors/TypeException.hpp"
 #include <algorithm>
 

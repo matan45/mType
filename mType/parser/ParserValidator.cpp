@@ -1,4 +1,5 @@
-﻿#include "ParserValidator.hpp"
+#include "ParserValidator.hpp"
+#include <cstddef>
 #include <cctype>
 
 namespace parser

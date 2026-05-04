@@ -1,4 +1,5 @@
 #include "LambdaInterfaceInvocationNode.hpp"
+#include <cstddef>
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../value/ValueTypeUtils.hpp"
 #include <sstream>

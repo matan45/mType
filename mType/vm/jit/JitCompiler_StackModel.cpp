@@ -1,4 +1,5 @@
 #include "JitEmissionState.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <asmjit/x86.h>
 

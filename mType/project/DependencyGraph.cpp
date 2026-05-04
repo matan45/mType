@@ -1,4 +1,5 @@
 #include "DependencyGraph.hpp"
+#include <cstddef>
 #include <queue>
 #include <algorithm>
 #include <stack>

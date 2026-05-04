@@ -1,4 +1,5 @@
-﻿#include "ExpressionParser.hpp"
+#include "ExpressionParser.hpp"
+#include <cstddef>
 #include "TypeParser.hpp"
 #include "utilities/ParserUtils.hpp"
 #include "LambdaParser.hpp"

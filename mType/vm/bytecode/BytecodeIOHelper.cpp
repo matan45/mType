@@ -1,4 +1,5 @@
 #include "BytecodeIOHelper.hpp"
+#include <cstddef>
 #include <istream>
 #include <ostream>
 

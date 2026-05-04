@@ -1,4 +1,5 @@
-﻿#include "ScriptInterpreter.hpp"
+#include "ScriptInterpreter.hpp"
+#include <cstddef>
 #include "../errors/ParseException.hpp"
 #include <iostream>
 #include <filesystem>

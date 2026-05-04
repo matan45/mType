@@ -1,4 +1,5 @@
 #include "ProfilerContext.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 

@@ -1,4 +1,5 @@
 #include "GenericTypeSubstitutionContext.hpp"
+#include <cstddef>
 
 namespace ast
 {

@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 #include <unordered_map>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>

@@ -1,4 +1,5 @@
-﻿#include "CircularDependencyDetector.hpp"
+#include "CircularDependencyDetector.hpp"
+#include <cstddef>
 #include "TrueCyclicException.hpp"
 #include "DepthLimitException.hpp"
 #include <sstream>

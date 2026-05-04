@@ -1,4 +1,5 @@
 #include "InlineCacheExecutor.hpp"
+#include <cstddef>
 #include <cstdint>
 #include <algorithm>
 #include <cassert>

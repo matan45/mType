@@ -1,4 +1,5 @@
 #include "JitCompiler.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "JitEmissionState.hpp"
 #include "JitHelpers.hpp"

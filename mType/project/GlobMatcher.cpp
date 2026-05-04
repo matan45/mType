@@ -1,4 +1,5 @@
 #include "GlobMatcher.hpp"
+#include <cstddef>
 #include <algorithm>
 #include <regex>
 

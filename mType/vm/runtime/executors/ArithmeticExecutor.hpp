@@ -1,5 +1,6 @@
 #pragma once
 #include "../context/ExecutionContext.hpp"
+#include <cstddef>
 #include "../../../errors/RuntimeException.hpp"
 #include "../../bytecode/OpCode.hpp"
 

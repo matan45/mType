@@ -1,4 +1,5 @@
 #include "SpecializedCollections.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "BoolCache.hpp"
 #include "FloatCache.hpp"

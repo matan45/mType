@@ -1,4 +1,5 @@
 #include "AnnotationValidator.hpp"
+#include <cstddef>
 #include "AnnotationUsageValidator.hpp"
 #include "../errors/InheritanceException.hpp"
 #include "../errors/TypeException.hpp"

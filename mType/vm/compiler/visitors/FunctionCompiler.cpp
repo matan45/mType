@@ -1,4 +1,5 @@
 #include "FunctionCompiler.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "FunctionCallHelper.hpp"
 #include "../../bytecode/OpCode.hpp"

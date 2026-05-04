@@ -1,5 +1,6 @@
 #pragma once
 #include "RuntimeException.hpp"
+#include <cstddef>
 #include <string>
 
 namespace errors

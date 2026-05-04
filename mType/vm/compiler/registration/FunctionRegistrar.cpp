@@ -1,4 +1,5 @@
 #include "FunctionRegistrar.hpp"
+#include <cstddef>
 #include "AnnotationRetention.hpp"
 #include "../../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../../ast/nodes/statements/BlockNode.hpp"

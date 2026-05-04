@@ -1,4 +1,5 @@
 #include "TryNode.hpp"
+#include <cstddef>
 #include "../../utils/ASTNodeUtils.hpp"
 
 namespace ast::nodes::statements

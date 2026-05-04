@@ -1,4 +1,5 @@
 #include "ComparisonExecutor.hpp"
+#include <cstddef>
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../value/ValueObject.hpp"
 #include "../../../value/ValueShim.hpp"

@@ -1,4 +1,5 @@
 #include "TestUtilities.hpp"
+#include <cstddef>
 #include "DebugSession.hpp"
 #include "ScriptAnalyzer.hpp"
 #include "ErrorReporting.hpp"

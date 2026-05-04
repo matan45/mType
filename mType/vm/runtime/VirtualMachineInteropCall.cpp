@@ -1,4 +1,5 @@
 #include "VirtualMachine.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "executors/ControlFlowExecutor.hpp"
 #include "utils/InteropExceptionDecorator.hpp"

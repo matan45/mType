@@ -1,6 +1,7 @@
 #ifndef _WIN32  // This entire file is Linux/macOS only
 
 #include "PosixSocket.hpp"
+#include <cstddef>
 #include <cstdint>
 
 #include <sys/socket.h>

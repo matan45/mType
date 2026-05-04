@@ -1,4 +1,5 @@
 #include "ClassRegistrar.hpp"
+#include <cstddef>
 #include "AnnotationRetention.hpp"
 #include "../BytecodeCompiler.hpp"
 #include "../validation/CompileTimeValidator.hpp"

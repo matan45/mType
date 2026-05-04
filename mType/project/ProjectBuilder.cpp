@@ -1,4 +1,5 @@
 #include "ProjectBuilder.hpp"
+#include <cstddef>
 #include "mtclib/MtcLibBuilder.hpp"
 #include "mtclib/MtcLibSerializer.hpp"
 #include "mtclib/ContentHash.hpp"

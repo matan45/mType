@@ -1,4 +1,5 @@
 #include "MethodDefinition.hpp"
+#include <cstddef>
 #include "../../parser/TypeParser.hpp"
 #include "../../ast/nodes/expressions/LambdaInterfaceInvocationNode.hpp"
 #include "../../types/TypeRegistry.hpp"

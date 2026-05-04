@@ -1,4 +1,5 @@
 #include "ControlFlowAnalyzer.hpp"
+#include <cstddef>
 #include "../../bytecode/OpCode.hpp"
 #include <queue>
 #include <algorithm>

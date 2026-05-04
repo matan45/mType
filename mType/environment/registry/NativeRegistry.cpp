@@ -1,4 +1,5 @@
 #include "NativeRegistry.hpp"
+#include <cstddef>
 #include "builtin/BuiltinNatives.hpp"
 #include <algorithm>
 

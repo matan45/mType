@@ -1,5 +1,6 @@
 #pragma once
 #include "CompilerContext.hpp"
+#include <cstddef>
 #include "../../../ast/nodes/classes/MethodNode.hpp"
 #include "../../../ast/nodes/classes/ConstructorNode.hpp"
 #include "../../../ast/nodes/classes/ClassNode.hpp"

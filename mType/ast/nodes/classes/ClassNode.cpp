@@ -1,4 +1,5 @@
-﻿#include "ClassNode.hpp"
+#include "ClassNode.hpp"
+#include <cstddef>
 
 namespace ast::nodes::classes
 {

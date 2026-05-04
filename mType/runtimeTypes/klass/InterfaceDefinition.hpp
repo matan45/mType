@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 #include "../Definition.hpp"
+#include <cstddef>
 #include "../../ast/GenericTypeParameter.hpp"
 #include "../../types/UnifiedType.hpp"
 #include "../../value/ValueType.hpp"

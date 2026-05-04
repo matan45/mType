@@ -1,4 +1,5 @@
 #include "XmlParser.hpp"
+#include <cstddef>
 #include <stdexcept>
 
 namespace project

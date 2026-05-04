@@ -1,4 +1,5 @@
 #include "NameValidator.hpp"
+#include <cstddef>
 #include "../../errors/ParseException.hpp"
 #include <cctype>
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "ValueType.hpp"
+#include <cstddef>
 
 namespace value {
     /**

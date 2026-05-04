@@ -1,4 +1,5 @@
 #include "TypeConversionBridge.hpp"
+#include <cstddef>
 #include <sstream>
 
 namespace types

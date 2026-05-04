@@ -1,5 +1,6 @@
 #pragma once
 #include <unordered_map>
+#include <cstddef>
 #include "InlineCacheTypes.hpp"
 
 namespace vm::jit::ic

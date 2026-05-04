@@ -1,4 +1,5 @@
 #include "EscapeAnalysisPass.hpp"
+#include <cstddef>
 #include "../OptimizationResult.hpp"
 #include "../base/OptimizationContext.hpp"
 

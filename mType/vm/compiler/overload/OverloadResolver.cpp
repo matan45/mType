@@ -1,4 +1,5 @@
 #include "OverloadResolver.hpp"
+#include <cstddef>
 #include "../../../types/TypeRegistry.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include <algorithm>

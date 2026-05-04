@@ -1,4 +1,5 @@
 #include "MethodSignature.hpp"
+#include <cstddef>
 #include "../ast/nodes/classes/MethodNode.hpp"
 #include "../runtimeTypes/klass/MethodDefinition.hpp"
 #include <sstream>

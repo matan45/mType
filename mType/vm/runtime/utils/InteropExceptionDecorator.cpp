@@ -1,4 +1,5 @@
 #include "InteropExceptionDecorator.hpp"
+#include <cstddef>
 #include "../../../errors/ScriptException.hpp"
 #include "../../../errors/SourceLocation.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"

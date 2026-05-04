@@ -1,4 +1,5 @@
 #include "VirtualMachine.hpp"
+#include <cstddef>
 #include <cstdint>
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/ClassNotFoundException.hpp"

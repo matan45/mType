@@ -1,4 +1,5 @@
 #include "TestCase.hpp"
+#include <cstddef>
 #include "../../errors/UndefinedException.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../errors/ParseException.hpp"

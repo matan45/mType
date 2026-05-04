@@ -1,4 +1,5 @@
 #include "UnifiedType.hpp"
+#include <cstddef>
 #include <sstream>
 #include <stdexcept>
 #include <algorithm>

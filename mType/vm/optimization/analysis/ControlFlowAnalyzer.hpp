@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <cstddef>
 #include <unordered_map>
 #include <unordered_set>
 #include "JumpTargetTracker.hpp"
