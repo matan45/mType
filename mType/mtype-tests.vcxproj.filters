@@ -3607,6 +3607,9 @@
     <None Include="tests\testFiles\class\error\superSyntax.mt">
       <Filter>testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\synthGrandparentDeclaresEqualsChildDoesNot.mt">
+      <Filter>testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\synthParentDeclaresEqualsChildDoesNot.mt">
       <Filter>testFiles\class\error</Filter>
     </None>

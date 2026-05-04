@@ -121,6 +121,10 @@ namespace optimizer::passes::structural_equality
 
         // Given a field, returns the AST that produces its hash int.
         // Caller composes it as `result = 31 * result + <component>`.
+        // NOTE: BOOL/FLOAT branches below are unreachable in Phase 1 —
+        // StructuralEqualityPolicy::allFieldsSafeForSynthesis gates non-INT
+        // primitives out today. Pre-staged so codegen is ready when the
+        // gate relaxes in Phase 1.5+.
         std::unique_ptr<ASTNode> makeHashComponent(const FieldNode* field)
         {
             FieldKind kind = classifyField(field);
@@ -132,16 +136,17 @@ namespace optimizer::passes::structural_equality
             }
             if (kind == FieldKind::BOOL)
             {
-                // ternary unavailable cleanly here without complicating the
-                // op budget; emit `(this.f ? 1231 : 1237)` via inline
-                // expansion would need TernaryExpNode + extra ops. Cheaper:
-                // call .hashCode() through Bool wrapper. The protocol fast
-                // path handles Bool.hashCode in the JIT.
+                // Phase 1.5+: ternary unavailable cleanly here without
+                // complicating the op budget; emit `(this.f ? 1231 : 1237)`
+                // via inline expansion would need TernaryExpNode + extra
+                // ops. Cheaper: call .hashCode() through Bool wrapper.
+                // The protocol fast path handles Bool.hashCode in the JIT.
                 return makeMethodCall(std::move(thisField), "hashCode");
             }
             if (kind == FieldKind::FLOAT)
             {
-                // Same reasoning as BOOL — Float wrapper protocol fast path.
+                // Phase 1.5+: same reasoning as BOOL — Float wrapper
+                // protocol fast path.
                 return makeMethodCall(std::move(thisField), "hashCode");
             }
             // OBJECT: needs null-guard if nullable.
@@ -229,6 +234,10 @@ namespace optimizer::passes::structural_equality
         // ---- equals component synthesis ---------------------------------
 
         // For each field, emit `if (<this.f != o.f>) return false;`.
+        // NOTE: FLOAT/BOOL fall into the same fast `!=` branch below but
+        // are unreachable in Phase 1 (Policy gates them out). Pre-staged
+        // for Phase 1.5+ so this path doesn't need a follow-up edit when
+        // the gate relaxes.
         std::unique_ptr<ASTNode> makeFieldInequalityEarlyOut(
             const FieldNode* field, const std::string& castedLocal)
         {

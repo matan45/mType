@@ -1,4 +1,5 @@
 a equals b: true
 a equals c: false
+a equals null: false
 a has hashCode: true
 a toString not empty: true

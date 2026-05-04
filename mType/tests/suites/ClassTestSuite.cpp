@@ -322,6 +322,9 @@ namespace tests::testSuite
         addTestFromFile("Synth Parent Declares Equals Child Does Not (MYT-274)",
                         errorPath + "synthParentDeclaresEqualsChildDoesNot.mt",
                         TestType::ERROR_EXPECTED);
+        addTestFromFile("Synth Grandparent Declares Equals Child Does Not (MYT-274)",
+                        errorPath + "synthGrandparentDeclaresEqualsChildDoesNot.mt",
+                        TestType::ERROR_EXPECTED);
         addTestFromFile("Null Pointer Access Error",
                         errorPath + "nullPointerAccess.mt",
                         TestType::ERROR_EXPECTED);

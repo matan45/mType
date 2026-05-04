@@ -150,6 +150,7 @@ namespace optimizer::passes::structural_equality
         if (childHasHash && childHasEq) return;  // child fully overrides — fine.
 
         const ast::ClassNode* current = node;
+        size_t depth = 0;
         while (current && current->hasParentClass())
         {
             const std::string& parentName = current->getParentClassName();
@@ -162,9 +163,11 @@ namespace optimizer::passes::structural_equality
             const bool parentHasEq = declaresEquals(parent);
             if (parentHasHash || parentHasEq)
             {
+                const std::string relation =
+                    depth == 0 ? "inherits from" : "transitively inherits from";
                 throw errors::InheritanceException(
                     "Class '" + node->getClassName() +
-                    "' inherits from '" + parent->getClassName() +
+                    "' " + relation + " '" + parent->getClassName() +
                     "' which declares its own hashCode/equals; '" +
                     node->getClassName() +
                     "' must override BOTH explicitly. Auto-synthesizing only "
@@ -175,6 +178,7 @@ namespace optimizer::passes::structural_equality
                     node->getLocation());
             }
             current = parent;
+            ++depth;
         }
     }
 }

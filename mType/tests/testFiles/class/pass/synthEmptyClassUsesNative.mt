@@ -1,6 +1,7 @@
 // MYT-274: zero-field user class skips synthesis (no fields to hash); the
-// inherited Object native still applies and structural-equality contract
-// holds (an instance equals itself, two distinct instances do not).
+// inherited Object native still applies. With no fields to differ on,
+// structural equality is trivial: an instance equals itself, and two
+// distinct instances also equal (nothing to compare).
 
 class Empty {
     public constructor() {

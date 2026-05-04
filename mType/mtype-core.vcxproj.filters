@@ -428,6 +428,9 @@
     <ClCompile Include="value\SpecializedCollections.cpp">
       <Filter>value</Filter>
     </ClCompile>
+    <ClCompile Include="value\SpecializedCollectionsBoxing.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
     <ClCompile Include="value\StringCache.cpp">
       <Filter>value</Filter>
     </ClCompile>

@@ -23,6 +23,11 @@ namespace value
     //     workloads don't grow the wrapper cache without bound.
     //
     // String is a `value class`, so identity reuse is safe.
+    //
+    // Threading: assumes the single-threaded VM contract — `cache_`,
+    // `insertOrder_`, and `emptyInstance_` are mutated without
+    // synchronization. If async work is ever scheduled to a worker pool,
+    // gate population behind a mutex.
     class StringCache
     {
     public:

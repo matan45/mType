@@ -12,6 +12,10 @@ namespace value
     // cached entry, and so +0.0 is distinguished from -0.0 (only +0.0 is
     // cached). Mirrors IntegerCache / BoolCache: lazily populated since the
     // Float class definition is loaded after VM startup.
+    //
+    // Threading: assumes the single-threaded VM contract — `cache_` and
+    // `initialized_` are mutated without synchronization. If async work
+    // is ever scheduled to a worker pool, gate population behind a mutex.
     class FloatCache
     {
     public:
