@@ -256,6 +256,7 @@ namespace ast::nodes::classes
         );
         cloned->setAbstract(abstractMethod);
         cloned->setFinal(finalMethod);
+        cloned->setSynthetic(synthetic);
 
         // Clone annotations
         auto cloneAnnotation = [](const std::shared_ptr<annotations::AnnotationNode>& annotation)

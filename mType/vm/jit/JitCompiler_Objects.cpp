@@ -1837,14 +1837,20 @@ namespace vm::jit
         Gp acReg = cc.new_gp64();
         cc.mov(acReg, static_cast<int64_t>(argCount));
         InvokeNode* inv;
-        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_new_object),
+        const uint64_t helper =
+            (instr.opcode == OpCode::NEW_VALUE_OBJECT)
+                ? reinterpret_cast<uint64_t>(jit_new_value_object)
+                : reinterpret_cast<uint64_t>(jit_new_object);
+        cc.invoke(Out(inv), helper,
                   FuncSignature::build<void, value::Value*, JitContext*,
                       uint32_t, size_t>());
         inv->set_arg(0, dest);
         inv->set_arg(1, s.ctxPtr);
         inv->set_arg(2, ciReg);
         inv->set_arg(3, acReg);
-        s.slotTypes.push_back(SlotType::OBJECT);
+        s.slotTypes.push_back(instr.opcode == OpCode::NEW_VALUE_OBJECT
+                                  ? SlotType::VALUE_OBJECT
+                                  : SlotType::OBJECT);
         s.stackDepth++;
         return true;
     }
@@ -2182,6 +2188,9 @@ namespace vm::jit
 
             case OpCode::OBJECT_TO_VALUE:
             {
+                if (topType(s) == SlotType::VALUE_OBJECT)
+                    return true;
+
                 Gp addr = cc.new_gp64();
                 cc.lea(addr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
                 InvokeNode* inv;
@@ -2190,6 +2199,100 @@ namespace vm::jit
                 inv->set_arg(0, addr);
                 popType(s);
                 s.slotTypes.push_back(SlotType::VALUE_OBJECT);
+                return true;
+            }
+
+            // MYT-274 Phase 2 v2: structural-equality fused opcodes — emit
+            // a direct call to the JIT helper that reads the raw int
+            // fields and computes hash / equality without per-field
+            // operand-stack churn. The slot-indices array lives inside the
+            // Instruction's operand vector, which is stable for the
+            // program's lifetime (no realloc after compile), so we pass
+            // &operands[1] / &operands[2] as a raw pointer.
+            case OpCode::STRUCT_HASH_INT:
+            {
+                if (instr.operands.empty()) { s.compileFailed = true; return true; }
+                const uint64_t fieldCount = instr.operands[0];
+                if (instr.operands.size() < 1 + fieldCount)
+                {
+                    s.compileFailed = true;
+                    return true;
+                }
+                const uint64_t* slotsPtr = instr.operands.data() + 1;
+
+                Gp receiverAddr = cc.new_gp64();
+                cc.lea(receiverAddr, Mem(s.boxedBase,
+                    static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
+
+                Gp slotsImm = cc.new_gp64();
+                cc.mov(slotsImm, reinterpret_cast<uint64_t>(slotsPtr));
+
+                Gp result = cc.new_gp64();
+                InvokeNode* inv;
+                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_struct_hash_int),
+                          FuncSignature::build<int64_t, const value::Value*,
+                                                uint64_t, const uint64_t*>());
+                inv->set_arg(0, receiverAddr);
+                inv->set_arg(1, fieldCount);
+                inv->set_arg(2, slotsImm);
+                inv->set_ret(0, result);
+
+                popType(s);
+                s.slotTypes.push_back(SlotType::INT);
+                publishGpHint(s, s.stackDepth - 1, result);
+                return true;
+            }
+            case OpCode::STRUCT_EQ_INT:
+            {
+                if (instr.operands.size() < 2) { s.compileFailed = true; return true; }
+                const uint64_t classNameIdx = instr.operands[0];
+                const uint64_t fieldCount = instr.operands[1];
+                if (instr.operands.size() < 2 + fieldCount)
+                {
+                    s.compileFailed = true;
+                    return true;
+                }
+                const uint64_t* slotsPtr = instr.operands.data() + 2;
+
+                // Class-name string lives in the ConstantPool; storage is
+                // stable for the program's lifetime, so a c_str() pointer
+                // survives until the helper returns.
+                const std::string& className =
+                    s.program.getConstantPool().getString(classNameIdx);
+
+                // Stack: ..., this (depth-2), other (depth-1).
+                Gp thisAddr = cc.new_gp64();
+                cc.lea(thisAddr, Mem(s.boxedBase,
+                    static_cast<int32_t>((s.stackDepth - 2) * valueSize)));
+                Gp otherAddr = cc.new_gp64();
+                cc.lea(otherAddr, Mem(s.boxedBase,
+                    static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
+
+                Gp classNameImm = cc.new_gp64();
+                cc.mov(classNameImm, reinterpret_cast<uint64_t>(className.c_str()));
+
+                Gp slotsImm = cc.new_gp64();
+                cc.mov(slotsImm, reinterpret_cast<uint64_t>(slotsPtr));
+
+                Gp result = cc.new_gp64();
+                InvokeNode* inv;
+                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_struct_eq_int),
+                          FuncSignature::build<int64_t, const value::Value*,
+                                                const value::Value*, const char*,
+                                                uint64_t, const uint64_t*>());
+                inv->set_arg(0, thisAddr);
+                inv->set_arg(1, otherAddr);
+                inv->set_arg(2, classNameImm);
+                inv->set_arg(3, fieldCount);
+                inv->set_arg(4, slotsImm);
+                inv->set_ret(0, result);
+
+                // Pop 2, push 1 (net -1).
+                s.stackDepth--;
+                popType(s); // other
+                popType(s); // this
+                s.slotTypes.push_back(SlotType::BOOL);
+                publishGpHint(s, s.stackDepth - 1, result);
                 return true;
             }
 

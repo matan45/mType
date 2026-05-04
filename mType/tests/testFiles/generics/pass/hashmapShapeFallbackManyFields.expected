@@ -1,0 +1,6 @@
+size: 2
+get first: first
+has second: true
+has missing: false
+after remove size: 1
+has first after remove: false

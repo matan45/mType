@@ -2341,6 +2341,12 @@
     <None Include="tests\testFiles\benchmarks\collections_hash_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\collections_hash_user_class_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\collections_hash_user_class_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\collections_hashset_hot.expected">
       <Filter>testFiles\benchmarks</Filter>
     </None>
@@ -3601,6 +3607,12 @@
     <None Include="tests\testFiles\class\error\superSyntax.mt">
       <Filter>testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\synthGrandparentDeclaresEqualsChildDoesNot.mt">
+      <Filter>testFiles\class\error</Filter>
+    </None>
+    <None Include="tests\testFiles\class\error\synthParentDeclaresEqualsChildDoesNot.mt">
+      <Filter>testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\typeInvalidCast.mt">
       <Filter>testFiles\class\error</Filter>
     </None>
@@ -4262,6 +4274,48 @@
       <Filter>testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\superMethodAccess.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthEmptyClassUsesNative.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthEmptyClassUsesNative.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthEqualsContract.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthEqualsContract.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthEqualsTypeMismatch.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthEqualsTypeMismatch.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthHashCodeConsistency.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthHashCodeConsistency.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthHashMapKey.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthHashMapKey.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthInheritedFields.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthInheritedFields.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthValueClassUntouched.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthValueClassUntouched.mt">
       <Filter>testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\tryCatchFinallyWithReturn.expected">
@@ -6760,6 +6814,12 @@
     <None Include="tests\testFiles\generics\pass\erasureUnchecked.mt">
       <Filter>testFiles\generics\pass</Filter>
     </None>
+    <None Include="tests\testFiles\generics\pass\floatStringWrapperCache.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\floatStringWrapperCache.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
     <None Include="tests\testFiles\generics\pass\floatTypeInGenerics.expected">
       <Filter>testFiles\generics\pass</Filter>
     </None>
@@ -6887,6 +6947,30 @@
       <Filter>testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\hashmapHashsetOptimization.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\hashmapShapeFallbackManyFields.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\hashmapShapeFallbackManyFields.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\hashmapShapeFallbackParent.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\hashmapShapeFallbackParent.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\hashmapShapeFallbackUserEquals.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\hashmapShapeFallbackUserEquals.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\hashmapShapeSpecialization.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\hashmapShapeSpecialization.mt">
       <Filter>testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\inferArrayType.expected">

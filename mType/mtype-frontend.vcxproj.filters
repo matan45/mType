@@ -16,6 +16,9 @@
     <Filter Include="optimizer\passes\constant_folding">
       <UniqueIdentifier>{E1A28FFD-4D11-E57C-96FA-9F7C02A8DA18}</UniqueIdentifier>
     </Filter>
+    <Filter Include="optimizer\passes\structural_equality">
+      <UniqueIdentifier>{7B645079-674B-1271-109C-788EFC618BD7}</UniqueIdentifier>
+    </Filter>
     <Filter Include="parser">
       <UniqueIdentifier>{F28D3C14-DE2F-67EA-C7EA-7A3EB32BEE3A}</UniqueIdentifier>
     </Filter>
@@ -81,11 +84,20 @@
     <ClInclude Include="optimizer\passes\EscapeAnalysisPass.hpp">
       <Filter>optimizer\passes</Filter>
     </ClInclude>
+    <ClInclude Include="optimizer\passes\StructuralEqualitySynthesisPass.hpp">
+      <Filter>optimizer\passes</Filter>
+    </ClInclude>
     <ClInclude Include="optimizer\passes\constant_folding\ConstantEvaluator.hpp">
       <Filter>optimizer\passes\constant_folding</Filter>
     </ClInclude>
     <ClInclude Include="optimizer\passes\constant_folding\SafeArithmetic.hpp">
       <Filter>optimizer\passes\constant_folding</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\structural_equality\StructuralEqualityCodegen.hpp">
+      <Filter>optimizer\passes\structural_equality</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\structural_equality\StructuralEqualityPolicy.hpp">
+      <Filter>optimizer\passes\structural_equality</Filter>
     </ClInclude>
     <ClInclude Include="parser\AnnotationDeclarationParser.hpp">
       <Filter>parser</Filter>
@@ -269,11 +281,20 @@
     <ClCompile Include="optimizer\passes\EscapeAnalysisPass.cpp">
       <Filter>optimizer\passes</Filter>
     </ClCompile>
+    <ClCompile Include="optimizer\passes\StructuralEqualitySynthesisPass.cpp">
+      <Filter>optimizer\passes</Filter>
+    </ClCompile>
     <ClCompile Include="optimizer\passes\constant_folding\ConstantEvaluator.cpp">
       <Filter>optimizer\passes\constant_folding</Filter>
     </ClCompile>
     <ClCompile Include="optimizer\passes\constant_folding\SafeArithmetic.cpp">
       <Filter>optimizer\passes\constant_folding</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\structural_equality\StructuralEqualityCodegen.cpp">
+      <Filter>optimizer\passes\structural_equality</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\structural_equality\StructuralEqualityPolicy.cpp">
+      <Filter>optimizer\passes\structural_equality</Filter>
     </ClCompile>
     <ClCompile Include="parser\AnnotationDeclarationParser.cpp">
       <Filter>parser</Filter>

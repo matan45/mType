@@ -141,6 +141,15 @@ namespace runtimeTypes::klass
 
     void ClassDefinition::addInstanceMethod(const std::string& name, std::shared_ptr<MethodDefinition> method)
     {
+        // MYT-274: route compiler-synthesized methods into the separate
+        // syntheticInstanceMethods container so they don't perturb the
+        // user-method unordered_map's bucket layout (which would change
+        // reflection iteration order).
+        if (method && method->isSynthetic())
+        {
+            syntheticInstanceMethods[name].push_back(method);
+            return;
+        }
         // NEW: Support overloading - append to vector of overloads
         instanceMethods[name].push_back(method);
     }
@@ -434,15 +443,30 @@ namespace runtimeTypes::klass
 
     std::shared_ptr<MethodDefinition> ClassDefinition::findInstanceMethod(const std::string& methodName, size_t argCount) const
     {
+        // User-declared methods take precedence; check them first.
         auto it = instanceMethods.find(methodName);
         if (it != instanceMethods.end()) {
-            // Search all overloads for matching parameter count
             for (const auto& method : it->second) {
                 if (method) {
-                    // For instance methods, skip the first parameter ('this') when counting
                     size_t methodParamCount = method->getParameters().size();
                     if (!method->isStatic() && methodParamCount > 0) {
                         methodParamCount--; // Exclude 'this'
+                    }
+                    if (methodParamCount == argCount) {
+                        return method;
+                    }
+                }
+            }
+        }
+        // MYT-274: fall through to compiler-synthesized methods (only used
+        // when there's no user-declared override of the same signature).
+        auto sit = syntheticInstanceMethods.find(methodName);
+        if (sit != syntheticInstanceMethods.end()) {
+            for (const auto& method : sit->second) {
+                if (method) {
+                    size_t methodParamCount = method->getParameters().size();
+                    if (!method->isStatic() && methodParamCount > 0) {
+                        methodParamCount--;
                     }
                     if (methodParamCount == argCount) {
                         return method;
@@ -1152,45 +1176,39 @@ namespace runtimeTypes::klass
         const std::string& methodName,
         const std::vector<std::pair<std::string, value::ParameterType>>& parameters) const
     {
-        auto it = instanceMethods.find(methodName);
-        if (it == instanceMethods.end()) {
+        // Helper that searches a single map for an exact-signature match.
+        auto searchMap = [&](const std::unordered_map<std::string,
+            std::vector<std::shared_ptr<MethodDefinition>>>& methods)
+            -> std::shared_ptr<MethodDefinition>
+        {
+            auto it = methods.find(methodName);
+            if (it == methods.end()) return nullptr;
+            for (const auto& method : it->second) {
+                if (!method) continue;
+                const auto& methodParams = method->getParametersWithTypes();
+                std::vector<std::pair<std::string, value::ParameterType>> methodParamsWithoutThis;
+                for (const auto& param : methodParams) {
+                    if (param.first != "this") {
+                        methodParamsWithoutThis.push_back(param);
+                    }
+                }
+                if (methodParamsWithoutThis.size() != parameters.size()) continue;
+                bool allMatch = true;
+                for (size_t i = 0; i < parameters.size(); ++i) {
+                    if (!(methodParamsWithoutThis[i].second == parameters[i].second)) {
+                        allMatch = false;
+                        break;
+                    }
+                }
+                if (allMatch) return method;
+            }
             return nullptr;
-        }
+        };
 
-        // Search all overloads for exact signature match
-        for (const auto& method : it->second) {
-            if (!method) continue;
-
-            const auto& methodParams = method->getParametersWithTypes();
-
-            // IMPORTANT: Exclude 'this' parameter when comparing signatures
-            // Instance methods have an implicit 'this' parameter that should not affect signature matching
-            std::vector<std::pair<std::string, value::ParameterType>> methodParamsWithoutThis;
-            for (const auto& param : methodParams) {
-                if (param.first != "this") {
-                    methodParamsWithoutThis.push_back(param);
-                }
-            }
-
-            if (methodParamsWithoutThis.size() != parameters.size()) {
-                continue;
-            }
-
-            // Check if all parameter types match
-            bool allMatch = true;
-            for (size_t i = 0; i < parameters.size(); ++i) {
-                if (!(methodParamsWithoutThis[i].second == parameters[i].second)) {
-                    allMatch = false;
-                    break;
-                }
-            }
-
-            if (allMatch) {
-                return method;
-            }
-        }
-
-        return nullptr;
+        // User-declared methods take precedence; check them first.
+        if (auto m = searchMap(instanceMethods)) return m;
+        // MYT-274: fall through to compiler-synthesized methods.
+        return searchMap(syntheticInstanceMethods);
     }
 
     std::shared_ptr<MethodDefinition> ClassDefinition::findStaticMethodBySignature(
@@ -1264,22 +1282,26 @@ namespace runtimeTypes::klass
         const std::string& methodName,
         const std::string& typeSignature) const
     {
+        // User-declared methods take precedence; check them first.
         auto it = instanceMethods.find(methodName);
-        if (it == instanceMethods.end()) {
-            return nullptr;
-        }
-
-        // Search all overloads for matching type signature. getTypeSignature()
-        // is the canonical representation used in mangled bytecode names and
-        // skips implicit "this" for instance methods.
-        for (const auto& method : it->second) {
-            if (!method) continue;
-
-            if (method->getTypeSignature() == typeSignature) {
-                return method;
+        if (it != instanceMethods.end()) {
+            for (const auto& method : it->second) {
+                if (!method) continue;
+                if (method->getTypeSignature() == typeSignature) {
+                    return method;
+                }
             }
         }
-
+        // MYT-274: fall through to compiler-synthesized methods.
+        auto sit = syntheticInstanceMethods.find(methodName);
+        if (sit != syntheticInstanceMethods.end()) {
+            for (const auto& method : sit->second) {
+                if (!method) continue;
+                if (method->getTypeSignature() == typeSignature) {
+                    return method;
+                }
+            }
+        }
         return nullptr;
     }
 

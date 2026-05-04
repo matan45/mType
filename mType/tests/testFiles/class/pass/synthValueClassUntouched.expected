@@ -1,0 +1,5 @@
+size: 3
+get 1: one
+get 2: two
+contains 3: true
+contains 4: false

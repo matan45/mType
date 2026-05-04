@@ -53,6 +53,7 @@ namespace vm::runtime
         void handleSetStatic(const bytecode::BytecodeProgram::Instruction& instr);
 
         // Method calls
+        bool tryDispatchSpecializedCollectionCall(const bytecode::BytecodeProgram::Instruction& instr);
         void handleCallMethod(const bytecode::BytecodeProgram::Instruction& instr);
         void handleSuperConstructor(const bytecode::BytecodeProgram::Instruction& instr);
         void handleThisConstructor(const bytecode::BytecodeProgram::Instruction& instr);
@@ -65,6 +66,12 @@ namespace vm::runtime
         void handleIteratorHasNext(const bytecode::BytecodeProgram::Instruction& instr);
         void handleIteratorNext(const bytecode::BytecodeProgram::Instruction& instr);
         void handleIteratorClose(const bytecode::BytecodeProgram::Instruction& instr);
+
+        // MYT-274 Phase 2: structural-equality fused opcodes for compiler-
+        // synthesized hashCode / equals on int-only classes. Collapse a
+        // multi-op Horner / && chain into a single bytecode instruction.
+        void handleStructHashInt(const bytecode::BytecodeProgram::Instruction& instr);
+        void handleStructEqInt(const bytecode::BytecodeProgram::Instruction& instr);
 
         // Access context helpers (also used by InlineCacheExecutor)
         validation::AccessContext createAccessContext(

@@ -1,0 +1,6 @@
+size: 2
+get 1,2: origin-ish
+contains 1,2: true
+contains 99,99: false
+after remove size: 1
+contains 1,2 after remove: false

@@ -309,6 +309,10 @@ namespace vm::compiler::registration
                 // an `async function testX(): Promise<void>`).
                 methodDef->setIsAsync(methodNode->getIsAsync());
 
+                // MYT-274: propagate synthetic flag so reflection can filter
+                // compiler-generated hashCode/equals out of getDeclaredMethods().
+                methodDef->setSynthetic(methodNode->isSynthetic());
+
                 // Copy annotations from AST to runtime definition
                 // (drop SOURCE-retention per MYT-109).
                 for (const auto& annotation : methodNode->getAnnotations()) {

@@ -497,6 +497,11 @@ namespace vm::runtime
     {
         using namespace vm::jit::ic;
 
+        if (objectExecutor && objectExecutor->tryDispatchSpecializedCollectionCall(instr))
+        {
+            return;
+        }
+
         if (instr.operands.size() < 2)
         {
             // Fall back to generic handler
@@ -918,6 +923,11 @@ namespace vm::runtime
         const bytecode::BytecodeProgram::Instruction& instr,
         const bytecode::BytecodeProgram::CachedInstructionState& state)
     {
+        if (objectExecutor && objectExecutor->tryDispatchSpecializedCollectionCall(instr))
+        {
+            return;
+        }
+
         if (instr.operands.size() < 2 || !state.cachedMethodFunc || !state.cachedMethodShape)
         {
             deoptAndReprocess(instr);
@@ -1082,6 +1092,11 @@ namespace vm::runtime
         const bytecode::BytecodeProgram::Instruction& instr,
         const bytecode::BytecodeProgram::CachedInstructionState& state)
     {
+        if (objectExecutor && objectExecutor->tryDispatchSpecializedCollectionCall(instr))
+        {
+            return;
+        }
+
         if (instr.operands.size() < 2 || state.polyEntryCount == 0)
         {
             deoptPolyAndReprocess(instr);

@@ -405,6 +405,20 @@ namespace json
     {
         auto jsonArr = JsonValue::array();
 
+        if (auto* storage = obj->getSpecializedCollection())
+        {
+            auto keys = storage->materializeKeys(environment.get());
+            auto values = storage->materializeValues();
+            for (size_t i = 0; i < storage->size(); ++i)
+            {
+                auto entry = JsonValue::object();
+                entry->setProperty("key", serializeValue(keys->get(i)));
+                entry->setProperty("value", serializeValue(values->get(i)));
+                jsonArr->addToArray(std::move(entry));
+            }
+            return jsonArr;
+        }
+
         value::Value capVal = obj->getFieldValue("capacity");
         value::Value keysVal = obj->getFieldValue("keys");
         value::Value valsVal = obj->getFieldValue("values");
@@ -438,6 +452,16 @@ namespace json
         const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& obj)
     {
         auto jsonArr = JsonValue::array();
+
+        if (auto* storage = obj->getSpecializedCollection())
+        {
+            auto elements = storage->materializeKeys(environment.get());
+            for (size_t i = 0; i < storage->size(); ++i)
+            {
+                jsonArr->addToArray(serializeValue(elements->get(i)));
+            }
+            return jsonArr;
+        }
 
         value::Value capVal = obj->getFieldValue("capacity");
         value::Value elemsVal = obj->getFieldValue("elements");

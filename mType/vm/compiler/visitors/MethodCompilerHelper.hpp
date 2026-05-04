@@ -58,5 +58,13 @@ namespace vm::compiler::visitors
 
         // Type validation helper
         bool isValidTypeName(const std::string& typeName, const std::vector<std::string>& validGenericParams);
+
+        // MYT-274 Phase 2: structural-equality fast emit. If the method is a
+        // compiler-synthesized hashCode/equals on a class whose own instance
+        // fields are all int and that has no in-program parent (so no
+        // super-compose to honor), emit a single STRUCT_HASH_INT or
+        // STRUCT_EQ_INT fused opcode plus RETURN_VALUE, skipping body
+        // compilation entirely. Returns true if the fast path was emitted.
+        bool tryEmitStructuralFastBody(ast::MethodNode* node);
     };
 }

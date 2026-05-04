@@ -40,6 +40,7 @@ namespace runtimeTypes::klass
         fieldValues.clear();
         genericTypeBindings.clear();
         fieldVector.clear();
+        specializedCollection_.reset();
         gcRegistered = false;
         primitiveTag_ = value::PrimitiveTypeTag::NONE;
         classDefinition.reset();
@@ -275,6 +276,11 @@ namespace runtimeTypes::klass
             {
                 callback(ptr);
             }
+        }
+
+        if (specializedCollection_)
+        {
+            specializedCollection_->visitReferences(callback);
         }
     }
 
@@ -521,5 +527,29 @@ namespace runtimeTypes::klass
     const std::unordered_map<std::string, std::string>& ObjectInstance::getGenericTypeBindings() const
     {
         return genericTypeBindings;
+    }
+
+    void ObjectInstance::attachSpecializedCollection(
+        value::SpecializedCollectionStorage::Kind kind,
+        value::PrimitiveTypeTag keyTag,
+        size_t initialCapacity)
+    {
+        specializedCollection_ =
+            std::make_unique<value::SpecializedCollectionStorage>(kind, keyTag, initialCapacity);
+    }
+
+    void ObjectInstance::attachSpecializedShapeCollection(
+        value::SpecializedCollectionStorage::Kind kind,
+        value::ShapeDescriptor shape,
+        size_t initialCapacity)
+    {
+        if (shape.empty()) return;
+        specializedCollection_ =
+            std::make_unique<value::SpecializedCollectionStorage>(kind, std::move(shape), initialCapacity);
+    }
+
+    void ObjectInstance::clearSpecializedCollection()
+    {
+        specializedCollection_.reset();
     }
 }

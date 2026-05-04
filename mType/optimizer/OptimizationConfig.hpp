@@ -13,6 +13,7 @@ namespace optimizer {
 		bool enableDeadCodeElimination;
 		bool enableConstantFolding;
 		bool enableEscapeAnalysis;  // MYT-134
+		bool enableStructuralEqualitySynthesis;  // MYT-274: auto-synthesize hashCode/equals
 
 		// Performance limits
 		size_t maxPassIterations;
@@ -29,11 +30,13 @@ namespace optimizer {
 		bool isDeadCodeEliminationEnabled() const { return enableDeadCodeElimination; }
 		bool isConstantFoldingEnabled() const { return enableConstantFolding; }
 		bool isEscapeAnalysisEnabled() const { return enableEscapeAnalysis; }
+		bool isStructuralEqualitySynthesisEnabled() const { return enableStructuralEqualitySynthesis; }
 
 		// Pass-specific configuration
 		OptimizationConfig& setDeadCodeElimination(bool enable);
 		OptimizationConfig& setConstantFolding(bool enable);
 		OptimizationConfig& setEscapeAnalysis(bool enable);
+		OptimizationConfig& setStructuralEqualitySynthesis(bool enable);
 
 		// Performance limits
 		OptimizationConfig& setMaxPassIterations(size_t iterations);

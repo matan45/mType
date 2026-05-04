@@ -265,6 +265,24 @@ namespace tests::testSuite
         addOutputVerificationTest("Object Resource Cleanup",
                         passPath + "objectResourceCleanup.mt");
 
+        // === MYT-274: SYNTHESIZED hashCode / equals TESTS ===
+        // Compiler-generated fast hashCode/equals replace the slow string-based
+        // Object default for user classes that don't declare their own.
+        addOutputVerificationTest("Synth hashCode Consistency",
+                        passPath + "synthHashCodeConsistency.mt");
+        addOutputVerificationTest("Synth equals Contract",
+                        passPath + "synthEqualsContract.mt");
+        addOutputVerificationTest("Synth equals Type Mismatch",
+                        passPath + "synthEqualsTypeMismatch.mt");
+        addOutputVerificationTest("Synth Inherited Fields",
+                        passPath + "synthInheritedFields.mt");
+        addOutputVerificationTest("Synth Value Class Untouched",
+                        passPath + "synthValueClassUntouched.mt");
+        addOutputVerificationTest("Synth Empty Class Uses Native",
+                        passPath + "synthEmptyClassUsesNative.mt");
+        addOutputVerificationTest("Synth HashMap Key",
+                        passPath + "synthHashMapKey.mt");
+
         // === ADVANCED PATTERNS TESTS ===
         // Tests for advanced design patterns
 
@@ -301,6 +319,12 @@ namespace tests::testSuite
                         passPath + "functionScopingPass.mt");
 
         // Error tests (expected to fail)
+        addTestFromFile("Synth Parent Declares Equals Child Does Not (MYT-274)",
+                        errorPath + "synthParentDeclaresEqualsChildDoesNot.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Synth Grandparent Declares Equals Child Does Not (MYT-274)",
+                        errorPath + "synthGrandparentDeclaresEqualsChildDoesNot.mt",
+                        TestType::ERROR_EXPECTED);
         addTestFromFile("Null Pointer Access Error",
                         errorPath + "nullPointerAccess.mt",
                         TestType::ERROR_EXPECTED);

@@ -1,0 +1,6 @@
+reflexive: true
+symmetric pq: true
+symmetric qp: true
+transitive pr (via q): true
+differing not equal: false
+hash matches when equal: true

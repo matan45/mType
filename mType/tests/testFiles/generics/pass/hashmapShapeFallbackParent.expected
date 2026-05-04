@@ -1,0 +1,8 @@
+size: 3
+get 1,10: alpha
+has 2,20: true
+has 9,99: false
+after replace size: 3
+get 2,20: BETA
+after remove size: 2
+has 1,10 after remove: false

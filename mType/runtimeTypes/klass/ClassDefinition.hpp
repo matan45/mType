@@ -33,6 +33,15 @@ namespace runtimeTypes::klass
         std::unordered_map<std::string, std::shared_ptr<FieldDefinition>> instanceFields;
         // NEW: Support multiple overloads per method name
         std::unordered_map<std::string, std::vector<std::shared_ptr<MethodDefinition>>> instanceMethods;
+        // MYT-274: compiler-synthesized instance methods (auto hashCode/
+        // equals from StructuralEqualitySynthesisPass). Stored separately
+        // from `instanceMethods` so that adding them does NOT perturb the
+        // user-method unordered_map's bucket layout — preserving the
+        // iteration order observable via reflection's getDeclaredMethods.
+        // Method resolution (findInstanceMethod) consults both containers;
+        // user-declared methods take precedence over synthetic on lookup
+        // collisions.
+        std::unordered_map<std::string, std::vector<std::shared_ptr<MethodDefinition>>> syntheticInstanceMethods;
 
         // Static members
         std::unordered_map<std::string, std::shared_ptr<FieldDefinition>> staticFields;

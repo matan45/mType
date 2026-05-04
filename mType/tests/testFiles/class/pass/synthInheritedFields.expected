@@ -1,0 +1,4 @@
+equal both fields: true
+differing child field: false
+differing parent field: false
+hash equal both fields: true

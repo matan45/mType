@@ -8,6 +8,9 @@
 #include "../../profiler/ProfilerHookHelper.hpp"
 #include "../../../value/IntegerCache.hpp"
 #include "../../../value/BoolCache.hpp"
+#include "../../../value/FloatCache.hpp"
+#include "../../../value/StringCache.hpp"
+#include "../../../value/InternedString.hpp"
 #include "../../../value/ObjectInstancePool.hpp"
 #include "../../../value/ValueShim.hpp"
 #include "../../../value/SmallArgsBuffer.hpp"
@@ -69,6 +72,126 @@ namespace vm::runtime
         }
 
         return typeArgs;
+    }
+
+    static value::PrimitiveTypeTag specializableTypeNameToTag(const std::string& typeName)
+    {
+        if (typeName == "Int" || typeName == "int") return value::PrimitiveTypeTag::INT;
+        if (typeName == "Float" || typeName == "float") return value::PrimitiveTypeTag::FLOAT;
+        if (typeName == "Bool" || typeName == "bool") return value::PrimitiveTypeTag::BOOL;
+        if (typeName == "String" || typeName == "string") return value::PrimitiveTypeTag::STRING;
+        return value::PrimitiveTypeTag::NONE;
+    }
+
+    static bool isStdHashMapClass(const runtimeTypes::klass::ClassDefinition* classDef)
+    {
+        if (!classDef) return false;
+        return classDef->hasField("keys") &&
+               classDef->hasField("values") &&
+               classDef->hasField("hashes") &&
+               classDef->hasField("capacity") &&
+               classDef->hasField("count") &&
+               classDef->hasMethod("containsKey") &&
+               classDef->hasMethod("getKeys") &&
+               classDef->hasMethod("getValues");
+    }
+
+    static bool isStdHashSetClass(const runtimeTypes::klass::ClassDefinition* classDef)
+    {
+        if (!classDef) return false;
+        return classDef->hasField("elements") &&
+               classDef->hasField("hashes") &&
+               classDef->hasField("capacity") &&
+               classDef->hasField("count") &&
+               classDef->hasMethod("contains") &&
+               classDef->hasMethod("toArray");
+    }
+
+    static std::shared_ptr<runtimeTypes::klass::ClassDefinition> resolveKeyClass(
+        const std::shared_ptr<environment::registry::ClassRegistry>& classRegistry,
+        const std::string& keyTypeName)
+    {
+        if (!classRegistry) return nullptr;
+        // Strip generic suffix if present (e.g. "Foo<Int>" → "Foo"). Phase 1
+        // requires the K class itself to be non-generic per
+        // SpecializedCollectionStorage::isSpecializableShape; a parameterized
+        // K is rejected by that gate anyway, so a base-name lookup is fine.
+        std::string base = keyTypeName;
+        size_t lt = base.find('<');
+        if (lt != std::string::npos) base = base.substr(0, lt);
+        return classRegistry->findClass(base);
+    }
+
+    static bool tryAttachShapeCollection(
+        runtimeTypes::klass::ObjectInstance* instance,
+        value::SpecializedCollectionStorage::Kind kind,
+        const std::shared_ptr<environment::registry::ClassRegistry>& classRegistry,
+        const std::string& keyTypeName,
+        size_t initialCapacity)
+    {
+        auto keyClassDef = resolveKeyClass(classRegistry, keyTypeName);
+        if (!value::SpecializedCollectionStorage::isSpecializableShape(keyClassDef.get())) return false;
+        auto shape = value::SpecializedCollectionStorage::buildShapeDescriptor(keyClassDef);
+        if (shape.empty()) return false;
+        instance->attachSpecializedShapeCollection(kind, std::move(shape), initialCapacity);
+        return true;
+    }
+
+    static void attachSpecializedCollectionIfNeeded(
+        runtimeTypes::klass::ObjectInstance* instance,
+        const std::string& baseClassName,
+        const std::unordered_map<std::string, std::string>& genericTypeBindings,
+        size_t initialCapacity,
+        const std::shared_ptr<environment::registry::ClassRegistry>& classRegistry)
+    {
+        if (!instance) return;
+
+        if (baseClassName == "HashMap")
+        {
+            if (!isStdHashMapClass(instance->getClassDefinitionRaw())) return;
+            auto it = genericTypeBindings.find("K");
+            if (it == genericTypeBindings.end()) return;
+            const std::string& keyTypeName = it->second;
+            auto tag = specializableTypeNameToTag(keyTypeName);
+            if (value::SpecializedCollectionStorage::isSpecializableKeyTag(tag))
+            {
+                instance->attachSpecializedCollection(
+                    value::SpecializedCollectionStorage::Kind::MAP,
+                    tag,
+                    initialCapacity);
+                return;
+            }
+            tryAttachShapeCollection(
+                instance,
+                value::SpecializedCollectionStorage::Kind::MAP,
+                classRegistry,
+                keyTypeName,
+                initialCapacity);
+            return;
+        }
+
+        if (baseClassName == "HashSet")
+        {
+            if (!isStdHashSetClass(instance->getClassDefinitionRaw())) return;
+            auto it = genericTypeBindings.find("T");
+            if (it == genericTypeBindings.end()) return;
+            const std::string& keyTypeName = it->second;
+            auto tag = specializableTypeNameToTag(keyTypeName);
+            if (value::SpecializedCollectionStorage::isSpecializableKeyTag(tag))
+            {
+                instance->attachSpecializedCollection(
+                    value::SpecializedCollectionStorage::Kind::SET,
+                    tag,
+                    initialCapacity);
+                return;
+            }
+            tryAttachShapeCollection(
+                instance,
+                value::SpecializedCollectionStorage::Kind::SET,
+                classRegistry,
+                keyTypeName,
+                initialCapacity);
+        }
     }
 
     ObjectInstanceHelper::ObjectInstanceHelper(ExecutionContext& ctx)
@@ -966,8 +1089,66 @@ namespace vm::runtime
             }
         }
 
+        // MYT-272: Float caching for hand-picked common constants
+        // ({0.0, 1.0, -1.0, 0.5, -0.5, 2.0}). Bitwise-compared so NaN
+        // never aliases a cached entry.
+        if (baseClassName == "Float" && argCount == 1 && value::isFloat(args[0])) {
+            double floatValue = value::asFloat(args[0]);
+            if (value::FloatCache::isCacheable(floatValue)) {
+                auto classRegistry = context.environment->getClassRegistry();
+                auto floatClassDef = classRegistry ? classRegistry->findClass("Float") : nullptr;
+                if (floatClassDef) {
+                    auto cachedInstance = value::FloatCache::getFloat(floatValue, floatClassDef);
+                    if (cachedInstance) {
+                        invokeConstructor(value::Value(cachedInstance), baseClassName, args.span());
+                        return;
+                    }
+                }
+            }
+        }
+
+        // MYT-272: String wrapper caching keyed on StringPool interned id.
+        // Empty string is a singleton; non-empty content within StringPool
+        // intern range is cached up to StringCache::kMaxEntries with FIFO
+        // eviction.
+        if (baseClassName == "String" && argCount == 1) {
+            std::string strValue;
+            bool gotString = false;
+            if (value::isString(args[0])) {
+                strValue = value::asString(args[0]);
+                gotString = true;
+            } else if (value::isInternedString(args[0])) {
+                strValue = value::asInternedString(args[0]).getString();
+                gotString = true;
+            }
+            if (gotString) {
+                auto classRegistry = context.environment->getClassRegistry();
+                auto stringClassDef = classRegistry ? classRegistry->findClass("String") : nullptr;
+                if (stringClassDef) {
+                    auto cachedInstance = value::StringCache::getString(strValue, stringClassDef);
+                    if (cachedInstance) {
+                        invokeConstructor(value::Value(cachedInstance), baseClassName, args.span());
+                        return;
+                    }
+                }
+            }
+        }
+
+        size_t collectionInitialCapacity = 32;
+        if ((baseClassName == "HashMap" || baseClassName == "HashSet") &&
+            argCount == 1 && value::isInt(args[0]) && value::asInt(args[0]) > 0)
+        {
+            collectionInitialCapacity = static_cast<size_t>(value::asInt(args[0]));
+        }
+
         // Normal object creation path (non-cached or cache miss)
         auto instance = createObjectInstance(baseClassName, genericTypeBindings);
+        attachSpecializedCollectionIfNeeded(
+            instance.get(),
+            baseClassName,
+            genericTypeBindings,
+            collectionInitialCapacity,
+            context.environment->getClassRegistry());
 
         // Invoke constructor using the class definition's actual name
         // (handles aliases: "MyInt" resolves to same ClassDef as "Int",
@@ -1015,6 +1196,18 @@ namespace vm::runtime
             context.callStack.back().stackObjectsCount >= CallFrame::kStackObjectsCap)
         {
             auto instance = createObjectInstance(baseClassName, genericTypeBindings);
+            size_t collectionInitialCapacity = 32;
+            if ((baseClassName == "HashMap" || baseClassName == "HashSet") &&
+                argCount == 1 && value::isInt(args[0]) && value::asInt(args[0]) > 0)
+            {
+                collectionInitialCapacity = static_cast<size_t>(value::asInt(args[0]));
+            }
+            attachSpecializedCollectionIfNeeded(
+                instance.get(),
+                baseClassName,
+                genericTypeBindings,
+                collectionInitialCapacity,
+                classRegistry);
             std::string actualClassName = instance->getClassDefinition()->getName();
             invokeConstructor(value::Value(instance), actualClassName, args.span());
             return;
@@ -1026,8 +1219,21 @@ namespace vm::runtime
         // frame's stackObjects array — pushed there BEFORE invokeConstructor
         // so that an exception thrown inside the ctor body still releases
         // the slot via ExceptionHandler's frame-teardown path.
+        size_t collectionInitialCapacity = 32;
+        if ((baseClassName == "HashMap" || baseClassName == "HashSet") &&
+            argCount == 1 && value::isInt(args[0]) && value::asInt(args[0]) > 0)
+        {
+            collectionInitialCapacity = static_cast<size_t>(value::asInt(args[0]));
+        }
+
         auto* raw = value::ObjectInstancePool::getInstance().acquireRaw(classDef, genericTypeBindings);
         initializeObjectFields(raw, classDef);
+        attachSpecializedCollectionIfNeeded(
+            raw,
+            baseClassName,
+            genericTypeBindings,
+            collectionInitialCapacity,
+            classRegistry);
 
         // The cap-check above guarantees the inline array has room.
         context.callStack.back().tryPushStackObject(raw);

@@ -14,6 +14,7 @@
 #include "../../environment/Environment.hpp"
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../runtime/VirtualMachine.hpp"
+#include "../runtime/utils/BoxingUtils.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../runtimeTypes/klass/SignatureUtils.hpp"
@@ -40,6 +41,126 @@ namespace vm::jit
             return value::classNameToPrimitiveTag(raw->getClassDefinition()->getName());
         }
         return value::PrimitiveTypeTag::NONE;
+    }
+
+    static bool trySpecializedCollectionCall(JitContext* ctx,
+                                             const std::string& rawMethodName,
+                                             size_t argCount)
+    {
+        if (!ctx || ctx->pendingException) return false;
+        value::Value& receiverValue = ctx->callArgs[0];
+        if (!value::isAnyObject(receiverValue)) return false;
+
+        auto* receiver = value::asObjectInstanceRaw(receiverValue);
+        if (!receiver) return false;
+
+        auto* storage = receiver->getSpecializedCollection();
+        if (!storage) return false;
+
+        const std::string methodName =
+            runtimeTypes::klass::SignatureUtils::extractSimpleName(rawMethodName);
+        if (!storage->isSpecializedMethod(methodName, argCount)) return false;
+
+        using Kind = value::SpecializedCollectionStorage::Kind;
+        if (storage->getKind() == Kind::MAP)
+        {
+            if (methodName == "put")
+            {
+                value::Value oldValue;
+                if (!storage->put(ctx->callArgs[1], ctx->callArgs[2], oldValue))
+                    oldValue = nullptr;
+                ctx->returnValue = oldValue;
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "get")
+            {
+                value::Value result;
+                if (!storage->get(ctx->callArgs[1], result)) result = nullptr;
+                ctx->returnValue = result;
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "containsKey")
+            {
+                ctx->returnValue = storage->containsKey(ctx->callArgs[1]);
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "remove")
+            {
+                ctx->returnValue = storage->remove(ctx->callArgs[1]);
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "getKeys" || methodName == "toArray")
+            {
+                ctx->returnValue = storage->materializeKeys(ctx->environment);
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "getValues")
+            {
+                ctx->returnValue = storage->materializeValues();
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "containsValue")
+            {
+                ctx->returnValue = storage->containsStoredValue(ctx->callArgs[1]);
+                ctx->hasReturnValue = true;
+                return true;
+            }
+        }
+        else
+        {
+            if (methodName == "add")
+            {
+                ctx->returnValue = storage->add(ctx->callArgs[1]);
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "contains")
+            {
+                ctx->returnValue = storage->contains(ctx->callArgs[1]);
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "remove")
+            {
+                ctx->returnValue = storage->remove(ctx->callArgs[1]);
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "toArray")
+            {
+                ctx->returnValue = storage->materializeKeys(ctx->environment);
+                ctx->hasReturnValue = true;
+                return true;
+            }
+        }
+
+        if (methodName == "size")
+        {
+            ctx->returnValue = static_cast<int64_t>(storage->size());
+            ctx->hasReturnValue = true;
+            return true;
+        }
+        if (methodName == "empty")
+        {
+            ctx->returnValue = storage->empty();
+            ctx->hasReturnValue = true;
+            return true;
+        }
+        if (methodName == "clear")
+        {
+            storage->clear();
+            ctx->returnValue = std::monostate{};
+            ctx->hasReturnValue = true;
+            return true;
+        }
+
+        return false;
     }
 
     static const value::Value* getPrimitiveProtocolField0(const value::Value& v) noexcept
@@ -296,6 +417,11 @@ namespace vm::jit
 
             const std::string& methodName = ctx->program->getConstantPool().getString(methodNameIndex);
 
+            if (trySpecializedCollectionCall(ctx, methodName, argCount))
+            {
+                return;
+            }
+
             std::vector<value::Value> args;
             for (size_t i = 1; i <= argCount; i++)
             {
@@ -433,6 +559,13 @@ namespace vm::jit
                 ctx->returnValue = ctx->vm->invokeLambda(
                     lambda, &ctx->callArgs[1], argCount);
                 ctx->hasReturnValue = true;
+                return;
+            }
+
+            const std::string& rawMethodName =
+                ctx->program->getConstantPool().getString(methodNameIndex);
+            if (trySpecializedCollectionCall(ctx, rawMethodName, argCount))
+            {
                 return;
             }
 
@@ -890,6 +1023,44 @@ namespace vm::jit
         }
     }
 
+    void jit_new_value_object(value::Value* dest, JitContext* ctx,
+                              uint32_t classIndex, size_t argCount)
+    {
+        if (ctx->pendingException)
+            return;
+
+        try
+        {
+            const std::string& className = ctx->program->getConstantPool().getString(classIndex);
+            std::span<const value::Value> args(ctx->callArgs, argCount);
+
+            value::Value direct;
+            if (vm::runtime::utils::tryCreatePrimitiveValueObject(
+                    className, args, ctx->environment, direct))
+            {
+                *dest = std::move(direct);
+                return;
+            }
+
+            if (ctx->vm)
+            {
+                *dest = ctx->vm->createObject(className, args);
+                jit_object_to_value(dest);
+                return;
+            }
+
+            throw errors::RuntimeException("JIT: cannot create value object '" + className + "'");
+        }
+        catch (const OSRDeoptException&)
+        {
+            throw;
+        }
+        catch (...)
+        {
+            ctx->pendingException = std::current_exception();
+        }
+    }
+
     // MYT-208: JIT helper for NEW_STACK. Calls VirtualMachine::createStackObject
     // which hits the trivial-ctor fast path with acquireRaw + push to current
     // frame's stackObjects + STACK_OBJECT Value emit. Non-trivial ctors fall
@@ -1281,5 +1452,96 @@ namespace vm::jit
 
         instance->setField(fieldName, *newValue);
         *destValue = *newValue;
+    }
+
+    // MYT-274 Phase 2 v2: structural-equality JIT helpers. Mirror the
+    // interpreter executors in ObjectExecutor::handleStructHashInt /
+    // handleStructEqInt — same Horner accumulation, same isClassOf gate.
+    // Called from JIT-emitted code so methods bodies that reduce to a
+    // single STRUCT_HASH_INT / STRUCT_EQ_INT can be JIT-compiled and
+    // (with the InlineAnalysis allow-list update below) inlined into hot
+    // callers like HashMap.containsKey.
+
+    int64_t jit_struct_hash_int(const value::Value* receiver,
+                                uint64_t fieldCount,
+                                const uint64_t* slots)
+    {
+        if (!receiver || (fieldCount > 0 && !slots)) return 1;
+
+        int64_t h = 1;
+
+        if (auto* raw = value::asObjectInstanceRaw(*receiver))
+        {
+            if (!raw->hasFieldVector()) return h;
+            for (uint64_t i = 0; i < fieldCount; ++i)
+            {
+                const value::Value& fv = raw->getFieldByIndex(static_cast<size_t>(slots[i]));
+                const int64_t iv = value::isInt(fv) ? value::asInt(fv) : 0;
+                h = h * 31 + iv;
+            }
+            return h;
+        }
+
+        if (value::isValueObject(*receiver))
+        {
+            auto vobj = value::asValueObject(*receiver);
+            for (uint64_t i = 0; i < fieldCount; ++i)
+            {
+                const value::Value& fv = vobj->getFieldByIndex(static_cast<size_t>(slots[i]));
+                const int64_t iv = value::isInt(fv) ? value::asInt(fv) : 0;
+                h = h * 31 + iv;
+            }
+        }
+        return h;
+    }
+
+    // Returns 1 for equal, 0 for not equal. asmjit's Gp is 64-bit so we
+    // pass the bool result back through int64_t to match the helper's
+    // FuncSignature. The caller writes it directly into the BOOL stack
+    // slot; only the low bit is read by downstream consumers.
+    int64_t jit_struct_eq_int(const value::Value* thisVal,
+                              const value::Value* otherVal,
+                              const char* className,
+                              uint64_t fieldCount,
+                              const uint64_t* slots)
+    {
+        if (!thisVal || !otherVal || !className) return 0;
+        if (value::isNullType(*otherVal)) return 0;
+
+        auto* thisRaw = value::asObjectInstanceRaw(*thisVal);
+        auto* otherRaw = value::asObjectInstanceRaw(*otherVal);
+        if (!thisRaw || !otherRaw) return 0;
+        if (!thisRaw->hasFieldVector() || !otherRaw->hasFieldVector()) return 0;
+
+        const std::string& otherClassName = otherRaw->getClassDefinition()->getName();
+        const std::string ownerClass(className);
+        if (otherClassName != ownerClass)
+        {
+            // Exact class match short-circuits the subclass walk for the
+            // common HashMap<UserClass, V> case where every key is the
+            // same class. Walk the parent chain only when the names
+            // differ — covers the rare polymorphic-key scenario.
+            // getParentClass() already returns a locked shared_ptr; we
+            // hold it across each iteration to keep the def alive.
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> defHolder =
+                otherRaw->getClassDefinition();
+            bool match = false;
+            while (defHolder)
+            {
+                if (defHolder->getName() == ownerClass) { match = true; break; }
+                defHolder = defHolder->getParentClass();
+            }
+            if (!match) return 0;
+        }
+
+        for (uint64_t i = 0; i < fieldCount; ++i)
+        {
+            const value::Value& a = thisRaw->getFieldByIndex(static_cast<size_t>(slots[i]));
+            const value::Value& b = otherRaw->getFieldByIndex(static_cast<size_t>(slots[i]));
+            const int64_t ai = value::isInt(a) ? value::asInt(a) : 0;
+            const int64_t bi = value::isInt(b) ? value::asInt(b) : 0;
+            if (ai != bi) return 0;
+        }
+        return 1;
     }
 }
