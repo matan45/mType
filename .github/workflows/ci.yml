@@ -21,9 +21,8 @@ jobs:
           - os: windows-latest
             name: Windows (MSVC x64)
             premake_action: vs2022
-            build_cmd: |
-              msbuild Interpreter.sln /p:Configuration=Release /p:Platform=x64 /m /nologo \
-                /clp:"Summary;ErrorsOnly"
+            build_shell: pwsh
+            build_cmd: msbuild Interpreter.sln /p:Configuration=Release /p:Platform=x64 /m /nologo /clp:"Summary;ErrorsOnly"
             test_cmd: bin\mType\Release\x64\mType.exe --tests
             premake_install: ""
             deps_install: ""
@@ -32,6 +31,7 @@ jobs:
           - os: ubuntu-24.04
             name: Linux (GCC x64)
             premake_action: gmake2
+            build_shell: bash
             build_cmd: make -j$(nproc) config=release_x64 verbose=1
             test_cmd: ./bin/mType/Release/x64/mType --tests
             deps_install: |
@@ -54,6 +54,7 @@ jobs:
           - os: macos-13
             name: macOS (Clang x64)
             premake_action: gmake2
+            build_shell: bash
             build_cmd: make -j$(sysctl -n hw.logicalcpu) config=release_x64 verbose=1
             test_cmd: ./bin/mType/Release/x64/mType --tests
             deps_install: ""
@@ -102,7 +103,7 @@ jobs:
 
       # ── Build ─────────────────────────────────────────────────────────────────
       - name: Build
-        shell: bash
+        shell: ${{ matrix.build_shell }}
         run: ${{ matrix.build_cmd }}
 
       # ── Upload binary as artifact (useful for debugging failures) ─────────────

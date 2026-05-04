@@ -23,9 +23,8 @@ function commonConfig()
       systemversion "latest"
       buildoptions { "/MP" }
 
-      filter "configurations:Release"
-         buildoptions { "/arch:AVX2" }
-      filter {}
+   filter { "system:windows", "configurations:Release" }
+      buildoptions { "/arch:AVX2" }
 
    filter "system:linux or system:macosx"
       buildoptions { "-msse2", "-msse4.1" }
