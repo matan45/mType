@@ -663,7 +663,7 @@ namespace vm::runtime
         }
         else if (value::isString(val)) {
             try {
-                return std::stoll(value::asString(val));
+                return static_cast<int64_t>(std::stoll(value::asString(val)));
             } catch (...) {
                 throwCastError("Cannot cast string to int: " + value::asString(val));
             }
@@ -671,7 +671,7 @@ namespace vm::runtime
         else if (value::isInternedString(val)) {
             const std::string& str = value::asInternedString(val).getString();
             try {
-                return std::stoll(str);
+                return static_cast<int64_t>(std::stoll(str));
             } catch (...) {
                 throwCastError("Cannot cast string to int: " + str);
             }

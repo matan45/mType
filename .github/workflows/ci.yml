@@ -47,9 +47,9 @@ jobs:
               rm premake5.tar.gz
 
           # ── macOS x86-64 (Clang, Intel runner) ───────────────────────────────
-          # Using macos-13 for x86-64 so premake's "x64" platform maps correctly.
-          # macos-latest is ARM64 (M1) and would need a separate "arm64" platform.
-          - os: macos-13
+          # Use the Intel macOS runner so premake's "x64" platform maps correctly.
+          # macos-latest is ARM64 and would need a separate "arm64" platform.
+          - os: macos-15-intel
             name: macOS (Clang x64)
             premake_action: gmake2
             build_cmd: make -j1 config=release_x64 verbose=1
