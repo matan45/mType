@@ -1,4 +1,5 @@
 #include "JitHelpers.hpp"
+#include <cstdint>
 #include "JitCodeCache.hpp"
 #include "guards/DeoptimizationHandler.hpp"
 #include "ic/InlineCacheTable.hpp"

@@ -1,4 +1,5 @@
 #include "HashMapMarshal.hpp"
+#include <cstdint>
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../value/NativeArray.hpp"

@@ -1,4 +1,5 @@
 #include "NetNatives.hpp"
+#include <cstdint>
 
 // Platform-specific network implementations
 #ifdef _WIN32

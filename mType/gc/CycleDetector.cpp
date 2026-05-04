@@ -1,4 +1,5 @@
 #include "CycleDetector.hpp"
+#include <cstdint>
 #include "WriteBarrier.hpp"
 #include <algorithm>
 #include <stack>

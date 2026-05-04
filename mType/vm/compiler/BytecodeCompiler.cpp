@@ -1,4 +1,5 @@
 #include "BytecodeCompiler.hpp"
+#include <cstdint>
 #include "../../ast/nodes/expressions/AwaitExpression.hpp"
 #include "../../ast/nodes/annotations/AnnotationDeclarationNode.hpp"
 #include "../../runtimeTypes/klass/AnnotationDefinition.hpp"

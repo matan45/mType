@@ -1,4 +1,5 @@
 #include "ArithmeticExecutor.hpp"
+#include <cstdint>
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../utils/CheckedArithmetic.hpp"
 #include "../../../value/StringPool.hpp"

@@ -1,4 +1,5 @@
 #include "JsonParser.hpp"
+#include <cstdint>
 #include <stdexcept>
 #include <cstdlib>
 

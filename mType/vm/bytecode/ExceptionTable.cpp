@@ -1,4 +1,5 @@
 #include "ExceptionTable.hpp"
+#include <cstdint>
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/ValueShim.hpp"
 #include <algorithm>

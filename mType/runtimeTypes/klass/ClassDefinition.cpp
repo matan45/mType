@@ -1,4 +1,5 @@
 #include "ClassDefinition.hpp"
+#include <cstdint>
 #include "InterfaceRegistry.hpp"
 #include "InterfaceDefinition.hpp"
 #include "SignatureUtils.hpp"

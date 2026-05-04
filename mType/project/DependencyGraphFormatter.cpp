@@ -1,4 +1,5 @@
 #include "DependencyGraphFormatter.hpp"
+#include <cstdint>
 #include "../diagnostics/AnsiStyle.hpp"
 #include <filesystem>
 #include <algorithm>

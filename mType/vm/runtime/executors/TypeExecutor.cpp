@@ -1,4 +1,5 @@
 #include "TypeExecutor.hpp"
+#include <cstdint>
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../utils/NullCheckUtils.hpp"
 #include "../utils/TypeArgResolution.hpp"

@@ -1,4 +1,5 @@
 #include "TokenFactory.hpp"
+#include <cstdint>
 
 namespace lexer
 {

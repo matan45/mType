@@ -1,4 +1,5 @@
 #include "ExceptionHandler.hpp"
+#include <cstdint>
 #include "../../bytecode/OpCode.hpp"
 #include "../../profiler/ProfilerHookHelper.hpp"
 

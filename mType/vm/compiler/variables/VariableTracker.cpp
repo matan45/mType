@@ -1,4 +1,5 @@
 #include "VariableTracker.hpp"
+#include <cstdint>
 #include  <iostream>
 namespace vm::compiler::variables
 {

@@ -1,4 +1,5 @@
 #include "VirtualMachine.hpp"
+#include <cstdint>
 #include "../../errors/DivisionByZeroException.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/StackUnderflowException.hpp"

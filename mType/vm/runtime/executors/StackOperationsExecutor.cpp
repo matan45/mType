@@ -1,4 +1,5 @@
 #include "StackOperationsExecutor.hpp"
+#include <cstdint>
 #include "../../../value/StringPool.hpp"
 
 namespace vm::runtime

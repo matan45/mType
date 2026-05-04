@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <cstdint>
 #include <cstddef>
 
 namespace vm::compiler::control

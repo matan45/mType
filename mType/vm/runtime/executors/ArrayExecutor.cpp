@@ -1,4 +1,5 @@
 #include "ArrayExecutor.hpp"
+#include <cstdint>
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../utils/ArrayBoundsChecker.hpp"
 #include "../../../environment/Environment.hpp"

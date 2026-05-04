@@ -1,4 +1,5 @@
 #include "JsonSerializer.hpp"
+#include <cstdint>
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/FieldDefinition.hpp"

@@ -1,5 +1,6 @@
 #pragma once
 #include "ValueType.hpp"
+#include <cstdint>
 #include "arrays/primitive/PrimitiveArray.hpp"
 #include "arrays/string/StringArray.hpp"
 #include "arrays/object/ObjectArray.hpp"

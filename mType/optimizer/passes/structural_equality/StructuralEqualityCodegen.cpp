@@ -1,4 +1,5 @@
 #include "StructuralEqualityCodegen.hpp"
+#include <cstdint>
 
 #include "../../../ast/GenericType.hpp"
 #include "../../../ast/nodes/classes/ClassNode.hpp"

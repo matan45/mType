@@ -1,4 +1,5 @@
 #include "OSREntryCodegen.hpp"
+#include <cstdint>
 
 namespace vm::jit::codegen
 {

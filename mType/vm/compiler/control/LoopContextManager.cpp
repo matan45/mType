@@ -1,4 +1,5 @@
 #include "LoopContextManager.hpp"
+#include <cstdint>
 #include "../../../errors/RuntimeException.hpp"
 
 namespace vm::compiler::control

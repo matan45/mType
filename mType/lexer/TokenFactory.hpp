@@ -1,5 +1,6 @@
 #pragma once
 #include <string_view>
+#include <cstdint>
 #include "../token/Token.hpp"
 #include "../token/TokenType.hpp"
 #include "../errors/SourceLocation.hpp"

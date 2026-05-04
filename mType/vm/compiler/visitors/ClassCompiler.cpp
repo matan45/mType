@@ -1,4 +1,5 @@
 #include "ClassCompiler.hpp"
+#include <cstdint>
 #include "../analysis/DefiniteAssignmentAnalyzer.hpp"
 #include "../validation/CompileTimeValidator.hpp"
 #include "../../bytecode/OpCode.hpp"

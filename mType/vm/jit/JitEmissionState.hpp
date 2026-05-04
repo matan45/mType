@@ -1,5 +1,6 @@
 #pragma once
 #include "SlotType.hpp"
+#include <cstdint>
 #include "JitContext.hpp"
 #include "JitHelpers.hpp"
 #include "LoopProfiler.hpp"

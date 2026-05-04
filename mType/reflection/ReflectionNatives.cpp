@@ -1,4 +1,5 @@
 #include "ReflectionNatives.hpp"
+#include <cstdint>
 #include "ReflectionHandle.hpp"
 #include "../errors/RuntimeException.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"

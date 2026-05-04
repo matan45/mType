@@ -1,4 +1,5 @@
 #include "FlatMultiObjectArray.hpp"
+#include <cstdint>
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../../ValueShim.hpp"
 

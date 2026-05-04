@@ -1,5 +1,6 @@
 #pragma once
 #include "Socket.hpp"
+#include <cstdint>
 #include "ISocketServer.hpp"
 #include <atomic>
 #include <thread>

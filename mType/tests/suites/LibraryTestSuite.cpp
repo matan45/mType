@@ -1,4 +1,5 @@
 #include "LibraryTestSuite.hpp"
+#include <cstdint>
 #include "../../services/ScriptInterpreter.hpp"
 #include "../../services/ScriptAPI.hpp"
 #include "../../value/ValueShim.hpp"

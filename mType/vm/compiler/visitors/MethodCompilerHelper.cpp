@@ -1,4 +1,5 @@
 #include "MethodCompilerHelper.hpp"
+#include <cstdint>
 #include "../../bytecode/OpCode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"

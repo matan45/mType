@@ -1,4 +1,5 @@
 #include "LiteralCompiler.hpp"
+#include <cstdint>
 #include "../../bytecode/OpCode.hpp"
 
 namespace vm::compiler::visitors

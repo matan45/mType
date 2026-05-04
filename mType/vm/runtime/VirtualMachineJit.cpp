@@ -1,4 +1,5 @@
 #include "VirtualMachine.hpp"
+#include <cstdint>
 #include <cassert>
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/UserException.hpp"

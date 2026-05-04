@@ -1,4 +1,5 @@
 #include "FunctionCallHelper.hpp"
+#include <cstdint>
 #include "GenericScopeHelper.hpp"
 #include "../validation/CompileTimeValidator.hpp"
 #include "../../../runtimeTypes/klass/SignatureUtils.hpp"

@@ -1,4 +1,5 @@
 #include "SafeArithmetic.hpp"
+#include <cstdint>
 
 namespace optimizer {
 namespace passes {

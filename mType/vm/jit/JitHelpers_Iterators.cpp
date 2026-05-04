@@ -1,4 +1,5 @@
 #include "JitHelpers.hpp"
+#include <cstdint>
 #include "guards/DeoptimizationHandler.hpp"
 #include "../../value/ValueShim.hpp"
 #include "../../errors/RuntimeException.hpp"

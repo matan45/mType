@@ -1,4 +1,5 @@
 #include "SIMDOperations.hpp"
+#include <cstdint>
 #include "SIMDOperationsImpl.hpp"
 #include <algorithm>
 

@@ -1,4 +1,5 @@
 #include "MtcLibSerializer.hpp"
+#include <cstdint>
 #include "../../vm/bytecode/BytecodeIOHelper.hpp"
 #include "../../constants/SecurityConstants.hpp"
 #include <sstream>

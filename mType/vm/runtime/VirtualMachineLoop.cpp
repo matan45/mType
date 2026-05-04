@@ -1,4 +1,5 @@
 #include "VirtualMachine.hpp"
+#include <cstdint>
 #include "executors/StackOperationsExecutor.hpp"
 #include "executors/ComparisonExecutor.hpp"
 #include "executors/LogicalExecutor.hpp"

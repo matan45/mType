@@ -1,4 +1,5 @@
 #include "ReflectionNatives.hpp"
+#include <cstdint>
 #include "ReflectionHandle.hpp"
 #include "AnnotationInstanceFactory.hpp"
 #include "../value/NativeArray.hpp"

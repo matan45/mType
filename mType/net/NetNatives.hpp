@@ -1,5 +1,6 @@
 #pragma once
 #include <span>
+#include <cstdint>
 #include "../value/ValueType.hpp"
 #include "../environment/Environment.hpp"
 #include "../environment/registry/NativeRegistry.hpp"

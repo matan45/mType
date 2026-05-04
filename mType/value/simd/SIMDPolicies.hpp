@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SIMDConfig.hpp"
+#include <cstdint>
 #include <cstddef>
 
 namespace mType::value::simd

@@ -17,6 +17,7 @@
 //
 
 #include "IntrusivePtr.hpp"
+#include <cstdint>
 #include <string>
 #include <utility>
 

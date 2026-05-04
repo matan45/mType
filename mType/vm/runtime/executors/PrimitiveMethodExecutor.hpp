@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../context/ExecutionContext.hpp"
+#include <cstdint>
 #include "../../../value/IntegerCache.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 

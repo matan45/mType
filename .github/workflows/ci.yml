@@ -22,7 +22,7 @@ jobs:
             name: Windows (MSVC x64)
             premake_action: vs2022
             build_cmd: msbuild Interpreter.sln /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /m /nologo /clp:"Summary;ErrorsOnly"
-            test_cmd: bin\mType\Release\x64\mType.exe --tests
+            test_cmd: ./bin/mType/Release/x64/mType.exe --tests
             premake_install: ""
             deps_install: ""
 

@@ -1,4 +1,5 @@
 #include "ExpressionCompiler.hpp"
+#include <cstdint>
 #include "LiteralCompiler.hpp"
 #include "ArrayCompiler.hpp"
 #include "GenericScopeHelper.hpp"

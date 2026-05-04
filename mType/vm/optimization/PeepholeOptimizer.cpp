@@ -1,4 +1,5 @@
 #include "PeepholeOptimizer.hpp"
+#include <cstdint>
 #include "patterns/ConstantFoldingPattern.hpp"
 #include "patterns/DeadCodePattern.hpp"
 #include "patterns/AlgebraicSimplificationPattern.hpp"

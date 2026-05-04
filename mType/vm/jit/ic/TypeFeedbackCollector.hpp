@@ -1,5 +1,6 @@
 #pragma once
 #include "InlineCacheTable.hpp"
+#include <cstdint>
 #include "../../../value/ValueType.hpp"
 #include <utility>
 

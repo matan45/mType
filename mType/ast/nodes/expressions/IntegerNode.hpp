@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 #include "../../ASTNode.hpp"
+#include <cstdint>
 
 namespace ast::nodes::expressions
 {

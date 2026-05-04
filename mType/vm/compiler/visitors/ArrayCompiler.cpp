@@ -1,4 +1,5 @@
 #include "ArrayCompiler.hpp"
+#include <cstdint>
 #include "../../bytecode/OpCode.hpp"
 #include "../../../ast/nodes/expressions/IntegerNode.hpp"
 #include "../../../ast/nodes/expressions/FloatNode.hpp"

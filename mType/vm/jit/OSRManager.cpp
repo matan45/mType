@@ -1,4 +1,5 @@
 #include "OSRManager.hpp"
+#include <cstdint>
 #include "JitHelpers.hpp"
 #include "../../value/ValueShim.hpp"
 #include "guards/DeoptimizationHandler.hpp"

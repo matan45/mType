@@ -1,4 +1,5 @@
-﻿#include "InterfaceDefinition.hpp"
+#include "InterfaceDefinition.hpp"
+#include <cstdint>
 #include "ClassDefinition.hpp"
 #include "MethodDefinition.hpp"
 #include "../../ast/nodes/expressions/LambdaNode.hpp"

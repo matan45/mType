@@ -1,4 +1,5 @@
 #include "AlgebraicSimplificationPattern.hpp"
+#include <cstdint>
 #include "PatternSafetyHelper.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../analysis/ControlFlowAnalyzer.hpp"

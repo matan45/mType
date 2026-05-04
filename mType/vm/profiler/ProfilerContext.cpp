@@ -1,4 +1,5 @@
 #include "ProfilerContext.hpp"
+#include <cstdint>
 #include <iostream>
 
 namespace vm::profiler

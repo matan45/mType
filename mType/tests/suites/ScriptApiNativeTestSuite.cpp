@@ -1,4 +1,5 @@
 #include "ScriptApiNativeTestSuite.hpp"
+#include <cstdint>
 
 #include "../../services/ScriptAPI.hpp"
 #include "../../value/ValueShim.hpp"

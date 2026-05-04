@@ -1,4 +1,5 @@
 #include "PatternSafetyHelper.hpp"
+#include <cstdint>
 #include "../../bytecode/OpCode.hpp"
 #include <sstream>
 

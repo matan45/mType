@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../../value/ValueType.hpp"
+#include <cstdint>
 #include "../../../token/TokenType.hpp"
 #include "../../../value/StringPool.hpp"
 #include "SafeArithmetic.hpp"
