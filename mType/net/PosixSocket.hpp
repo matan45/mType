@@ -9,13 +9,13 @@
 
 namespace net
 {
-    // WinSock2-backed client socket.
-    class WinSocket : public ISocket
+    // POSIX BSD-socket-backed client socket.
+    class PosixSocket : public ISocket
     {
     public:
-        WinSocket();
-        explicit WinSocket(uintptr_t acceptedFd);  // wrap an FD returned by accept()
-        ~WinSocket() override;
+        PosixSocket();
+        explicit PosixSocket(int acceptedFd);  // wrap an FD returned by accept()
+        ~PosixSocket() override;
 
         void connect(const std::string& host, int port) override;
         int send(const std::string& data) override;
@@ -26,21 +26,20 @@ namespace net
         void setTimeout(int ms) override;
 
     private:
-        uintptr_t fd;        // SOCKET handle (cast to uintptr_t to avoid winsock include in header)
+        int fd;         // POSIX file descriptor (-1 = invalid)
         bool connected;
         int timeoutMs;
+
+        void applyTimeout();
     };
 
-    // WinSock2-backed listening server with a worker accept thread.
-    class WinSocketServer : public ISocketServer
+    // POSIX listening server with a worker accept thread.
+    class PosixSocketServer : public ISocketServer
     {
     public:
-        WinSocketServer();
-        ~WinSocketServer();
+        PosixSocketServer();
+        ~PosixSocketServer() override;
 
-        // Bind + listen on the given port. Spawns the accept thread.
-        // onAccept is invoked on the worker thread for each accepted client FD.
-        // onError is invoked on the worker thread for accept-loop errors.
         void start(int port,
                    std::function<void(uintptr_t)> onAccept,
                    std::function<void(const std::string&)> onError) override;
@@ -48,7 +47,7 @@ namespace net
         void stop() override;
 
     private:
-        std::atomic<uintptr_t> listenFd;
+        std::atomic<int> listenFd;
         std::thread acceptThread;
         std::atomic<bool> stopping;
         std::mutex stateMutex;

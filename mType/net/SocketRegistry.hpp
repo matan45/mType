@@ -1,6 +1,6 @@
 #pragma once
 #include "Socket.hpp"
-#include "WinSocket.hpp"
+#include "ISocketServer.hpp"
 #include <memory>
 #include <unordered_map>
 #include <mutex>
@@ -22,16 +22,8 @@ namespace net
         void closeSocket(int handle);                    // idempotent
 
         // Server sockets ----------------------------------------------------
-        struct ServerRecord
-        {
-            std::shared_ptr<WinSocketServer> server;
-            // Stored callbacks - referenced as opaque void* + holder vector to
-            // keep the registry header free of value::Value / VM types.
-            // Actual storage is in NetNatives so the registry stays neutral.
-        };
-
-        int registerServer(std::shared_ptr<WinSocketServer> server);
-        std::shared_ptr<WinSocketServer> getServer(int handle);
+        int registerServer(std::shared_ptr<ISocketServer> server);
+        std::shared_ptr<ISocketServer> getServer(int handle);
         void closeServer(int handle);
 
         // Forced cleanup at process / env teardown.
@@ -42,7 +34,7 @@ namespace net
 
         std::mutex mutex;
         std::unordered_map<int, std::shared_ptr<ISocket>> sockets;
-        std::unordered_map<int, std::shared_ptr<WinSocketServer>> servers;
+        std::unordered_map<int, std::shared_ptr<ISocketServer>> servers;
         std::atomic<int> nextSocketHandle{1};
         std::atomic<int> nextServerHandle{1};
     };

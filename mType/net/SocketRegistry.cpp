@@ -48,7 +48,7 @@ namespace net
         }
     }
 
-    int SocketRegistry::registerServer(std::shared_ptr<WinSocketServer> server)
+    int SocketRegistry::registerServer(std::shared_ptr<ISocketServer> server)
     {
         std::lock_guard<std::mutex> lock(mutex);
         int handle = nextServerHandle.fetch_add(1);
@@ -60,7 +60,7 @@ namespace net
         return handle;
     }
 
-    std::shared_ptr<WinSocketServer> SocketRegistry::getServer(int handle)
+    std::shared_ptr<ISocketServer> SocketRegistry::getServer(int handle)
     {
         std::lock_guard<std::mutex> lock(mutex);
         auto it = servers.find(handle);
@@ -73,7 +73,7 @@ namespace net
 
     void SocketRegistry::closeServer(int handle)
     {
-        std::shared_ptr<WinSocketServer> srv;
+        std::shared_ptr<ISocketServer> srv;
         {
             std::lock_guard<std::mutex> lock(mutex);
             auto it = servers.find(handle);
@@ -90,7 +90,7 @@ namespace net
     void SocketRegistry::cleanup()
     {
         std::unordered_map<int, std::shared_ptr<ISocket>> socksCopy;
-        std::unordered_map<int, std::shared_ptr<WinSocketServer>> serversCopy;
+        std::unordered_map<int, std::shared_ptr<ISocketServer>> serversCopy;
         {
             std::lock_guard<std::mutex> lock(mutex);
             socksCopy.swap(sockets);

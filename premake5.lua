@@ -3,7 +3,7 @@ workspace "Interpreter"
    platforms { "x64" }
    location "."  -- Place generated solution files in the root directory
    startproject "mType"
-   toolset "v145"
+   -- toolset is set per-platform in commonConfig() below
 
 
 -- Set a consistent location for build artifacts
@@ -19,6 +19,7 @@ function commonConfig()
 
    -- Platform-specific configurations
    filter "system:windows"
+      toolset "v145"
       systemversion "latest"
       buildoptions { "/MP" }
 
@@ -28,6 +29,7 @@ function commonConfig()
 
    filter "system:linux or system:macosx"
       buildoptions { "-msse2", "-msse4.1" }
+      links { "pthread" }
 
    filter { "system:linux or system:macosx", "configurations:Release" }
       buildoptions { "-mavx2", "-mfma" }
@@ -290,6 +292,28 @@ project "mtype-extensions"
    -- instead linked by the consuming ConsoleApp projects (mType,
    -- mtype-launcher), where /IGNORE:4006 on the final link step is honored.
 
+   -- On Linux/macOS use libcurl for HTTP and exclude Win-only net files.
+   filter "system:linux or system:macosx"
+      links { "curl" }
+      removefiles {
+         "mType/net/WinHttpClient.hpp",
+         "mType/net/WinHttpClient.cpp",
+         "mType/net/WinSocket.hpp",
+         "mType/net/WinSocket.cpp",
+         "mType/net/WinSockInit.hpp",
+         "mType/net/WinSockInit.cpp",
+      }
+
+   -- On Windows exclude POSIX-only net files.
+   filter "system:windows"
+      removefiles {
+         "mType/net/CurlHttpClient.hpp",
+         "mType/net/CurlHttpClient.cpp",
+         "mType/net/PosixSocket.hpp",
+         "mType/net/PosixSocket.cpp",
+      }
+   filter {}
+
    -- Exclude standalone Main.cpp from library build
    removefiles { "packagemanager/src/Main.cpp" }
 
@@ -341,6 +365,8 @@ project "mType"
    filter "system:windows"
       links { "winhttp", "ws2_32" }
       linkoptions { "/ignore:4006" }
+   filter "system:linux or system:macosx"
+      links { "curl" }
    filter {}
 
    files {
@@ -384,6 +410,8 @@ project "mtype-launcher"
    filter "system:windows"
       links { "winhttp", "ws2_32" }
       linkoptions { "/ignore:4006" }
+   filter "system:linux or system:macosx"
+      links { "curl" }
    filter {}
 
    files {

@@ -1,12 +1,17 @@
 #include "CPUFeatures.hpp"
 #include "../SIMDConfig.hpp"
 
-#ifdef MTYPE_ARCH_X64
 #ifdef MTYPE_PLATFORM_WINDOWS
 #include <intrin.h>
-#else
-#include <cpuid.h>
-#endif
+#elif defined(MTYPE_PLATFORM_LINUX)
+#include <cpuid.h>   // GCC/Clang on Linux provide this header
+#elif defined(MTYPE_PLATFORM_MACOS)
+// On macOS, Clang exposes __get_cpuid as a compiler built-in;
+// the header lives in the same place but may be absent on older Xcode.
+// Declare it explicitly so we don't depend on the header's existence.
+extern "C" int __get_cpuid(unsigned int __level,
+                            unsigned int* __eax, unsigned int* __ebx,
+                            unsigned int* __ecx, unsigned int* __edx);
 #endif
 
 namespace mType
