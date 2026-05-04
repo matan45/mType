@@ -71,6 +71,49 @@ namespace vm::runtime
         return typeArgs;
     }
 
+    static value::PrimitiveTypeTag specializableTypeNameToTag(const std::string& typeName)
+    {
+        if (typeName == "Int" || typeName == "int") return value::PrimitiveTypeTag::INT;
+        if (typeName == "Float" || typeName == "float") return value::PrimitiveTypeTag::FLOAT;
+        if (typeName == "Bool" || typeName == "bool") return value::PrimitiveTypeTag::BOOL;
+        if (typeName == "String" || typeName == "string") return value::PrimitiveTypeTag::STRING;
+        return value::PrimitiveTypeTag::NONE;
+    }
+
+    static void attachSpecializedCollectionIfNeeded(
+        runtimeTypes::klass::ObjectInstance* instance,
+        const std::string& baseClassName,
+        const std::unordered_map<std::string, std::string>& genericTypeBindings,
+        size_t initialCapacity)
+    {
+        if (!instance) return;
+
+        if (baseClassName == "HashMap")
+        {
+            auto it = genericTypeBindings.find("K");
+            if (it == genericTypeBindings.end()) return;
+            auto tag = specializableTypeNameToTag(it->second);
+            if (!value::SpecializedCollectionStorage::isSpecializableKeyTag(tag)) return;
+            instance->attachSpecializedCollection(
+                value::SpecializedCollectionStorage::Kind::MAP,
+                tag,
+                initialCapacity);
+            return;
+        }
+
+        if (baseClassName == "HashSet")
+        {
+            auto it = genericTypeBindings.find("T");
+            if (it == genericTypeBindings.end()) return;
+            auto tag = specializableTypeNameToTag(it->second);
+            if (!value::SpecializedCollectionStorage::isSpecializableKeyTag(tag)) return;
+            instance->attachSpecializedCollection(
+                value::SpecializedCollectionStorage::Kind::SET,
+                tag,
+                initialCapacity);
+        }
+    }
+
     ObjectInstanceHelper::ObjectInstanceHelper(ExecutionContext& ctx)
         : context(ctx)
     {
@@ -966,8 +1009,20 @@ namespace vm::runtime
             }
         }
 
+        size_t collectionInitialCapacity = 32;
+        if ((baseClassName == "HashMap" || baseClassName == "HashSet") &&
+            argCount == 1 && value::isInt(args[0]) && value::asInt(args[0]) > 0)
+        {
+            collectionInitialCapacity = static_cast<size_t>(value::asInt(args[0]));
+        }
+
         // Normal object creation path (non-cached or cache miss)
         auto instance = createObjectInstance(baseClassName, genericTypeBindings);
+        attachSpecializedCollectionIfNeeded(
+            instance.get(),
+            baseClassName,
+            genericTypeBindings,
+            collectionInitialCapacity);
 
         // Invoke constructor using the class definition's actual name
         // (handles aliases: "MyInt" resolves to same ClassDef as "Int",
@@ -1015,6 +1070,17 @@ namespace vm::runtime
             context.callStack.back().stackObjectsCount >= CallFrame::kStackObjectsCap)
         {
             auto instance = createObjectInstance(baseClassName, genericTypeBindings);
+            size_t collectionInitialCapacity = 32;
+            if ((baseClassName == "HashMap" || baseClassName == "HashSet") &&
+                argCount == 1 && value::isInt(args[0]) && value::asInt(args[0]) > 0)
+            {
+                collectionInitialCapacity = static_cast<size_t>(value::asInt(args[0]));
+            }
+            attachSpecializedCollectionIfNeeded(
+                instance.get(),
+                baseClassName,
+                genericTypeBindings,
+                collectionInitialCapacity);
             std::string actualClassName = instance->getClassDefinition()->getName();
             invokeConstructor(value::Value(instance), actualClassName, args.span());
             return;
@@ -1026,8 +1092,20 @@ namespace vm::runtime
         // frame's stackObjects array — pushed there BEFORE invokeConstructor
         // so that an exception thrown inside the ctor body still releases
         // the slot via ExceptionHandler's frame-teardown path.
+        size_t collectionInitialCapacity = 32;
+        if ((baseClassName == "HashMap" || baseClassName == "HashSet") &&
+            argCount == 1 && value::isInt(args[0]) && value::asInt(args[0]) > 0)
+        {
+            collectionInitialCapacity = static_cast<size_t>(value::asInt(args[0]));
+        }
+
         auto* raw = value::ObjectInstancePool::getInstance().acquireRaw(classDef, genericTypeBindings);
         initializeObjectFields(raw, classDef);
+        attachSpecializedCollectionIfNeeded(
+            raw,
+            baseClassName,
+            genericTypeBindings,
+            collectionInitialCapacity);
 
         // The cap-check above guarantees the inline array has room.
         context.callStack.back().tryPushStackObject(raw);

@@ -42,6 +42,126 @@ namespace vm::jit
         return value::PrimitiveTypeTag::NONE;
     }
 
+    static bool trySpecializedCollectionCall(JitContext* ctx,
+                                             const std::string& rawMethodName,
+                                             size_t argCount)
+    {
+        if (!ctx || ctx->pendingException) return false;
+        value::Value& receiverValue = ctx->callArgs[0];
+        if (!value::isAnyObject(receiverValue)) return false;
+
+        auto* receiver = value::asObjectInstanceRaw(receiverValue);
+        if (!receiver) return false;
+
+        auto* storage = receiver->getSpecializedCollection();
+        if (!storage) return false;
+
+        const std::string methodName =
+            runtimeTypes::klass::SignatureUtils::extractSimpleName(rawMethodName);
+        if (!storage->isSpecializedMethod(methodName, argCount)) return false;
+
+        using Kind = value::SpecializedCollectionStorage::Kind;
+        if (storage->getKind() == Kind::MAP)
+        {
+            if (methodName == "put")
+            {
+                value::Value oldValue;
+                if (!storage->put(ctx->callArgs[1], ctx->callArgs[2], oldValue))
+                    oldValue = nullptr;
+                ctx->returnValue = oldValue;
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "get")
+            {
+                value::Value result;
+                if (!storage->get(ctx->callArgs[1], result)) result = nullptr;
+                ctx->returnValue = result;
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "containsKey")
+            {
+                ctx->returnValue = storage->containsKey(ctx->callArgs[1]);
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "remove")
+            {
+                ctx->returnValue = storage->remove(ctx->callArgs[1]);
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "getKeys" || methodName == "toArray")
+            {
+                ctx->returnValue = storage->materializeKeys(ctx->environment);
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "getValues")
+            {
+                ctx->returnValue = storage->materializeValues();
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "containsValue")
+            {
+                ctx->returnValue = storage->containsStoredValue(ctx->callArgs[1]);
+                ctx->hasReturnValue = true;
+                return true;
+            }
+        }
+        else
+        {
+            if (methodName == "add")
+            {
+                ctx->returnValue = storage->add(ctx->callArgs[1]);
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "contains")
+            {
+                ctx->returnValue = storage->contains(ctx->callArgs[1]);
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "remove")
+            {
+                ctx->returnValue = storage->remove(ctx->callArgs[1]);
+                ctx->hasReturnValue = true;
+                return true;
+            }
+            if (methodName == "toArray")
+            {
+                ctx->returnValue = storage->materializeKeys(ctx->environment);
+                ctx->hasReturnValue = true;
+                return true;
+            }
+        }
+
+        if (methodName == "size")
+        {
+            ctx->returnValue = static_cast<int64_t>(storage->size());
+            ctx->hasReturnValue = true;
+            return true;
+        }
+        if (methodName == "empty")
+        {
+            ctx->returnValue = storage->empty();
+            ctx->hasReturnValue = true;
+            return true;
+        }
+        if (methodName == "clear")
+        {
+            storage->clear();
+            ctx->returnValue = std::monostate{};
+            ctx->hasReturnValue = true;
+            return true;
+        }
+
+        return false;
+    }
+
     static const value::Value* getPrimitiveProtocolField0(const value::Value& v) noexcept
     {
         if (value::isValueObject(v))
@@ -296,6 +416,11 @@ namespace vm::jit
 
             const std::string& methodName = ctx->program->getConstantPool().getString(methodNameIndex);
 
+            if (trySpecializedCollectionCall(ctx, methodName, argCount))
+            {
+                return;
+            }
+
             std::vector<value::Value> args;
             for (size_t i = 1; i <= argCount; i++)
             {
@@ -433,6 +558,13 @@ namespace vm::jit
                 ctx->returnValue = ctx->vm->invokeLambda(
                     lambda, &ctx->callArgs[1], argCount);
                 ctx->hasReturnValue = true;
+                return;
+            }
+
+            const std::string& rawMethodName =
+                ctx->program->getConstantPool().getString(methodNameIndex);
+            if (trySpecializedCollectionCall(ctx, rawMethodName, argCount))
+            {
                 return;
             }
 

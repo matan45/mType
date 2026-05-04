@@ -946,6 +946,10 @@ namespace vm::runtime
     }
 
     void ObjectExecutor::handleCallMethod(const bytecode::BytecodeProgram::Instruction& instr) {
+        if (tryDispatchSpecializedCollectionCall(instr)) {
+            return;
+        }
+
         const std::string& methodName = context.program->getConstantPool().getString(instr.operands[0]);
         size_t argCount = instr.operands[1];
 
@@ -1001,6 +1005,125 @@ namespace vm::runtime
         }
 
         invokeInstanceMethod(objectValue, methodName, args.span(), argCount);
+    }
+
+    bool ObjectExecutor::tryDispatchSpecializedCollectionCall(
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (instr.operands.size() < 2 || !context.stackManager) return false;
+
+        const std::string& rawMethodName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string methodName =
+            runtimeTypes::klass::SignatureUtils::extractSimpleName(rawMethodName);
+        const size_t argCount = static_cast<size_t>(instr.operands[1]);
+
+        if (context.stackManager->size() <= argCount) return false;
+
+        value::Value objectValue = context.stackManager->peek(argCount);
+        if (!value::isAnyObject(objectValue)) return false;
+
+        auto* instance = value::asObjectInstanceRaw(objectValue);
+        if (!instance) return false;
+
+        auto* storage = instance->getSpecializedCollection();
+        if (!storage || !storage->isSpecializedMethod(methodName, argCount)) return false;
+
+        value::SmallArgsBuffer args(argCount);
+        for (size_t i = argCount; i > 0; --i)
+        {
+            args[i - 1] = context.stackManager->pop();
+        }
+        context.stackManager->pop();
+
+        using Kind = value::SpecializedCollectionStorage::Kind;
+        if (storage->getKind() == Kind::MAP)
+        {
+            if (methodName == "put")
+            {
+                value::Value oldValue;
+                if (!storage->put(args[0], args[1], oldValue))
+                {
+                    oldValue = nullptr;
+                }
+                context.stackManager->push(oldValue);
+                return true;
+            }
+            if (methodName == "get")
+            {
+                value::Value result;
+                if (!storage->get(args[0], result)) result = nullptr;
+                context.stackManager->push(result);
+                return true;
+            }
+            if (methodName == "containsKey")
+            {
+                context.stackManager->push(storage->containsKey(args[0]));
+                return true;
+            }
+            if (methodName == "remove")
+            {
+                context.stackManager->push(storage->remove(args[0]));
+                return true;
+            }
+            if (methodName == "getKeys" || methodName == "toArray")
+            {
+                context.stackManager->push(storage->materializeKeys(context.environment.get()));
+                return true;
+            }
+            if (methodName == "getValues")
+            {
+                context.stackManager->push(storage->materializeValues());
+                return true;
+            }
+            if (methodName == "containsValue")
+            {
+                context.stackManager->push(storage->containsStoredValue(args[0]));
+                return true;
+            }
+        }
+        else
+        {
+            if (methodName == "add")
+            {
+                context.stackManager->push(storage->add(args[0]));
+                return true;
+            }
+            if (methodName == "contains")
+            {
+                context.stackManager->push(storage->contains(args[0]));
+                return true;
+            }
+            if (methodName == "remove")
+            {
+                context.stackManager->push(storage->remove(args[0]));
+                return true;
+            }
+            if (methodName == "toArray")
+            {
+                context.stackManager->push(storage->materializeKeys(context.environment.get()));
+                return true;
+            }
+        }
+
+        if (methodName == "size")
+        {
+            context.stackManager->push(static_cast<int64_t>(storage->size()));
+            return true;
+        }
+        if (methodName == "empty")
+        {
+            context.stackManager->push(storage->empty());
+            return true;
+        }
+        if (methodName == "clear")
+        {
+            storage->clear();
+            context.stackManager->push(std::monostate{});
+            return true;
+        }
+
+        context.stackManager->push(nullptr);
+        return true;
     }
 
     void ObjectExecutor::handleSuperConstructor(const bytecode::BytecodeProgram::Instruction& instr) {

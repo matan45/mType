@@ -4,6 +4,7 @@
 #include <string>
 #include "../../value/ValueType.hpp"
 #include "../../value/PrimitiveTypeTag.hpp"
+#include "../../value/SpecializedCollections.hpp"
 #include "ClassDefinition.hpp"
 #include "FieldDefinition.hpp"
 
@@ -35,6 +36,8 @@ namespace runtimeTypes::klass
 
         // Fast primitive type tag (avoids string comparisons in hot paths)
         value::PrimitiveTypeTag primitiveTag_ = value::PrimitiveTypeTag::NONE;
+
+        std::unique_ptr<value::SpecializedCollectionStorage> specializedCollection_;
 
     public :
         ObjectInstance(std::shared_ptr<ClassDefinition> classDef)
@@ -89,6 +92,7 @@ namespace runtimeTypes::klass
         void clearAllFields() { 
             fieldValues.clear(); 
             fieldVector.clear();
+            clearSpecializedCollection();
         }
         // Type checking
         bool isInstanceOf(const std::string& className) const;
@@ -126,6 +130,13 @@ namespace runtimeTypes::klass
         void setGenericTypeBinding(const std::string& parameter, const std::string& concreteType);
         std::string resolveGenericType(const std::string& typeName) const;
         const std::unordered_map<std::string, std::string>& getGenericTypeBindings() const;
+
+        void attachSpecializedCollection(value::SpecializedCollectionStorage::Kind kind,
+                                         value::PrimitiveTypeTag keyTag,
+                                         size_t initialCapacity = 32);
+        value::SpecializedCollectionStorage* getSpecializedCollection() noexcept { return specializedCollection_.get(); }
+        const value::SpecializedCollectionStorage* getSpecializedCollection() const noexcept { return specializedCollection_.get(); }
+        void clearSpecializedCollection();
 
         // MYT-169: byte offset of the classDefinition shared_ptr from the start
         // of an ObjectInstance, consumed by JIT shape-guard emission to bypass

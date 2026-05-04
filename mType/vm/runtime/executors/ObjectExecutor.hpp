@@ -53,6 +53,7 @@ namespace vm::runtime
         void handleSetStatic(const bytecode::BytecodeProgram::Instruction& instr);
 
         // Method calls
+        bool tryDispatchSpecializedCollectionCall(const bytecode::BytecodeProgram::Instruction& instr);
         void handleCallMethod(const bytecode::BytecodeProgram::Instruction& instr);
         void handleSuperConstructor(const bytecode::BytecodeProgram::Instruction& instr);
         void handleThisConstructor(const bytecode::BytecodeProgram::Instruction& instr);

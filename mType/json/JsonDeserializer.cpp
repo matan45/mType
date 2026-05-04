@@ -54,6 +54,15 @@ namespace
             return static_cast<int64_t>(std::hash<std::string>{}(value::asInternedString(val).getString()) & 0x7FFFFFFF);
         return 0;
     }
+
+    value::PrimitiveTypeTag specializableTypeNameToTag(const std::string& typeName)
+    {
+        if (typeName == "Int" || typeName == "int") return value::PrimitiveTypeTag::INT;
+        if (typeName == "Float" || typeName == "float") return value::PrimitiveTypeTag::FLOAT;
+        if (typeName == "Bool" || typeName == "bool") return value::PrimitiveTypeTag::BOOL;
+        if (typeName == "String" || typeName == "string") return value::PrimitiveTypeTag::STRING;
+        return value::PrimitiveTypeTag::NONE;
+    }
 }
 
 namespace json
@@ -547,6 +556,42 @@ namespace json
         if (kIt != bindings.end()) keyType = kIt->second;
         if (vIt != bindings.end()) valType = vIt->second;
 
+        auto specializedKeyTag = specializableTypeNameToTag(keyType);
+        if (value::SpecializedCollectionStorage::isSpecializableKeyTag(specializedKeyTag))
+        {
+            size_t initialCapacity = 32;
+            if (json->hasProperty("entries"))
+            {
+                const auto& entries = json->getProperty("entries")->asArray();
+                while (entries.size() > initialCapacity * 3 / 4) initialCapacity *= 2;
+                instance->attachSpecializedCollection(
+                    value::SpecializedCollectionStorage::Kind::MAP,
+                    specializedKeyTag,
+                    initialCapacity);
+                auto* storage = instance->getSpecializedCollection();
+                for (size_t e = 0; e < entries.size(); ++e)
+                {
+                    auto entry = entries[e];
+                    value::Value key = keyType.empty()
+                        ? fromJsonValue(entry->getProperty("key"))
+                        : convertToFieldType(entry->getProperty("key"), keyType);
+                    value::Value val = valType.empty()
+                        ? fromJsonValue(entry->getProperty("value"))
+                        : convertToFieldType(entry->getProperty("value"), valType);
+                    value::Value oldValue;
+                    storage->put(key, val, oldValue);
+                }
+            }
+            else
+            {
+                instance->attachSpecializedCollection(
+                    value::SpecializedCollectionStorage::Kind::MAP,
+                    specializedKeyTag,
+                    initialCapacity);
+            }
+            return instance;
+        }
+
         if (!json->hasProperty("entries"))
         {
             // Phase 3 layout: flat 1D NativeArrays, length = capacity.
@@ -637,6 +682,37 @@ namespace json
         const auto& bindings = instance->getGenericTypeBindings();
         auto tIt = bindings.find("T");
         if (tIt != bindings.end()) elemType = tIt->second;
+
+        auto specializedElemTag = specializableTypeNameToTag(elemType);
+        if (value::SpecializedCollectionStorage::isSpecializableKeyTag(specializedElemTag))
+        {
+            size_t initialCapacity = 32;
+            if (json->hasProperty("elements"))
+            {
+                const auto& elementsJson = json->getProperty("elements")->asArray();
+                while (elementsJson.size() > initialCapacity * 3 / 4) initialCapacity *= 2;
+                instance->attachSpecializedCollection(
+                    value::SpecializedCollectionStorage::Kind::SET,
+                    specializedElemTag,
+                    initialCapacity);
+                auto* storage = instance->getSpecializedCollection();
+                for (size_t e = 0; e < elementsJson.size(); ++e)
+                {
+                    value::Value elem = elemType.empty()
+                        ? fromJsonValue(elementsJson[e])
+                        : convertToFieldType(elementsJson[e], elemType);
+                    storage->add(elem);
+                }
+            }
+            else
+            {
+                instance->attachSpecializedCollection(
+                    value::SpecializedCollectionStorage::Kind::SET,
+                    specializedElemTag,
+                    initialCapacity);
+            }
+            return instance;
+        }
 
         if (!json->hasProperty("elements"))
         {

@@ -73,6 +73,17 @@ namespace net
         auto inst = value::asObject(v);
         if (!inst) return result;
 
+        if (auto* storage = inst->getSpecializedCollection())
+        {
+            auto keys = storage->materializeKeys(nullptr);
+            auto values = storage->materializeValues();
+            for (size_t i = 0; i < storage->size(); ++i)
+            {
+                result[extractString(keys->get(i))] = extractString(values->get(i));
+            }
+            return result;
+        }
+
         auto keysVal = inst->getFieldValue("keys");
         auto valsVal = inst->getFieldValue("values");
 

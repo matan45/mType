@@ -234,6 +234,9 @@
     <ClInclude Include="value\SparseMultiArray.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\SpecializedCollections.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\StringPool.hpp">
       <Filter>value</Filter>
     </ClInclude>
@@ -411,6 +414,9 @@
       <Filter>value</Filter>
     </ClCompile>
     <ClCompile Include="value\ObjectInstancePool.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
+    <ClCompile Include="value\SpecializedCollections.cpp">
       <Filter>value</Filter>
     </ClCompile>
     <ClCompile Include="value\StringPool.cpp">
