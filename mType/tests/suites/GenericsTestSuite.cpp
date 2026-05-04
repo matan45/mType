@@ -29,6 +29,12 @@ namespace tests::testSuite
                         passPath + "hashmapHashsetOptimization.mt");
         addOutputVerificationTest("HashMap Shape Specialization",
                         passPath + "hashmapShapeSpecialization.mt");
+        addOutputVerificationTest("HashMap Shape Fallback - User Equals",
+                        passPath + "hashmapShapeFallbackUserEquals.mt");
+        addOutputVerificationTest("HashMap Shape Fallback - Parent Class",
+                        passPath + "hashmapShapeFallbackParent.mt");
+        addOutputVerificationTest("HashMap Shape Fallback - Many Fields",
+                        passPath + "hashmapShapeFallbackManyFields.mt");
         addOutputVerificationTest("Generic Nullable Return Substitution",
                         passPath + "genericNullableReturnSubstitution.mt");
 

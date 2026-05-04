@@ -6940,6 +6940,24 @@
     <None Include="tests\testFiles\generics\pass\hashmapHashsetOptimization.mt">
       <Filter>testFiles\generics\pass</Filter>
     </None>
+    <None Include="tests\testFiles\generics\pass\hashmapShapeFallbackManyFields.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\hashmapShapeFallbackManyFields.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\hashmapShapeFallbackParent.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\hashmapShapeFallbackParent.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\hashmapShapeFallbackUserEquals.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\hashmapShapeFallbackUserEquals.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
     <None Include="tests\testFiles\generics\pass\hashmapShapeSpecialization.expected">
       <Filter>testFiles\generics\pass</Filter>
     </None>
