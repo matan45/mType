@@ -17,6 +17,15 @@ jobs:
       fail-fast: false   # Keep all platforms running even if one fails
       matrix:
         include:
+          # ── Windows (MSVC x64) ───────────────────────────────────────────────
+          - os: windows-latest
+            name: Windows (MSVC x64)
+            premake_action: vs2022
+            build_cmd: msbuild Interpreter.sln /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /m /nologo /clp:"Summary;ErrorsOnly"
+            test_cmd: bin\mType\Release\x64\mType.exe --tests
+            premake_install: ""
+            deps_install: ""
+
           # ── Linux x64 (GCC) ──────────────────────────────────────────────────
           - os: ubuntu-24.04
             name: Linux (GCC x64)
@@ -70,13 +79,33 @@ jobs:
         shell: bash
         run: ${{ matrix.premake_install }}
 
+      - name: Install premake5 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $url = "https://github.com/premake/premake-core/releases/download/v5.0.0-beta4/premake-5.0.0-beta4-windows.zip"
+          Invoke-WebRequest -Uri $url -OutFile premake5.zip
+          Expand-Archive -Force premake5.zip -DestinationPath premake5_bin
+          Move-Item premake5_bin\premake5.exe C:\Windows\System32\premake5.exe
+
+      # ── Add MSBuild to PATH (Windows) ────────────────────────────────────────
+      - name: Setup MSBuild
+        if: runner.os == 'Windows'
+        uses: microsoft/setup-msbuild@v2
+
       # ── Generate build files ──────────────────────────────────────────────────
       - name: Generate build files
         shell: bash
         run: premake5 ${{ matrix.premake_action }}
 
       # ── Build ─────────────────────────────────────────────────────────────────
-      - name: Build
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ${{ matrix.build_cmd }}
+
+      - name: Build (Unix)
+        if: runner.os != 'Windows'
         shell: bash
         run: ${{ matrix.build_cmd }}
 

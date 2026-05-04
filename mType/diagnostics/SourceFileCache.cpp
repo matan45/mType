@@ -1,5 +1,6 @@
 #include "SourceFileCache.hpp"
 #include <sstream>
+#include <mutex>
 
 namespace diagnostics
 {

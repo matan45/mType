@@ -2,6 +2,7 @@
 #include "PromiseValue.hpp"
 #include <vector>
 #include <functional>
+#include <mutex>
 
 namespace value
 {
