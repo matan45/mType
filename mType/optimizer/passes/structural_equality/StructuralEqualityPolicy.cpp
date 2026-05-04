@@ -111,37 +111,30 @@ namespace optimizer::passes::structural_equality
     bool StructuralEqualityPolicy::allFieldsSafeForSynthesis(
         const std::vector<const ast::FieldNode*>& ownFields)
     {
+        // Phase 1: only int-primitive fields are safe. The codegen does
+        // direct integer arithmetic on those (no method calls). All other
+        // field shapes — string-variant types (class names, interface
+        // names, generic parameters), parameterized generics, nullable
+        // object fields, and non-int concrete primitives — are rejected.
+        // Reasons:
+        //   * String-variant could be an interface (no hashCode resolution)
+        //     or a class whose hashCode signature might conflict.
+        //   * Parameterized types (Array<T>, Promise<T>) don't expose a
+        //     callable hashCode in synthesized scope.
+        //   * Nullable object fields would require null-aware codegen that
+        //     passes nullable args to non-nullable Object equals params.
+        //   * Non-int primitives (float/bool/string) don't support
+        //     `.hashCode()` directly in mType.
+        // Classes failing this gate fall back to the slow Object native —
+        // correct, just not accelerated. Phase 1.5+ can relax incrementally.
         for (const auto* field : ownFields)
         {
             auto genericType = field->getGenericType();
             if (!genericType) return false;
-
-            // Parameterized types (Array<T>, Promise<T>, List<T>, ...) — skip.
-            // The synthesizer would emit `.hashCode()` calls that the
-            // typechecker can't always resolve against the parameterized
-            // form, and arrays don't have user-callable hashCode.
             if (genericType->isParameterized()) return false;
-
-            // Nullable object fields — skip. Recursive `this.f.equals(o.f)`
-            // calls would pass a nullable argument to the non-nullable
-            // Object parameter of the called class's equals, which the
-            // typechecker rejects strictly. Phase 1 limitation.
             if (genericType->isNullable()) return false;
+            if (genericType->isGenericParameter()) return false;
 
-            if (genericType->isGenericParameter())
-            {
-                // String variant in GenericType — could be a class name
-                // (Foo, Bar, Object) or a true generic type parameter (T, E).
-                // For Phase 1 we conservatively allow class-name fields and
-                // assume the typechecker can resolve `.hashCode()` against
-                // them (any user class inherits Object.hashCode).
-                continue;
-            }
-
-            // Concrete ValueType. Only INT is hashable via direct
-            // arithmetic in Phase 1. Other primitive types (FLOAT, BOOL,
-            // STRING, OBJECT-as-VOID, etc.) require method-call dispatch
-            // that may not resolve cleanly in synthesized scope; skip.
             ::value::ValueType vt = genericType->getConcreteType();
             if (vt != ::value::ValueType::INT) return false;
         }

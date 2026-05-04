@@ -376,6 +376,10 @@ namespace optimizer::passes
             // Preserve method modifiers
             transformedMethod->setAbstract(node->isAbstract());
             transformedMethod->setFinal(node->isFinal());
+            // MYT-274: preserve synthetic flag through DCE rebuild so the
+            // method continues to route into syntheticInstanceMethods at
+            // runtime registration (and stays filtered from reflection).
+            transformedMethod->setSynthetic(node->isSynthetic());
 
             // Copy all annotations (e.g., @Override, @Throws)
             for (const auto& annotation : node->getAnnotations())

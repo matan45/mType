@@ -7,6 +7,7 @@
 #include "../value/ValueShim.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../vm/MethodSignature.hpp"
+#include <algorithm>
 #include <unordered_set>
 
 namespace reflection
