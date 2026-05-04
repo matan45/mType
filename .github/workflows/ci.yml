@@ -44,6 +44,7 @@ jobs:
               wget -q https://github.com/premake/premake-core/releases/download/v5.0.0-beta4/premake-5.0.0-beta4-linux.tar.gz \
                    -O premake5.tar.gz
               tar xf premake5.tar.gz
+              chmod +x premake5
               sudo mv premake5 /usr/local/bin/premake5
               rm premake5.tar.gz
 
@@ -88,6 +89,11 @@ jobs:
           Invoke-WebRequest -Uri $url -OutFile premake5.zip
           Expand-Archive -Force premake5.zip -DestinationPath premake5_bin
           Move-Item premake5_bin\premake5.exe C:\Windows\System32\premake5.exe
+
+      # ── Add MSBuild to PATH (Windows) ────────────────────────────────────────
+      - name: Setup MSBuild
+        if: runner.os == 'Windows'
+        uses: microsoft/setup-msbuild@v2
 
       # ── Generate build files ──────────────────────────────────────────────────
       - name: Generate build files
