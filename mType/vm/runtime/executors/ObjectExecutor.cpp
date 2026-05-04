@@ -28,6 +28,20 @@
 using vm::runtime::utils::autoBoxPrimitive;
 namespace vm::runtime
 {
+    namespace
+    {
+        int64_t deterministicStringHash(const std::string& str)
+        {
+            uint64_t hash = 14695981039346656037ull;
+            for (unsigned char c : str)
+            {
+                hash ^= c;
+                hash *= 1099511628211ull;
+            }
+            return static_cast<int64_t>(hash & 0x7FFFFFFFull);
+        }
+    }
+
     ObjectExecutor::ObjectExecutor(ExecutionContext& ctx)
         : context(ctx)
         , instanceHelper(std::make_unique<ObjectInstanceHelper>(ctx))
@@ -806,8 +820,7 @@ namespace vm::runtime
             // equals(null) resolving to equals(Object) when the class only has equals(SpecificType))
             auto computeHashCode = [&instance]() -> int64_t {
                 std::string contentHash = instance->getContentHash();
-                std::hash<std::string> hasher;
-                return static_cast<int64_t>(hasher(contentHash) & 0x7FFFFFFF);
+                return deterministicStringHash(contentHash);
             };
 
             if (simpleMethodName == "toString") {

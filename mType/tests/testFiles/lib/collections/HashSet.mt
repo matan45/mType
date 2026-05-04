@@ -45,9 +45,8 @@ class HashSet<T> implements Set<T> {
         }
 
         int rawHash = item.hashCode();
-        int mixed = rawHash * 1610612741;
         int mask = this.capacity - 1;
-        int idx = (mixed ^ (mixed >> 16)) & mask;
+        int idx = rawHash & mask;
 
         while (this.elements[idx] != null) {
             if (this.hashes[idx] == rawHash && this.elements[idx].equals(item)) {
@@ -73,9 +72,8 @@ class HashSet<T> implements Set<T> {
         }
 
         int rawHash = item.hashCode();
-        int mixed = rawHash * 1610612741;
         int mask = this.capacity - 1;
-        int idx = (mixed ^ (mixed >> 16)) & mask;
+        int idx = rawHash & mask;
 
         while (this.elements[idx] != null) {
             if (this.hashes[idx] == rawHash && this.elements[idx].equals(item)) {
@@ -93,9 +91,8 @@ class HashSet<T> implements Set<T> {
         }
 
         int rawHash = item.hashCode();
-        int mixed = rawHash * 1610612741;
         int mask = this.capacity - 1;
-        int idx = (mixed ^ (mixed >> 16)) & mask;
+        int idx = rawHash & mask;
 
         while (this.elements[idx] != null) {
             if (this.hashes[idx] == rawHash && this.elements[idx].equals(item)) {
@@ -106,8 +103,7 @@ class HashSet<T> implements Set<T> {
                 int probe = (hole + 1) & mask;
                 while (this.elements[probe] != null) {
                     int hj = this.hashes[probe];
-                    int mj = hj * 1610612741;
-                    int kIdeal = (mj ^ (mj >> 16)) & mask;
+                    int kIdeal = hj & mask;
 
                     bool inRange = false;
                     if (hole < probe) {
@@ -254,8 +250,7 @@ class HashSet<T> implements Set<T> {
             T item = oldElements[slot];
             if (item != null) {
                 int rawHash = oldHashes[slot];
-                int mixed = rawHash * 1610612741;
-                int idx = (mixed ^ (mixed >> 16)) & mask;
+                int idx = rawHash & mask;
                 while (this.elements[idx] != null) {
                     idx = (idx + 1) & mask;
                 }

@@ -12,8 +12,6 @@ namespace value
 {
     namespace
     {
-        constexpr int64_t kHashMultiplier = 1610612741;
-
         size_t normalizeCapacity(size_t requested)
         {
             size_t cap = 4;
@@ -24,6 +22,17 @@ namespace value
         int64_t maskedHash(size_t hash)
         {
             return static_cast<int64_t>(hash & 0x7FFFFFFF);
+        }
+
+        int64_t deterministicStringHash(const std::string& str)
+        {
+            uint64_t hash = 14695981039346656037ull;
+            for (unsigned char c : str)
+            {
+                hash ^= c;
+                hash *= 1099511628211ull;
+            }
+            return static_cast<int64_t>(hash & 0x7FFFFFFFull);
         }
     }
 
@@ -150,7 +159,7 @@ namespace value
         case PrimitiveTypeTag::BOOL:
             return key.boolValue ? 1231 : 1237;
         case PrimitiveTypeTag::STRING:
-            return maskedHash(std::hash<std::string>{}(key.stringValue));
+            return deterministicStringHash(key.stringValue);
         default:
             return 0;
         }
@@ -189,8 +198,7 @@ namespace value
 
         const size_t mask = entries_.size() - 1;
         const int64_t hash = rawHash(key);
-        const int64_t mixed = hash * kHashMultiplier;
-        size_t idx = static_cast<size_t>((mixed ^ (mixed >> 16)) & static_cast<int64_t>(mask));
+        size_t idx = static_cast<size_t>(hash & static_cast<int64_t>(mask));
 
         for (size_t probes = 0; probes < entries_.size(); ++probes)
         {

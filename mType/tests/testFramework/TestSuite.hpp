@@ -33,6 +33,11 @@ namespace tests::testFramework
         // propagate a non-zero exit code to CI.
         const TestResults& getResults() const { return runner->getResults(); }
 
+        // Exposes the executed TestCases so callers can list which specific
+        // tests failed in the cross-suite summary, instead of forcing a
+        // search through the per-suite output.
+        const std::vector<TestCase*>& getExecutedTests() const { return runner->getExecutedTests(); }
+
         void addTestFromFile(const std::string& name, const std::string& filePath, TestType type = TestType::NORMAL);
         // MYT-38 — overload that pins the substring required to appear in
         // the thrown exception's message for an ERROR_EXPECTED test to pass.

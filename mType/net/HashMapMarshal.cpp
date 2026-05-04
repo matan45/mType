@@ -49,20 +49,23 @@ namespace net
             return inst;
         }
 
-        // Mirrors HashMap.mt's hash-to-slot mapping after MYT-258 Phase 3:
-        // open-addressing on flat arrays with `(rawHash * MAGIC ^ shift) & (cap - 1)`.
+        // Mirrors HashMap.mt's hash-to-slot mapping.
         int64_t computeSlotIndex(int64_t hash, int64_t capacity)
         {
-            int64_t mixed = hash * 1610612741;
-            return (mixed ^ (mixed >> 16)) & (capacity - 1);
+            return hash & (capacity - 1);
         }
 
-        // Mirror BuiltinNatives::hashCode_fn string hash (std::hash<std::string> & 0x7FFFFFFF)
+        // Mirror BuiltinNatives::hashCode_fn string hash.
         // so slot placement matches what mType's HashMap.put would produce.
         int64_t stringHash(const std::string& s)
         {
-            std::hash<std::string> hasher;
-            return static_cast<int64_t>(hasher(s) & 0x7FFFFFFF);
+            uint64_t hash = 14695981039346656037ull;
+            for (unsigned char c : s)
+            {
+                hash ^= c;
+                hash *= 1099511628211ull;
+            }
+            return static_cast<int64_t>(hash & 0x7FFFFFFFull);
         }
     }
 

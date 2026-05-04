@@ -322,6 +322,16 @@ int runAllTests(constants::ExecutionMode execMode, bool jitEnabled)
     int totalErrors   = 0;
     int totalTests    = 0;
     int totalPassed   = 0;
+
+    struct FailedTest
+    {
+        std::string suite;
+        std::string name;
+        std::string status; // "FAILED" or "ERROR"
+        std::string error;
+    };
+    std::vector<FailedTest> failedTests;
+
     for (auto& suite : suites)
     {
         suite->setupTests(); // Initialize test cases
@@ -336,6 +346,24 @@ int runAllTests(constants::ExecutionMode execMode, bool jitEnabled)
         totalPassed   += r.passedTests;
         totalFailures += r.failedTests;
         totalErrors   += r.errorTests;
+
+        // Snapshot any failed/errored tests per-suite so the final summary
+        // can list them without forcing a search through the per-suite
+        // output.
+        for (const auto* tc : suite->getExecutedTests())
+        {
+            if (!tc) continue;
+            const auto status = tc->getStatus();
+            if (status == TestStatus::FAILED || status == TestStatus::ERROR)
+            {
+                failedTests.push_back({
+                    suite->getName(),
+                    tc->getName(),
+                    status == TestStatus::FAILED ? "FAILED" : "ERROR",
+                    tc->getErrorMessage()
+                });
+            }
+        }
     }
 
     // Cleanup reflection static state to avoid static destruction order issues
@@ -350,6 +378,27 @@ int runAllTests(constants::ExecutionMode execMode, bool jitEnabled)
     std::cout << "  Passed:  " << totalPassed << "\n";
     std::cout << "  Failed:  " << totalFailures << "\n";
     std::cout << "  Errors:  " << totalErrors << "\n";
+
+    if (!failedTests.empty())
+    {
+        std::cout << "\nFAILED TESTS (" << failedTests.size() << "):\n";
+        std::string lastSuite;
+        for (const auto& ft : failedTests)
+        {
+            if (ft.suite != lastSuite)
+            {
+                std::cout << "  [" << ft.suite << "]\n";
+                lastSuite = ft.suite;
+            }
+            std::cout << "    " << ft.status << ": " << ft.name;
+            if (!ft.error.empty())
+            {
+                std::cout << " — " << ft.error;
+            }
+            std::cout << "\n";
+        }
+    }
+
     std::cout << "Reports generated in test_reports/ directory" << std::endl;
 
     std::cout << std::string(80, '=') << std::endl;

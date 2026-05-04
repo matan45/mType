@@ -52,6 +52,17 @@ namespace vm::runtime
         return nullptr;
     }
 
+    static int64_t deterministicStringHash(const std::string& str)
+    {
+        uint64_t hash = 14695981039346656037ull;
+        for (unsigned char c : str)
+        {
+            hash ^= c;
+            hash *= 1099511628211ull;
+        }
+        return static_cast<int64_t>(hash & 0x7FFFFFFFull);
+    }
+
     static bool computePrimitiveProtocolHash(value::Value& out, const value::Value& receiver)
     {
         const value::PrimitiveTypeTag tag = getPrimitiveProtocolTag(receiver);
@@ -76,13 +87,12 @@ namespace vm::runtime
             case value::PrimitiveTypeTag::STRING:
                 if (value::isString(*field))
                 {
-                    out = static_cast<int64_t>(std::hash<std::string>{}(value::asString(*field)) & 0x7FFFFFFF);
+                    out = deterministicStringHash(value::asString(*field));
                     return true;
                 }
                 if (value::isInternedString(*field))
                 {
-                    out = static_cast<int64_t>(
-                        std::hash<std::string>{}(value::asInternedString(*field).getString()) & 0x7FFFFFFF);
+                    out = deterministicStringHash(value::asInternedString(*field).getString());
                     return true;
                 }
                 return false;
