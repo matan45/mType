@@ -132,7 +132,7 @@ namespace value
          * @param indices Vector of indices [i1, i2, i3, ...]
          * @return Value at the specified position
          */
-        Value get(const std::vector<size_t>& indices) const {
+        Value get(const std::vector<size_t>& indices) const override {
             size_t linearIndex = calculateLinearIndex(indices);
             if (linearIndex == SIZE_MAX) {
                 return std::monostate{}; // Return null for invalid indices
@@ -173,7 +173,7 @@ namespace value
          * @param index Linear index
          * @return Value at the specified position
          */
-        Value get(size_t index) const {
+        Value get(size_t index) const override {
             const auto& dataStorage = getDataStorage();
             size_t effectiveIndex = detail::checkedOffsetAdd(getEffectiveOffset(), index);
 

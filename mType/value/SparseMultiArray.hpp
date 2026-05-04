@@ -280,7 +280,7 @@ namespace value
         /**
          * @brief Get element at multi-dimensional index
          */
-        Value get(const std::vector<size_t>& indices) const
+        Value get(const std::vector<size_t>& indices) const override
         {
             size_t linearIndex = calculateLinearIndex(indices);
             if (linearIndex == SIZE_MAX)
@@ -320,7 +320,7 @@ namespace value
          * @param index Index in the first dimension
          * @return Value at the specified index
          */
-        Value get(size_t index) const
+        Value get(size_t index) const override
         {
             // For 1D arrays or first dimension access
             if (dimensions_.size() == 1)

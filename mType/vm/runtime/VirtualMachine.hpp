@@ -506,8 +506,19 @@ namespace vm::runtime
     // outside the class body so the type is complete for offsetof, and must
     // be inside vm::runtime:: so jitNativeDepth (private) is reachable
     // through the VirtualMachine:: qualified name.
+    // These offsets are part of the JIT ABI: generated code reads/writes
+    // the fields directly through the VM pointer. VirtualMachine is not a
+    // standard-layout type, so Clang warns on offsetof even though this is
+    // the intended compiler-supported extension here.
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#endif
     inline const size_t VirtualMachine::kJitNativeDepthOffset =
         offsetof(VirtualMachine, jitNativeDepth);
     inline const size_t VirtualMachine::kMaxCallStackSizeOffset =
         offsetof(VirtualMachine, maxCallStackSize);
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
 }

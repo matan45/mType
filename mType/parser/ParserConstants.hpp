@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 namespace parser::constants
 {
     /// @brief Maximum number of generic type parameters allowed for classes and interfaces
