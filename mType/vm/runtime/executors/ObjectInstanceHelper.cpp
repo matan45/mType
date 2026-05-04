@@ -80,6 +80,30 @@ namespace vm::runtime
         return value::PrimitiveTypeTag::NONE;
     }
 
+    static bool isStdHashMapClass(const runtimeTypes::klass::ClassDefinition* classDef)
+    {
+        if (!classDef) return false;
+        return classDef->hasField("keys") &&
+               classDef->hasField("values") &&
+               classDef->hasField("hashes") &&
+               classDef->hasField("capacity") &&
+               classDef->hasField("count") &&
+               classDef->hasMethod("containsKey") &&
+               classDef->hasMethod("getKeys") &&
+               classDef->hasMethod("getValues");
+    }
+
+    static bool isStdHashSetClass(const runtimeTypes::klass::ClassDefinition* classDef)
+    {
+        if (!classDef) return false;
+        return classDef->hasField("elements") &&
+               classDef->hasField("hashes") &&
+               classDef->hasField("capacity") &&
+               classDef->hasField("count") &&
+               classDef->hasMethod("contains") &&
+               classDef->hasMethod("toArray");
+    }
+
     static void attachSpecializedCollectionIfNeeded(
         runtimeTypes::klass::ObjectInstance* instance,
         const std::string& baseClassName,
@@ -90,6 +114,7 @@ namespace vm::runtime
 
         if (baseClassName == "HashMap")
         {
+            if (!isStdHashMapClass(instance->getClassDefinitionRaw())) return;
             auto it = genericTypeBindings.find("K");
             if (it == genericTypeBindings.end()) return;
             auto tag = specializableTypeNameToTag(it->second);
@@ -103,6 +128,7 @@ namespace vm::runtime
 
         if (baseClassName == "HashSet")
         {
+            if (!isStdHashSetClass(instance->getClassDefinitionRaw())) return;
             auto it = genericTypeBindings.find("T");
             if (it == genericTypeBindings.end()) return;
             auto tag = specializableTypeNameToTag(it->second);
