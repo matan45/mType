@@ -1,4 +1,5 @@
 #include "ControlFlowCompiler.hpp"
+#include "StatementCleanup.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../../../errors/ParseException.hpp"
 #include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
@@ -77,7 +78,13 @@ namespace vm::compiler::visitors
             ctx.nullNarrowing.enterScope();
             ctx.nullNarrowing.narrowToNonNull(narrowVarName);
         }
+        // MYT-271: braceless then-bodies (`if (cond) stmt;`) need the same
+        // operand-stack cleanup that compileBlock applies after each braced
+        // statement. Without this, an assignment body leaks the STORE_LOCAL
+        // re-push and a function-call body leaks the return value.
+        size_t thenOffsetBefore = ctx.program.getCurrentOffset();
         node->getThenStatement()->accept(ctx.visitor);  // Will need delegation
+        statementCleanup::emitStatementCleanup(ctx, node->getThenStatement(), thenOffsetBefore);
         if (narrowInThen && !narrowVarName.empty())
         {
             ctx.nullNarrowing.exitScope();
@@ -99,7 +106,10 @@ namespace vm::compiler::visitors
                 ctx.nullNarrowing.enterScope();
                 ctx.nullNarrowing.narrowToNonNull(narrowVarName);
             }
+            // MYT-271: braceless else-bodies need the same cleanup as braced.
+            size_t elseOffsetBefore = ctx.program.getCurrentOffset();
             node->getElseStatement()->accept(ctx.visitor);  // Will need delegation
+            statementCleanup::emitStatementCleanup(ctx, node->getElseStatement(), elseOffsetBefore);
             if (narrowInElse && !narrowVarName.empty())
             {
                 ctx.nullNarrowing.exitScope();
@@ -186,7 +196,10 @@ namespace vm::compiler::visitors
             ctx.nullNarrowing.enterScope();
             ctx.nullNarrowing.narrowToNonNull(whileNarrowVar);
         }
+        // MYT-271: braceless while-bodies need the same cleanup as braced.
+        size_t whileBodyOffsetBefore = ctx.program.getCurrentOffset();
         node->getBody()->accept(ctx.visitor);  // Will need delegation
+        statementCleanup::emitStatementCleanup(ctx, node->getBody(), whileBodyOffsetBefore);
         if (!whileNarrowVar.empty())
         {
             ctx.nullNarrowing.exitScope();
@@ -225,7 +238,10 @@ namespace vm::compiler::visitors
 
         // Compile body with its own scope
         ctx.variableTracker.beginScope();
+        // MYT-271: braceless do-while bodies need the same cleanup as braced.
+        size_t doBodyOffsetBefore = ctx.program.getCurrentOffset();
         node->getBody()->accept(ctx.visitor);  // Will need delegation
+        statementCleanup::emitStatementCleanup(ctx, node->getBody(), doBodyOffsetBefore);
         ctx.variableTracker.endScope();
         ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
@@ -274,25 +290,12 @@ namespace vm::compiler::visitors
         // Compile initializer. STORE_LOCAL / STORE_VAR / SET_FIELD re-push the
         // stored value at runtime (for expression-context cascades like
         // `int x = (a = 5)`), so the init site needs a POP in statement
-        // context — mirrors the update-path POP a few lines below.
+        // context. MYT-271: also covers Path A (function-call initializer)
+        // via the shared helper — mirrors the update-path POP below.
         if (node->getInitialization()) {
             size_t offsetBefore = ctx.program.getCurrentOffset();
             node->getInitialization()->accept(ctx.visitor);  // Will need delegation
-            size_t offsetAfter = ctx.program.getCurrentOffset();
-            if (offsetAfter > offsetBefore)
-            {
-                const auto& lastInstr = ctx.program.getInstruction(offsetAfter - 1);
-                switch (lastInstr.opcode)
-                {
-                    case bytecode::OpCode::STORE_LOCAL:
-                    case bytecode::OpCode::STORE_VAR:
-                    case bytecode::OpCode::SET_FIELD:
-                        ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
-                        break;
-                    default:
-                        break;
-                }
-            }
+            statementCleanup::emitStatementCleanup(ctx, node->getInitialization(), offsetBefore);
         }
 
         // Emit LOOP_START marker for optimization passes
@@ -330,8 +333,11 @@ namespace vm::compiler::visitors
         ctx.loopManager.enterLoop(loopStart, incrementStart);
 
         // Compile body
+        // MYT-271: braceless for-bodies need the same cleanup as braced.
         if (node->getBody()) {
+            size_t forBodyOffsetBefore = ctx.program.getCurrentOffset();
             node->getBody()->accept(ctx.visitor);  // Will need delegation
+            statementCleanup::emitStatementCleanup(ctx, node->getBody(), forBodyOffsetBefore);
         }
 
         // Jump to increment
@@ -480,8 +486,11 @@ namespace vm::compiler::visitors
             ctx.loopManager.enterLoop(loopStart, continueTarget);
 
             // Compile body
+            // MYT-271: braceless foreach-bodies need the same cleanup as braced.
             if (node->getBody()) {
+                size_t feBodyOffsetBefore = ctx.program.getCurrentOffset();
                 node->getBody()->accept(ctx.visitor);  // Will need delegation
+                statementCleanup::emitStatementCleanup(ctx, node->getBody(), feBodyOffsetBefore);
             }
 
             ctx.loopManager.exitLoop();
@@ -613,8 +622,11 @@ namespace vm::compiler::visitors
             ctx.loopManager.enterLoop(loopStart, continueTarget);
 
             // Compile body
+            // MYT-271: braceless foreach-bodies need the same cleanup as braced.
             if (node->getBody()) {
+                size_t feBodyOffsetBefore = ctx.program.getCurrentOffset();
                 node->getBody()->accept(ctx.visitor);  // Will need delegation
+                statementCleanup::emitStatementCleanup(ctx, node->getBody(), feBodyOffsetBefore);
             }
 
             ctx.loopManager.exitLoop();

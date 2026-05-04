@@ -147,6 +147,12 @@ namespace tests::testSuite
                         passPath + "conditionalRedundantChecks_pass.mt");
         addOutputVerificationTest("Conditional Short Circuit Division",
                         passPath + "conditionalShortCircuitDiv_pass.mt");
+        // MYT-271: braceless `if (!fn()) <stmt>;` with native-calling callee.
+        addOutputVerificationTest("Braceless If Native Underflow",
+                        passPath + "bracelessIfNativeUnderflow_pass.mt");
+        // MYT-271 extended: braceless if-then/else, while, do-while, for bodies.
+        addOutputVerificationTest("Braceless Control Flow Bodies",
+                        passPath + "bracelessControlFlowBodies_pass.mt");
 
         // === EDGE TESTS (5 tests) ===
         addOutputVerificationTest("Edge Empty Function",
