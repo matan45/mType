@@ -55,6 +55,7 @@ namespace runtimeTypes::klass
         bool isAsync;  // NEW: Flag to indicate async method
         bool abstractMethod;  // NEW: Flag to indicate abstract method
         bool finalMethod;  // NEW: Flag to indicate final method (cannot be overridden)
+        bool synthetic = false;  // MYT-274: compiler-synthesized method (e.g. auto hashCode/equals)
 
         // NEW: Annotations for this method
         std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> annotations;
@@ -247,6 +248,10 @@ namespace runtimeTypes::klass
         bool isFinal() const { return finalMethod; }
         void setFinal(bool isFinalMethod) { finalMethod = isFinalMethod; }
 
+        // MYT-274: synthetic flag for compiler-generated methods
+        bool isSynthetic() const { return synthetic; }
+        void setSynthetic(bool s) { synthetic = s; }
+
         // NEW: Annotation methods
         const std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>& getAnnotations() const { return annotations; }
         void addAnnotation(std::shared_ptr<ast::nodes::annotations::AnnotationNode> annotation) { annotations.push_back(annotation); }
@@ -292,7 +297,7 @@ namespace runtimeTypes::klass
         void setSourceLocation(const ast::SourceLocation& location) { sourceLocation = location; }
 
         // Reflection support: get modifier flags as bitmask
-        // PUBLIC=1, PRIVATE=2, PROTECTED=4, STATIC=8, FINAL=16, ABSTRACT=32, ASYNC=64
+        // PUBLIC=1, PRIVATE=2, PROTECTED=4, STATIC=8, FINAL=16, ABSTRACT=32, ASYNC=64, SYNTHETIC=128
         int getModifierFlags() const {
             int flags = 0;
             switch (accessModifier) {
@@ -304,6 +309,7 @@ namespace runtimeTypes::klass
             if (finalMethod) flags |= 16;
             if (abstractMethod) flags |= 32;
             if (isAsync) flags |= 64;
+            if (synthetic) flags |= 128;
             return flags;
         }
 

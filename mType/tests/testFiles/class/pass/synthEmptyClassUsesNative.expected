@@ -1,0 +1,3 @@
+self equals: true
+self hash equals: true
+distinct equals: true

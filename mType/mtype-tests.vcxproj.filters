@@ -2341,6 +2341,12 @@
     <None Include="tests\testFiles\benchmarks\collections_hash_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\collections_hash_user_class_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\collections_hash_user_class_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\collections_hashset_hot.expected">
       <Filter>testFiles\benchmarks</Filter>
     </None>
@@ -3601,6 +3607,9 @@
     <None Include="tests\testFiles\class\error\superSyntax.mt">
       <Filter>testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\synthParentDeclaresEqualsChildDoesNot.mt">
+      <Filter>testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\typeInvalidCast.mt">
       <Filter>testFiles\class\error</Filter>
     </None>
@@ -4262,6 +4271,48 @@
       <Filter>testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\superMethodAccess.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthEmptyClassUsesNative.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthEmptyClassUsesNative.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthEqualsContract.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthEqualsContract.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthEqualsTypeMismatch.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthEqualsTypeMismatch.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthHashCodeConsistency.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthHashCodeConsistency.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthHashMapKey.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthHashMapKey.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthInheritedFields.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthInheritedFields.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthValueClassUntouched.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\synthValueClassUntouched.mt">
       <Filter>testFiles\class\pass</Filter>
     </None>
     <None Include="tests\testFiles\class\pass\tryCatchFinallyWithReturn.expected">

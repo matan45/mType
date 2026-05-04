@@ -97,10 +97,12 @@ namespace reflection
         if (declaredOnly)
         {
             // Declared-only: this class's methods only, all access levels.
+            // MYT-274: filter compiler-synthesized methods (auto hashCode/equals).
             for (const auto& [name, overloads] : classDef->getInstanceMethods())
             {
                 for (const auto& methodDef : overloads)
                 {
+                    if (methodDef->isSynthetic()) continue;
                     int64_t handle = handleRegistry.registerMethod(methodDef, classHandle, name);
                     methodHandles.push_back(static_cast<int>(handle));
                 }
@@ -109,6 +111,7 @@ namespace reflection
             {
                 for (const auto& methodDef : overloads)
                 {
+                    if (methodDef->isSynthetic()) continue;
                     int64_t handle = handleRegistry.registerMethod(methodDef, classHandle, name);
                     methodHandles.push_back(static_cast<int>(handle));
                 }
@@ -118,6 +121,7 @@ namespace reflection
         {
             // MYT-213: walk the parent chain, dedup overrides by (name + signature)
             // so child overrides hide parent versions. Public-only filter.
+            // MYT-274: also filter compiler-synthesized methods.
             std::unordered_set<std::string> seenSigs;
             constexpr int MAX_DEPTH = 20;
 
@@ -126,6 +130,7 @@ namespace reflection
                                   bool isStatic)
             {
                 if (methodDef->getAccessModifier() != ast::AccessModifier::PUBLIC) return;
+                if (methodDef->isSynthetic()) return;
                 auto sig = vm::MethodSignature::fromMethodDefinition(methodDef.get());
                 std::string key = (isStatic ? "S:" : "I:") + sig.toMangledName(name, isStatic);
                 if (!seenSigs.insert(key).second) return;

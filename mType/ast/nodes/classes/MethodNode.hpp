@@ -26,6 +26,7 @@ namespace ast::nodes::classes
         bool isAsync;  // NEW: Flag to indicate async method
         bool abstractMethod;  // NEW: Flag to indicate abstract method
         bool finalMethod;  // NEW: Flag to indicate final method (cannot be overridden)
+        bool synthetic = false;  // MYT-274: compiler-synthesized method (e.g. auto-generated hashCode/equals)
         AccessModifier accessModifier;
         std::vector<std::shared_ptr<annotations::AnnotationNode>> annotations;  // NEW: Annotations for this method
 
@@ -95,6 +96,10 @@ namespace ast::nodes::classes
         // NEW: Final-related methods
         [[nodiscard]] bool isFinal() const noexcept { return finalMethod; }
         void setFinal(bool isFinalMethod) { finalMethod = isFinalMethod; }
+
+        // MYT-274: synthetic flag for compiler-generated methods
+        [[nodiscard]] bool isSynthetic() const noexcept { return synthetic; }
+        void setSynthetic(bool s) noexcept { synthetic = s; }
 
         // NEW: Generic-related methods
         [[nodiscard]] const std::vector<GenericTypeParameter>& getGenericTypeParameters() const noexcept;

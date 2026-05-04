@@ -2,6 +2,7 @@
 #include "passes/ConstantFoldingPass.hpp"
 #include "passes/DeadCodeEliminationPass.hpp"
 #include "passes/EscapeAnalysisPass.hpp"
+#include "passes/StructuralEqualitySynthesisPass.hpp"
 
 namespace optimizer
 {
@@ -29,13 +30,22 @@ namespace optimizer
     void OptimizationPassManager::registerDefaultPasses()
     {
         // Register passes based on optimization config
-        // ORDER: Constant Folding -> Dead Code Elimination
+        // ORDER: StructuralEqualitySynthesis -> Constant Folding -> Dead Code Elimination
         //
         // Rationale:
-        // 1. Constant Folding exposes unreachable code (e.g., if(false) branches)
-        // 2. Dead Code Elimination removes unreachable code after control flow terminators
+        // 1. StructuralEqualitySynthesis (MYT-274) runs FIRST so synthesized
+        //    hashCode/equals bodies flow through downstream passes (constant
+        //    folding may simplify their internal arithmetic, dead-code may
+        //    drop unreachable branches in a synthesized null-guard).
+        // 2. Constant Folding exposes unreachable code (e.g., if(false) branches)
+        // 3. Dead Code Elimination removes unreachable code after control flow terminators
         //
         // These will run in fixed-point iteration until no changes occur
+
+        if (config.isStructuralEqualitySynthesisEnabled())
+        {
+            registerPass(std::make_unique<passes::StructuralEqualitySynthesisPass>());
+        }
 
         if (config.isConstantFoldingEnabled())
         {

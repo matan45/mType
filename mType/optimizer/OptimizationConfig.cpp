@@ -6,6 +6,7 @@ namespace optimizer
         : enableDeadCodeElimination(true)
         , enableConstantFolding(true)
         , enableEscapeAnalysis(true)
+        , enableStructuralEqualitySynthesis(true)
         , maxPassIterations(50)
         , timeoutPerPass(std::chrono::milliseconds(5000))
     {
@@ -22,6 +23,7 @@ namespace optimizer
         config.enableDeadCodeElimination = false;
         config.enableConstantFolding = false;
         config.enableEscapeAnalysis = false;
+        config.enableStructuralEqualitySynthesis = false;
         return config;
     }
 
@@ -40,6 +42,12 @@ namespace optimizer
     OptimizationConfig& OptimizationConfig::setEscapeAnalysis(bool enable)
     {
         enableEscapeAnalysis = enable;
+        return *this;
+    }
+
+    OptimizationConfig& OptimizationConfig::setStructuralEqualitySynthesis(bool enable)
+    {
+        enableStructuralEqualitySynthesis = enable;
         return *this;
     }
 
