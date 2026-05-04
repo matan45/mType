@@ -1,10 +1,12 @@
 #ifndef _WIN32  // This entire file is Linux/macOS only
 
 #include "CurlHttpClient.hpp"
+#include <curl/curl.h>
 #include <cstddef>
 #include <stdexcept>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <cctype>
 #include <algorithm>
 #include <mutex>

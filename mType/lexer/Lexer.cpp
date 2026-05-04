@@ -3,6 +3,8 @@
 #include <cstdint>
 #include <cctype>
 #include <charconv>
+#include <cstdlib>
+#include <cerrno>
 #include <stdexcept>
 #include <system_error>
 #include <limits>
@@ -291,17 +293,33 @@ namespace lexer
         const std::string_view floatView(input.data() + start, pos - start);
 
         double value = 0.0;
+        bool outOfRange = false;
+        bool invalid    = false;
+
+#if defined(_LIBCPP_VERSION)
+        // libc++ (Apple/Xcode) does not yet implement std::from_chars for
+        // floating-point types; fall back to strtod with a null-terminated copy.
+        const std::string buf(floatView);
+        errno = 0;
+        char* endPtr = nullptr;
+        value      = std::strtod(buf.c_str(), &endPtr);
+        outOfRange = (errno == ERANGE);
+        invalid    = (endPtr == buf.c_str() || endPtr != buf.c_str() + buf.size());
+#else
         const char* first = floatView.data();
         const char* last  = floatView.data() + floatView.size();
-        const auto res = std::from_chars(first, last, value);
+        const auto res    = std::from_chars(first, last, value);
+        outOfRange = (res.ec == std::errc::result_out_of_range);
+        invalid    = (res.ec == std::errc::invalid_argument || res.ptr != last);
+#endif
 
-        if (res.ec == std::errc::result_out_of_range)
+        if (outOfRange)
         {
             throw errors::ParseException(
                 "Float literal '" + std::string(floatView) + "' is out of range for type 'float'",
                 locationTracker->getCurrentLocation());
         }
-        if (res.ec == std::errc::invalid_argument || res.ptr != last)
+        if (invalid)
         {
             throw errors::ParseException("Invalid float format: " + std::string(floatView),
                                          locationTracker->getCurrentLocation());
