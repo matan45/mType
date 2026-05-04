@@ -8,6 +8,9 @@
 #include "../../profiler/ProfilerHookHelper.hpp"
 #include "../../../value/IntegerCache.hpp"
 #include "../../../value/BoolCache.hpp"
+#include "../../../value/FloatCache.hpp"
+#include "../../../value/StringCache.hpp"
+#include "../../../value/InternedString.hpp"
 #include "../../../value/ObjectInstancePool.hpp"
 #include "../../../value/ValueShim.hpp"
 #include "../../../value/SmallArgsBuffer.hpp"
@@ -1082,6 +1085,51 @@ namespace vm::runtime
                     // MYT-208: invokeConstructor takes a Value receiver.
                     invokeConstructor(value::Value(cachedInstance), baseClassName, args.span());
                     return;
+                }
+            }
+        }
+
+        // MYT-272: Float caching for hand-picked common constants
+        // ({0.0, 1.0, -1.0, 0.5, -0.5, 2.0}). Bitwise-compared so NaN
+        // never aliases a cached entry.
+        if (baseClassName == "Float" && argCount == 1 && value::isFloat(args[0])) {
+            double floatValue = value::asFloat(args[0]);
+            if (value::FloatCache::isCacheable(floatValue)) {
+                auto classRegistry = context.environment->getClassRegistry();
+                auto floatClassDef = classRegistry ? classRegistry->findClass("Float") : nullptr;
+                if (floatClassDef) {
+                    auto cachedInstance = value::FloatCache::getFloat(floatValue, floatClassDef);
+                    if (cachedInstance) {
+                        invokeConstructor(value::Value(cachedInstance), baseClassName, args.span());
+                        return;
+                    }
+                }
+            }
+        }
+
+        // MYT-272: String wrapper caching keyed on StringPool interned id.
+        // Empty string is a singleton; non-empty content within StringPool
+        // intern range is cached up to StringCache::kMaxEntries with FIFO
+        // eviction.
+        if (baseClassName == "String" && argCount == 1) {
+            std::string strValue;
+            bool gotString = false;
+            if (value::isString(args[0])) {
+                strValue = value::asString(args[0]);
+                gotString = true;
+            } else if (value::isInternedString(args[0])) {
+                strValue = value::asInternedString(args[0]).getString();
+                gotString = true;
+            }
+            if (gotString) {
+                auto classRegistry = context.environment->getClassRegistry();
+                auto stringClassDef = classRegistry ? classRegistry->findClass("String") : nullptr;
+                if (stringClassDef) {
+                    auto cachedInstance = value::StringCache::getString(strValue, stringClassDef);
+                    if (cachedInstance) {
+                        invokeConstructor(value::Value(cachedInstance), baseClassName, args.span());
+                        return;
+                    }
                 }
             }
         }

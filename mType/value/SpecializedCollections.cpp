@@ -1,7 +1,9 @@
 #include "SpecializedCollections.hpp"
 #include "BoolCache.hpp"
+#include "FloatCache.hpp"
 #include "IntegerCache.hpp"
 #include "NativeArray.hpp"
+#include "StringCache.hpp"
 #include "StringPool.hpp"
 #include "ValueObject.hpp"
 #include "ValueShim.hpp"
@@ -508,6 +510,20 @@ namespace value
         if (key.tag == PrimitiveTypeTag::BOOL)
         {
             if (auto cached = BoolCache::getBool(key.boolValue, classDef))
+            {
+                return cached;
+            }
+        }
+        if (key.tag == PrimitiveTypeTag::FLOAT)
+        {
+            if (auto cached = FloatCache::getFloat(key.floatValue, classDef))
+            {
+                return cached;
+            }
+        }
+        if (key.tag == PrimitiveTypeTag::STRING)
+        {
+            if (auto cached = StringCache::getString(key.stringValue, classDef))
             {
                 return cached;
             }

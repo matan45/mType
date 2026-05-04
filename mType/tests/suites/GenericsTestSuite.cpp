@@ -35,6 +35,8 @@ namespace tests::testSuite
                         passPath + "hashmapShapeFallbackParent.mt");
         addOutputVerificationTest("HashMap Shape Fallback - Many Fields",
                         passPath + "hashmapShapeFallbackManyFields.mt");
+        addOutputVerificationTest("Float and String Wrapper Cache",
+                        passPath + "floatStringWrapperCache.mt");
         addOutputVerificationTest("Generic Nullable Return Substitution",
                         passPath + "genericNullableReturnSubstitution.mt");
 

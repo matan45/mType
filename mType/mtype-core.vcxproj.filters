@@ -195,6 +195,9 @@
     <ClInclude Include="value\FlatMultiArray.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\FloatCache.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\IMultiDimensionalArray.hpp">
       <Filter>value</Filter>
     </ClInclude>
@@ -235,6 +238,9 @@
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\SpecializedCollections.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\StringCache.hpp">
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\StringPool.hpp">
@@ -407,6 +413,9 @@
     <ClCompile Include="value\BoolCache.cpp">
       <Filter>value</Filter>
     </ClCompile>
+    <ClCompile Include="value\FloatCache.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
     <ClCompile Include="value\IntegerCache.cpp">
       <Filter>value</Filter>
     </ClCompile>
@@ -417,6 +426,9 @@
       <Filter>value</Filter>
     </ClCompile>
     <ClCompile Include="value\SpecializedCollections.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
+    <ClCompile Include="value\StringCache.cpp">
       <Filter>value</Filter>
     </ClCompile>
     <ClCompile Include="value\StringPool.cpp">
