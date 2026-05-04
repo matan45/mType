@@ -19,11 +19,160 @@
 #include "../../runtimeTypes/klass/SignatureUtils.hpp"
 #include "../../value/ObjectInstancePool.hpp"
 #include "../../value/ValueObject.hpp"
+#include "../../value/PrimitiveTypeTag.hpp"
 #include <vector>
 #include <memory>
+#include <functional>
 
 namespace vm::jit
 {
+    static value::PrimitiveTypeTag getPrimitiveProtocolTag(const value::Value& v) noexcept
+    {
+        if (value::isValueObject(v))
+        {
+            const auto& valueObj = value::asValueObject(v);
+            return valueObj ? valueObj->getPrimitiveTag() : value::PrimitiveTypeTag::NONE;
+        }
+        if (value::isAnyObject(v))
+        {
+            auto* raw = value::asObjectInstanceRaw(v);
+            if (!raw || !raw->getClassDefinition()) return value::PrimitiveTypeTag::NONE;
+            return value::classNameToPrimitiveTag(raw->getClassDefinition()->getName());
+        }
+        return value::PrimitiveTypeTag::NONE;
+    }
+
+    static const value::Value* getPrimitiveProtocolField0(const value::Value& v) noexcept
+    {
+        if (value::isValueObject(v))
+        {
+            const auto& valueObj = value::asValueObject(v);
+            if (!valueObj || valueObj->getFieldCount() == 0) return nullptr;
+            return &valueObj->getFieldByIndex(0);
+        }
+        if (value::isAnyObject(v))
+        {
+            auto* raw = value::asObjectInstanceRaw(v);
+            if (!raw || !raw->hasFieldVector()) return nullptr;
+            return &raw->getFieldByIndex(0);
+        }
+        return nullptr;
+    }
+
+    static bool computePrimitiveProtocolHash(value::Value& out, const value::Value& receiver)
+    {
+        const value::PrimitiveTypeTag tag = getPrimitiveProtocolTag(receiver);
+        if (tag == value::PrimitiveTypeTag::NONE) return false;
+        const value::Value* field = getPrimitiveProtocolField0(receiver);
+        if (!field) return false;
+
+        switch (tag)
+        {
+            case value::PrimitiveTypeTag::INT:
+                if (!value::isInt(*field)) return false;
+                out = static_cast<int64_t>(std::hash<int64_t>{}(value::asInt(*field)) & 0x7FFFFFFF);
+                return true;
+            case value::PrimitiveTypeTag::FLOAT:
+                if (!value::isFloat(*field)) return false;
+                out = static_cast<int64_t>(std::hash<double>{}(value::asFloat(*field)) & 0x7FFFFFFF);
+                return true;
+            case value::PrimitiveTypeTag::BOOL:
+                if (!value::isBool(*field)) return false;
+                out = value::asBool(*field) ? static_cast<int64_t>(1231) : static_cast<int64_t>(1237);
+                return true;
+            case value::PrimitiveTypeTag::STRING:
+                if (value::isString(*field))
+                {
+                    out = static_cast<int64_t>(std::hash<std::string>{}(value::asString(*field)) & 0x7FFFFFFF);
+                    return true;
+                }
+                if (value::isInternedString(*field))
+                {
+                    out = static_cast<int64_t>(
+                        std::hash<std::string>{}(value::asInternedString(*field).getString()) & 0x7FFFFFFF);
+                    return true;
+                }
+                return false;
+            case value::PrimitiveTypeTag::NONE:
+                return false;
+        }
+        return false;
+    }
+
+    static bool computePrimitiveProtocolEquals(value::Value& out,
+                                               const value::Value& receiver,
+                                               const value::Value& arg)
+    {
+        const value::PrimitiveTypeTag tag = getPrimitiveProtocolTag(receiver);
+        if (tag == value::PrimitiveTypeTag::NONE || getPrimitiveProtocolTag(arg) != tag)
+            return false;
+
+        const value::Value* left = getPrimitiveProtocolField0(receiver);
+        const value::Value* right = getPrimitiveProtocolField0(arg);
+        if (!left || !right) return false;
+
+        switch (tag)
+        {
+            case value::PrimitiveTypeTag::INT:
+                if (!value::isInt(*left) || !value::isInt(*right)) return false;
+                out = value::asInt(*left) == value::asInt(*right);
+                return true;
+            case value::PrimitiveTypeTag::FLOAT:
+                if (!value::isFloat(*left) || !value::isFloat(*right)) return false;
+                out = value::asFloat(*left) == value::asFloat(*right);
+                return true;
+            case value::PrimitiveTypeTag::BOOL:
+                if (!value::isBool(*left) || !value::isBool(*right)) return false;
+                out = value::asBool(*left) == value::asBool(*right);
+                return true;
+            case value::PrimitiveTypeTag::STRING:
+                if (!(value::isString(*left) || value::isInternedString(*left)) ||
+                    !(value::isString(*right) || value::isInternedString(*right)))
+                    return false;
+                out = *left == *right;
+                return true;
+            case value::PrimitiveTypeTag::NONE:
+                return false;
+        }
+        return false;
+    }
+
+    static bool tryPrimitiveProtocolFastCall(value::Value& out,
+                                             ic::MethodProtocolFastKind kind,
+                                             const value::Value& receiver,
+                                             const value::Value* args,
+                                             size_t argCount)
+    {
+        switch (kind)
+        {
+            case ic::MethodProtocolFastKind::PRIMITIVE_HASH_CODE:
+                if (argCount != 0) return false;
+                return computePrimitiveProtocolHash(out, receiver);
+            case ic::MethodProtocolFastKind::PRIMITIVE_EQUALS:
+                if (argCount != 1 || !args) return false;
+                return computePrimitiveProtocolEquals(out, receiver, args[0]);
+            case ic::MethodProtocolFastKind::NONE:
+                return false;
+        }
+        return false;
+    }
+
+    static ic::MethodProtocolFastKind classifyPrimitiveProtocolFastKind(
+        const runtimeTypes::klass::ClassDefinition* classDef,
+        const std::string& simpleMethodName,
+        size_t argCount,
+        const std::string& definingClassName)
+    {
+        (void)definingClassName;
+        if (!classDef || value::classNameToPrimitiveTag(classDef->getName()) == value::PrimitiveTypeTag::NONE)
+            return ic::MethodProtocolFastKind::NONE;
+        if (simpleMethodName == "hashCode" && argCount == 0)
+            return ic::MethodProtocolFastKind::PRIMITIVE_HASH_CODE;
+        if (simpleMethodName == "equals" && argCount == 1)
+            return ic::MethodProtocolFastKind::PRIMITIVE_EQUALS;
+        return ic::MethodProtocolFastKind::NONE;
+    }
+
     // MYT-163: speculative inlining shape-guard helper. Extracts the raw
     // ClassDefinition pointer from a receiver, handling both ObjectInstance
     // and ValueObject variants (MYT-167 F-e). Returns nullptr for any other
@@ -244,6 +393,21 @@ namespace vm::jit
     // future dedicated "nested entry" prologue (option b in the MYT-184 plan) can
     // restore the fast path once stack-layout invariants are worked out.
 
+    bool jit_try_primitive_protocol_hash(value::Value* out,
+                                         const value::Value* receiver)
+    {
+        if (!out || !receiver) return false;
+        return computePrimitiveProtocolHash(*out, *receiver);
+    }
+
+    bool jit_try_primitive_protocol_equals(value::Value* out,
+                                           const value::Value* receiver,
+                                           const value::Value* arg)
+    {
+        if (!out || !receiver || !arg) return false;
+        return computePrimitiveProtocolEquals(*out, *receiver, *arg);
+    }
+
     void jit_call_method_ic(JitContext* ctx,
                              size_t bytecodeOffset,
                              uint32_t methodNameIndex,
@@ -319,6 +483,21 @@ namespace vm::jit
             if (cache.state == ic::ICState::MONOMORPHIC || cache.state == ic::ICState::POLYMORPHIC)
             {
                 const ic::MethodICEntry* entry = cache.lookup(classDef);
+                if (entry && entry->protocolFastKind != ic::MethodProtocolFastKind::NONE)
+                {
+                    if (tryPrimitiveProtocolFastCall(
+                            ctx->returnValue, entry->protocolFastKind,
+                            receiverValue, &ctx->callArgs[1], argCount))
+                    {
+                        ctx->hasReturnValue = true;
+                        return;
+                    }
+                    // Shape matched but the argument/value layout did not
+                    // match the protocol leaf. Fall through to the generic
+                    // helper so unusual calls preserve existing semantics.
+                    jit_call_method(ctx, methodNameIndex, argCount);
+                    return;
+                }
                 if (entry && entry->funcMetadata)
                 {
                     // MYT-184: both receiver kinds route through
@@ -395,6 +574,9 @@ namespace vm::jit
                         // this to apply the read-only restriction for
                         // value-class sites.
                         entry.receiverIsValueObject = receiverIsValueObject;
+                        entry.protocolFastKind = classifyPrimitiveProtocolFastKind(
+                            classDef, simpleMethodName, argCount,
+                            lookupResult.definingClassName);
                         // MYT-183: re-fetch cache reference immediately
                         // before the write. Nested CALL_METHODs in
                         // jit_call_method above may have inserted new

@@ -23,6 +23,7 @@ Each file maps to one subtask:
 | MYT-225  | `getFieldTypedNonThisAccess.mt`            | `paramName.field` / `localVar.field` on class/value-class throws GET_FIELD_TYPED |
 | MYT-226  | `jitTailCallNoOverflow.mt`                 | JIT TCO bypasses pushCallFrame's stack-overflow guard — infinite tail recursion hangs |
 | MYT-227  | `infiniteLoopHangs.mt`                     | for/while loop back-edge has no interrupt poll — `while (true) {}` hangs with no diagnostic |
+| MYT-271  | ~~`bracelessIfNativeUnderflow.mt`~~        | ~~braceless `if (!fn()) <stmt>;` underflows stack when fn() calls a native (MT-E5005)~~ — fixed; promoted to `controlFlow/pass/bracelessIfNativeUnderflow_pass.mt` |
 
 ## Running
 

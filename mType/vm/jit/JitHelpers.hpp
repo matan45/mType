@@ -165,6 +165,17 @@ namespace vm::jit
                              uint32_t methodNameIndex,
                              size_t argCount);
 
+    // Protocol fast leaves for hot generic `K.hashCode()` / `K.equals(K)`
+    // call sites. The JIT emitter shape-guards the receiver before calling
+    // these; the helper still validates the primitive-wrapper layout and
+    // returns false so the emitted slow path can preserve normal dispatch
+    // semantics for unusual values.
+    bool jit_try_primitive_protocol_hash(value::Value* out,
+                                         const value::Value* receiver);
+    bool jit_try_primitive_protocol_equals(value::Value* out,
+                                           const value::Value* receiver,
+                                           const value::Value* arg);
+
     // MYT-152: global/field variable access from JIT-compiled OSR loops.
     // Mirrors VariableExecutor::handleLoadVar / handleStoreVar including the
     // findVariable -> instance-field -> static-field fallback chain. Throws

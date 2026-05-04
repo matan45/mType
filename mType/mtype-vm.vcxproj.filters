@@ -210,6 +210,9 @@
     <ClInclude Include="vm\compiler\visitors\ParameterValidator.hpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClInclude>
+    <ClInclude Include="vm\compiler\visitors\StatementCleanup.hpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\visitors\StatementCompiler.hpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClInclude>
@@ -507,6 +510,9 @@
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\ParameterValidator.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\StatementCleanup.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\StatementCompiler.cpp">

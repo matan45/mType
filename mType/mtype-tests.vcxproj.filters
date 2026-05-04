@@ -4507,6 +4507,18 @@
     <None Include="tests\testFiles\controlFlow\pass\asyncPromiseChain_pass.mt">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
+    <None Include="tests\testFiles\controlFlow\pass\bracelessControlFlowBodies_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\bracelessControlFlowBodies_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\bracelessIfNativeUnderflow_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\bracelessIfNativeUnderflow_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\pass\breakStatement.expected">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
@@ -7651,6 +7663,12 @@
     <None Include="tests\testFiles\import\pass\importPrivateOnly.mt">
       <Filter>testFiles\import\pass</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\importRandomMath.expected">
+      <Filter>testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importRandomMath.mt">
+      <Filter>testFiles\import\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\importRedundant.expected">
       <Filter>testFiles\import\pass</Filter>
     </None>
@@ -8537,6 +8555,12 @@
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\phase4_complete.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\protocolFastPathDrift.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\protocolFastPathDrift.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\recursiveNamespaceClassInteractions.expected">
@@ -10238,6 +10262,9 @@
       <Filter>testFiles\lib\math</Filter>
     </None>
     <None Include="tests\testFiles\lib\math\Quaternion.mt">
+      <Filter>testFiles\lib\math</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\math\Random.mt">
       <Filter>testFiles\lib\math</Filter>
     </None>
     <None Include="tests\testFiles\lib\math\Vec2f.mt">
