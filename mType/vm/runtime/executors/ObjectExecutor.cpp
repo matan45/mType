@@ -1233,4 +1233,120 @@ namespace vm::runtime
             // This is similar to Java's try-with-resources behavior
         }
     }
+
+    // MYT-274 Phase 2: structural-equality fused-opcode handlers.
+    //
+    // STRUCT_HASH_INT operand layout: [fieldCount, slot0, slot1, ...].
+    // Pops `this`, reads each int field by index, computes Horner-style hash,
+    // pushes int. Mirrors what the synthesized Horner expression body does
+    // but in a single dispatch with no operand-stack churn between fields.
+    void ObjectExecutor::handleStructHashInt(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (instr.operands.empty())
+        {
+            utils::ErrorLocationHelper::throwRuntimeError(context, "STRUCT_HASH_INT requires fieldCount operand");
+        }
+        const size_t fieldCount = static_cast<size_t>(instr.operands[0]);
+        if (instr.operands.size() < 1 + fieldCount)
+        {
+            utils::ErrorLocationHelper::throwRuntimeError(context, "STRUCT_HASH_INT operand list truncated");
+        }
+
+        value::Value receiverValue = context.stackManager->pop();
+        utils::checkNullReceiver(instr, receiverValue, context, "compute hashCode of", "this");
+
+        int64_t h = 1;
+
+        // Resolve field reader once based on receiver kind. The hot path is
+        // ObjectInstance (heap), with ValueObject the secondary case for
+        // value-class receivers (none in Phase 1's gate, but cheap to
+        // support for future-proofing).
+        auto* objRaw = value::asObjectInstanceRaw(receiverValue);
+        if (objRaw && objRaw->hasFieldVector())
+        {
+            for (size_t i = 0; i < fieldCount; ++i)
+            {
+                const size_t slot = static_cast<size_t>(instr.operands[1 + i]);
+                const value::Value& fv = objRaw->getFieldByIndex(slot);
+                const int64_t iv = value::isInt(fv) ? value::asInt(fv) : 0;
+                h = h * 31 + iv;
+            }
+        }
+        else if (value::isValueObject(receiverValue))
+        {
+            auto vobj = value::asValueObject(receiverValue);
+            for (size_t i = 0; i < fieldCount; ++i)
+            {
+                const size_t slot = static_cast<size_t>(instr.operands[1 + i]);
+                const value::Value& fv = vobj->getFieldByIndex(slot);
+                const int64_t iv = value::isInt(fv) ? value::asInt(fv) : 0;
+                h = h * 31 + iv;
+            }
+        }
+
+        context.stackManager->push(value::Value(h));
+    }
+
+    // STRUCT_EQ_INT operand layout: [ownerClassNameIdx, fieldCount, slot0, slot1, ...].
+    // Pops `other` (Object), pops `this`. Push false if other is null or
+    // not an instance of ownerClass. Otherwise compare each int field
+    // pairwise; push false on mismatch, true when all match.
+    void ObjectExecutor::handleStructEqInt(const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (instr.operands.size() < 2)
+        {
+            utils::ErrorLocationHelper::throwRuntimeError(context, "STRUCT_EQ_INT requires owner-class name and fieldCount");
+        }
+        const std::string& ownerClassName = context.program->getConstantPool().getString(instr.operands[0]);
+        const size_t fieldCount = static_cast<size_t>(instr.operands[1]);
+        if (instr.operands.size() < 2 + fieldCount)
+        {
+            utils::ErrorLocationHelper::throwRuntimeError(context, "STRUCT_EQ_INT operand list truncated");
+        }
+
+        value::Value otherValue = context.stackManager->pop();
+        value::Value thisValue = context.stackManager->pop();
+
+        // Null other → not equal. Class-mismatch → not equal. The synthesized
+        // body's `isClassOf <Owner>` guard collapses into this check.
+        if (value::isNullType(otherValue))
+        {
+            context.stackManager->push(value::Value(false));
+            return;
+        }
+
+        auto* otherRaw = value::asObjectInstanceRaw(otherValue);
+        auto* thisRaw = value::asObjectInstanceRaw(thisValue);
+        if (!otherRaw || !thisRaw || !otherRaw->hasFieldVector() || !thisRaw->hasFieldVector())
+        {
+            context.stackManager->push(value::Value(false));
+            return;
+        }
+
+        // Class compatibility: `other` must be an instance of ownerClassName
+        // (the class on which the synthesized equals lives). isSubclass
+        // covers the same-class case (subclass-of-self == true).
+        const std::string& otherClassName = otherRaw->getClassDefinition()->getName();
+        if (otherClassName != ownerClassName && !isSubclass(otherClassName, ownerClassName))
+        {
+            context.stackManager->push(value::Value(false));
+            return;
+        }
+
+        for (size_t i = 0; i < fieldCount; ++i)
+        {
+            const size_t slot = static_cast<size_t>(instr.operands[2 + i]);
+            const value::Value& a = thisRaw->getFieldByIndex(slot);
+            const value::Value& b = otherRaw->getFieldByIndex(slot);
+            const int64_t ai = value::isInt(a) ? value::asInt(a) : 0;
+            const int64_t bi = value::isInt(b) ? value::asInt(b) : 0;
+            if (ai != bi)
+            {
+                context.stackManager->push(value::Value(false));
+                return;
+            }
+        }
+
+        context.stackManager->push(value::Value(true));
+    }
 }

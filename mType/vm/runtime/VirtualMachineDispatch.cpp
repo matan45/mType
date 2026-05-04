@@ -375,6 +375,14 @@ namespace vm::runtime
         case OpCode::SET_FIELD_TYPED:
             objectExecutor->handleSetFieldTyped(instr);
             break;
+        // MYT-274 Phase 2: structural-equality fused opcodes for synthesized
+        // hashCode/equals on int-only classes — see OpCode.hpp.
+        case OpCode::STRUCT_HASH_INT:
+            objectExecutor->handleStructHashInt(instr);
+            break;
+        case OpCode::STRUCT_EQ_INT:
+            objectExecutor->handleStructEqInt(instr);
+            break;
         case OpCode::GET_FIELD_CACHED:
         {
             // MYT-194: promoted from GET_FIELD once the IC stabilized. Never

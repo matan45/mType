@@ -176,6 +176,20 @@ namespace vm::jit
                                            const value::Value* receiver,
                                            const value::Value* arg);
 
+    // MYT-274 Phase 2 v2: structural-equality JIT helpers. Compute hash /
+    // equality of int-only-field user classes directly from raw memory.
+    // Mirror the interpreter executors (ObjectExecutor::handleStruct*Int)
+    // but callable from JIT-emitted code so methods that reduce to a
+    // single STRUCT_HASH_INT / STRUCT_EQ_INT compile and inline.
+    int64_t jit_struct_hash_int(const value::Value* receiver,
+                                uint64_t fieldCount,
+                                const uint64_t* slots);
+    int64_t jit_struct_eq_int(const value::Value* thisVal,
+                              const value::Value* otherVal,
+                              const char* className,
+                              uint64_t fieldCount,
+                              const uint64_t* slots);
+
     // MYT-152: global/field variable access from JIT-compiled OSR loops.
     // Mirrors VariableExecutor::handleLoadVar / handleStoreVar including the
     // findVariable -> instance-field -> static-field fallback chain. Throws

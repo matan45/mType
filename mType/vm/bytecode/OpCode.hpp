@@ -387,6 +387,36 @@ namespace vm::bytecode
         // logical path; nothing else may run between them.
         BIND_TYPE_ARGS,
 
+        // MYT-274 Phase 2: structural-equality fused opcodes for compiler-
+        // synthesized hashCode / equals on classes whose own instance fields
+        // are all int. These collapse a multi-op Horner expression / &&
+        // chain into a single bytecode instruction whose operand list
+        // carries the field offsets to read.
+        //
+        // STRUCT_HASH_INT — pops `this`, pushes int hash.
+        //   operands[0] = useSuperHash (0 or 1) — if 1, initial accumulator
+        //                 comes from a super.hashCode() value pushed BEFORE
+        //                 this opcode; the runtime pops that as the seed
+        //                 instead of starting at 1.
+        //   operands[1] = fieldCount N
+        //   operands[2..2+N-1] = field-slot indices on `this`'s ObjectInstance
+        //                       (ints living in the value array).
+        //
+        // STRUCT_EQ_INT — pops `other` (Object), pops `this`, pushes bool.
+        //   operands[0] = ownerClassNameIndex (constant-pool string idx) for
+        //                 the isClassOf gate.
+        //   operands[1] = useSuperEquals (0 or 1) — if 1, the runtime first
+        //                 calls super.equals(other) via a stub; when false
+        //                 short-circuits to false.
+        //   operands[2] = fieldCount N
+        //   operands[3..3+N-1] = field-slot indices.
+        //
+        // Both are SERIALIZABLE: they round-trip through .mtc and are
+        // emitted by the bytecode compiler when `MethodNode::isSynthetic()`
+        // matches the structural-equality shape.
+        STRUCT_HASH_INT,
+        STRUCT_EQ_INT,
+
         // Sentinel — must remain the last entry. Used by isValidOpCode and
         // bytecode deserialization to range-check incoming opcode bytes
         // without requiring manual updates each time a new opcode is added.
@@ -641,6 +671,9 @@ namespace vm::bytecode
             case OpCode::SET_FIELD_TYPED: return "SET_FIELD_TYPED";
 
             case OpCode::BIND_TYPE_ARGS: return "BIND_TYPE_ARGS";
+
+            case OpCode::STRUCT_HASH_INT: return "STRUCT_HASH_INT";
+            case OpCode::STRUCT_EQ_INT: return "STRUCT_EQ_INT";
 
             default: return "UNKNOWN";
         }

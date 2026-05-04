@@ -119,6 +119,16 @@ namespace vm::optimization
                 case OpCode::ARRAY_LENGTH_LOCAL:
                     return InlineDecision::HAS_UNSUPPORTED_OPCODE;
 
+                // MYT-274 Phase 2 v2: structural-equality fused opcodes
+                // have a JIT emit path (helper-call to jit_struct_hash_int /
+                // jit_struct_eq_int in JitCompiler_Objects.cpp) and are
+                // accepted as inlineable here. The body containing one of
+                // these is small (LOAD_LOCAL + fused op + RETURN_VALUE for
+                // hashCode; +1 LOAD_LOCAL for equals) — well under
+                // INLINE_SIZE_LIMIT, no nested method calls or unsupported
+                // jumps, so all the standard eligibility checks downstream
+                // pass without further special-casing.
+
                 default:
                     break;
             }

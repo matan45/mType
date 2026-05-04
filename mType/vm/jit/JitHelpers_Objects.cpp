@@ -1282,4 +1282,95 @@ namespace vm::jit
         instance->setField(fieldName, *newValue);
         *destValue = *newValue;
     }
+
+    // MYT-274 Phase 2 v2: structural-equality JIT helpers. Mirror the
+    // interpreter executors in ObjectExecutor::handleStructHashInt /
+    // handleStructEqInt — same Horner accumulation, same isClassOf gate.
+    // Called from JIT-emitted code so methods bodies that reduce to a
+    // single STRUCT_HASH_INT / STRUCT_EQ_INT can be JIT-compiled and
+    // (with the InlineAnalysis allow-list update below) inlined into hot
+    // callers like HashMap.containsKey.
+
+    int64_t jit_struct_hash_int(const value::Value* receiver,
+                                uint64_t fieldCount,
+                                const uint64_t* slots)
+    {
+        if (!receiver || (fieldCount > 0 && !slots)) return 1;
+
+        int64_t h = 1;
+
+        if (auto* raw = value::asObjectInstanceRaw(*receiver))
+        {
+            if (!raw->hasFieldVector()) return h;
+            for (uint64_t i = 0; i < fieldCount; ++i)
+            {
+                const value::Value& fv = raw->getFieldByIndex(static_cast<size_t>(slots[i]));
+                const int64_t iv = value::isInt(fv) ? value::asInt(fv) : 0;
+                h = h * 31 + iv;
+            }
+            return h;
+        }
+
+        if (value::isValueObject(*receiver))
+        {
+            auto vobj = value::asValueObject(*receiver);
+            for (uint64_t i = 0; i < fieldCount; ++i)
+            {
+                const value::Value& fv = vobj->getFieldByIndex(static_cast<size_t>(slots[i]));
+                const int64_t iv = value::isInt(fv) ? value::asInt(fv) : 0;
+                h = h * 31 + iv;
+            }
+        }
+        return h;
+    }
+
+    // Returns 1 for equal, 0 for not equal. asmjit's Gp is 64-bit so we
+    // pass the bool result back through int64_t to match the helper's
+    // FuncSignature. The caller writes it directly into the BOOL stack
+    // slot; only the low bit is read by downstream consumers.
+    int64_t jit_struct_eq_int(const value::Value* thisVal,
+                              const value::Value* otherVal,
+                              const char* className,
+                              uint64_t fieldCount,
+                              const uint64_t* slots)
+    {
+        if (!thisVal || !otherVal || !className) return 0;
+        if (value::isNullType(*otherVal)) return 0;
+
+        auto* thisRaw = value::asObjectInstanceRaw(*thisVal);
+        auto* otherRaw = value::asObjectInstanceRaw(*otherVal);
+        if (!thisRaw || !otherRaw) return 0;
+        if (!thisRaw->hasFieldVector() || !otherRaw->hasFieldVector()) return 0;
+
+        const std::string& otherClassName = otherRaw->getClassDefinition()->getName();
+        const std::string ownerClass(className);
+        if (otherClassName != ownerClass)
+        {
+            // Exact class match short-circuits the subclass walk for the
+            // common HashMap<UserClass, V> case where every key is the
+            // same class. Walk the parent chain only when the names
+            // differ — covers the rare polymorphic-key scenario.
+            // getParentClass() already returns a locked shared_ptr; we
+            // hold it across each iteration to keep the def alive.
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> defHolder =
+                otherRaw->getClassDefinition();
+            bool match = false;
+            while (defHolder)
+            {
+                if (defHolder->getName() == ownerClass) { match = true; break; }
+                defHolder = defHolder->getParentClass();
+            }
+            if (!match) return 0;
+        }
+
+        for (uint64_t i = 0; i < fieldCount; ++i)
+        {
+            const value::Value& a = thisRaw->getFieldByIndex(static_cast<size_t>(slots[i]));
+            const value::Value& b = otherRaw->getFieldByIndex(static_cast<size_t>(slots[i]));
+            const int64_t ai = value::isInt(a) ? value::asInt(a) : 0;
+            const int64_t bi = value::isInt(b) ? value::asInt(b) : 0;
+            if (ai != bi) return 0;
+        }
+        return 1;
+    }
 }

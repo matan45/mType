@@ -373,8 +373,16 @@ namespace vm::compiler::visitors
             );
         }
 
+        // MYT-274 Phase 2: structural-equality fast emit. If this is a
+        // synthesized hashCode/equals on an int-only no-parent class, emit
+        // a single fused opcode and skip body compilation entirely. The
+        // synthesizer still generates the AST body as a fallback for the
+        // cases where the fast path is ineligible (super-compose, non-int
+        // fields, etc.).
+        bool fastEmitted = tryEmitStructuralFastBody(node);
+
         // Compile method body
-        if (body)
+        if (body && !fastEmitted)
         {
             body->accept(ctx.visitor);
         }
@@ -850,6 +858,103 @@ namespace vm::compiler::visitors
         }
 
         return std::monostate{};
+    }
+
+    // MYT-274 Phase 2: emit a single fused STRUCT_HASH_INT or STRUCT_EQ_INT
+    // opcode for synthesized hashCode/equals on a class that:
+    //   - is the synthesizer's int-only no-parent shape (every own field is
+    //     a concrete int, class has no in-program parent class).
+    // Slot indices are derived from the AST field-declaration order
+    // (non-static instance fields). This matches ClassDefinition's own
+    // fieldIndexMap construction order in ClassRegistrar, since fields
+    // are registered in declaration order.
+    bool MethodCompilerHelper::tryEmitStructuralFastBody(ast::MethodNode* node)
+    {
+        if (!node || !node->isSynthetic()) return false;
+        if (!ctx.currentClassNode) return false;
+
+        const std::string& methodName = node->getName();
+        const bool isHash = (methodName == "hashCode" && node->getParameterCount() == 0);
+        const bool isEq = (methodName == "equals" && node->getParameterCount() == 1);
+        if (!isHash && !isEq) return false;
+
+        // Skip when there's a user-defined parent class (in-program
+        // inheritance). The synthesizer's super-compose path needs the
+        // SuperMethodCallNode dispatch which the fused opcode doesn't
+        // implement; fall through to the regular AST body.
+        if (ctx.currentClassNode->hasParentClass())
+        {
+            const std::string& parentName = ctx.currentClassNode->getParentClassName();
+            if (!parentName.empty() && parentName != "Object")
+            {
+                return false;
+            }
+        }
+
+        // Walk own instance fields in declaration order. All must be int;
+        // record their slot indices. Static fields don't get slots.
+        std::vector<size_t> slotIndices;
+        size_t slotCounter = 0;
+        for (const auto& fieldAst : ctx.currentClassNode->getFields())
+        {
+            auto* field = dynamic_cast<ast::nodes::classes::FieldNode*>(fieldAst.get());
+            if (!field) continue;
+            if (field->getIsStatic()) continue;
+
+            auto genericType = field->getGenericType();
+            if (!genericType) return false;
+            if (genericType->isParameterized()) return false;
+            if (genericType->isNullable()) return false;
+            if (genericType->isGenericParameter()) return false;
+            if (genericType->getConcreteType() != value::ValueType::INT) return false;
+
+            slotIndices.push_back(slotCounter);
+            ++slotCounter;
+        }
+        if (slotIndices.empty()) return false;
+
+        // Phase 2 v2: fused opcodes have a JIT helper-call emit path
+        // (jit_struct_hash_int / jit_struct_eq_int) plus an interpreter
+        // executor, so emit them for any int-only-no-parent class. The
+        // body shrinks from ~12-25 generic ops (Phase 1 Horner expression)
+        // to 2-3 ops (LOAD_LOCAL + fused op + RETURN_VALUE), well under
+        // INLINE_SIZE_LIMIT, and the inliner picks them up at MONO/POLY
+        // call sites in HashMap.put/containsKey/get. The helper does the
+        // field reads + Horner accumulation in a single C++ loop,
+        // avoiding the per-field operand-stack churn of the inlined
+        // Horner expression.
+
+        if (isHash)
+        {
+            // STRUCT_HASH_INT operands: [fieldCount, slot0, slot1, ...].
+            // The opcode expects `this` on the stack: emit LOAD_LOCAL 0,
+            // then the fused op, then RETURN_VALUE.
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
+            std::vector<uint64_t> operands;
+            operands.reserve(1 + slotIndices.size());
+            operands.push_back(static_cast<uint64_t>(slotIndices.size()));
+            for (size_t s : slotIndices) operands.push_back(static_cast<uint64_t>(s));
+            ctx.program.emit(bytecode::OpCode::STRUCT_HASH_INT, operands);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
+            return true;
+        }
+
+        // isEq: STRUCT_EQ_INT operands: [ownerClassNameIdx, fieldCount, slot...].
+        // Stack: ..., this, other. Emit LOAD_LOCAL 0 (this), LOAD_LOCAL 1
+        // (other), then the fused op, then RETURN_VALUE.
+        const size_t classNameIdx = ctx.program.getConstantPool().addString(
+            ctx.currentClassNode->getClassName());
+
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 1u, node);
+        std::vector<uint64_t> operands;
+        operands.reserve(2 + slotIndices.size());
+        operands.push_back(static_cast<uint64_t>(classNameIdx));
+        operands.push_back(static_cast<uint64_t>(slotIndices.size()));
+        for (size_t s : slotIndices) operands.push_back(static_cast<uint64_t>(s));
+        ctx.program.emit(bytecode::OpCode::STRUCT_EQ_INT, operands);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
+        return true;
     }
 }
 
