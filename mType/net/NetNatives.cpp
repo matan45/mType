@@ -27,6 +27,10 @@
 #else
 #   include "CurlHttpClient.hpp"
 #   include "PosixSocket.hpp"
+#   include <sys/socket.h>
+#   include <netdb.h>
+#   include <netinet/in.h>
+#   include <arpa/inet.h>
     using HttpClientImpl    = net::CurlHttpClient;
     using SocketImpl        = net::PosixSocket;
     using SocketServerImpl  = net::PosixSocketServer;
