@@ -28,6 +28,11 @@ namespace tests::testFramework
 
         const std::string& getName() const { return suiteName; }
 
+        // Exposes the underlying runner's TestResults so callers (e.g. the
+        // CLI's --tests entry point) can sum failures across suites and
+        // propagate a non-zero exit code to CI.
+        const TestResults& getResults() const { return runner->getResults(); }
+
         void addTestFromFile(const std::string& name, const std::string& filePath, TestType type = TestType::NORMAL);
         // MYT-38 — overload that pins the substring required to appear in
         // the thrown exception's message for an ERROR_EXPECTED test to pass.

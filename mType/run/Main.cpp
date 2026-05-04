@@ -244,8 +244,8 @@ int main(int argc, char* argv[])
             // Guard against `--test --no-jit` (no suite name).
             if (!isTestFlag(suiteName))
             {
-                runSpecificTestSuite(suiteName, execMode, testJitEnabled);
-                return 0;
+                int failures = runSpecificTestSuite(suiteName, execMode, testJitEnabled);
+                return failures == 0 ? 0 : 1;
             }
         }
     }
@@ -256,8 +256,8 @@ int main(int argc, char* argv[])
     {
         if (isTestArg(argv[i]))
         {
-            runAllTests(execMode, testJitEnabled);
-            return 0;
+            int failures = runAllTests(execMode, testJitEnabled);
+            return failures == 0 ? 0 : 1;
         }
     }
 

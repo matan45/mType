@@ -236,16 +236,18 @@ void printAvailableTestSuites()
     std::cout << "  escape       - Escape Analysis Test Suite (MYT-134)\n";
 }
 
-void runSpecificTestSuite(const std::string& suiteName,
-                          constants::ExecutionMode execMode,
-                          bool jitEnabled)
+int runSpecificTestSuite(const std::string& suiteName,
+                         constants::ExecutionMode execMode,
+                         bool jitEnabled)
 {
     auto suite = createTestSuite(suiteName);
     if (!suite)
     {
         std::cout << "Unknown test suite: " << suiteName << "\n\n";
         printAvailableTestSuites();
-        return;
+        // Treat "unknown suite" as a CI failure: caller asked for something
+        // that doesn't exist and would otherwise silently exit zero.
+        return 1;
     }
 
     std::cout << "Running " << suite->getName()
@@ -259,6 +261,9 @@ void runSpecificTestSuite(const std::string& suiteName,
 
     suite->run();
 
+    const auto& results = suite->getResults();
+    int failureCount = results.failedTests + results.errorTests;
+
     // Clean up GC to avoid static destruction order issues
     gc::GC::shutdown();
 
@@ -266,9 +271,11 @@ void runSpecificTestSuite(const std::string& suiteName,
     reflection::ReflectionNatives::cleanup();
     json::JsonNatives::cleanup();
     project::mtclib::LibraryNatives::cleanup();
+
+    return failureCount;
 }
 
-void runAllTests(constants::ExecutionMode execMode, bool jitEnabled)
+int runAllTests(constants::ExecutionMode execMode, bool jitEnabled)
 {
     std::cout << "Running all test suites...\n";
     std::cout << "Execution Mode: Bytecode VM"
@@ -311,6 +318,10 @@ void runAllTests(constants::ExecutionMode execMode, bool jitEnabled)
     suites.push_back(std::make_unique<LibraryTestSuite>());
     suites.push_back(std::make_unique<EscapeAnalysisTestSuite>());
 
+    int totalFailures = 0;
+    int totalErrors   = 0;
+    int totalTests    = 0;
+    int totalPassed   = 0;
     for (auto& suite : suites)
     {
         suite->setupTests(); // Initialize test cases
@@ -319,6 +330,12 @@ void runAllTests(constants::ExecutionMode execMode, bool jitEnabled)
         // test set can be driven twice — once with JIT, once with --no-jit.
         suite->setJitEnabledForAll(jitEnabled);
         suite->run(); // Run tests and generate reports
+
+        const auto& r = suite->getResults();
+        totalTests    += r.totalTests;
+        totalPassed   += r.passedTests;
+        totalFailures += r.failedTests;
+        totalErrors   += r.errorTests;
     }
 
     // Cleanup reflection static state to avoid static destruction order issues
@@ -329,7 +346,13 @@ void runAllTests(constants::ExecutionMode execMode, bool jitEnabled)
     // Print final summary
     std::cout << "\n" << std::string(80, '=') << std::endl;
     std::cout << "ALL TEST SUITES COMPLETED" << std::endl;
+    std::cout << "  Total:   " << totalTests << "\n";
+    std::cout << "  Passed:  " << totalPassed << "\n";
+    std::cout << "  Failed:  " << totalFailures << "\n";
+    std::cout << "  Errors:  " << totalErrors << "\n";
     std::cout << "Reports generated in test_reports/ directory" << std::endl;
 
     std::cout << std::string(80, '=') << std::endl;
+
+    return totalFailures + totalErrors;
 }
