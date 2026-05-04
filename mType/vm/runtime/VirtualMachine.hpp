@@ -513,6 +513,9 @@ namespace vm::runtime
 #if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Winvalid-offsetof"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winvalid-offsetof"
 #endif
     inline const size_t VirtualMachine::kJitNativeDepthOffset =
         offsetof(VirtualMachine, jitNativeDepth);
@@ -520,5 +523,7 @@ namespace vm::runtime
         offsetof(VirtualMachine, maxCallStackSize);
 #if defined(__clang__)
 #pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
 #endif
 }

@@ -129,17 +129,26 @@ namespace environment::registry::builtin
         return std::string("unknown");
     }
 
+    static int64_t deterministicStringHash(const std::string& str)
+    {
+        uint64_t hash = 14695981039346656037ull;
+        for (unsigned char c : str)
+        {
+            hash ^= c;
+            hash *= 1099511628211ull;
+        }
+        return static_cast<int64_t>(hash & 0x7FFFFFFFull);
+    }
+
     static int64_t hashCode_fn(const Value& arg)
     {
         if (value::isString(arg))
         {
-            std::hash<std::string> hasher;
-            return static_cast<int64_t>(hasher(value::asString(arg)) & 0x7FFFFFFF);
+            return deterministicStringHash(value::asString(arg));
         }
         if (value::isInternedString(arg))
         {
-            std::hash<std::string> hasher;
-            return static_cast<int64_t>(hasher(value::asInternedString(arg).getString()) & 0x7FFFFFFF);
+            return deterministicStringHash(value::asInternedString(arg).getString());
         }
         if (value::isInt(arg))
         {
@@ -159,8 +168,7 @@ namespace environment::registry::builtin
         {
             auto obj = value::asObject(arg);
             if (!obj) return 0;
-            std::hash<std::string> hasher;
-            return static_cast<int64_t>(hasher(obj->getContentHash()) & 0x7FFFFFFF);
+            return deterministicStringHash(obj->getContentHash());
         }
         return 0;
     }

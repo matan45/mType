@@ -39,6 +39,17 @@ namespace
         }
     }
 
+    static int64_t deterministicStringHash(const std::string& str)
+    {
+        uint64_t hash = 14695981039346656037ull;
+        for (unsigned char c : str)
+        {
+            hash ^= c;
+            hash *= 1099511628211ull;
+        }
+        return static_cast<int64_t>(hash & 0x7FFFFFFFull);
+    }
+
     // Mirrors the primitive hash arms of BuiltinNatives::hashCode_fn. Returns 0 for
     // non-hashable values. Used by the nested computeHashCode dispatches
     // below to avoid duplicating the same five type checks.
@@ -51,9 +62,9 @@ namespace
         if (value::isBool(val))
             return value::asBool(val) ? 1231 : 1237;
         if (value::isString(val))
-            return static_cast<int64_t>(std::hash<std::string>{}(value::asString(val)) & 0x7FFFFFFF);
+            return deterministicStringHash(value::asString(val));
         if (value::isInternedString(val))
-            return static_cast<int64_t>(std::hash<std::string>{}(value::asInternedString(val).getString()) & 0x7FFFFFFF);
+            return deterministicStringHash(value::asInternedString(val).getString());
         return 0;
     }
 
@@ -496,7 +507,7 @@ namespace json
     }
 
     // Mirrors the native hashCode() built-in (environment/registry/builtin/BuiltinNatives.cpp).
-    // Uses std::hash<T> masked with 0x7FFFFFFF, matching the runtime exactly.
+    // String values use deterministic FNV-1a; other primitives keep the runtime hash arms.
     // WARNING: if BuiltinNatives.cpp's hashCode_fn changes, this must be updated to match.
     int64_t JsonDeserializer::computeHashCode(const value::Value& val)
     {

@@ -1,8 +1,8 @@
 // Test: Bounded generic exception types
 // Expected: Should compile and run successfully
 import * from "../../lib/exceptions/Exception.mt";
-import * from "../../lib/primitives/int.mt";
-import * from "../../lib/primitives/string.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 // Base error info interface
 interface ErrorInfo {

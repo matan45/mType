@@ -92,9 +92,13 @@ namespace reflection
 
         std::vector<int> fieldHandles;
 
-        // Collect instance fields
-        for (const auto& [name, fieldDef] : classDef->getInstanceFields())
+        // Collect instance fields in declaration order.
+        const auto& instanceFields = classDef->getInstanceFields();
+        for (const auto& name : classDef->getInstanceFieldOrder())
         {
+            auto it = instanceFields.find(name);
+            if (it == instanceFields.end()) continue;
+            const auto& fieldDef = it->second;
             if (declaredOnly || fieldDef->getAccessModifier() == ast::AccessModifier::PUBLIC)
             {
                 int64_t handle = handleRegistry.registerField(fieldDef, classHandle, name);
@@ -102,9 +106,13 @@ namespace reflection
             }
         }
 
-        // Collect static fields
-        for (const auto& [name, fieldDef] : classDef->getStaticFields())
+        // Collect static fields in declaration order.
+        const auto& staticFields = classDef->getStaticFields();
+        for (const auto& name : classDef->getStaticFieldOrder())
         {
+            auto it = staticFields.find(name);
+            if (it == staticFields.end()) continue;
+            const auto& fieldDef = it->second;
             if (declaredOnly || fieldDef->getAccessModifier() == ast::AccessModifier::PUBLIC)
             {
                 int64_t handle = handleRegistry.registerField(fieldDef, classHandle, name);
