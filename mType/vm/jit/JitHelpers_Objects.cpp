@@ -14,6 +14,7 @@
 #include "../../environment/Environment.hpp"
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../runtime/VirtualMachine.hpp"
+#include "../runtime/utils/BoxingUtils.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../runtimeTypes/klass/SignatureUtils.hpp"
@@ -1011,6 +1012,44 @@ namespace vm::jit
             }
 
             throw errors::RuntimeException("JIT: cannot create object '" + className + "'");
+        }
+        catch (const OSRDeoptException&)
+        {
+            throw;
+        }
+        catch (...)
+        {
+            ctx->pendingException = std::current_exception();
+        }
+    }
+
+    void jit_new_value_object(value::Value* dest, JitContext* ctx,
+                              uint32_t classIndex, size_t argCount)
+    {
+        if (ctx->pendingException)
+            return;
+
+        try
+        {
+            const std::string& className = ctx->program->getConstantPool().getString(classIndex);
+            std::span<const value::Value> args(ctx->callArgs, argCount);
+
+            value::Value direct;
+            if (vm::runtime::utils::tryCreatePrimitiveValueObject(
+                    className, args, ctx->environment, direct))
+            {
+                *dest = std::move(direct);
+                return;
+            }
+
+            if (ctx->vm)
+            {
+                *dest = ctx->vm->createObject(className, args);
+                jit_object_to_value(dest);
+                return;
+            }
+
+            throw errors::RuntimeException("JIT: cannot create value object '" + className + "'");
         }
         catch (const OSRDeoptException&)
         {

@@ -1837,14 +1837,20 @@ namespace vm::jit
         Gp acReg = cc.new_gp64();
         cc.mov(acReg, static_cast<int64_t>(argCount));
         InvokeNode* inv;
-        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_new_object),
+        const uint64_t helper =
+            (instr.opcode == OpCode::NEW_VALUE_OBJECT)
+                ? reinterpret_cast<uint64_t>(jit_new_value_object)
+                : reinterpret_cast<uint64_t>(jit_new_object);
+        cc.invoke(Out(inv), helper,
                   FuncSignature::build<void, value::Value*, JitContext*,
                       uint32_t, size_t>());
         inv->set_arg(0, dest);
         inv->set_arg(1, s.ctxPtr);
         inv->set_arg(2, ciReg);
         inv->set_arg(3, acReg);
-        s.slotTypes.push_back(SlotType::OBJECT);
+        s.slotTypes.push_back(instr.opcode == OpCode::NEW_VALUE_OBJECT
+                                  ? SlotType::VALUE_OBJECT
+                                  : SlotType::OBJECT);
         s.stackDepth++;
         return true;
     }
@@ -2182,6 +2188,9 @@ namespace vm::jit
 
             case OpCode::OBJECT_TO_VALUE:
             {
+                if (topType(s) == SlotType::VALUE_OBJECT)
+                    return true;
+
                 Gp addr = cc.new_gp64();
                 cc.lea(addr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
                 InvokeNode* inv;

@@ -239,6 +239,8 @@ namespace vm::jit
     void jit_bind_type_args(JitContext* ctx, uint64_t ip);
     void jit_new_object(value::Value* dest, JitContext* ctx,
                          uint32_t classIndex, size_t argCount);
+    void jit_new_value_object(value::Value* dest, JitContext* ctx,
+                              uint32_t classIndex, size_t argCount);
     // MYT-208: stack-promoted allocation. Same calling convention as
     // jit_new_object; produces a STACK_OBJECT-tagged Value (or OBJECT if
     // VM-side fallback fired for a non-trivial ctor).

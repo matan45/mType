@@ -42,9 +42,30 @@ namespace vm::runtime
     }
 
     void ObjectExecutor::handleNewValueObject(const bytecode::BytecodeProgram::Instruction& instr) {
-        // Value object construction uses the same mechanism as regular objects.
-        // The constructor needs an ObjectInstance for 'this' (frame.thisInstance).
-        // After the constructor completes, OBJECT_TO_VALUE converts the result to ValueObject.
+        if (instr.operands.size() >= 2)
+        {
+            const std::string& className =
+                context.program->getConstantPool().getString(instr.operands[0]);
+            size_t argCount = instr.operands[1];
+
+            if (argCount == 1 &&
+                value::classNameToPrimitiveTag(className) != value::PrimitiveTypeTag::NONE)
+            {
+                value::Value arg = context.stackManager->peek();
+                value::Value boxed;
+                if (utils::tryCreatePrimitiveValueObject(
+                        className, std::span<const value::Value>(&arg, 1),
+                        context.environment.get(), boxed))
+                {
+                    context.stackManager->pop();
+                    context.stackManager->push(std::move(boxed));
+                    return;
+                }
+            }
+        }
+
+        // Non-primitive value object construction uses the regular object path.
+        // The following OBJECT_TO_VALUE bytecode converts the instance.
         instanceHelper->handleNewObject(instr);
     }
 

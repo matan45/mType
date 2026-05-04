@@ -6811,6 +6811,12 @@
     <None Include="tests\testFiles\generics\pass\erasureUnchecked.mt">
       <Filter>testFiles\generics\pass</Filter>
     </None>
+    <None Include="tests\testFiles\generics\pass\floatStringWrapperCache.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\floatStringWrapperCache.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
     <None Include="tests\testFiles\generics\pass\floatTypeInGenerics.expected">
       <Filter>testFiles\generics\pass</Filter>
     </None>

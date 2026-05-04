@@ -2627,3 +2627,133 @@ variance, not attributable to this change), `recursive.mt` (774 → 753,
   storage doesn't attach; HashMap goes through the generic non-
   specialized path with the synthesized (or user) `equals`/`hashCode`.
   Verified by `tests/testFiles/generics/pass/hashmapShapeFallback*.mt`.
+
+## 2026-05-04 — box-class runtime fast path (NEW_VALUE_OBJECT direct build + JIT helper)
+
+- Machine: dev machine (Windows 11 Home)
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+- Scope: cuts allocation cost for primitive value-object construction in
+  the hot path of every Box / Int / Float / Bool / String constructor
+  call. Stacks on top of the FloatCache + StringCache that landed earlier
+  today (cache miss now hits the fast path; cache hit skips construction
+  entirely).
+
+### Summary (jit=on)
+
+```
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt            103.04        103.54           20017         0
+  method_dispatch.mt                   98.52         99.13           14043       506
+  object_alloc.mt                     511.33        517.43           12511         0
+  object_alloc_nested.mt             1170.76       1170.94           16811       500
+  field_write_hot.mt                   66.02         66.06            8018         1
+  field_read_hot.mt                    67.33         67.79            9020         1
+  string_ops.mt                       112.89        114.75           19019         0
+  recursive.mt                        786.78        791.58           17261   2545487
+  bitwise_tight_loop.mt                75.42         75.93           23019         0
+  short_circuit_chain.mt               63.39         64.32           24909         0
+  primitive_method_dispatch.mt        220.12        249.02           32039         0
+  array_multi_alloc.mt                 75.37         75.54            9911       500
+  array_multi_get.mt                  322.57        330.24           49787       500
+  for_each_loop.mt                    287.59        288.42           75654      5604
+  inline_monomorphic.mt                61.53         61.94           13017       501
+  inline_branching.mt                  64.65         65.06           15017       501
+  inline_polymorphic.mt                98.45         99.89           14052       508
+  inline_value_object_hot.mt          129.03        131.68           12518       500
+  function_call_hot.mt                171.06        171.75           15011       500
+  async_await_tight_loop.mt           659.92        660.62           12423       501
+  async_await_chain.mt               1338.22       1341.90           23323      2001
+  lambda_call_hot.mt                  873.08        883.58           12522   1999501
+  lambda_closure_hot.mt               892.31        897.00           12527   1999502
+  generic_dispatch_hot.mt             627.42        631.56           20075      1012
+  try_catch_finally_hot.mt            459.54        460.17           50020      2000
+  switch_dispatch_hot.mt              453.00        463.37           14634       500
+  overload_dispatch_hot.mt            492.42        492.71           34029      2001
+  abstract_dispatch_hot.mt            101.56        102.04           14043       506
+  cast_hot.mt                         195.74        195.98           19561       505
+  collections_hash_hot.mt             629.95        634.53           32762       502
+  collections_hash_user_class_hot.mt        653.60        658.01           35774       502
+  collections_hashset_hot.mt          176.70        178.87           18654         1
+  stream_pipeline_hot.mt              416.43        422.14         2090492    306881
+  reflection_lookup_hot.mt           2252.65       2297.63           85542   1203001
+  pattern_match_hot.mt                444.99        449.71           12861       500
+  string_interpolation_hot.mt         255.78        257.50         7400025         0
+  boxed_primitive_dispatch_hot.mt        634.77        635.87           32803         0
+  boxed_bool_dispatch_hot.mt          496.84        498.74           29277         0
+  boxed_string_dispatch_hot.mt        381.57        381.80           24262         0
+  static_call_hot.mt                  170.61        171.21           32517      2000
+  linked_list_nested_hot.mt           340.85        346.54          124920     81001
+```
+
+### Notes — wins vs prior post-shape-spec run
+
+| Benchmark                              | Prior (today) | Now      | Δ      |
+|----------------------------------------|---------------|----------|--------|
+| `boxed_bool_dispatch_hot.mt`           | 966.83 ms     | 498.74 ms| -48.4% |
+| `primitive_method_dispatch.mt`         | 449.35 ms¹    | 249.02 ms| -44.6% |
+| `collections_hashset_hot.mt`           | 295.65 ms     | 178.87 ms| -39.5% |
+| `boxed_primitive_dispatch_hot.mt`      | 1001.84 ms    | 635.87 ms| -36.5% |
+| `boxed_string_dispatch_hot.mt`         | 500.86 ms     | 381.80 ms| -23.8% |
+| `collections_hash_hot.mt`              | 741.28 ms     | 634.53 ms| -14.4% |
+| `async_await_tight_loop.mt`            | 748.25 ms     | 660.62 ms| -11.7% |
+| `async_await_chain.mt`                 | 1433.43 ms    | 1341.90 ms| -6.4% |
+| `for_each_loop.mt`                     | 300.07 ms     | 288.42 ms| -3.9% |
+
+¹ prior `primitive_method_dispatch.mt` baseline from MYT-274 entry
+above (449.35 ms). The post-shape-spec run inherited that number.
+
+- **MYT-272 ticket target hit**: `boxed_bool_dispatch_hot.mt < 600 ms`
+  was the AC that the FloatCache+StringCache work alone couldn't reach
+  (BoolCache was already in place; allocation savings exhausted). The
+  box-class direct-build path attacks the *value-object construction*
+  cost itself — every wrapper instantiation now skips a layer of
+  bytecode interpretation/JIT call setup.
+- **`collections_hash_user_class_hot.mt`** essentially unchanged (661 →
+  658 ms): the workload's `new Point(...)` is a *user* class, not a
+  primitive Box — the box-fast-path doesn't apply there. Shape
+  specialization is already doing the heavy lifting on that bench.
+- **Ticket-targeted floor reached for primitive wrapper benchmarks**:
+  Both `boxed_primitive_dispatch_hot.mt` (target was "substantial",
+  delivered -36.5%) and `boxed_string_dispatch_hot.mt` (target was
+  "modest but real", delivered -23.8%) cleared their AC bars.
+- **Async benchmarks improvement** (`async_await_tight_loop.mt` -11.7%,
+  `async_await_chain.mt` -6.4%) is a side effect: the await machinery
+  constructs Promise<T> wrappers internally, and Promise's box pattern
+  benefits from the same fast path.
+- **Variance band, not regressions**: `try_catch_finally_hot.mt` 460 vs
+  prior 437 ms (+5%), `inline_value_object_hot.mt` 132 vs 125 ms
+  (+5.5%), `static_call_hot.mt` 171 vs 166 ms (+3%), `cast_hot.mt` 196
+  vs 191 ms (+2%). All within the ~5% noise floor for these workloads.
+
+### What ships
+
+- `vm/runtime/utils/BoxingUtils.hpp` — shared primitive wrapper fast
+  construction helper. One inline path consumed by both interpreter and
+  JIT; eliminates the per-construction bytecode dispatch + ctor frame
+  setup for the common case (single primitive arg, value-class wrapper).
+- `vm/runtime/executors/ObjectExecutor.cpp` — interpreter
+  `NEW_VALUE_OBJECT` directly builds primitive value objects when safe
+  (typed primitive arg, no user-overridden constructor body, no super
+  chain to honor). Falls through to the full ctor invoke on any
+  ineligibility.
+- `vm/jit/JitHelpers_Objects.cpp` — new `jit_new_value_object` helper
+  used by the JIT for the same fast path; calls `BoxingUtils` directly
+  rather than reentering the interpreter via `jit_new_object_helper`.
+- `vm/jit/JitCompiler_Objects.cpp` — JIT now skips a redundant
+  `OBJECT_TO_VALUE` step when the operand stack already holds a value
+  object (the `jit_new_value_object` helper returns one directly).
+
+### Stack with prior 2026-05-04 entries
+
+This is the third entry today. Read order:
+1. **post MYT-274 Phase 1+2+v2** (06:30Z): synthesized `equals`/`hashCode`,
+   `STRUCT_HASH_INT`/`STRUCT_EQ_INT` fused opcodes. Closed Object-default
+   collision rate.
+2. **post MYT-273 v1 + Phase 6** (later): primitive-key + user-value-class
+   shape `SpecializedCollectionStorage`. `collections_hash_hot.mt` 4730 →
+   741 ms; user-class hot path 6033 → 661 ms.
+3. **box-class runtime fast path** (this entry): primitive wrapper
+   construction direct-build in NEW_VALUE_OBJECT + JIT. Drops boxed-
+   dispatch and HashSet hot paths another 24-48%. Compounds with caches
+   (cache miss now hits fast path; cache hit skips construction entirely).

@@ -6,9 +6,61 @@
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include <memory>
+#include <span>
+#include <string>
 
 namespace vm::runtime::utils
 {
+    inline bool primitiveWrapperArgMatches(value::PrimitiveTypeTag tag,
+                                           const value::Value& val)
+    {
+        switch (tag)
+        {
+        case value::PrimitiveTypeTag::INT:
+            return value::isInt(val);
+        case value::PrimitiveTypeTag::FLOAT:
+            return value::isFloat(val);
+        case value::PrimitiveTypeTag::BOOL:
+            return value::isBool(val);
+        case value::PrimitiveTypeTag::STRING:
+            return value::isString(val) || value::isInternedString(val);
+        case value::PrimitiveTypeTag::NONE:
+            return false;
+        }
+        return false;
+    }
+
+    inline bool tryCreatePrimitiveValueObject(
+        const std::string& className,
+        std::span<const value::Value> args,
+        environment::Environment* env,
+        value::Value& out)
+    {
+        if (args.size() != 1 || !env)
+            return false;
+
+        const value::PrimitiveTypeTag tag = value::classNameToPrimitiveTag(className);
+        if (tag == value::PrimitiveTypeTag::NONE ||
+            !primitiveWrapperArgMatches(tag, args[0]))
+        {
+            return false;
+        }
+
+        auto classRegistry = env->getClassRegistry();
+        auto classDef = classRegistry ? classRegistry->findClass(className) : nullptr;
+        if (!classDef || !classDef->isValueClass())
+            return false;
+
+        classDef->buildFieldIndexMap();
+        if (classDef->getFieldIndex("value") != 0)
+            return false;
+
+        auto valueObj = std::make_shared<value::ValueObject>(classDef);
+        valueObj->setFieldByIndex(0, args[0]);
+        out = value::Value(std::move(valueObj));
+        return true;
+    }
+
     /**
      * Auto-box a raw primitive into its corresponding ValueObject at escape points.
      * Supports lazy re-boxing: INVOKE_INT_* opcodes push raw primitives,
