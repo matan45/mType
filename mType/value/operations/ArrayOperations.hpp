@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../NativeArray.hpp"
+#include <cstdint>
 #include "../ValueType.hpp"
 #include <memory>
 

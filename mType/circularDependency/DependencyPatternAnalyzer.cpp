@@ -1,4 +1,5 @@
-﻿#include "DependencyPatternAnalyzer.hpp"
+#include "DependencyPatternAnalyzer.hpp"
+#include <cstddef>
 #include <algorithm>
 #include <regex>
 

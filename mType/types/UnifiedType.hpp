@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../value/ValueType.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "../errors/SourceLocation.hpp"
 #include <string>
 #include <vector>

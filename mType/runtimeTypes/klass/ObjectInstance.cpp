@@ -1,4 +1,5 @@
 #include "ObjectInstance.hpp"
+#include <cstdint>
 #include "../../gc/GC.hpp"
 #include "../../value/ValueShim.hpp"
 #include "../../value/ValueBridge.hpp"

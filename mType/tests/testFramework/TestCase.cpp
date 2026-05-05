@@ -1,4 +1,5 @@
-﻿#include "TestCase.hpp"
+#include "TestCase.hpp"
+#include <cstddef>
 #include "../../errors/UndefinedException.hpp"
 #include "../../errors/TypeException.hpp"
 #include "../../errors/ParseException.hpp"
@@ -470,7 +471,11 @@ namespace tests::testFramework
 
             // Step 4: Run the exe as a subprocess and capture stdout
             std::string command = "\"" + exePath + "\" 2>&1";
+#ifdef _WIN32
             FILE* pipe = _popen(command.c_str(), "r");
+#else
+            FILE* pipe = popen(command.c_str(), "r");
+#endif
             if (!pipe)
             {
                 status = TestStatus::ERROR;
@@ -484,7 +489,11 @@ namespace tests::testFramework
             {
                 output += buffer;
             }
+#ifdef _WIN32
             int exitCode = _pclose(pipe);
+#else
+            int exitCode = pclose(pipe);
+#endif
 
             // Step 5: Verify output against .expected file
             if (verifyOutputAgainstExpected())

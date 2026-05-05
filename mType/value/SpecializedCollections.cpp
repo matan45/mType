@@ -1,5 +1,6 @@
 #include "SpecializedCollections.hpp"
 #include "ValueShim.hpp"
+#include "HashUtils.hpp"
 #include "../gc/WriteBarrier.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
@@ -12,8 +13,6 @@ namespace value
 {
     namespace
     {
-        constexpr int64_t kHashMultiplier = 1610612741;
-
         size_t normalizeCapacity(size_t requested)
         {
             size_t cap = 4;
@@ -144,13 +143,13 @@ namespace value
         switch (key.tag)
         {
         case PrimitiveTypeTag::INT:
-            return maskedHash(std::hash<int64_t>{}(key.intValue));
+            return ::value::hashutils::intHash(key.intValue);
         case PrimitiveTypeTag::FLOAT:
-            return maskedHash(std::hash<double>{}(key.floatValue));
+            return ::value::hashutils::floatHash(key.floatValue);
         case PrimitiveTypeTag::BOOL:
-            return key.boolValue ? 1231 : 1237;
+            return ::value::hashutils::boolHash(key.boolValue);
         case PrimitiveTypeTag::STRING:
-            return maskedHash(std::hash<std::string>{}(key.stringValue));
+            return ::value::hashutils::stringHash(key.stringValue);
         default:
             return 0;
         }
@@ -189,8 +188,7 @@ namespace value
 
         const size_t mask = entries_.size() - 1;
         const int64_t hash = rawHash(key);
-        const int64_t mixed = hash * kHashMultiplier;
-        size_t idx = static_cast<size_t>((mixed ^ (mixed >> 16)) & static_cast<int64_t>(mask));
+        size_t idx = static_cast<size_t>(hash & static_cast<int64_t>(mask));
 
         for (size_t probes = 0; probes < entries_.size(); ++probes)
         {

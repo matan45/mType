@@ -1,4 +1,6 @@
 #include "JitCodeCache.hpp"
+#include <cstddef>
+#include <cstdint>
 
 namespace vm::jit
 {

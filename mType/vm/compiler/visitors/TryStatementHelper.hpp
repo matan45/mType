@@ -1,5 +1,7 @@
 #pragma once
 #include "CompilerContext.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "../../../ast/nodes/statements/TryNode.hpp"
 #include "../../../ast/nodes/statements/BlockNode.hpp"
 #include "../../../value/ValueType.hpp"

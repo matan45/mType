@@ -1,4 +1,5 @@
 #include "ConstantEvaluator.hpp"
+#include <cstdint>
 #include <sstream>
 #include <iomanip>
 

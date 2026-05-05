@@ -1,5 +1,7 @@
 #pragma once
 #include <unordered_map>
+#include <cstddef>
+#include <cstdint>
 #include <unordered_set>
 #include <memory>
 #include <span>
@@ -31,8 +33,10 @@ namespace runtimeTypes::klass
     private:
         // Instance members
         std::unordered_map<std::string, std::shared_ptr<FieldDefinition>> instanceFields;
+        std::vector<std::string> instanceFieldOrder;
         // NEW: Support multiple overloads per method name
         std::unordered_map<std::string, std::vector<std::shared_ptr<MethodDefinition>>> instanceMethods;
+        std::vector<std::string> instanceMethodOrder;
         // MYT-274: compiler-synthesized instance methods (auto hashCode/
         // equals from StructuralEqualitySynthesisPass). Stored separately
         // from `instanceMethods` so that adding them does NOT perturb the
@@ -45,8 +49,10 @@ namespace runtimeTypes::klass
 
         // Static members
         std::unordered_map<std::string, std::shared_ptr<FieldDefinition>> staticFields;
+        std::vector<std::string> staticFieldOrder;
         // NEW: Support multiple overloads per method name
         std::unordered_map<std::string, std::vector<std::shared_ptr<MethodDefinition>>> staticMethods;
+        std::vector<std::string> staticMethodOrder;
 
         // Constructors and destructor
         std::vector<std::shared_ptr<ConstructorDefinition>> constructors;
@@ -123,6 +129,10 @@ namespace runtimeTypes::klass
         const std::unordered_map<std::string, std::shared_ptr<FieldDefinition>>& getStaticFields() const;
         // NEW: Returns map of method name -> vector of overloads
         const std::unordered_map<std::string, std::vector<std::shared_ptr<MethodDefinition>>>& getStaticMethods() const;
+        const std::vector<std::string>& getInstanceFieldOrder() const;
+        const std::vector<std::string>& getStaticFieldOrder() const;
+        const std::vector<std::string>& getInstanceMethodOrder() const;
+        const std::vector<std::string>& getStaticMethodOrder() const;
         const std::vector<std::shared_ptr<ConstructorDefinition>>& getConstructors() const;
 
         // Setter/adder methods for AST node integration

@@ -1,4 +1,5 @@
 #include "MethodResolver.hpp"
+#include <cstddef>
 #include "../context/ExecutionContext.hpp"
 
 namespace vm::runtime::utils

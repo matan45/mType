@@ -1,4 +1,5 @@
 #include "ASTTransformer.hpp"
+#include <cstddef>
 #include "../../constants/SecurityConstants.hpp"
 #include <stdexcept>
 #include <string>

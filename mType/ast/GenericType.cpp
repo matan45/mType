@@ -1,4 +1,5 @@
 #include "GenericType.hpp"
+#include <cstddef>
 #include "../errors/TypeException.hpp"
 #include <sstream>
 #include <unordered_map>

@@ -1,4 +1,5 @@
 #include "ArrayLiteralNode.hpp"
+#include <cstddef>
 
 namespace ast::nodes::expressions
 {

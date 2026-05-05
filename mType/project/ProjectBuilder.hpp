@@ -1,5 +1,6 @@
 #pragma once
 #include "ProjectConfig.hpp"
+#include <cstddef>
 #include "../vm/bytecode/BytecodeProgram.hpp"
 #include <functional>
 #include <chrono>

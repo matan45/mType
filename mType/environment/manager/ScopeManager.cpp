@@ -1,4 +1,5 @@
-﻿#include "ScopeManager.hpp"
+#include "ScopeManager.hpp"
+#include <cstddef>
 
 namespace environment::manager
 {

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <memory>
+#include <cstddef>
+#include <cstdint>
 #include <array>
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 

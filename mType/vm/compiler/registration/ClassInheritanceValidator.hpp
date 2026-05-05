@@ -1,5 +1,6 @@
 #pragma once
 #include "../../../ast/ASTNode.hpp"
+#include <cstddef>
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../environment/registry/ClassRegistry.hpp"
 #include <string>

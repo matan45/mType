@@ -1,4 +1,6 @@
 #include "ReflectionNatives.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "ReflectionHandle.hpp"
 #include "../errors/RuntimeException.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
@@ -99,8 +101,12 @@ namespace reflection
         {
             // Declared-only: this class's methods only, all access levels.
             // MYT-274: filter compiler-synthesized methods (auto hashCode/equals).
-            for (const auto& [name, overloads] : classDef->getInstanceMethods())
+            const auto& instanceMethods = classDef->getInstanceMethods();
+            for (const auto& name : classDef->getInstanceMethodOrder())
             {
+                auto it = instanceMethods.find(name);
+                if (it == instanceMethods.end()) continue;
+                const auto& overloads = it->second;
                 for (const auto& methodDef : overloads)
                 {
                     if (methodDef->isSynthetic()) continue;
@@ -108,8 +114,12 @@ namespace reflection
                     methodHandles.push_back(static_cast<int>(handle));
                 }
             }
-            for (const auto& [name, overloads] : classDef->getStaticMethods())
+            const auto& staticMethods = classDef->getStaticMethods();
+            for (const auto& name : classDef->getStaticMethodOrder())
             {
+                auto it = staticMethods.find(name);
+                if (it == staticMethods.end()) continue;
+                const auto& overloads = it->second;
                 for (const auto& methodDef : overloads)
                 {
                     if (methodDef->isSynthetic()) continue;
@@ -143,15 +153,23 @@ namespace reflection
             int depth = 0;
             while (current && depth < MAX_DEPTH)
             {
-                for (const auto& [name, overloads] : current->getInstanceMethods())
+                const auto& instanceMethods = current->getInstanceMethods();
+                for (const auto& name : current->getInstanceMethodOrder())
                 {
+                    auto it = instanceMethods.find(name);
+                    if (it == instanceMethods.end()) continue;
+                    const auto& overloads = it->second;
                     for (const auto& methodDef : overloads)
                     {
                         emitMethod(methodDef, name, /*isStatic*/ false);
                     }
                 }
-                for (const auto& [name, overloads] : current->getStaticMethods())
+                const auto& staticMethods = current->getStaticMethods();
+                for (const auto& name : current->getStaticMethodOrder())
                 {
+                    auto it = staticMethods.find(name);
+                    if (it == staticMethods.end()) continue;
+                    const auto& overloads = it->second;
                     for (const auto& methodDef : overloads)
                     {
                         emitMethod(methodDef, name, /*isStatic*/ true);

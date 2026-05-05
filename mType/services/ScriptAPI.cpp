@@ -1,4 +1,6 @@
 #include "ScriptAPI.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../value/ValueShim.hpp"

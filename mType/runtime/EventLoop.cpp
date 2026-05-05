@@ -1,7 +1,10 @@
 #include "EventLoop.hpp"
+#include <cstddef>
 #include "../value/PromiseValue.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 #include <algorithm>
+#include <thread>
+#include <chrono>
 
 namespace runtime
 {

@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 #include <string>
+#include <cstddef>
 #include <memory>
 #include <functional>
 #include <vector>

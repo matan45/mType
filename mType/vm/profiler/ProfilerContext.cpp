@@ -1,4 +1,7 @@
 #include "ProfilerContext.hpp"
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <iostream>
 
 namespace vm::profiler

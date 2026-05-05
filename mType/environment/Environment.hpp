@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 #include "registry/ClassRegistry.hpp"
+#include <cstddef>
 #include "registry/FunctionRegistry.hpp"
 #include "registry/NativeRegistry.hpp"
 #include "registry/ExportRegistry.hpp"

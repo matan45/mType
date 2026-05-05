@@ -1,5 +1,6 @@
 #pragma once
 #include "ObjectArrayBase.hpp"
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>

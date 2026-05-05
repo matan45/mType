@@ -1,4 +1,5 @@
 #include "TypeRegistry.hpp"
+#include <cstddef>
 #include "../circularDependency/TrueCyclicException.hpp"
 #include "../circularDependency/DepthLimitException.hpp"
 

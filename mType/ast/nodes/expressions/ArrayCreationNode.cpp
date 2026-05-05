@@ -1,4 +1,5 @@
 #include "ArrayCreationNode.hpp"
+#include <cstddef>
 #include <stdexcept>
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/ArrayCreationException.hpp"

@@ -1,5 +1,7 @@
 #pragma once
 #include <memory>
+#include <cstddef>
+#include <cstdint>
 #include <unordered_map>
 #include "LoopProfiler.hpp"
 #include "OSRState.hpp"

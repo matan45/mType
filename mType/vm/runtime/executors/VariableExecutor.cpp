@@ -1,4 +1,6 @@
 #include "VariableExecutor.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"

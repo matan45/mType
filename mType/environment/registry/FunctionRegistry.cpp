@@ -1,4 +1,5 @@
-﻿#include "FunctionRegistry.hpp"
+#include "FunctionRegistry.hpp"
+#include <cstddef>
 #include <algorithm>
 
 namespace environment::registry

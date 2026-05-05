@@ -1,4 +1,5 @@
 #include "ObjectCreationParser.hpp"
+#include <cstddef>
 #include "../ParserValidator.hpp"
 #include "../utilities/ParserUtils.hpp"
 #include "../expression/ArgumentParser.hpp"

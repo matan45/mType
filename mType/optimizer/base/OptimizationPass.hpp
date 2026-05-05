@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <cstddef>
 #include <string>
 #include <set>
 #include <chrono>

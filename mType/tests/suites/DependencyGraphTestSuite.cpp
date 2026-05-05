@@ -14,16 +14,11 @@ namespace tests::testSuite
     using namespace testFramework;
     namespace fs = std::filesystem;
 
-    // ── Helper: locate test fixtures relative to this source file ──
+    // ── Helper: locate test fixtures relative to repo root ──
 
     static fs::path testFixturesDir()
     {
-        // __FILE__ is always an absolute or repo-relative path set by the
-        // compiler.  Walk up from this .cpp to the testFiles directory so
-        // the tests work regardless of the working directory.
-        fs::path thisFile(__FILE__);
-        // .../tests/suites/DependencyGraphTestSuite.cpp  →  .../tests/testFiles
-        return thisFile.parent_path().parent_path() / "testFiles" / "deps";
+        return fs::path("mType/tests/testFiles/deps");
     }
 
     // ── Helper: build a graph from a test directory ──────────

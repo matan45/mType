@@ -1,7 +1,7 @@
 Number of declared methods: 5
-Method: getValue static=false
 Method: add static=false
 Method: subtract static=false
+Method: getValue static=false
 Method: reset static=false
 Method: create static=true
 Found method 'add': add

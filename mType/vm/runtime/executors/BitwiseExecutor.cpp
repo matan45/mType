@@ -1,4 +1,5 @@
 #include "BitwiseExecutor.hpp"
+#include <cstdint>
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../../../value/ValueShim.hpp"
 

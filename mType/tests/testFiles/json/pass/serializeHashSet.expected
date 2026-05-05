@@ -7,15 +7,15 @@
     "elements": [
         {
             "__type": "String",
-            "value": "apple"
-        },
-        {
-            "__type": "String",
             "value": "banana"
         },
         {
             "__type": "String",
             "value": "cherry"
+        },
+        {
+            "__type": "String",
+            "value": "apple"
         }
     ]
 }

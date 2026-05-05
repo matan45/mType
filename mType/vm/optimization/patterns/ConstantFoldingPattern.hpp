@@ -1,5 +1,7 @@
 #pragma once
 #include "../OptimizationPattern.hpp"
+#include <cstddef>
+#include <cstdint>
 
 namespace vm::optimization::patterns
 {

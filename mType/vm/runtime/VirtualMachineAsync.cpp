@@ -1,4 +1,5 @@
 #include "VirtualMachine.hpp"
+#include <cstddef>
 #include "utils/ExceptionHandler.hpp"
 #include "../../value/ValueShim.hpp"
 #include "../../errors/RuntimeException.hpp"

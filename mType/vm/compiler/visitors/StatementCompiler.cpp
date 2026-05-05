@@ -1,4 +1,6 @@
 #include "StatementCompiler.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "StatementCleanup.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../../../errors/EnvironmentException.hpp"

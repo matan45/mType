@@ -1,4 +1,5 @@
 #include "OptimizationConfig.hpp"
+#include <cstddef>
 
 namespace optimizer
 {

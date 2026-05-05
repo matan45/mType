@@ -1,4 +1,5 @@
 #include "AnnotationRetention.hpp"
+#include <cstdint>
 #include "../../../runtimeTypes/klass/AnnotationDefinition.hpp"
 #include "../../../ast/nodes/annotations/TypedAnnotationValue.hpp"
 

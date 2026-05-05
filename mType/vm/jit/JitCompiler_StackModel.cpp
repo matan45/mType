@@ -1,4 +1,6 @@
 #include "JitEmissionState.hpp"
+#include <cstddef>
+#include <cstdint>
 #include <asmjit/x86.h>
 
 // MYT-211: virtual-register operand-stack helpers. See SlotHint in

@@ -2,7 +2,6 @@
 workspace "mtpm"
     architecture "x64"
     startproject "mtpm"
-	toolset "v145"
 
     configurations
     {
@@ -37,6 +36,13 @@ project "mtpm"
         "../mType",
     }
 
+    filter { "system:windows", "action:vs*" }
+        toolset "v145"
+        systemversion "latest"
+
+    filter "system:linux or system:macosx"
+        links { "pthread" }
+
     files
     {
         "src/**.hpp",
@@ -64,3 +70,5 @@ project "mtpm"
     filter "configurations:Release"
         runtime "Release"
         optimize "on"
+
+    filter {}

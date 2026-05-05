@@ -1,4 +1,5 @@
 #include "StructuralEqualitySynthesisPass.hpp"
+#include <chrono>
 
 #include "structural_equality/StructuralEqualityCodegen.hpp"
 #include "structural_equality/StructuralEqualityPolicy.hpp"

@@ -1,4 +1,5 @@
 #include "ExceptionExecutor.hpp"
+#include <cstddef>
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../value/ValueShim.hpp"
 #include "../../../runtimeTypes/global/VariableDefinition.hpp"

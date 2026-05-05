@@ -1,4 +1,5 @@
 #include "StatementTypeDetector.hpp"
+#include <cstddef>
 
 namespace parser::utilities
 {

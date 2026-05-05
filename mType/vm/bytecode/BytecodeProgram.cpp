@@ -1,4 +1,5 @@
 #include "BytecodeProgram.hpp"
+#include <cstddef>
 #include "BytecodeIOHelper.hpp"
 #include "../../constants/SecurityConstants.hpp"
 #include <sstream>

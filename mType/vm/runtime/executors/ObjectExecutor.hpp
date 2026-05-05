@@ -1,5 +1,6 @@
 #pragma once
 #include "../context/ExecutionContext.hpp"
+#include <cstddef>
 #include "../validation/AccessValidator.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/NullPointerException.hpp"

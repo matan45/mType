@@ -1,4 +1,5 @@
 #include "DiagnosticRenderer.hpp"
+#include <cstddef>
 
 #include <algorithm>
 #include <iostream>

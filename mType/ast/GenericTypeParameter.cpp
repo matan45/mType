@@ -1,4 +1,5 @@
 #include "GenericTypeParameter.hpp"
+#include <cstddef>
 #include <sstream>
 
 namespace ast

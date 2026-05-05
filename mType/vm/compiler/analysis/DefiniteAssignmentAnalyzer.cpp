@@ -1,4 +1,5 @@
 #include "DefiniteAssignmentAnalyzer.hpp"
+#include <cstdint>
 
 #include "../../../ast/ASTNode.hpp"
 #include "../../../ast/nodes/statements/BlockNode.hpp"

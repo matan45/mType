@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../value/ValueType.hpp"
+#include <cstddef>
 #include "../base/OptimizationPass.hpp"
 #include "../base/ASTTransformer.hpp"
 #include "../../ast/NodeClassesDeclaration.hpp"

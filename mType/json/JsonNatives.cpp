@@ -1,4 +1,5 @@
 #include "JsonNatives.hpp"
+#include <cstddef>
 #include "JsonSerializer.hpp"
 #include "JsonDeserializer.hpp"
 #include "JsonParser.hpp"

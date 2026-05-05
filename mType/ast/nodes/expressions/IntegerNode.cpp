@@ -1,4 +1,5 @@
-﻿#include "IntegerNode.hpp"
+#include "IntegerNode.hpp"
+#include <cstdint>
 
 namespace ast::nodes::expressions
 {

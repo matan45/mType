@@ -1,4 +1,5 @@
 #include "InlineAnalysis.hpp"
+#include <cstdint>
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../bytecode/OpCode.hpp"
 #include "../jit/ic/InlineCacheTypes.hpp"

@@ -198,6 +198,9 @@
     <ClInclude Include="value\FloatCache.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\HashUtils.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\IMultiDimensionalArray.hpp">
       <Filter>value</Filter>
     </ClInclude>

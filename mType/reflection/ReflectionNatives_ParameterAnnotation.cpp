@@ -1,4 +1,6 @@
 #include "ReflectionNatives.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "ReflectionHandle.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/InternedString.hpp"

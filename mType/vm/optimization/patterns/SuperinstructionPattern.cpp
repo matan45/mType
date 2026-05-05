@@ -1,4 +1,5 @@
 #include "SuperinstructionPattern.hpp"
+#include <cstddef>
 
 namespace vm::optimization::patterns
 {

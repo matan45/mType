@@ -1,4 +1,6 @@
 #include "JumpThreadingPattern.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "../../bytecode/OpCode.hpp"
 #include "../analysis/ControlFlowAnalyzer.hpp"
 #include <algorithm>

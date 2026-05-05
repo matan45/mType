@@ -1,0 +1,137 @@
+name: CI
+
+on:
+  pull_request:
+    branches: ["**"]
+
+# Cancel any in-progress run for the same branch so stale runs don't waste minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false   # Keep all platforms running even if one fails
+      matrix:
+        include:
+          # ── Windows (MSVC x64) ───────────────────────────────────────────────
+          - os: windows-latest
+            name: Windows (MSVC x64)
+            premake_action: vs2022
+            build_cmd: msbuild Interpreter.sln /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /m /nologo /clp:"Summary;ErrorsOnly"
+            test_cmd: |
+              ./bin/mType/Release/x64/mType.exe --tests
+              ./bin/mtpm/Release/x64/mtpm.exe --help
+              ./bin/mtype-language-server-tests/Release/x64/mtype-language-server-tests.exe
+            premake_install: ""
+            deps_install: ""
+
+          # ── Linux x64 (GCC) ──────────────────────────────────────────────────
+          - os: ubuntu-24.04
+            name: Linux (GCC x64)
+            premake_action: gmake2
+            build_cmd: make -j$(nproc) config=release_x64
+            test_cmd: |
+              ./bin/mType/Release/x64/mType --tests
+              ./bin/mtpm/Release/x64/mtpm --help
+              ./bin/mtype-language-server-tests/Release/x64/mtype-language-server-tests
+            deps_install: |
+              sudo apt-get update -qq
+              sudo apt-get install -y --no-install-recommends \
+                build-essential \
+                libcurl4-openssl-dev \
+                wget
+            premake_install: |
+              wget -q https://github.com/premake/premake-core/releases/download/v5.0.0-beta4/premake-5.0.0-beta4-linux.tar.gz \
+                   -O premake5.tar.gz
+              tar xf premake5.tar.gz
+              chmod +x premake5
+              sudo mv premake5 /usr/local/bin/premake5
+              rm premake5.tar.gz
+
+          # ── macOS x86-64 (Clang, Intel runner) ───────────────────────────────
+          # Use the Intel macOS runner so premake's "x64" platform maps correctly.
+          # macos-latest is ARM64 and would need a separate "arm64" platform.
+          - os: macos-15-intel
+            name: macOS (Clang x64)
+            premake_action: gmake2
+            build_cmd: make -j$(sysctl -n hw.logicalcpu) config=release_x64
+            test_cmd: |
+              ./bin/mType/Release/x64/mType --tests
+              ./bin/mtpm/Release/x64/mtpm --help
+              ./bin/mtype-language-server-tests/Release/x64/mtype-language-server-tests
+            deps_install: ""
+            premake_install: brew install premake
+
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # ── Checkout ─────────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # ── System dependencies ───────────────────────────────────────────────────
+      - name: Install system dependencies
+        if: matrix.deps_install != ''
+        shell: bash
+        run: ${{ matrix.deps_install }}
+
+      # ── premake5 ─────────────────────────────────────────────────────────────
+      - name: Install premake5
+        if: matrix.premake_install != ''
+        shell: bash
+        run: ${{ matrix.premake_install }}
+
+      - name: Install premake5 (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $url = "https://github.com/premake/premake-core/releases/download/v5.0.0-beta4/premake-5.0.0-beta4-windows.zip"
+          Invoke-WebRequest -Uri $url -OutFile premake5.zip
+          Expand-Archive -Force premake5.zip -DestinationPath premake5_bin
+          Move-Item premake5_bin\premake5.exe C:\Windows\System32\premake5.exe
+
+      # ── Add MSBuild to PATH (Windows) ────────────────────────────────────────
+      - name: Setup MSBuild
+        if: runner.os == 'Windows'
+        uses: microsoft/setup-msbuild@v2
+
+      # ── Generate build files ──────────────────────────────────────────────────
+      - name: Generate build files
+        shell: bash
+        run: premake5 ${{ matrix.premake_action }}
+
+      # ── Build ─────────────────────────────────────────────────────────────────
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ${{ matrix.build_cmd }}
+
+      - name: Build (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: ${{ matrix.build_cmd }}
+
+      # ── Upload binary as artifact (useful for debugging failures) ─────────────
+      - name: Upload binary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mType-${{ matrix.os }}
+          path: |
+            bin/mType/Release/x64/mType*
+            bin/mType/Release/x64/mType
+            bin/mtpm/Release/x64/mtpm*
+            bin/mtype-language-server/Release/x64/mtype-language-server*
+            bin/mtype-language-server-tests/Release/x64/mtype-language-server-tests*
+          if-no-files-found: ignore
+          retention-days: 3
+
+      # ── Run tests ─────────────────────────────────────────────────────────────
+      - name: Run tests
+        shell: bash
+        run: ${{ matrix.test_cmd }}

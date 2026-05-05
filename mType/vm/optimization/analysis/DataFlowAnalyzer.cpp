@@ -1,4 +1,5 @@
 #include "DataFlowAnalyzer.hpp"
+#include <cstddef>
 #include "../../bytecode/OpCode.hpp"
 
 namespace vm::optimization::analysis

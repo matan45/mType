@@ -1,12 +1,10 @@
 #include "CPUFeatures.hpp"
 #include "../SIMDConfig.hpp"
 
-#ifdef MTYPE_ARCH_X64
 #ifdef MTYPE_PLATFORM_WINDOWS
 #include <intrin.h>
-#else
-#include <cpuid.h>
-#endif
+#elif defined(MTYPE_PLATFORM_LINUX) || defined(MTYPE_PLATFORM_MACOS)
+#include <cpuid.h>   // GCC/Clang ship this header; __get_cpuid is static inline
 #endif
 
 namespace mType

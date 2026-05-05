@@ -1,4 +1,5 @@
 #include "ParameterValidator.hpp"
+#include <cstddef>
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"

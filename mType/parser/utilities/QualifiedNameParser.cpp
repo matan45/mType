@@ -1,4 +1,5 @@
 #include "QualifiedNameParser.hpp"
+#include <cstddef>
 #include "../TokenStream.hpp"
 #include "../../token/TokenType.hpp"
 #include "../../errors/ParseException.hpp"

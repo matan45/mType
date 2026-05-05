@@ -1,6 +1,9 @@
 #pragma once
 
 #include <string>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <unordered_map>
 #include <vector>
 #include <memory>

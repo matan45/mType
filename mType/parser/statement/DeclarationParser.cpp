@@ -1,4 +1,5 @@
 #include "DeclarationParser.hpp"
+#include <cstddef>
 #include "../TypeParser.hpp"
 #include "../utilities/VisibilityParser.hpp"
 #include "../utilities/ParserUtils.hpp"

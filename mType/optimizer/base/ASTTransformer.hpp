@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../../ast/ASTNode.hpp"
+#include <cstddef>
 #include "../../ast/ASTVisitor.hpp"
 #include "../../ast/NodeClassesDeclaration.hpp"
 #include "OptimizationContext.hpp"

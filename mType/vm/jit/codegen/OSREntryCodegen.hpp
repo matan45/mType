@@ -1,5 +1,6 @@
 #pragma once
 #include "../JitCompiler.hpp"
+#include <cstddef>
 #include "../OSRState.hpp"
 #include "../JitContext.hpp"
 #include "../JitHelpers.hpp"

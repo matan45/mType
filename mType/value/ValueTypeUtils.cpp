@@ -1,4 +1,5 @@
 #include "ValueTypeUtils.hpp"
+#include <cstddef>
 #include "NativeArray.hpp"
 #include "FlatMultiArray.hpp"
 #include "SparseMultiArray.hpp"

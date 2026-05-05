@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 #include <string>
+#include <cstddef>
 #include <vector>
 #include <chrono>
 #include "CircularDependencyConfig.hpp"

@@ -1,4 +1,5 @@
 #include "FunctionNode.hpp"
+#include <cstddef>
 #include "../../utils/GenericTypeConversionUtils.hpp"
 
 namespace ast::nodes::functions

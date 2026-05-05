@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 #include "../../ASTNode.hpp"
+#include <cstddef>
 #include "../../GenericTypeParameter.hpp"
 #include "../../VisibilityModifier.hpp"
 #include "../annotations/AnnotationNode.hpp"

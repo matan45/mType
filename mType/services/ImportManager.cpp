@@ -1,4 +1,5 @@
 #include "ImportManager.hpp"
+#include <cstddef>
 #include <filesystem>
 #include <algorithm>
 #include "../lexer/Lexer.hpp"

@@ -1,5 +1,7 @@
 #pragma once
 #include "Socket.hpp"
+#include <cstdint>
+#include "ISocketServer.hpp"
 #include <atomic>
 #include <thread>
 #include <mutex>
@@ -31,7 +33,7 @@ namespace net
     };
 
     // WinSock2-backed listening server with a worker accept thread.
-    class WinSocketServer
+    class WinSocketServer : public ISocketServer
     {
     public:
         WinSocketServer();
@@ -42,9 +44,9 @@ namespace net
         // onError is invoked on the worker thread for accept-loop errors.
         void start(int port,
                    std::function<void(uintptr_t)> onAccept,
-                   std::function<void(const std::string&)> onError);
+                   std::function<void(const std::string&)> onError) override;
 
-        void stop();
+        void stop() override;
 
     private:
         std::atomic<uintptr_t> listenFd;

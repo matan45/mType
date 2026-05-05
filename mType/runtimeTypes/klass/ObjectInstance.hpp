@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <cstddef>
 #include <unordered_map>
 #include <string>
 #include "../../value/ValueType.hpp"

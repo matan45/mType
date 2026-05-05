@@ -1,4 +1,5 @@
 #include "InterfaceRegistry.hpp"
+#include <cstddef>
 #include "../../circularDependency/TrueCyclicException.hpp"
 #include "../../circularDependency/DepthLimitException.hpp"
 #include <unordered_set>

@@ -1,4 +1,5 @@
 #include "StringPool.hpp"
+#include <cstddef>
 #include <algorithm>
 
 namespace value

@@ -15,6 +15,7 @@
  */
 
 #include "../services/ScriptInterpreter.hpp"
+#include <cstddef>
 #include "../vm/bytecode/BytecodeProgram.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../value/NativeArray.hpp"

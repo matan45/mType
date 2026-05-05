@@ -1,4 +1,5 @@
 #include "TypeFeedbackCollector.hpp"
+#include <cstddef>
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../value/ValueShim.hpp"
 

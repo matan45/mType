@@ -1,4 +1,5 @@
 #include "SignatureUtils.hpp"
+#include <cstddef>
 #include "../../types/TypeConversionUtils.hpp"
 #include <sstream>
 #include <algorithm>

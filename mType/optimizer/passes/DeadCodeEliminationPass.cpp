@@ -19,6 +19,8 @@
  */
 
 #include "DeadCodeEliminationPass.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "../OptimizationResult.hpp"
 #include "../../parser/TypeParser.hpp"
 #include "../../ast/nodes/statements/ProgramNode.hpp"

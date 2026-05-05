@@ -1,4 +1,5 @@
 #include "MethodNode.hpp"
+#include <cstddef>
 #include "../../utils/GenericTypeConversionUtils.hpp"
 
 namespace ast::nodes::classes

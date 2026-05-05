@@ -1,4 +1,5 @@
 #include "ObjectArray.hpp"
+#include <cstddef>
 #include "../../../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../../ValueShim.hpp"
 namespace mType

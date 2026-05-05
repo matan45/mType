@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <cstddef>
 #include <memory>
 #include "../../value/ValueType.hpp"
 #include "../../value/ParameterType.hpp"

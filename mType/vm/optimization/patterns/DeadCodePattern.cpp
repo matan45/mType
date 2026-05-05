@@ -1,4 +1,5 @@
 #include "DeadCodePattern.hpp"
+#include <cstddef>
 #include "../../bytecode/OpCode.hpp"
 #include "../analysis/ControlFlowAnalyzer.hpp"
 

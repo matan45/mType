@@ -1,4 +1,5 @@
 #include "PrimitiveMethodExecutor.hpp"
+#include <cstdint>
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../value/ValueObject.hpp"

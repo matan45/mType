@@ -1,4 +1,5 @@
 #include "ReflectionHandle.hpp"
+#include <cstddef>
 #include "../types/ReifiedTypeRegistry.hpp"
 #include <stdexcept>
 

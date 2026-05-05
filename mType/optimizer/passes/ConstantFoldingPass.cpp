@@ -1,4 +1,6 @@
 #include "ConstantFoldingPass.hpp"
+#include <chrono>
+#include <cstddef>
 #include "constant_folding/ConstantEvaluator.hpp"
 #include "../OptimizationResult.hpp"
 #include "../../ast/nodes/expressions/IntegerNode.hpp"

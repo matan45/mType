@@ -1,4 +1,5 @@
 #include "StructuralEqualityPolicy.hpp"
+#include <cstddef>
 
 #include "../../../ast/GenericType.hpp"
 #include "../../../ast/nodes/classes/ClassNode.hpp"

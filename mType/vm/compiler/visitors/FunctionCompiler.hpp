@@ -1,5 +1,6 @@
 #pragma once
 #include "CompilerContext.hpp"
+#include <cstddef>
 #include "FunctionCallHelper.hpp"
 #include "../../../ast/nodes/functions/FunctionNode.hpp"
 

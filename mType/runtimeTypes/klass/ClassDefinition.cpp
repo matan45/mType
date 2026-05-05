@@ -1,4 +1,6 @@
 #include "ClassDefinition.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "InterfaceRegistry.hpp"
 #include "InterfaceDefinition.hpp"
 #include "SignatureUtils.hpp"
@@ -128,6 +130,26 @@ namespace runtimeTypes::klass
         return staticMethods;
     }
 
+    const std::vector<std::string>& ClassDefinition::getInstanceFieldOrder() const
+    {
+        return instanceFieldOrder;
+    }
+
+    const std::vector<std::string>& ClassDefinition::getStaticFieldOrder() const
+    {
+        return staticFieldOrder;
+    }
+
+    const std::vector<std::string>& ClassDefinition::getInstanceMethodOrder() const
+    {
+        return instanceMethodOrder;
+    }
+
+    const std::vector<std::string>& ClassDefinition::getStaticMethodOrder() const
+    {
+        return staticMethodOrder;
+    }
+
     const std::vector<std::shared_ptr<ConstructorDefinition>>& ClassDefinition::getConstructors() const
     {
         return constructors;
@@ -136,6 +158,10 @@ namespace runtimeTypes::klass
     // Setter/adder methods for AST node integration
     void ClassDefinition::addInstanceField(const std::string& name, std::shared_ptr<FieldDefinition> field)
     {
+        if (instanceFields.find(name) == instanceFields.end())
+        {
+            instanceFieldOrder.push_back(name);
+        }
         instanceFields[name] = field;
     }
 
@@ -151,18 +177,32 @@ namespace runtimeTypes::klass
             return;
         }
         // NEW: Support overloading - append to vector of overloads
-        instanceMethods[name].push_back(method);
+        auto [it, inserted] = instanceMethods.try_emplace(name);
+        if (inserted)
+        {
+            instanceMethodOrder.push_back(name);
+        }
+        it->second.push_back(method);
     }
 
     void ClassDefinition::addStaticField(const std::string& name, std::shared_ptr<FieldDefinition> field)
     {
+        if (staticFields.find(name) == staticFields.end())
+        {
+            staticFieldOrder.push_back(name);
+        }
         staticFields[name] = field;
     }
 
     void ClassDefinition::addStaticMethod(const std::string& name, std::shared_ptr<MethodDefinition> method)
     {
         // NEW: Support overloading - append to vector of overloads
-        staticMethods[name].push_back(method);
+        auto [it, inserted] = staticMethods.try_emplace(name);
+        if (inserted)
+        {
+            staticMethodOrder.push_back(name);
+        }
+        it->second.push_back(method);
     }
 
     void ClassDefinition::addConstructor(std::shared_ptr<ConstructorDefinition> constructor)

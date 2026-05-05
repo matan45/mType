@@ -1,4 +1,5 @@
-﻿#include "VariableManager.hpp"
+#include "VariableManager.hpp"
+#include <cstddef>
 #include <algorithm>
 
 namespace environment::manager

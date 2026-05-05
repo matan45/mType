@@ -1,5 +1,6 @@
 #pragma once
 #include "JitContext.hpp"
+#include <cstddef>
 #include "../../value/ValueType.hpp"
 #include <cstdint>
 

@@ -1,4 +1,7 @@
 #include "JsonDeserializer.hpp"
+#include "../value/HashUtils.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "JsonParser.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
@@ -37,21 +40,20 @@ namespace
         }
     }
 
-    // Mirrors the primitive hash arms of BuiltinNatives::hashCode_fn. Returns 0 for
-    // non-hashable values. Used by the nested computeHashCode dispatches
-    // below to avoid duplicating the same five type checks.
+    // Routes through value::hashutils so the runtime native, IC/JIT fast
+    // leaves, and storage all share one source of truth for primitive hash.
     int64_t hashPrimitive(const value::Value& val)
     {
         if (value::isInt(val))
-            return static_cast<int64_t>(std::hash<int64_t>{}(value::asInt(val)) & 0x7FFFFFFF);
+            return ::value::hashutils::intHash(value::asInt(val));
         if (value::isFloat(val))
-            return static_cast<int64_t>(std::hash<double>{}(value::asFloat(val)) & 0x7FFFFFFF);
+            return ::value::hashutils::floatHash(value::asFloat(val));
         if (value::isBool(val))
-            return value::asBool(val) ? 1231 : 1237;
+            return ::value::hashutils::boolHash(value::asBool(val));
         if (value::isString(val))
-            return static_cast<int64_t>(std::hash<std::string>{}(value::asString(val)) & 0x7FFFFFFF);
+            return ::value::hashutils::stringHash(value::asString(val));
         if (value::isInternedString(val))
-            return static_cast<int64_t>(std::hash<std::string>{}(value::asInternedString(val).getString()) & 0x7FFFFFFF);
+            return ::value::hashutils::stringHash(value::asInternedString(val).getString());
         return 0;
     }
 
@@ -494,7 +496,7 @@ namespace json
     }
 
     // Mirrors the native hashCode() built-in (environment/registry/builtin/BuiltinNatives.cpp).
-    // Uses std::hash<T> masked with 0x7FFFFFFF, matching the runtime exactly.
+    // String values use deterministic FNV-1a; other primitives keep the runtime hash arms.
     // WARNING: if BuiltinNatives.cpp's hashCode_fn changes, this must be updated to match.
     int64_t JsonDeserializer::computeHashCode(const value::Value& val)
     {
@@ -527,14 +529,12 @@ namespace json
         return 0;
     }
 
-    // Mirrors HashMap.getBucketIndex() from lib/collections/HashMap.mt (line ~265).
+    // Mirrors HashMap.mt/HashSet.mt hash-to-slot mapping.
     // WARNING: if HashMap.mt's getBucketIndex() changes, this must be updated to match.
-    // Capacity is always a power of two; the AND mask discards sign-extended bits
-    // from the arithmetic right shift, so the result is always in [0, capacity-1].
+    // Capacity is always a power of two.
     int64_t JsonDeserializer::computeBucketIndex(int64_t hash, int64_t capacity)
     {
-        int64_t mixed = hash * 1610612741;
-        return (mixed ^ (mixed >> 16)) & (capacity - 1);
+        return hash & (capacity - 1);
     }
 
     value::Value JsonDeserializer::deserializeHashMapCollection(
@@ -645,8 +645,7 @@ namespace json
                 : convertToFieldType(entry->getProperty("value"), valType);
 
             int64_t rawHash = computeHashCode(key);
-            int64_t mixed = rawHash * 1610612741;
-            int64_t idx = (mixed ^ (mixed >> 16)) & mask;
+            int64_t idx = rawHash & mask;
 
             // Linear probe to find empty slot.
             while (!value::isNullType(keys->get(static_cast<size_t>(idx))))
@@ -751,8 +750,7 @@ namespace json
                 : convertToFieldType(elementsJson[e], elemType);
 
             int64_t rawHash = computeHashCode(elem);
-            int64_t mixed = rawHash * 1610612741;
-            int64_t idx = (mixed ^ (mixed >> 16)) & mask;
+            int64_t idx = rawHash & mask;
 
             while (!value::isNullType(elements->get(static_cast<size_t>(idx))))
                 idx = (idx + 1) & mask;

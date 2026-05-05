@@ -1,4 +1,6 @@
 #include "ProfilerReport.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "../bytecode/OpCode.hpp"
 #include "../../gc/GC.hpp"
 #include <iostream>

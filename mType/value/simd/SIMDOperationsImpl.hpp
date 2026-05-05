@@ -1,6 +1,7 @@
 #pragma once
 
 #include "SIMDPolicies.hpp"
+#include <cstddef>
 #include <algorithm>
 #include <limits>
 

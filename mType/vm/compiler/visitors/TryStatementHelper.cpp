@@ -1,4 +1,6 @@
 #include "TryStatementHelper.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "../../bytecode/OpCode.hpp"
 #include "../../../errors/TypeException.hpp"
 #include  <iostream>

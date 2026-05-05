@@ -1,7 +1,9 @@
 #pragma once
 #include "PromiseValue.hpp"
+#include <cstddef>
 #include <vector>
 #include <functional>
+#include <mutex>
 
 namespace value
 {

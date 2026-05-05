@@ -1,5 +1,6 @@
-﻿#pragma once
+#pragma once
 #include "../../ASTNode.hpp"
+#include <cstddef>
 #include "../../AccessModifier.hpp"
 #include "../../../value/ValueType.hpp"
 #include "../../../value/ParameterType.hpp"

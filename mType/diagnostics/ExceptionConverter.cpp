@@ -1,4 +1,5 @@
 #include "ExceptionConverter.hpp"
+#include <cstddef>
 
 #include "DiagnosticBuilder.hpp"
 #include "ErrorCodeRegistry.hpp"

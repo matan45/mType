@@ -1,4 +1,5 @@
 #include "AnnotationParser.hpp"
+#include <cstdint>
 #include "../../errors/ParseException.hpp"
 
 namespace parser::utilities

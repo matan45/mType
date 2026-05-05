@@ -1,5 +1,7 @@
 #pragma once
 #include <vector>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include "../../bytecode/BytecodeProgram.hpp"
 #include "../../bytecode/OpCode.hpp"

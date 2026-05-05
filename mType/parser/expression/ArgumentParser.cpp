@@ -1,4 +1,5 @@
 #include "ArgumentParser.hpp"
+#include <cstddef>
 #include "../../errors/ParseException.hpp"
 
 namespace parser::expression

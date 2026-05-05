@@ -1,4 +1,5 @@
 #include "InterfaceRegistrar.hpp"
+#include <cstddef>
 #include "../../../ast/nodes/functions/FunctionNode.hpp"
 #include "../../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../../ast/nodes/statements/BlockNode.hpp"

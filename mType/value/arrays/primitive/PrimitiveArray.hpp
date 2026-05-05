@@ -1,5 +1,6 @@
 #pragma once
 #include "../base/IArray.hpp"
+#include <cstddef>
 #include "../../simd/SIMDConfig.hpp"
 #include <vector>
 #include <memory>

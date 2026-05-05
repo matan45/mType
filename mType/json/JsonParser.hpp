@@ -1,5 +1,6 @@
 #pragma once
 #include "JsonValue.hpp"
+#include <cstddef>
 #include <string>
 
 namespace json

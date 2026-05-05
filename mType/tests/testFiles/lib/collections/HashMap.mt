@@ -1,8 +1,7 @@
 // HashMap<K,V> - Open-addressing hash table with linear probing on flat 1D arrays
 //
 // HASH-TO-SLOT FORMULA (single source of truth):
-//     int mixed = rawHash * 1610612741;
-//     int idx   = (mixed ^ (mixed >> 16)) & (capacity - 1);
+//     int idx = rawHash & (capacity - 1);
 //
 // THIS FORMULA IS DUPLICATED IN NATIVE CODE. If you change it here, you MUST
 // also update every site below — silent divergence breaks containsKey/get
@@ -61,9 +60,8 @@ class HashMap<K,V> implements Map<K,V> {
         }
 
         int rawHash = key.hashCode();
-        int mixed = rawHash * 1610612741;
         int mask = this.capacity - 1;
-        int idx = (mixed ^ (mixed >> 16)) & mask;
+        int idx = rawHash & mask;
 
         while (this.keys[idx] != null) {
             if (this.hashes[idx] == rawHash && this.keys[idx].equals(key)) {
@@ -92,9 +90,8 @@ class HashMap<K,V> implements Map<K,V> {
         }
 
         int rawHash = key.hashCode();
-        int mixed = rawHash * 1610612741;
         int mask = this.capacity - 1;
-        int idx = (mixed ^ (mixed >> 16)) & mask;
+        int idx = rawHash & mask;
 
         while (this.keys[idx] != null) {
             if (this.hashes[idx] == rawHash && this.keys[idx].equals(key)) {
@@ -112,9 +109,8 @@ class HashMap<K,V> implements Map<K,V> {
         }
 
         int rawHash = key.hashCode();
-        int mixed = rawHash * 1610612741;
         int mask = this.capacity - 1;
-        int idx = (mixed ^ (mixed >> 16)) & mask;
+        int idx = rawHash & mask;
 
         while (this.keys[idx] != null) {
             if (this.hashes[idx] == rawHash && this.keys[idx].equals(key)) {
@@ -132,9 +128,8 @@ class HashMap<K,V> implements Map<K,V> {
         }
 
         int rawHash = key.hashCode();
-        int mixed = rawHash * 1610612741;
         int mask = this.capacity - 1;
-        int idx = (mixed ^ (mixed >> 16)) & mask;
+        int idx = rawHash & mask;
 
         while (this.keys[idx] != null) {
             if (this.hashes[idx] == rawHash && this.keys[idx].equals(key)) {
@@ -151,8 +146,7 @@ class HashMap<K,V> implements Map<K,V> {
                 int probe = (hole + 1) & mask;
                 while (this.keys[probe] != null) {
                     int hj = this.hashes[probe];
-                    int mj = hj * 1610612741;
-                    int kIdeal = (mj ^ (mj >> 16)) & mask;
+                    int kIdeal = hj & mask;
 
                     bool inRange = false;
                     if (hole < probe) {
@@ -296,8 +290,7 @@ class HashMap<K,V> implements Map<K,V> {
             K key = oldKeys[slot];
             if (key != null) {
                 int rawHash = oldHashes[slot];
-                int mixed = rawHash * 1610612741;
-                int idx = (mixed ^ (mixed >> 16)) & mask;
+                int idx = rawHash & mask;
                 while (this.keys[idx] != null) {
                     idx = (idx + 1) & mask;
                 }

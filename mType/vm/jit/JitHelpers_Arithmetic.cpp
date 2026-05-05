@@ -1,4 +1,6 @@
 #include "JitHelpers.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "JitCodeCache.hpp"
 #include "guards/DeoptimizationHandler.hpp"
 #include "../../value/ValueShim.hpp"

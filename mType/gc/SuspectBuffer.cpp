@@ -1,4 +1,5 @@
 #include "SuspectBuffer.hpp"
+#include <cstddef>
 #include <algorithm>
 
 namespace gc

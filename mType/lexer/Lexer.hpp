@@ -1,5 +1,7 @@
-﻿#pragma once
+#pragma once
 #include <string>
+#include <cstddef>
+#include <cstdint>
 #include <unordered_map>
 #include <memory>
 #include <array>

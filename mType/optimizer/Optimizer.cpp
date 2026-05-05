@@ -1,4 +1,5 @@
 #include "Optimizer.hpp"
+#include <cstddef>
 #include "passes/DeadCodeEliminationPass.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"

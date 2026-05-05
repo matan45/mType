@@ -1,5 +1,6 @@
 #pragma once
 #include "TypeException.hpp"
+#include <cstddef>
 #include <string>
 #include <vector>
 

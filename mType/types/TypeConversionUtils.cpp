@@ -1,4 +1,5 @@
 #include "TypeConversionUtils.hpp"
+#include <cstddef>
 #include <algorithm>
 #include <sstream>
 #include <set>

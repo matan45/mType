@@ -1,5 +1,7 @@
 #pragma once
 #include "IMultiDimensionalArray.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "ValueType.hpp"
 #include "../constants/SecurityConstants.hpp"
 #include <vector>

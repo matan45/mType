@@ -1,4 +1,5 @@
 #include "LoopOptimizer.hpp"
+#include <cstddef>
 #include <algorithm>
 
 namespace vm::runtime::optimization

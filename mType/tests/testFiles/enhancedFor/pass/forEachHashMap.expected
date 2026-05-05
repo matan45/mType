@@ -1,6 +1,6 @@
 Enhanced for-loop over HashMap keys:
+beta -> 200
 gamma -> 300
 alpha -> 100
-beta -> 200
 Count: 3
 HashMap enhanced for-loop test passed!

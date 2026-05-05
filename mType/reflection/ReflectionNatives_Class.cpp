@@ -1,4 +1,6 @@
 #include "ReflectionNatives.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "ReflectionHandle.hpp"
 #include "../errors/RuntimeException.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
@@ -366,8 +368,12 @@ namespace reflection
         }
 
         auto instance = value::ObjectInstancePool::getInstance().acquire(classDef);
-        for (const auto& [name, fieldDef] : classDef->getInstanceFields())
+        const auto& instanceFields = classDef->getInstanceFields();
+        for (const auto& name : classDef->getInstanceFieldOrder())
         {
+            auto it = instanceFields.find(name);
+            if (it == instanceFields.end()) continue;
+            const auto& fieldDef = it->second;
             instance->setField(name, fieldDef->getValue());
         }
 

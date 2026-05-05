@@ -1,5 +1,6 @@
 #pragma once
 #include "JsonValue.hpp"
+#include <cstdint>
 #include "../value/ValueType.hpp"
 #include "../environment/Environment.hpp"
 #include <memory>

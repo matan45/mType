@@ -1,4 +1,5 @@
 #include "BytecodeService.hpp"
+#include <cstddef>
 #include "BytecodeExecutor.hpp"
 #include "ImportManager.hpp"
 #include "OptimizationService.hpp"

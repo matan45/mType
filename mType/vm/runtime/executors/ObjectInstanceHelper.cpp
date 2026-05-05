@@ -1,4 +1,6 @@
 #include "ObjectInstanceHelper.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "../../MethodSignature.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../../../errors/RuntimeException.hpp"

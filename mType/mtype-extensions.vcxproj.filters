@@ -138,6 +138,9 @@
     <ClInclude Include="net\HttpClient.hpp">
       <Filter>net</Filter>
     </ClInclude>
+    <ClInclude Include="net\ISocketServer.hpp">
+      <Filter>net</Filter>
+    </ClInclude>
     <ClInclude Include="net\NetErrors.hpp">
       <Filter>net</Filter>
     </ClInclude>

@@ -1,4 +1,5 @@
 #include "TypeConstraintValidator.hpp"
+#include <cstddef>
 #include "../ast/GenericTypeParameter.hpp"
 #include "../environment/registry/ClassRegistry.hpp"
 #include "../runtimeTypes/klass/InterfaceRegistry.hpp"

@@ -1,4 +1,5 @@
 #include "TypeSubstitutionService.hpp"
+#include <cstddef>
 #include "../ast/GenericTypeParameter.hpp"
 #include <stdexcept>
 #include <sstream>

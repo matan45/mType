@@ -1,4 +1,7 @@
 #include "BuiltinNatives.hpp"
+#include "../../../value/HashUtils.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "ValuePrinter.hpp"
 #include "../NativeBinder.hpp"
 #include "../../NativeContext.hpp"
@@ -130,35 +133,20 @@ namespace environment::registry::builtin
     static int64_t hashCode_fn(const Value& arg)
     {
         if (value::isString(arg))
-        {
-            std::hash<std::string> hasher;
-            return static_cast<int64_t>(hasher(value::asString(arg)) & 0x7FFFFFFF);
-        }
+            return ::value::hashutils::stringHash(value::asString(arg));
         if (value::isInternedString(arg))
-        {
-            std::hash<std::string> hasher;
-            return static_cast<int64_t>(hasher(value::asInternedString(arg).getString()) & 0x7FFFFFFF);
-        }
+            return ::value::hashutils::stringHash(value::asInternedString(arg).getString());
         if (value::isInt(arg))
-        {
-            std::hash<int64_t> hasher;
-            return static_cast<int64_t>(hasher(value::asInt(arg)) & 0x7FFFFFFF);
-        }
+            return ::value::hashutils::intHash(value::asInt(arg));
         if (value::isFloat(arg))
-        {
-            std::hash<double> hasher;
-            return static_cast<int64_t>(hasher(value::asFloat(arg)) & 0x7FFFFFFF);
-        }
+            return ::value::hashutils::floatHash(value::asFloat(arg));
         if (value::isBool(arg))
-        {
-            return value::asBool(arg) ? static_cast<int64_t>(1231) : static_cast<int64_t>(1237);
-        }
+            return ::value::hashutils::boolHash(value::asBool(arg));
         if (value::isObject(arg))
         {
             auto obj = value::asObject(arg);
             if (!obj) return 0;
-            std::hash<std::string> hasher;
-            return static_cast<int64_t>(hasher(obj->getContentHash()) & 0x7FFFFFFF);
+            return ::value::hashutils::stringHash(obj->getContentHash());
         }
         return 0;
     }

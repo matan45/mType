@@ -1,4 +1,5 @@
 #include "InlineCacheTable.hpp"
+#include <cstddef>
 
 namespace vm::jit::ic
 {

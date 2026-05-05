@@ -1,4 +1,5 @@
 #include "TypeSignature.hpp"
+#include <cstddef>
 #include <sstream>
 
 namespace types

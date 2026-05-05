@@ -1,4 +1,6 @@
 #include "IntegerCache.hpp"
+#include <cstddef>
+#include <cstdint>
 #include "../environment/Environment.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 

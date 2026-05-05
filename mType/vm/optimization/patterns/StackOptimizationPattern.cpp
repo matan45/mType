@@ -1,4 +1,5 @@
 #include "StackOptimizationPattern.hpp"
+#include <cstddef>
 #include "../../bytecode/OpCode.hpp"
 #include "../analysis/ControlFlowAnalyzer.hpp"
 

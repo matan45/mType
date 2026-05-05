@@ -1,4 +1,5 @@
 #include "ClassInheritanceValidator.hpp"
+#include <cstddef>
 #include "../../../errors/InheritanceException.hpp"
 #include <sstream>
 

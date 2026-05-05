@@ -1,4 +1,5 @@
 #include "LibrarySymbolProvider.hpp"
+#include <cstddef>
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../../runtimeTypes/klass/InterfaceRegistry.hpp"

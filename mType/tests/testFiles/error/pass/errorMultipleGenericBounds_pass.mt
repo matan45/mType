@@ -1,8 +1,8 @@
 // Test: Exception with multiple generic constraints
 // Expected: Should compile and run successfully
 import * from "../../lib/exceptions/Exception.mt";
-import * from "../../lib/primitives/int.mt";
-import * from "../../lib/primitives/string.mt";
+import * from "../../lib/primitives/Int.mt";
+import * from "../../lib/primitives/String.mt";
 
 // Multiple interfaces for constraints
 interface Serializable {
