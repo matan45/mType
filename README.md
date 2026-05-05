@@ -405,7 +405,7 @@ Direct and mutual recursion are supported; the VM reserves an initial 64-frame c
 
 ## Standard Library
 
-Distributed as `lib.zip` (canonical packaging) with sources mirrored under `mType/tests/testFiles/lib/` for the test runner.
+Distributed as `lib` (canonical packaging) with sources mirrored under `mType/tests/testFiles/lib/` for the test runner.
 
 | Group | Modules |
 |---|---|
@@ -617,7 +617,7 @@ git submodule update --init --recursive
 ## Repository Layout
 
 - `mType/` — compiler, parser, VM, JIT, project system, runtime, and tests
-- `lib.zip` — packaged standard library (sources mirrored under `mType/tests/testFiles/lib/`)
+- `lib` — https://github.com/matan45/mType.git
 - `languageserver/` — standalone LSP server
 - `mtype-vscode-extension/` — VS Code extension package
 - `packagemanager/` — `mtpm` source and build files
