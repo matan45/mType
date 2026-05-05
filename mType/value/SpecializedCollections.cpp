@@ -1,10 +1,10 @@
 #include "SpecializedCollections.hpp"
 #include "ValueShim.hpp"
+#include "HashUtils.hpp"
 #include "../gc/WriteBarrier.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include <functional>
-#include <cstring>
 // Key extraction, boxing, and materialization live in
 // SpecializedCollectionsBoxing.cpp to keep this file focused on the
 // storage core (probe/insert/erase/resize, hash, equality).
@@ -23,17 +23,6 @@ namespace value
         int64_t maskedHash(size_t hash)
         {
             return static_cast<int64_t>(hash & 0x7FFFFFFF);
-        }
-
-        int64_t deterministicStringHash(const std::string& str)
-        {
-            uint64_t hash = 14695981039346656037ull;
-            for (unsigned char c : str)
-            {
-                hash ^= c;
-                hash *= 1099511628211ull;
-            }
-            return static_cast<int64_t>(hash & 0x7FFFFFFFull);
         }
     }
 
@@ -154,23 +143,13 @@ namespace value
         switch (key.tag)
         {
         case PrimitiveTypeTag::INT:
-        {
-            // Must match BuiltinNatives::hashCode_fn (identity, masked).
-            uint64_t bits = static_cast<uint64_t>(key.intValue);
-            return maskedHash(static_cast<size_t>(bits));
-        }
+            return ::value::hashutils::intHash(key.intValue);
         case PrimitiveTypeTag::FLOAT:
-        {
-            // Must match BuiltinNatives::hashCode_fn (bit pattern, masked).
-            double d = key.floatValue;
-            uint64_t bits;
-            std::memcpy(&bits, &d, sizeof(bits));
-            return maskedHash(static_cast<size_t>(bits));
-        }
+            return ::value::hashutils::floatHash(key.floatValue);
         case PrimitiveTypeTag::BOOL:
-            return key.boolValue ? 1231 : 1237;
+            return ::value::hashutils::boolHash(key.boolValue);
         case PrimitiveTypeTag::STRING:
-            return deterministicStringHash(key.stringValue);
+            return ::value::hashutils::stringHash(key.stringValue);
         default:
             return 0;
         }

@@ -1,7 +1,7 @@
 #include "BuiltinNatives.hpp"
+#include "../../../value/HashUtils.hpp"
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include "ValuePrinter.hpp"
 #include "../NativeBinder.hpp"
 #include "../../NativeContext.hpp"
@@ -130,51 +130,23 @@ namespace environment::registry::builtin
         return std::string("unknown");
     }
 
-    static int64_t deterministicStringHash(const std::string& str)
-    {
-        uint64_t hash = 14695981039346656037ull;
-        for (unsigned char c : str)
-        {
-            hash ^= c;
-            hash *= 1099511628211ull;
-        }
-        return static_cast<int64_t>(hash & 0x7FFFFFFFull);
-    }
-
     static int64_t hashCode_fn(const Value& arg)
     {
         if (value::isString(arg))
-        {
-            return deterministicStringHash(value::asString(arg));
-        }
+            return ::value::hashutils::stringHash(value::asString(arg));
         if (value::isInternedString(arg))
-        {
-            return deterministicStringHash(value::asInternedString(arg).getString());
-        }
+            return ::value::hashutils::stringHash(value::asInternedString(arg).getString());
         if (value::isInt(arg))
-        {
-            // Identity hash, masked to 31 bits. Deterministic across stdlibs
-            // (libstdc++ uses identity, MSVC mixes via FNV — they disagreed).
-            uint64_t bits = static_cast<uint64_t>(value::asInt(arg));
-            return static_cast<int64_t>(bits & 0x7FFFFFFFull);
-        }
+            return ::value::hashutils::intHash(value::asInt(arg));
         if (value::isFloat(arg))
-        {
-            // Hash the bit pattern. Deterministic across stdlibs.
-            double d = value::asFloat(arg);
-            uint64_t bits;
-            std::memcpy(&bits, &d, sizeof(bits));
-            return static_cast<int64_t>(bits & 0x7FFFFFFFull);
-        }
+            return ::value::hashutils::floatHash(value::asFloat(arg));
         if (value::isBool(arg))
-        {
-            return value::asBool(arg) ? static_cast<int64_t>(1231) : static_cast<int64_t>(1237);
-        }
+            return ::value::hashutils::boolHash(value::asBool(arg));
         if (value::isObject(arg))
         {
             auto obj = value::asObject(arg);
             if (!obj) return 0;
-            return deterministicStringHash(obj->getContentHash());
+            return ::value::hashutils::stringHash(obj->getContentHash());
         }
         return 0;
     }

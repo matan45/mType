@@ -1,7 +1,7 @@
 #include "JitHelpers.hpp"
+#include "../../value/HashUtils.hpp"
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include "JitCodeCache.hpp"
 #include "guards/DeoptimizationHandler.hpp"
 #include "ic/InlineCacheTable.hpp"
@@ -183,17 +183,6 @@ namespace vm::jit
         return nullptr;
     }
 
-    static int64_t deterministicStringHash(const std::string& str)
-    {
-        uint64_t hash = 14695981039346656037ull;
-        for (unsigned char c : str)
-        {
-            hash ^= c;
-            hash *= 1099511628211ull;
-        }
-        return static_cast<int64_t>(hash & 0x7FFFFFFFull);
-    }
-
     static bool computePrimitiveProtocolHash(value::Value& out, const value::Value& receiver)
     {
         const value::PrimitiveTypeTag tag = getPrimitiveProtocolTag(receiver);
@@ -204,36 +193,26 @@ namespace vm::jit
         switch (tag)
         {
             case value::PrimitiveTypeTag::INT:
-            {
                 if (!value::isInt(*field)) return false;
-                // Must match BuiltinNatives::hashCode_fn (identity, masked).
-                uint64_t bits = static_cast<uint64_t>(value::asInt(*field));
-                out = static_cast<int64_t>(bits & 0x7FFFFFFFull);
+                out = ::value::hashutils::intHash(value::asInt(*field));
                 return true;
-            }
             case value::PrimitiveTypeTag::FLOAT:
-            {
                 if (!value::isFloat(*field)) return false;
-                // Must match BuiltinNatives::hashCode_fn (bit pattern, masked).
-                double d = value::asFloat(*field);
-                uint64_t bits;
-                std::memcpy(&bits, &d, sizeof(bits));
-                out = static_cast<int64_t>(bits & 0x7FFFFFFFull);
+                out = ::value::hashutils::floatHash(value::asFloat(*field));
                 return true;
-            }
             case value::PrimitiveTypeTag::BOOL:
                 if (!value::isBool(*field)) return false;
-                out = value::asBool(*field) ? static_cast<int64_t>(1231) : static_cast<int64_t>(1237);
+                out = ::value::hashutils::boolHash(value::asBool(*field));
                 return true;
             case value::PrimitiveTypeTag::STRING:
                 if (value::isString(*field))
                 {
-                    out = deterministicStringHash(value::asString(*field));
+                    out = ::value::hashutils::stringHash(value::asString(*field));
                     return true;
                 }
                 if (value::isInternedString(*field))
                 {
-                    out = deterministicStringHash(value::asInternedString(*field).getString());
+                    out = ::value::hashutils::stringHash(value::asInternedString(*field).getString());
                     return true;
                 }
                 return false;

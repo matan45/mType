@@ -1,4 +1,5 @@
 #include "ObjectExecutor.hpp"
+#include "../../../value/HashUtils.hpp"
 #include <cstddef>
 #include <cstdint>
 #include "ObjectInstanceHelper.hpp"
@@ -30,16 +31,6 @@ namespace vm::runtime
 {
     namespace
     {
-        int64_t deterministicStringHash(const std::string& str)
-        {
-            uint64_t hash = 14695981039346656037ull;
-            for (unsigned char c : str)
-            {
-                hash ^= c;
-                hash *= 1099511628211ull;
-            }
-            return static_cast<int64_t>(hash & 0x7FFFFFFFull);
-        }
     }
 
     ObjectExecutor::ObjectExecutor(ExecutionContext& ctx)
@@ -819,8 +810,7 @@ namespace vm::runtime
             // calls and cases where overload resolution selects the Object signature (e.g.,
             // equals(null) resolving to equals(Object) when the class only has equals(SpecificType))
             auto computeHashCode = [&instance]() -> int64_t {
-                std::string contentHash = instance->getContentHash();
-                return deterministicStringHash(contentHash);
+                return ::value::hashutils::stringHash(instance->getContentHash());
             };
 
             if (simpleMethodName == "toString") {
