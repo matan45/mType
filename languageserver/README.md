@@ -26,51 +26,33 @@ The mType Language Server provides:
 
 ### Prerequisites
 
-- C++17 compatible compiler
-- CMake 3.15+ or Premake5
-- [nlohmann/json](https://github.com/nlohmann/json) library
+- C++20 compatible compiler
+- Premake5
+- The vendored `languageserver/vendor/nlohmann/json.hpp` header
 
-### Install nlohmann/json
-
-**Using vcpkg (Recommended for Windows):**
-```bash
-vcpkg install nlohmann-json
-```
-
-**Using package manager:**
-```bash
-# Ubuntu/Debian
-sudo apt-get install nlohmann-json3-dev
-
-# macOS (Homebrew)
-brew install nlohmann-json
-
-# Arch Linux
-sudo pacman -S nlohmann-json
-```
-
-**Manual installation:**
-Download `json.hpp` from https://github.com/nlohmann/json/releases and place in `vendor/nlohmann/` directory.
-
-### Build with CMake
-
-```bash
-cd languageserver
-mkdir build && cd build
-cmake ..
-cmake --build . --config Release
-```
+The canonical language-server build is part of the root `premake5.lua`. The
+standalone `languageserver/premake5.lua` is kept only for legacy local workflows.
 
 ### Build with Premake5
 
+**Windows:**
 ```bash
-cd languageserver
-premake5 vs2022  # Or gmake2, xcode4, etc.
-
-# Then build with your preferred build system
-# Visual Studio: Open generated .sln file
-# Make: make config=release
+cd ..
+premake5 vs2022
+msbuild Interpreter.sln /p:Configuration=Release /p:Platform=x64
 ```
+
+**Linux/macOS:**
+```bash
+cd ..
+premake5 gmake2
+make config=release_x64
+```
+
+Build outputs:
+
+- Server: `bin/mtype-language-server/Release/x64/mtype-language-server[.exe]`
+- Tests: `bin/mtype-language-server-tests/Release/x64/mtype-language-server-tests[.exe]`
 
 ## Installation
 
@@ -78,14 +60,12 @@ premake5 vs2022  # Or gmake2, xcode4, etc.
 
 **Linux/macOS:**
 ```bash
-sudo cp build/mtype-language-server /usr/local/bin/
-# Or
-sudo cmake --install build
+sudo cp bin/mtype-language-server/Release/x64/mtype-language-server /usr/local/bin/
 ```
 
 **Windows:**
 ```bash
-copy build\Release\mtype-language-server.exe "C:\Program Files\mType\"
+copy bin\mtype-language-server\Release\x64\mtype-language-server.exe "C:\Program Files\mType\"
 # Add C:\Program Files\mType to PATH
 ```
 

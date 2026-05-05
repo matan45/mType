@@ -2,7 +2,6 @@
 workspace "mType-LanguageServer"
     architecture "x64"
     startproject "mtype-language-server"
-	toolset "v145"
 
     configurations
     {
@@ -30,8 +29,6 @@ function lspCommonConfig()
         "src",
         "../mType",
         "vendor",  -- For local nlohmann/json (vendor/nlohmann/json.hpp)
-        -- Also include vcpkg path if available (won't hurt if it doesn't exist)
-        "$(VCPKG_ROOT)/installed/x64-windows/include",
     }
 
     -- MYT-35 — The LSP path never throws UserException (it doesn't run
@@ -42,8 +39,13 @@ function lspCommonConfig()
     -- std::getenv (used by TerminalDetect) doesn't trigger C4996.
     defines { "MTYPE_DIAGNOSTICS_NO_USER_EXCEPTION", "_CRT_SECURE_NO_WARNINGS" }
 
-    filter "system:windows"
+    filter { "system:windows", "action:vs*" }
+        toolset "v145"
         systemversion "latest"
+        includedirs { "$(VCPKG_ROOT)/installed/x64-windows/include" }
+
+    filter "system:linux or system:macosx"
+        links { "pthread" }
 
     filter "configurations:Debug"
         defines { "DEBUG" }

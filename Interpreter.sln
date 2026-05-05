@@ -3,6 +3,8 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mType", "mType\mType.vcxproj", "{7490E30F-E0A4-0BC1-A926-AF2015FA07F2}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtpm", "packagemanager\mtpm.vcxproj", "{23D19A7C-0F08-9C0D-B8F4-8110A40A180F}"
+EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-analysis", "mType\mtype-analysis.vcxproj", "{E530134E-D1FE-0654-BA92-777AA6FFE2B8}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-ast", "mType\mtype-ast.vcxproj", "{899FB307-F509-687E-3E48-1924AAF145D3}"
@@ -21,6 +23,12 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-frontend", "mType\mty
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-jit", "mType\mtype-jit.vcxproj", "{88C4B307-F42E-687E-3D6D-1924A91646D3}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-language-server", "languageserver\mtype-language-server.vcxproj", "{29A04087-950C-FC81-5E00-94DFCA2B1EEA}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-language-server-lib", "languageserver\mtype-language-server-lib.vcxproj", "{0D139179-79D5-C403-C285-53902E879DE1}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-language-server-tests", "languageserver\mtype-language-server-tests.vcxproj", "{89F4B022-F501-DF08-7EE8-DAF3EAF4AABF}"
+EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-launcher", "mType\mtype-launcher.vcxproj", "{B35EF1BA-9F2C-E5C0-88C0-55E7742DC125}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-tests", "mType\mtype-tests.vcxproj", "{34D569C4-A08A-E2B9-297F-DC909533D9BD}"
@@ -37,6 +45,10 @@ Global
 		{7490E30F-E0A4-0BC1-A926-AF2015FA07F2}.Debug|x64.Build.0 = Debug|x64
 		{7490E30F-E0A4-0BC1-A926-AF2015FA07F2}.Release|x64.ActiveCfg = Release|x64
 		{7490E30F-E0A4-0BC1-A926-AF2015FA07F2}.Release|x64.Build.0 = Release|x64
+		{23D19A7C-0F08-9C0D-B8F4-8110A40A180F}.Debug|x64.ActiveCfg = Debug|x64
+		{23D19A7C-0F08-9C0D-B8F4-8110A40A180F}.Debug|x64.Build.0 = Debug|x64
+		{23D19A7C-0F08-9C0D-B8F4-8110A40A180F}.Release|x64.ActiveCfg = Release|x64
+		{23D19A7C-0F08-9C0D-B8F4-8110A40A180F}.Release|x64.Build.0 = Release|x64
 		{E530134E-D1FE-0654-BA92-777AA6FFE2B8}.Debug|x64.ActiveCfg = Debug|x64
 		{E530134E-D1FE-0654-BA92-777AA6FFE2B8}.Debug|x64.Build.0 = Debug|x64
 		{E530134E-D1FE-0654-BA92-777AA6FFE2B8}.Release|x64.ActiveCfg = Release|x64
@@ -73,6 +85,18 @@ Global
 		{88C4B307-F42E-687E-3D6D-1924A91646D3}.Debug|x64.Build.0 = Debug|x64
 		{88C4B307-F42E-687E-3D6D-1924A91646D3}.Release|x64.ActiveCfg = Release|x64
 		{88C4B307-F42E-687E-3D6D-1924A91646D3}.Release|x64.Build.0 = Release|x64
+		{29A04087-950C-FC81-5E00-94DFCA2B1EEA}.Debug|x64.ActiveCfg = Debug|x64
+		{29A04087-950C-FC81-5E00-94DFCA2B1EEA}.Debug|x64.Build.0 = Debug|x64
+		{29A04087-950C-FC81-5E00-94DFCA2B1EEA}.Release|x64.ActiveCfg = Release|x64
+		{29A04087-950C-FC81-5E00-94DFCA2B1EEA}.Release|x64.Build.0 = Release|x64
+		{0D139179-79D5-C403-C285-53902E879DE1}.Debug|x64.ActiveCfg = Debug|x64
+		{0D139179-79D5-C403-C285-53902E879DE1}.Debug|x64.Build.0 = Debug|x64
+		{0D139179-79D5-C403-C285-53902E879DE1}.Release|x64.ActiveCfg = Release|x64
+		{0D139179-79D5-C403-C285-53902E879DE1}.Release|x64.Build.0 = Release|x64
+		{89F4B022-F501-DF08-7EE8-DAF3EAF4AABF}.Debug|x64.ActiveCfg = Debug|x64
+		{89F4B022-F501-DF08-7EE8-DAF3EAF4AABF}.Debug|x64.Build.0 = Debug|x64
+		{89F4B022-F501-DF08-7EE8-DAF3EAF4AABF}.Release|x64.ActiveCfg = Release|x64
+		{89F4B022-F501-DF08-7EE8-DAF3EAF4AABF}.Release|x64.Build.0 = Release|x64
 		{B35EF1BA-9F2C-E5C0-88C0-55E7742DC125}.Debug|x64.ActiveCfg = Debug|x64
 		{B35EF1BA-9F2C-E5C0-88C0-55E7742DC125}.Debug|x64.Build.0 = Debug|x64
 		{B35EF1BA-9F2C-E5C0-88C0-55E7742DC125}.Release|x64.ActiveCfg = Release|x64

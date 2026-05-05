@@ -22,7 +22,10 @@ jobs:
             name: Windows (MSVC x64)
             premake_action: vs2022
             build_cmd: msbuild Interpreter.sln /p:Configuration=Release /p:Platform=x64 /p:PlatformToolset=v143 /m /nologo /clp:"Summary;ErrorsOnly"
-            test_cmd: ./bin/mType/Release/x64/mType.exe --tests
+            test_cmd: |
+              ./bin/mType/Release/x64/mType.exe --tests
+              ./bin/mtpm/Release/x64/mtpm.exe --help
+              ./bin/mtype-language-server-tests/Release/x64/mtype-language-server-tests.exe
             premake_install: ""
             deps_install: ""
 
@@ -31,7 +34,10 @@ jobs:
             name: Linux (GCC x64)
             premake_action: gmake2
             build_cmd: make -j1 config=release_x64 verbose=1
-            test_cmd: ./bin/mType/Release/x64/mType --tests
+            test_cmd: |
+              ./bin/mType/Release/x64/mType --tests
+              ./bin/mtpm/Release/x64/mtpm --help
+              ./bin/mtype-language-server-tests/Release/x64/mtype-language-server-tests
             deps_install: |
               sudo apt-get update -qq
               sudo apt-get install -y --no-install-recommends \
@@ -53,7 +59,10 @@ jobs:
             name: macOS (Clang x64)
             premake_action: gmake2
             build_cmd: make -j1 config=release_x64 verbose=1
-            test_cmd: ./bin/mType/Release/x64/mType --tests
+            test_cmd: |
+              ./bin/mType/Release/x64/mType --tests
+              ./bin/mtpm/Release/x64/mtpm --help
+              ./bin/mtype-language-server-tests/Release/x64/mtype-language-server-tests
             deps_install: ""
             premake_install: brew install premake
 
@@ -118,6 +127,9 @@ jobs:
           path: |
             bin/mType/Release/x64/mType*
             bin/mType/Release/x64/mType
+            bin/mtpm/Release/x64/mtpm*
+            bin/mtype-language-server/Release/x64/mtype-language-server*
+            bin/mtype-language-server-tests/Release/x64/mtype-language-server-tests*
           if-no-files-found: ignore
           retention-days: 3
 

@@ -18,7 +18,7 @@ function commonConfig()
    defines { "_CRT_SECURE_NO_WARNINGS", "MTYPE_SIMD_ENABLED" }
 
    -- Platform-specific configurations
-   filter "system:windows"
+   filter { "system:windows", "action:vs*" }
       toolset "v145"
       systemversion "latest"
       buildoptions { "/MP" }
@@ -436,3 +436,207 @@ project "mtype-launcher"
       "mtype-errors",
       "mtype-common",
    }
+
+
+--------------------------------------------------------------------------------
+-- Executable: mtpm
+-- Standalone package-manager CLI.
+--------------------------------------------------------------------------------
+project "mtpm"
+   kind "ConsoleApp"
+   location "packagemanager"
+   commonConfig()
+
+   includedirs {
+      "packagemanager/src",
+      "mType",
+   }
+
+   files {
+      "packagemanager/src/**.hpp",
+      "packagemanager/src/**.cpp",
+      "mType/project/ProjectConfigParser.hpp",
+      "mType/project/ProjectConfigParser.cpp",
+      "mType/project/ProjectConfig.hpp",
+      "mType/project/XmlParser.hpp",
+      "mType/project/XmlParser.cpp",
+      "mType/project/GlobMatcher.hpp",
+      "mType/project/GlobMatcher.cpp",
+      "mType/services/FileReader.hpp",
+      "mType/services/FileReader.cpp",
+      "mType/json/JsonParser.hpp",
+      "mType/json/JsonParser.cpp",
+      "mType/json/JsonValue.hpp",
+      "mType/json/JsonValue.cpp",
+   }
+
+
+--------------------------------------------------------------------------------
+-- Language Server shared configuration
+--------------------------------------------------------------------------------
+function lspCommonConfig()
+   commonConfig()
+
+   includedirs {
+      "languageserver/src",
+      "languageserver/vendor",
+      "mType",
+   }
+
+   -- The LSP path parses and analyzes source but does not execute bytecode,
+   -- so diagnostics can exclude UserException and avoid linking runtime value
+   -- machinery into the language-server library.
+   defines { "MTYPE_DIAGNOSTICS_NO_USER_EXCEPTION" }
+end
+
+
+--------------------------------------------------------------------------------
+-- Library: mtype-language-server-lib
+-- LSP handler/analysis code plus the minimal mType frontend/core sources it uses.
+--------------------------------------------------------------------------------
+project "mtype-language-server-lib"
+   kind "StaticLib"
+   location "languageserver"
+   lspCommonConfig()
+
+   files {
+      "languageserver/src/**.hpp",
+      "languageserver/src/**.cpp",
+      "languageserver/vendor/**.hpp",
+
+      "mType/diagnostics/**.hpp",
+      "mType/diagnostics/**.cpp",
+      "mType/analysis/**.hpp",
+      "mType/analysis/**.cpp",
+      "mType/util/**.hpp",
+      "mType/util/**.cpp",
+      "mType/errors/AccessViolationException.cpp",
+
+      "mType/lexer/Lexer.cpp",
+      "mType/lexer/BracketBalancer.cpp",
+      "mType/lexer/SourceLocationTracker.cpp",
+      "mType/lexer/TokenFactory.cpp",
+
+      "mType/parser/Parser.cpp",
+      "mType/parser/ClassParser.cpp",
+      "mType/parser/ExpressionParser.cpp",
+      "mType/parser/InterfaceParser.cpp",
+      "mType/parser/LambdaParser.cpp",
+      "mType/parser/StatementParser.cpp",
+      "mType/parser/TypeParser.cpp",
+      "mType/parser/ParseContext.cpp",
+      "mType/parser/ParserValidator.cpp",
+      "mType/parser/TokenStream.cpp",
+      "mType/parser/TypeRegistry.cpp",
+      "mType/parser/core/BaseParser.cpp",
+      "mType/parser/class/GenericParameterParser.cpp",
+      "mType/parser/class/ConstructorParser.cpp",
+      "mType/parser/class/FieldParser.cpp",
+      "mType/parser/class/MethodParser.cpp",
+      "mType/parser/class/ClassDeclarationParser.cpp",
+      "mType/parser/class/ObjectCreationParser.cpp",
+      "mType/parser/interface/InterfaceMethodSignatureParser.cpp",
+      "mType/parser/expression/ArgumentParser.cpp",
+      "mType/parser/expression/BinaryOperatorParser.cpp",
+      "mType/parser/expression/CastParser.cpp",
+      "mType/parser/expression/UnaryOperatorParser.cpp",
+      "mType/parser/expression/PostfixOperatorParser.cpp",
+      "mType/parser/expression/LiteralParser.cpp",
+      "mType/parser/statement/ControlFlowParser.cpp",
+      "mType/parser/statement/ExceptionParser.cpp",
+      "mType/parser/statement/ImportParser.cpp",
+      "mType/parser/statement/DeclarationParser.cpp",
+      "mType/parser/statement/LoopParser.cpp",
+      "mType/parser/statement/AssignmentStatementParser.cpp",
+      "mType/parser/statement/FunctionParser.cpp",
+      "mType/parser/utilities/StatementTypeDetector.cpp",
+      "mType/parser/utilities/VisibilityParser.cpp",
+      "mType/parser/utilities/AccessModifierParser.cpp",
+      "mType/parser/utilities/NameValidator.cpp",
+      "mType/parser/utilities/AsyncValidator.cpp",
+      "mType/parser/utilities/ParameterParser.cpp",
+      "mType/parser/utilities/QualifiedNameParser.cpp",
+      "mType/parser/utilities/ParserUtils.cpp",
+      "mType/parser/utilities/AnnotationParser.cpp",
+
+      "mType/ast/ASTNode.cpp",
+      "mType/ast/AccessModifier.cpp",
+      "mType/ast/GenericType.cpp",
+      "mType/ast/GenericTypeParameter.cpp",
+      "mType/ast/GenericTypeSubstitutionContext.cpp",
+      "mType/ast/nodes/**/*.cpp",
+      "mType/ast/utils/GenericTypeConversionUtils.cpp",
+
+      "mType/environment/Environment.cpp",
+      "mType/environment/EnvironmentBuilder.cpp",
+      "mType/environment/manager/*.cpp",
+      "mType/environment/registry/ClassRegistry.cpp",
+      "mType/environment/registry/ExportRegistry.cpp",
+      "mType/environment/registry/FunctionRegistry.cpp",
+      "mType/environment/registry/InheritanceTracker.cpp",
+
+      "mType/services/FileReader.cpp",
+      "mType/services/ImportManager.cpp",
+
+      "mType/types/TypeConversionUtils.cpp",
+      "mType/types/TypeRegistry.cpp",
+      "mType/types/UnifiedType.cpp",
+      "mType/types/ReifiedTypeRegistry.cpp",
+      "mType/types/TypeSubstitutionService.cpp",
+
+      "mType/vm/MethodSignature.cpp",
+
+      "mType/runtimeTypes/Definition.cpp",
+      "mType/runtimeTypes/global/FunctionDefinition.cpp",
+      "mType/runtimeTypes/global/VariableDefinition.cpp",
+      "mType/runtimeTypes/klass/ClassDefinition.cpp",
+      "mType/runtimeTypes/klass/ConstructorDefinition.cpp",
+      "mType/runtimeTypes/klass/FieldDefinition.cpp",
+      "mType/runtimeTypes/klass/InterfaceDefinition.cpp",
+      "mType/runtimeTypes/klass/InterfaceRegistry.cpp",
+      "mType/runtimeTypes/klass/MethodDefinition.cpp",
+      "mType/runtimeTypes/klass/SignatureUtils.cpp",
+
+      "mType/parser/AnnotationDeclarationParser.cpp",
+      "mType/validation/builtins/BuiltInAnnotations.cpp",
+      "mType/project/mtclib/MtcPathResolver.cpp",
+
+      "mType/circularDependency/CircularDependencyDetector.cpp",
+      "mType/circularDependency/DependencyPatternAnalyzer.cpp",
+      "mType/circularDependency/DependencyTypeUtils.cpp",
+
+      "mType/value/StringPool.cpp",
+      "mType/value/InternedString.cpp",
+      "mType/value/ValueTypeUtils.cpp",
+   }
+
+
+--------------------------------------------------------------------------------
+-- Executable: mtype-language-server
+--------------------------------------------------------------------------------
+project "mtype-language-server"
+   kind "ConsoleApp"
+   location "languageserver"
+   lspCommonConfig()
+
+   files { "languageserver/main.cpp" }
+
+   links { "mtype-language-server-lib" }
+
+
+--------------------------------------------------------------------------------
+-- Executable: mtype-language-server-tests
+--------------------------------------------------------------------------------
+project "mtype-language-server-tests"
+   kind "ConsoleApp"
+   location "languageserver"
+   lspCommonConfig()
+
+   includedirs { "languageserver/tests" }
+
+   files {
+      "languageserver/tests/**.hpp",
+      "languageserver/tests/**.cpp",
+   }
+
+   links { "mtype-language-server-lib" }

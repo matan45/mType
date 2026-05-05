@@ -372,6 +372,12 @@ premake5 gmake2
 make
 ```
 
+The root build also produces the package-manager CLI and language-server tools:
+
+- `bin/mtpm/Release/x64/mtpm[.exe]`
+- `bin/mtype-language-server/Release/x64/mtype-language-server[.exe]`
+- `bin/mtype-language-server-tests/Release/x64/mtype-language-server-tests[.exe]`
+
 > **Note:** If you cloned without `--recursive`, initialize the asmjit submodule:
 > ```bash
 > git submodule update --init --recursive
