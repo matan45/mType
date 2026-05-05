@@ -4,6 +4,7 @@
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include <functional>
+#include <cstring>
 // Key extraction, boxing, and materialization live in
 // SpecializedCollectionsBoxing.cpp to keep this file focused on the
 // storage core (probe/insert/erase/resize, hash, equality).
@@ -153,9 +154,19 @@ namespace value
         switch (key.tag)
         {
         case PrimitiveTypeTag::INT:
-            return maskedHash(std::hash<int64_t>{}(key.intValue));
+        {
+            // Must match BuiltinNatives::hashCode_fn (identity, masked).
+            uint64_t bits = static_cast<uint64_t>(key.intValue);
+            return maskedHash(static_cast<size_t>(bits));
+        }
         case PrimitiveTypeTag::FLOAT:
-            return maskedHash(std::hash<double>{}(key.floatValue));
+        {
+            // Must match BuiltinNatives::hashCode_fn (bit pattern, masked).
+            double d = key.floatValue;
+            uint64_t bits;
+            std::memcpy(&bits, &d, sizeof(bits));
+            return maskedHash(static_cast<size_t>(bits));
+        }
         case PrimitiveTypeTag::BOOL:
             return key.boolValue ? 1231 : 1237;
         case PrimitiveTypeTag::STRING:

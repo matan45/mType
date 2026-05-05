@@ -1,6 +1,7 @@
 #include "BuiltinNatives.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include "ValuePrinter.hpp"
 #include "../NativeBinder.hpp"
 #include "../../NativeContext.hpp"
@@ -152,13 +153,18 @@ namespace environment::registry::builtin
         }
         if (value::isInt(arg))
         {
-            std::hash<int64_t> hasher;
-            return static_cast<int64_t>(hasher(value::asInt(arg)) & 0x7FFFFFFF);
+            // Identity hash, masked to 31 bits. Deterministic across stdlibs
+            // (libstdc++ uses identity, MSVC mixes via FNV — they disagreed).
+            uint64_t bits = static_cast<uint64_t>(value::asInt(arg));
+            return static_cast<int64_t>(bits & 0x7FFFFFFFull);
         }
         if (value::isFloat(arg))
         {
-            std::hash<double> hasher;
-            return static_cast<int64_t>(hasher(value::asFloat(arg)) & 0x7FFFFFFF);
+            // Hash the bit pattern. Deterministic across stdlibs.
+            double d = value::asFloat(arg);
+            uint64_t bits;
+            std::memcpy(&bits, &d, sizeof(bits));
+            return static_cast<int64_t>(bits & 0x7FFFFFFFull);
         }
         if (value::isBool(arg))
         {

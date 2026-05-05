@@ -1,6 +1,7 @@
 #include "JitHelpers.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include "JitCodeCache.hpp"
 #include "guards/DeoptimizationHandler.hpp"
 #include "ic/InlineCacheTable.hpp"
@@ -203,13 +204,23 @@ namespace vm::jit
         switch (tag)
         {
             case value::PrimitiveTypeTag::INT:
+            {
                 if (!value::isInt(*field)) return false;
-                out = static_cast<int64_t>(std::hash<int64_t>{}(value::asInt(*field)) & 0x7FFFFFFF);
+                // Must match BuiltinNatives::hashCode_fn (identity, masked).
+                uint64_t bits = static_cast<uint64_t>(value::asInt(*field));
+                out = static_cast<int64_t>(bits & 0x7FFFFFFFull);
                 return true;
+            }
             case value::PrimitiveTypeTag::FLOAT:
+            {
                 if (!value::isFloat(*field)) return false;
-                out = static_cast<int64_t>(std::hash<double>{}(value::asFloat(*field)) & 0x7FFFFFFF);
+                // Must match BuiltinNatives::hashCode_fn (bit pattern, masked).
+                double d = value::asFloat(*field);
+                uint64_t bits;
+                std::memcpy(&bits, &d, sizeof(bits));
+                out = static_cast<int64_t>(bits & 0x7FFFFFFFull);
                 return true;
+            }
             case value::PrimitiveTypeTag::BOOL:
                 if (!value::isBool(*field)) return false;
                 out = value::asBool(*field) ? static_cast<int64_t>(1231) : static_cast<int64_t>(1237);

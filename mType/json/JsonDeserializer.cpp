@@ -1,6 +1,7 @@
 #include "JsonDeserializer.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include "JsonParser.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
@@ -56,9 +57,17 @@ namespace
     int64_t hashPrimitive(const value::Value& val)
     {
         if (value::isInt(val))
-            return static_cast<int64_t>(std::hash<int64_t>{}(value::asInt(val)) & 0x7FFFFFFF);
+        {
+            uint64_t bits = static_cast<uint64_t>(value::asInt(val));
+            return static_cast<int64_t>(bits & 0x7FFFFFFFull);
+        }
         if (value::isFloat(val))
-            return static_cast<int64_t>(std::hash<double>{}(value::asFloat(val)) & 0x7FFFFFFF);
+        {
+            double d = value::asFloat(val);
+            uint64_t bits;
+            std::memcpy(&bits, &d, sizeof(bits));
+            return static_cast<int64_t>(bits & 0x7FFFFFFFull);
+        }
         if (value::isBool(val))
             return value::asBool(val) ? 1231 : 1237;
         if (value::isString(val))
