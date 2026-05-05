@@ -26,9 +26,11 @@ mtype-language-server.exe
 *.out
 *.app
 
-# Dependencies (if using local copies)
-vendor/
-!vendor/nlohmann/.gitkeep
+# Dependencies
+vendor/*
+!vendor/nlohmann/
+!vendor/nlohmann/json.hpp
+!vendor/nlohmann/json_fwd.hpp
 
 # OS
 .DS_Store
