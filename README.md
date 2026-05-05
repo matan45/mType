@@ -617,7 +617,7 @@ git submodule update --init --recursive
 ## Repository Layout
 
 - `mType/` — compiler, parser, VM, JIT, project system, runtime, and tests
-- `lib` — https://github.com/matan45/mType.git
+- `lib` — https://github.com/matan45/mTypeLib
 - `languageserver/` — standalone LSP server
 - `mtype-vscode-extension/` — VS Code extension package
 - `packagemanager/` — `mtpm` source and build files
