@@ -5,7 +5,7 @@
 # mType Programming Language
 
 ![Version](https://img.shields.io/badge/version-0.2.0-blue)
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
+[![CI](https://github.com/matan45/mType/actions/workflows/ci.yml/badge.svg)](https://github.com/matan45/mType/actions/workflows/ci.yml)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![C++](https://img.shields.io/badge/C%2B%2B-20-blue.svg)
 
