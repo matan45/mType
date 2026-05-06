@@ -22,8 +22,14 @@
     <Filter Include="testFiles\arrays\error">
       <UniqueIdentifier>{52BC0CC3-3EB6-3515-2723-CC2513BC9B81}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\arrays\error\objectSubtype">
+      <UniqueIdentifier>{C4216FE9-B008-31E1-5959-97FE451FAA47}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\arrays\pass">
       <UniqueIdentifier>{DF7F7A34-4BEC-352F-14E0-CD8C800B5897}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\arrays\pass\objectSubtype">
+      <UniqueIdentifier>{11988D2C-7D51-F8D6-06B1-12B17269AE46}</UniqueIdentifier>
     </Filter>
     <Filter Include="testFiles\await">
       <UniqueIdentifier>{9DF3224F-097F-9013-1290-13087E9AEC13}</UniqueIdentifier>
@@ -1198,6 +1204,27 @@
     <None Include="tests\testFiles\arrays\error\negativeArraySize.mt">
       <Filter>testFiles\arrays\error</Filter>
     </None>
+    <None Include="tests\testFiles\arrays\error\objectSubtype\arrayAliasInvariance_error.mt">
+      <Filter>testFiles\arrays\error\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\objectSubtype\arrayCastToConcreteClass_error.mt">
+      <Filter>testFiles\arrays\error\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\objectSubtype\arrayCastToWrongDimensions_error.mt">
+      <Filter>testFiles\arrays\error\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\objectSubtype\arrayDeclCovarianceStrict_error.mt">
+      <Filter>testFiles\arrays\error\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\objectSubtype\arrayDowncastWrongElement_error.mt">
+      <Filter>testFiles\arrays\error\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\objectSubtype\arrayStoreInvariance_error.mt">
+      <Filter>testFiles\arrays\error\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\objectSubtype\nonArrayObjectCastToArray_error.mt">
+      <Filter>testFiles\arrays\error\objectSubtype</Filter>
+    </None>
     <None Include="tests\testFiles\arrays\error\outOfBoundsAccess.mt">
       <Filter>testFiles\arrays\error</Filter>
     </None>
@@ -1716,6 +1743,132 @@
     </None>
     <None Include="tests\testFiles\arrays\pass\nDimensionalArrays.mt">
       <Filter>testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayAssignToObject.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayAssignToObject.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayAssignToObjectField.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayAssignToObjectField.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayBoxingPrimitiveElement.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayBoxingPrimitiveElement.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayDowncastFromObject.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayDowncastFromObject.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayHashCodeStable.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayHashCodeStable.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayInClassFieldList.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayInClassFieldList.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayInGenericObjectParam.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayInGenericObjectParam.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayInListOfObject.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayInListOfObject.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayIsClassOfObject.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayIsClassOfObject.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayIsClassOfSelf.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayIsClassOfSelf.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayLengthStillWorks.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayLengthStillWorks.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayObjectEqualsReferenceSemantics.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayObjectEqualsReferenceSemantics.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayObjectIdentity.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayObjectIdentity.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayObjectIsClassOfNegation.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayObjectIsClassOfNegation.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayObjectMethodsAcrossTypes.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayObjectMethodsAcrossTypes.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayObjectMethodsCallable.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayObjectMethodsCallable.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayObjectMethodsObjectElement.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayObjectMethodsObjectElement.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayPassedAsObjectArg.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayPassedAsObjectArg.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayReturnedAsObject.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayReturnedAsObject.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\mixedObjectArrayWithArraysAndInstances.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\mixedObjectArrayWithArraysAndInstances.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\multidimArrayAsObject.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\multidimArrayAsObject.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\optimizationVerification.expected">
       <Filter>testFiles\arrays\pass</Filter>
@@ -10550,6 +10703,9 @@
       <Filter>testFiles\lib</Filter>
     </None>
     <None Include="tests\testFiles\lib\Iterator.mt">
+      <Filter>testFiles\lib</Filter>
+    </None>
+    <None Include="tests\testFiles\lib\Object.mt">
       <Filter>testFiles\lib</Filter>
     </None>
     <None Include="tests\testFiles\lib\annotations\Retention.mt">

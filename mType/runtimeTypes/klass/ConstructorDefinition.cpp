@@ -30,12 +30,9 @@ namespace runtimeTypes::klass
 
             const auto& paramType = parametersWithTypes[i].second;
 
-            // Use type name if it's an object, otherwise use basic type
-            if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value()) {
-                signature += paramType.className.value();
-            } else {
-                signature += ::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType);
-            }
+            // MYT-282: ParameterType overload — same precise-array story as
+            // MethodDefinition::generateSignature.
+            signature += ::types::TypeConversionUtils::getTypeDisplayName(paramType);
         }
         return signature;
     }

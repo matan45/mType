@@ -89,10 +89,25 @@ namespace parser
             auto paramAnnotations = utilities::AnnotationParser::parseAnnotations(stream);
 
             TypeInfo typeInfo = TypeParser::parseTypeInfo(stream);
-            ParameterType paramType =
-                (typeInfo.baseType == ValueType::OBJECT && !typeInfo.className.empty())
-                    ? ParameterType::forClass(typeInfo.className)
-                    : ParameterType(typeInfo.baseType);
+            // MYT-282: detect array form by the trailing "[]" — the parser
+            // legacy-encodes arrays as TypeInfo{baseType=OBJECT,
+            // className="int[]"} rather than introducing a real ARRAY tag.
+            // ParameterType::forArray gets the precise full form so
+            // signatures and overload-resolution keys distinguish `int[]`
+            // from `string[]`, and `getTypeDisplayName(ParameterType)` no
+            // longer collapses arrays to the coarse "array" string.
+            ParameterType paramType = [&]() {
+                const std::string& cn = typeInfo.className;
+                const bool isArrayForm = cn.size() >= 2 &&
+                    cn.compare(cn.size() - 2, 2, "[]") == 0;
+                if (isArrayForm) {
+                    return ParameterType::forArray(cn);
+                }
+                if (typeInfo.baseType == ValueType::OBJECT && !cn.empty()) {
+                    return ParameterType::forClass(cn);
+                }
+                return ParameterType(typeInfo.baseType);
+            }();
             paramType.nullable = typeInfo.isNullable;
 
             if (stream.current().type != TokenType::IDENTIFIER) {

@@ -253,10 +253,24 @@ namespace vm::compiler::registration
                                 params.emplace_back(name, value::ParameterType::forInterface(typeName));
                             }
                             else {
-                                // It's an actual generic type parameter (T, K, etc.) or unknown type
-                                // Store the full type name (which could include parameters)
-                                // This allows the validator to match against bytecode function names
-                                params.emplace_back(name, value::ParameterType::forClass(typeName));
+                                // MYT-282: array-typed parameters carry an ARRAY
+                                // tag plus the precise full form ("int[]",
+                                // "Animal[][]"). Pre-MYT-282 this branch coerced
+                                // arrays to forClass() and lied about basicType
+                                // (claiming OBJECT); now they get the proper
+                                // tag and round-trip through getTypeDisplayName.
+                                if (typeName.size() >= 2 &&
+                                    typeName.compare(typeName.size() - 2, 2, "[]") == 0)
+                                {
+                                    params.emplace_back(name, value::ParameterType::forArray(typeName));
+                                }
+                                else
+                                {
+                                    // It's an actual generic type parameter (T, K, etc.) or unknown type
+                                    // Store the full type name (which could include parameters)
+                                    // This allows the validator to match against bytecode function names
+                                    params.emplace_back(name, value::ParameterType::forClass(typeName));
+                                }
                             }
                         }
                     }

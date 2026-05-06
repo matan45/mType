@@ -203,6 +203,15 @@ namespace vm::compiler::visitors
         }
         else
         {
+            // MYT-281: arrays widen to `Object` as the universal heap-typed
+            // slot. The type checker for variable assignment already permits
+            // this; method parameter validation needs the same allowance so
+            // `List<Object>::add(int[])` and similar method calls compile.
+            if (resolvedExpectedType == "Object" && argType == value::ValueType::ARRAY)
+            {
+                return;
+            }
+
             // Expected type is an object/class
             if (argType != value::ValueType::OBJECT)
             {

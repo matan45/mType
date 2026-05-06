@@ -1,0 +1,4 @@
+Testing array Object methods with object element
+Animal[] toString: Animal[2]
+Animal[] getClass: Animal[]
+Done

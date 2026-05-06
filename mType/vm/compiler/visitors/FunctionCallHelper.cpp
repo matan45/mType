@@ -36,6 +36,22 @@ namespace vm::compiler::visitors
             return ""; // Cannot infer - unknown type
         }
 
+        // MYT-282: arrays bind generic type parameters to their precise full
+        // form ("int[]", "Animal[]") rather than the coarse "array" string —
+        // otherwise `<T extends Object> wrap(T)` called with `int[]` infers
+        // T="array" and conflicts with any return-context binding to "Object".
+        // inferExpressionClassName already produces the precise name for
+        // array literals, `new T[N]` expressions, and array-typed variables.
+        if (argType == value::ValueType::ARRAY)
+        {
+            std::string arrayName = ctx.typeInference.inferExpressionClassName(argument);
+            if (!arrayName.empty())
+            {
+                return arrayName;
+            }
+            return ::types::TypeConversionUtils::getTypeDisplayName(argType);
+        }
+
         // For primitive types, return the type name
         if (argType != value::ValueType::OBJECT)
         {
@@ -299,6 +315,25 @@ namespace vm::compiler::visitors
             }
             else if (it->second != binding.concreteType)
             {
+                // MYT-282: arrays widen to Object (MYT-281). When the
+                // argument-side binding is an array form ("int[]") and the
+                // return-context binding is "Object", keep the more specific
+                // argument binding instead of throwing a conflict — the
+                // array satisfies the Object expectation by subtyping.
+                const bool argIsArray =
+                    it->second.find("[]") != std::string::npos;
+                if (binding.concreteType == "Object" && argIsArray)
+                {
+                    // Argument binding is more specific; retain it.
+                    continue;
+                }
+                if (it->second == "Object" && binding.concreteType.find("[]") != std::string::npos)
+                {
+                    // Return-context binding is more specific; take it.
+                    typeBindings[binding.parameterName] = binding.concreteType;
+                    continue;
+                }
+
                 // Conflict between argument inference and return type inference
                 throw errors::TypeException(
                     "Type parameter '" + binding.parameterName +
@@ -410,6 +445,15 @@ namespace vm::compiler::visitors
                 if (expectedIsArray && argType == value::ValueType::ARRAY)
                 {
                     // Array type matches - skip detailed validation for now
+                    continue;
+                }
+
+                // MYT-281: arrays widen to `Object` as the universal heap-typed
+                // slot. Mirror the variable-assignment and method-parameter
+                // exemptions so free function calls accept array arguments
+                // for an `Object` parameter.
+                if (expectedType == "Object" && argType == value::ValueType::ARRAY)
+                {
                     continue;
                 }
 

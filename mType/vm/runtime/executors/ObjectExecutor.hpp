@@ -113,5 +113,14 @@ namespace vm::runtime
                                      const std::string& methodName,
                                      std::span<const value::Value> args,
                                      size_t argCount);
+
+        // MYT-282: dispatch the four Object methods on array receivers.
+        // Arrays have no ClassDefinition, so the regular invokeInstanceMethod
+        // path doesn't apply. Handles toString / equals / hashCode /
+        // getClass with simple identity-based implementations; any other
+        // method name throws.
+        void invokeArrayObjectMethod(const value::Value& arr,
+                                     const std::string& methodName,
+                                     std::span<const value::Value> args);
     };
 }

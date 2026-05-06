@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../value/ValueType.hpp"
+#include "../value/ParameterType.hpp"
 #include "UnifiedType.hpp"
 #include "TypeRegistry.hpp"
 #include "../errors/TypeException.hpp"
@@ -70,6 +71,16 @@ namespace types {
          * Get human-readable type name for ValueType
          */
         static std::string getTypeDisplayName(value::ValueType type);
+
+        /**
+         * MYT-282: precise display name for a parameter type — preserves
+         * `int[]`, `Animal[]`, etc. for ARRAY tags (instead of the coarse
+         * "array" string the enum-only overload returns) and falls through
+         * to the class/interface name for OBJECT tags. Used for method
+         * signatures, overload-resolution keys, and error messages where
+         * element type information matters.
+         */
+        static std::string getTypeDisplayName(const value::ParameterType& paramType);
 
         /**
          * Check if a string represents a valid type name

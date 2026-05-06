@@ -624,15 +624,12 @@ namespace vm::compiler::visitors
         std::string className = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
 
         // Build type signature from parameters
+        // MYT-282: ParameterType overload — preserves `int[]` etc. for
+        // ARRAY-tag parameters in constructor overload-resolution keys.
         std::string typeSignature;
         for (size_t i = 0; i < params.size(); ++i) {
             if (i > 0) typeSignature += ",";
-            const auto& paramType = params[i].second;
-            if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value()) {
-                typeSignature += paramType.className.value();
-            } else {
-                typeSignature += ::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType);
-            }
+            typeSignature += ::types::TypeConversionUtils::getTypeDisplayName(params[i].second);
         }
 
         // Only add slash if we have a signature

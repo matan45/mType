@@ -1020,6 +1020,17 @@ namespace vm::runtime
             return;
         }
 
+        // MYT-282: array receivers dispatch the four Object methods
+        // (toString/equals/hashCode/getClass) through a dedicated runtime
+        // intercept. The compile-time path resolves these against
+        // lib/Object.mt; the runtime never enters invokeInstanceMethod for
+        // arrays because they have no ClassDefinition. Anything else on an
+        // array receiver throws "method not found on array".
+        if (objectValue.tag() == value::ValueType::ARRAY) {
+            invokeArrayObjectMethod(objectValue, methodName, args.span());
+            return;
+        }
+
         // Handle regular instance method invocation.
         // MYT-208: accept STACK_OBJECT receivers — invokeInstanceMethod
         // tag-branches the frame.thisInstance / thisInstanceRaw assignment
@@ -1031,6 +1042,72 @@ namespace vm::runtime
         }
 
         invokeInstanceMethod(objectValue, methodName, args.span(), argCount);
+    }
+
+    void ObjectExecutor::invokeArrayObjectMethod(
+        const value::Value& arr,
+        const std::string& methodName,
+        std::span<const value::Value> args)
+    {
+        // The compiler emits CALL_METHOD with a class-qualified name like
+        // "Object::toString" when the receiver's static type is Object.
+        // Strip the qualifier so the matching below is on the simple name —
+        // mirrors trySpecializedCollectionCall at this same site.
+        const std::string simpleName =
+            runtimeTypes::klass::SignatureUtils::extractSimpleName(methodName);
+
+        // Element-type display name + dimensional shape, used for
+        // toString / getClass. NativeArray exposes elementTypeName directly;
+        // FlatMultiArray / SparseMultiArray / FlatMultiObjectArray fall
+        // back to the coarse "array" string until they grow an accessor.
+        std::string elementName = "array";
+        size_t arrSize = 0;
+        if (value::isNativeArray(arr)) {
+            auto na = value::asNativeArray(arr);
+            elementName = na->getElementTypeName();
+            arrSize = na->size();
+        } else if (value::isFlatMultiArray(arr)) {
+            auto fa = value::asFlatMultiArray(arr);
+            arrSize = fa->size();
+        } else if (value::isSparseMultiArray(arr)) {
+            auto sa = value::asSparseMultiArray(arr);
+            arrSize = sa->size();
+        }
+
+        if (simpleName == "toString") {
+            std::string repr = elementName + "[" + std::to_string(arrSize) + "]";
+            context.stackManager->push(value::Value(std::move(repr)));
+            return;
+        }
+        if (simpleName == "getClass") {
+            std::string cls = elementName + "[]";
+            context.stackManager->push(value::Value(std::move(cls)));
+            return;
+        }
+        if (simpleName == "hashCode") {
+            // Identity hash based on bridge pointer — matches Java array
+            // semantics (default Object.hashCode is identity-based).
+            int64_t h = static_cast<int64_t>(reinterpret_cast<uintptr_t>(arr.rawBridge()));
+            context.stackManager->push(value::Value(h));
+            return;
+        }
+        if (simpleName == "equals") {
+            // Reference equality — two arrays are equal iff they share the
+            // same backing bridge. Element-wise comparison is a separate
+            // helper (Arrays.equals in Java terms) and not part of Object.
+            bool eq = false;
+            if (args.size() >= 1) {
+                const value::Value& other = args[0];
+                eq = (other.tag() == value::ValueType::ARRAY) &&
+                     (other.rawBridge() == arr.rawBridge());
+            }
+            context.stackManager->push(value::Value(eq));
+            return;
+        }
+
+        utils::ErrorLocationHelper::throwUserException(context,
+            "RuntimeException",
+            "method '" + simpleName + "' not found on array");
     }
 
     bool ObjectExecutor::tryDispatchSpecializedCollectionCall(

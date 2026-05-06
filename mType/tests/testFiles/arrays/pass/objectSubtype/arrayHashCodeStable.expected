@@ -1,0 +1,4 @@
+Testing array Object hashCode stability
+Stable across calls: true
+Stable across aliases: true
+Done

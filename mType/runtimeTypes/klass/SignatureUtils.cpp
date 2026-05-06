@@ -19,13 +19,10 @@ namespace runtimeTypes::klass
 
     std::string SignatureUtils::getTypeName(const value::ParameterType& paramType)
     {
-        if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value()) {
-            return paramType.className.value();
-        } else if (paramType.basicType == value::ValueType::OBJECT && paramType.interfaceName.has_value()) {
-            return paramType.interfaceName.value();
-        } else {
-            return types::TypeConversionUtils::getTypeDisplayName(paramType.basicType);
-        }
+        // MYT-282: route through the ParameterType overload — preserves
+        // `int[]` for ARRAY-tag params and falls through to class /
+        // interface / primitive names for everything else.
+        return types::TypeConversionUtils::getTypeDisplayName(paramType);
     }
 
     std::string SignatureUtils::generateTypeSignature(

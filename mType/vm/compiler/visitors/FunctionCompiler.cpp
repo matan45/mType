@@ -420,6 +420,16 @@ namespace vm::compiler::visitors
                                 {
                                     canAutoBox = true;
                                 }
+
+                                // MYT-281: arrays widen to `Object` on return as
+                                // they do on assignment / parameter passing.
+                                // `function f(): Object { return arr; }` must
+                                // type-check.
+                                if (expectedReturnType == "Object" &&
+                                    actualType == value::ValueType::ARRAY)
+                                {
+                                    canAutoBox = true;
+                                }
                             }
 
                             if (!canAutoBox)

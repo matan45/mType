@@ -139,9 +139,13 @@ namespace types {
                    targetType == value::ValueType::ARRAY;
         }
 
-        // Arrays and objects are compatible in some contexts
-        if ((sourceType == value::ValueType::ARRAY && targetType == value::ValueType::OBJECT) ||
-            (sourceType == value::ValueType::OBJECT && targetType == value::ValueType::ARRAY)) {
+        // MYT-281: arrays widen to Object (assignment-rule subtyping). The
+        // reverse direction (Object → Array) is intentionally rejected — an
+        // explicit `(T[])obj` cast is required to narrow back. Soundness for
+        // covariant array assignment is enforced at the array-store site in
+        // ArrayExecutor, matching the Java model the project already adopts
+        // (see arrayCovariance.mt).
+        if (sourceType == value::ValueType::ARRAY && targetType == value::ValueType::OBJECT) {
             return true;
         }
 
@@ -256,6 +260,23 @@ namespace types {
             case value::ValueType::NULL_TYPE: return "null";
             default: return "unknown";
         }
+    }
+
+    std::string TypeConversionUtils::getTypeDisplayName(const value::ParameterType& paramType) {
+        // MYT-282: prefer the precise array form when the parameter carries
+        // it; fall back to the class/interface name for OBJECT, and finally
+        // to the enum-only overload for everything else.
+        if (paramType.basicType == value::ValueType::ARRAY &&
+            paramType.arrayElementTypeName.has_value()) {
+            return paramType.arrayElementTypeName.value();
+        }
+        if (paramType.isClass()) {
+            return paramType.className.value();
+        }
+        if (paramType.isInterface()) {
+            return paramType.interfaceName.value();
+        }
+        return getTypeDisplayName(paramType.basicType);
     }
 
     bool TypeConversionUtils::isValidTypeName(const std::string& typeName) {

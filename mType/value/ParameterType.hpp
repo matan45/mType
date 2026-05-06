@@ -12,6 +12,13 @@ namespace value {
         ValueType basicType;                    // INT, FLOAT, BOOL, STRING, OBJECT, etc.
         std::optional<std::string> interfaceName;  // Interface name if basicType is OBJECT
         std::optional<std::string> className;      // Class name if basicType is OBJECT
+        // MYT-282: precise array form for ARRAY-tag parameters, e.g. "int[]",
+        // "Animal[]", "string[][]". Set by ParameterType::forArray; read by
+        // toString() and TypeConversionUtils::getTypeDisplayName(ParameterType)
+        // so signatures, error messages, and overload-resolution keys
+        // distinguish `int[]` from `string[]` instead of collapsing both to
+        // "array".
+        std::optional<std::string> arrayElementTypeName;
         bool nullable = false;                     // Whether this parameter accepts null
 
         // Default constructor for basic types
@@ -33,6 +40,16 @@ namespace value {
         static ParameterType forInterface(const std::string& interfaceName) {
             ParameterType param(ValueType::OBJECT);
             param.interfaceName = interfaceName;
+            return param;
+        }
+
+        // MYT-282: array constructor — preserves the precise array form so
+        // signatures and error messages don't coarsen to "array". The full
+        // form (e.g. "int[]", "Animal[][]") is stored verbatim; callers
+        // that need just the element should split on the trailing "[]".
+        static ParameterType forArray(const std::string& fullArrayTypeName) {
+            ParameterType param(ValueType::ARRAY);
+            param.arrayElementTypeName = fullArrayTypeName;
             return param;
         }
 
@@ -69,6 +86,9 @@ namespace value {
                 base = interfaceName.value();
             } else if (isClass()) {
                 base = className.value();
+            } else if (basicType == ValueType::ARRAY && arrayElementTypeName.has_value()) {
+                // MYT-282: precise array form when available.
+                base = arrayElementTypeName.value();
             } else {
                 switch (basicType) {
                     case ValueType::INT: base = "int"; break;
@@ -92,6 +112,7 @@ namespace value {
             return basicType == other.basicType &&
                    interfaceName == other.interfaceName &&
                    className == other.className &&
+                   arrayElementTypeName == other.arrayElementTypeName &&
                    nullable == other.nullable;
         }
 

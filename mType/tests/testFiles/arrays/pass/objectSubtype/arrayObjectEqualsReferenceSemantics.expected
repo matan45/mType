@@ -1,0 +1,6 @@
+Testing array Object equals reference semantics
+xa.equals(xa): true
+xa.equals(xa_alias): true
+xa.equals(xb): false
+xb.equals(xa): false
+Done

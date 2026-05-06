@@ -1,0 +1,5 @@
+Testing array isClassOf self type
+int[] is int[]: yes
+string[] is string[]: yes
+string[] is int[]: no
+Done

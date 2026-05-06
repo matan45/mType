@@ -1,0 +1,7 @@
+Testing array downcast from Object
+Length: 3
+Element 0: 100
+Element 1: 200
+Element 2: 300
+After mutation through cast, a[1] = 999
+Done

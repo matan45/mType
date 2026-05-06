@@ -1,0 +1,4 @@
+Testing array assigned to Object field
+Int round-trip: 7, 8
+String round-trip: hello world
+Done
