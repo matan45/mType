@@ -320,14 +320,29 @@ namespace vm::compiler::visitors
                 // return-context binding is "Object", keep the more specific
                 // argument binding instead of throwing a conflict — the
                 // array satisfies the Object expectation by subtyping.
-                const bool argIsArray =
-                    it->second.find("[]") != std::string::npos;
+                //
+                // Suffix-check (not substring): array forms always end in
+                // "[]"; substring matches like "my[]class" would be wrong
+                // identifiers but defensive coding here costs nothing.
+                //
+                // NOTE: the second branch below writes typeBindings[name]
+                // while the outer for-loop iterates returnBindings. That's
+                // safe — `it` is a local cached lookup, and the loop
+                // doesn't re-read typeBindings via `it` after this write.
+                // If a future refactor reads `it->second` after the write,
+                // the loop must re-find or use the new binding directly.
+                auto endsWithArrayBrackets = [](const std::string& s) {
+                    return s.size() >= 2 &&
+                           s.compare(s.size() - 2, 2, "[]") == 0;
+                };
+                const bool argIsArray = endsWithArrayBrackets(it->second);
+                const bool ctxIsArray = endsWithArrayBrackets(binding.concreteType);
                 if (binding.concreteType == "Object" && argIsArray)
                 {
                     // Argument binding is more specific; retain it.
                     continue;
                 }
-                if (it->second == "Object" && binding.concreteType.find("[]") != std::string::npos)
+                if (it->second == "Object" && ctxIsArray)
                 {
                     // Return-context binding is more specific; take it.
                     typeBindings[binding.parameterName] = binding.concreteType;

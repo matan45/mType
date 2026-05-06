@@ -445,9 +445,16 @@ namespace vm::runtime
                         "ClassCastException",
                         "cannot cast " + fullName + " to " + targetTypeName);
                 }
-                // Multi-dim arrays: identity for matching shape; we don't
-                // reconstruct dim-precise type names yet, so accept the cast
-                // and let downstream operations validate (best-effort v1).
+                // FIXME(MYT-281): multi-dimensional array cast is best-effort.
+                // FlatMultiArray and SparseMultiArray do NOT expose
+                // getElementTypeName() / dim-precise reconstruction yet, so
+                // `(int[][])obj` where obj holds an `int[]` (1D) succeeds
+                // silently when it should throw ClassCastException. Soundness
+                // hole limited to the multi-dim downcast path; 1D casts via
+                // the NativeArray branch above validate correctly. Tracked
+                // as a known limitation; precise multi-dim cast validation
+                // requires the multi-dim bridges to grow an element-name
+                // accessor first.
                 context.stackManager->push(val);
                 return;
             }

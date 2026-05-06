@@ -1086,8 +1086,13 @@ namespace vm::runtime
         }
         if (simpleName == "hashCode") {
             // Identity hash based on bridge pointer — matches Java array
-            // semantics (default Object.hashCode is identity-based).
-            int64_t h = static_cast<int64_t>(reinterpret_cast<uintptr_t>(arr.rawBridge()));
+            // semantics (default Object.hashCode is identity-based). Mask
+            // the high bit so the conversion to int64_t is well-defined
+            // even when the address sits above INT64_MAX (a static_cast
+            // from such a uintptr_t to int64_t is implementation-defined).
+            constexpr uintptr_t kSignMask = static_cast<uintptr_t>(0x7FFFFFFFFFFFFFFFULL);
+            uintptr_t addr = reinterpret_cast<uintptr_t>(arr.rawBridge());
+            int64_t h = static_cast<int64_t>(addr & kSignMask);
             context.stackManager->push(value::Value(h));
             return;
         }

@@ -46,11 +46,40 @@ namespace value {
         // MYT-282: array constructor — preserves the precise array form so
         // signatures and error messages don't coarsen to "array". The full
         // form (e.g. "int[]", "Animal[][]") is stored verbatim; callers
-        // that need just the element should split on the trailing "[]".
+        // that need the element type strip the trailing "[]" via
+        // getElementTypeName().
         static ParameterType forArray(const std::string& fullArrayTypeName) {
             ParameterType param(ValueType::ARRAY);
             param.arrayElementTypeName = fullArrayTypeName;
             return param;
+        }
+
+        // Check if this parameter is a typed array.
+        bool isArray() const {
+            return basicType == ValueType::ARRAY && arrayElementTypeName.has_value();
+        }
+
+        // Get the array's full type name (e.g. "int[]", "Animal[][]"). Throws
+        // if this is not an array parameter.
+        const std::string& getArrayTypeName() const {
+            if (!arrayElementTypeName.has_value()) {
+                throw errors::TypeResolutionException("Parameter is not an array type");
+            }
+            return arrayElementTypeName.value();
+        }
+
+        // Get the element type with one set of brackets stripped (e.g. "int"
+        // for "int[]", "int[]" for "int[][]"). Returns empty string if not
+        // an array or the stored form is malformed. Centralizes the
+        // trailing-"[]" splitting that callers would otherwise repeat.
+        std::string getElementTypeName() const {
+            if (!arrayElementTypeName.has_value()) return {};
+            const std::string& full = arrayElementTypeName.value();
+            if (full.size() < 2 ||
+                full.compare(full.size() - 2, 2, "[]") != 0) {
+                return {};
+            }
+            return full.substr(0, full.size() - 2);
         }
 
         // Check if this parameter represents an interface

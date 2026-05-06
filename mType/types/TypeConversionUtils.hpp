@@ -67,8 +67,17 @@ namespace types {
                                                const std::vector<std::string>& typeArguments,
                                                std::string& errorMessage);
 
+        // ---- getTypeDisplayName overloads ----------------------------------
+        //
+        // Two overloads, used in different layers: the enum-only form for
+        // error-message paths where only a ValueType is in scope, and the
+        // ParameterType form (MYT-282) for signature / overload-resolution
+        // paths that need precise array names.
+        //
         /**
-         * Get human-readable type name for ValueType
+         * Get human-readable type name for ValueType. Returns "array" for
+         * ARRAY-tag inputs — element-type information is unavailable here
+         * by design; use the ParameterType overload when it's available.
          */
         static std::string getTypeDisplayName(value::ValueType type);
 
