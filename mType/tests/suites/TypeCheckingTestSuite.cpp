@@ -226,6 +226,9 @@ namespace tests::testSuite
         addTestFromFile("Generic Return Null Violates Bound Error",
                         errorPath + "typeGenericReturnNullViolatesBound_error.mt",
                         TestType::ERROR_EXPECTED);
+        addTestFromFile("Static Method Same-File Wrong Type Return Error",
+                        errorPath + "staticMethodSameFileWrongTypeReturn_error.mt",
+                        TestType::ERROR_EXPECTED);
         addTestFromFile("Array Literal Incompatible Element Error",
                         errorPath + "typeArrayLiteralIncompatibleElement_error.mt",
                         TestType::ERROR_EXPECTED);

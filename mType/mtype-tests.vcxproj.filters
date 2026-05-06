@@ -5392,12 +5392,6 @@
     <None Include="tests\testFiles\enhancedFor\pass\forEachHashSet.mt">
       <Filter>testFiles\enhancedFor\pass</Filter>
     </None>
-    <None Include="tests\testFiles\enhancedFor\pass\forEachIntArrayMatrix.expected">
-      <Filter>testFiles\enhancedFor\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\enhancedFor\pass\forEachIntArrayMatrix.mt">
-      <Filter>testFiles\enhancedFor\pass</Filter>
-    </None>
     <None Include="tests\testFiles\enhancedFor\pass\forEachLinkedList.expected">
       <Filter>testFiles\enhancedFor\pass</Filter>
     </None>
@@ -12113,6 +12107,9 @@
       <Filter>testFiles\typeChecking\error</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\error\staticMethodNamingConventionError.mt">
+      <Filter>testFiles\typeChecking\error</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\error\staticMethodSameFileWrongTypeReturn_error.mt">
       <Filter>testFiles\typeChecking\error</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\error\stringToNumericError.mt">
