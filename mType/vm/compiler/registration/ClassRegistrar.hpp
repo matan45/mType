@@ -8,6 +8,7 @@
 #include "InterfaceRegistrar.hpp"
 #include "ClassInheritanceValidator.hpp"
 #include <memory>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace vm::compiler::validation
@@ -106,5 +107,13 @@ namespace vm::compiler::registration
 
         // Type substitution service (shared across compiler)
         std::shared_ptr<::types::TypeSubstitutionService> typeSubstitutionService;
+
+        // Tracks the first ClassNode registered under each class name. Used to
+        // distinguish a legitimate diamond-import (same physical node visited
+        // through two import chains -> safe to skip) from a real redefinition
+        // (different node, same name -> error). Pre-fix, registerSingleClass
+        // queried environment->findClass() and silently skipped on either case,
+        // masking diamond-conflicting and import-then-local-redefine bugs.
+        std::unordered_map<std::string, ast::ClassNode*> firstClassNodeByName;
     };
 }

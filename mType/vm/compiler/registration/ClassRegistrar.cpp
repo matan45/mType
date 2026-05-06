@@ -14,6 +14,7 @@
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/InheritanceException.hpp"
 #include "../../../errors/AbstractClassException.hpp"
+#include "../../../errors/DuplicateDeclarationException.hpp"
 #include "../../../errors/DuplicateSignatureException.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../types/TypeSubstitutionService.hpp"
@@ -91,10 +92,32 @@ namespace vm::compiler::registration
     {
         std::string className = classNode->getClassName();
 
-        // Check if class already registered
-        if (environment->findClass(className)) {
-            return; // Already registered, skip
+        // Diamond-import vs redefinition: same node seen twice is legitimate
+        // (e.g. A imports B, A imports C, both B and C import D — D's ClassNode
+        // is reached twice). A different node with the same name is a real
+        // redefinition (diamond conflict, or import + local declaration).
+        auto seenIt = firstClassNodeByName.find(className);
+        if (seenIt != firstClassNodeByName.end())
+        {
+            if (seenIt->second == classNode) {
+                return; // Same physical node — diamond, skip silently.
+            }
+            throw errors::DuplicateDeclarationException(
+                "class",
+                className,
+                seenIt->second->getLocation(),
+                classNode->getLocation()
+            );
         }
+
+        // Built-in classes (e.g. Object) are registered before this point and
+        // are not tracked in firstClassNodeByName. Preserve the original silent
+        // skip for those — covering user `class Object {}` is out of scope here.
+        if (environment->findClass(className)) {
+            return;
+        }
+
+        firstClassNodeByName[className] = classNode;
 
         // Create class definition programmatically
         auto classRegistry = environment->getClassRegistry();

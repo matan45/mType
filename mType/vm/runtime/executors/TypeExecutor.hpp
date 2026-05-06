@@ -61,6 +61,15 @@ namespace vm::runtime
         static std::string reconstructObjectFullType(
             const runtimeTypes::klass::ObjectInstance* obj);
 
+        // MYT-281: reconstruct the full type name for a multi-dim array Value
+        // (FlatMultiArray / SparseMultiArray). Returns e.g. "int[][]" for a
+        // rank-2 INT-defaulted bridge. Returns an empty string when the value
+        // is not a multi-dim array, has no rank, or its element default tag
+        // can't be classified — callers fall back to a permissive pass-through
+        // in that case to preserve the prior behavior on inputs the primitive
+        // multi-dim path doesn't currently produce.
+        static std::string reconstructMultiArrayTypeName(const value::Value& val);
+
     private:
         ExecutionContext& context;
 

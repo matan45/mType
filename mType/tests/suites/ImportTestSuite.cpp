@@ -308,20 +308,19 @@ namespace tests::testSuite
         addTestFromFile("Import Absolute Path Outside Root Error",
                         "mType/tests/testFiles/import/error/importAbsolutePathOutsideRoot.mt",
                         TestType::ERROR_EXPECTED);
-        // KNOWN-BUG (not registered): the compiler currently silently shadows
-        // when the same symbol is imported from two modules, instead of
-        // raising a redefinition error. Test file is kept in the repo as a
-        // discovery artifact; flip back to addTestFromFile + ERROR_EXPECTED
-        // once the validator rejects this.
-        //   mType/tests/testFiles/import/error/importDiamondConflictingTypes.mt
+        addTestFromFile("Import Diamond Conflicting Types Error",
+                        "mType/tests/testFiles/import/error/importDiamondConflictingTypes.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Duplicate class declaration");
 
         addTestFromFile("Import Transitive Compile Error",
                         "mType/tests/testFiles/import/error/importTransitiveCompileError.mt",
                         TestType::ERROR_EXPECTED);
 
-        // KNOWN-BUG (not registered): import + local class with the same name
-        // is silently accepted. See note above on diamond conflict.
-        //   mType/tests/testFiles/import/error/importThenLocalRedefine.mt
+        addTestFromFile("Import Then Local Redefine Error",
+                        "mType/tests/testFiles/import/error/importThenLocalRedefine.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Duplicate class declaration");
         addTestFromFile("Import Circular Via Interface Extends Error",
                         "mType/tests/testFiles/import/error/importCircularViaInterfaceExtends.mt",
                         TestType::ERROR_EXPECTED);

@@ -445,16 +445,26 @@ namespace vm::runtime
                         "ClassCastException",
                         "cannot cast " + fullName + " to " + targetTypeName);
                 }
-                // FIXME(MYT-281): multi-dimensional array cast is best-effort.
-                // FlatMultiArray and SparseMultiArray do NOT expose
-                // getElementTypeName() / dim-precise reconstruction yet, so
-                // `(int[][])obj` where obj holds an `int[]` (1D) succeeds
-                // silently when it should throw ClassCastException. Soundness
-                // hole limited to the multi-dim downcast path; 1D casts via
-                // the NativeArray branch above validate correctly. Tracked
-                // as a known limitation; precise multi-dim cast validation
-                // requires the multi-dim bridges to grow an element-name
-                // accessor first.
+                // MYT-281: multi-dim primitive arrays carry their element type
+                // in defaultValue_'s tag (set by ArrayExecutor::buildMultiArray)
+                // and rank in dimensions_. Reconstruct the full name and match
+                // strictly — both rank and element type must agree. Sub-views
+                // inherit defaultValue_ and have decremented rank, so a sub-
+                // array of `int[][][]` correctly matches `int[][]`.
+                std::string multiDimFullName = reconstructMultiArrayTypeName(val);
+                if (!multiDimFullName.empty()) {
+                    if (multiDimFullName == targetTypeName) {
+                        context.stackManager->push(val);
+                        return;
+                    }
+                    utils::ErrorLocationHelper::throwUserException(context,
+                        "ClassCastException",
+                        "cannot cast " + multiDimFullName + " to " + targetTypeName);
+                }
+                // Defaults we can't classify (e.g. monostate-defaulted arrays
+                // not produced by the primitive specialization) keep the prior
+                // pass-through. No callers in the current tree create them
+                // through buildMultiArray, but the safety net costs nothing.
                 context.stackManager->push(val);
                 return;
             }
@@ -503,10 +513,10 @@ namespace vm::runtime
         const std::string& targetTypeName,
         environment::Environment* env) {
         // MYT-281: arrays participate as `Object` subtypes. `arr isClassOf Object`
-        // is true for any array-shaped Value; `arr isClassOf T[]` is true when
-        // the runtime element type matches. NativeArray exposes the element
-        // type name directly; multi-dim variants only support the `Object`
-        // branch in v1 (precise T[][] matching is a documented follow-up).
+        // is true for any array-shaped Value; `arr isClassOf T[]...` is true when
+        // both rank and element type match. NativeArray exposes the element
+        // name directly; multi-dim variants reconstruct it from defaultValue_'s
+        // tag plus rank.
         if (val.tag() == value::ValueType::ARRAY) {
             if (targetTypeName == "Object") {
                 return true;
@@ -517,6 +527,11 @@ namespace vm::runtime
                 if (fullName == targetTypeName) {
                     return true;
                 }
+                return false;
+            }
+            std::string multiDimFullName = reconstructMultiArrayTypeName(val);
+            if (!multiDimFullName.empty()) {
+                return multiDimFullName == targetTypeName;
             }
             return false;
         }
@@ -1248,5 +1263,39 @@ namespace vm::runtime
         }
         return buildParameterizedName(obj->getClassDefinition(),
                                       obj->getGenericTypeBindings());
+    }
+
+    std::string TypeExecutor::reconstructMultiArrayTypeName(const value::Value& val) {
+        const value::Value* defaultPtr = nullptr;
+        size_t rank = 0;
+        if (value::isFlatMultiArray(val)) {
+            const auto& arr = value::asFlatMultiArray(val);
+            defaultPtr = &arr->getDefaultValue();
+            rank = arr->getRank();
+        } else if (value::isSparseMultiArray(val)) {
+            const auto& arr = value::asSparseMultiArray(val);
+            defaultPtr = &arr->getDefaultValue();
+            rank = arr->getRank();
+        }
+        if (!defaultPtr || rank == 0) {
+            return "";
+        }
+        const char* elemName = nullptr;
+        switch (defaultPtr->tag()) {
+            case value::ValueType::INT:    elemName = "int";    break;
+            case value::ValueType::FLOAT:  elemName = "float";  break;
+            case value::ValueType::BOOL:   elemName = "bool";   break;
+            case value::ValueType::STRING: elemName = "string"; break;
+            default: break;
+        }
+        if (!elemName) {
+            return "";
+        }
+        std::string fullName(elemName);
+        fullName.reserve(fullName.size() + rank * 2);
+        for (size_t i = 0; i < rank; ++i) {
+            fullName += "[]";
+        }
+        return fullName;
     }
 }

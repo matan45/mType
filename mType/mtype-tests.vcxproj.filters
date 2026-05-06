@@ -1222,6 +1222,15 @@
     <None Include="tests\testFiles\arrays\error\objectSubtype\arrayStoreInvariance_error.mt">
       <Filter>testFiles\arrays\error\objectSubtype</Filter>
     </None>
+    <None Include="tests\testFiles\arrays\error\objectSubtype\multidimArrayCastElementMismatch_error.mt">
+      <Filter>testFiles\arrays\error\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\objectSubtype\multidimArrayCastRankTooHigh_error.mt">
+      <Filter>testFiles\arrays\error\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\objectSubtype\multidimArrayCastRankTooLow_error.mt">
+      <Filter>testFiles\arrays\error\objectSubtype</Filter>
+    </None>
     <None Include="tests\testFiles\arrays\error\objectSubtype\nonArrayObjectCastToArray_error.mt">
       <Filter>testFiles\arrays\error\objectSubtype</Filter>
     </None>
