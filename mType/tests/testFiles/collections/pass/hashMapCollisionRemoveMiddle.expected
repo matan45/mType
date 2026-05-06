@@ -1,0 +1,7 @@
+Testing HashMap remove middle of collision chain:
+size: 2
+contains k1: true
+get k1: A
+contains k3: true
+get k3: C
+HashMap remove middle test passed!

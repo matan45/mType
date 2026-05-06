@@ -1,0 +1,4 @@
+Testing remove then put same key:
+size: 1
+get: y
+HashMap remove-then-put test passed!

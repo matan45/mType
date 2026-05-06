@@ -287,5 +287,38 @@ namespace tests::testSuite
         addTestFromFile("Import Lib - Missing Semicolon Error",
                         "mType/tests/testFiles/import/error/library/importLibMissingSemicolon.mt",
                         TestType::ERROR_EXPECTED);
+
+        // ====================================
+        // Edge-Case Bug-Hunting Tests
+        // ====================================
+        addOutputVerificationTest("Import Re-Export Chain Depth 4",
+                        "mType/tests/testFiles/import/pass/importReexportChainDepth4.mt");
+        addOutputVerificationTest("Import Three-Way Inheritance (No Cycle)",
+                        "mType/tests/testFiles/import/pass/importThreeWayInheritanceNoCycle.mt");
+        addOutputVerificationTest("Import Generic Class Inside Another Generic",
+                        "mType/tests/testFiles/import/pass/importGenericClassInsideAnotherGeneric.mt");
+        addOutputVerificationTest("Import Whitespace In Braces",
+                        "mType/tests/testFiles/import/pass/importWhitespaceInBraces.mt");
+        addOutputVerificationTest("Import Same Module Two Selective Sets",
+                        "mType/tests/testFiles/import/pass/importSameModuleTwoSelectiveSets.mt");
+
+        addTestFromFile("Import Backslash Path Error",
+                        "mType/tests/testFiles/import/error/importBackslashPath.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Import Absolute Path Outside Root Error",
+                        "mType/tests/testFiles/import/error/importAbsolutePathOutsideRoot.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Import Diamond With Conflicting Types Error",
+                        "mType/tests/testFiles/import/error/importDiamondConflictingTypes.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Import Transitive Compile Error",
+                        "mType/tests/testFiles/import/error/importTransitiveCompileError.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Import Then Local Redefine Error",
+                        "mType/tests/testFiles/import/error/importThenLocalRedefine.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Import Circular Via Interface Extends Error",
+                        "mType/tests/testFiles/import/error/importCircularViaInterfaceExtends.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

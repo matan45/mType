@@ -1,0 +1,10 @@
+Testing peek after filter:
+log size: 3
+2
+3
+4
+result:
+20
+30
+40
+Stream peek chained test passed!

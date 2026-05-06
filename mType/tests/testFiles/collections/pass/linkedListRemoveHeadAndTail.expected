@@ -1,0 +1,11 @@
+Testing LinkedList removeFirst:
+removed: 1
+size: 2
+2
+3
+Testing LinkedList removeLast:
+removed: 6
+size: 2
+4
+5
+LinkedList removeFirst/removeLast test passed!

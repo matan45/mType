@@ -1,0 +1,9 @@
+Testing Stack mixed push/pop:
+pop: 5
+pop: 4
+pop: 7
+pop: 6
+pop: 3
+pop: 2
+pop: 1
+Stack mixed push/pop test passed!

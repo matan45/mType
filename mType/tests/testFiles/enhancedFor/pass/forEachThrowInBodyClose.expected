@@ -1,0 +1,10 @@
+Testing for-each throw in body:
+1
+2
+caught: body fail
+second pass:
+1
+2
+3
+4
+for-each throw in body test passed!

@@ -1,0 +1,7 @@
+Testing HashMap clear then reuse:
+before clear: 5
+after clear: 0
+after reuse: 5
+reuse hits: 5
+old hits: 0
+HashMap clear then reuse test passed!

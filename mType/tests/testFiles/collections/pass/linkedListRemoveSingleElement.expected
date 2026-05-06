@@ -1,0 +1,6 @@
+Testing LinkedList remove single element:
+size: 0
+iterations: 0
+after re-add size: 1
+7
+LinkedList remove single element test passed!
