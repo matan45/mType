@@ -17,7 +17,7 @@ namespace reflection
     {
         validateArgCount(args, 3, "__reflect_getField");
         int64_t classHandle = extractInt(args[0], "__reflect_getField", "classHandle");
-        std::string fieldName = extractString(args[1], "__reflect_getField", "fieldName");
+        const std::string& fieldName = extractString(args[1], "__reflect_getField", "fieldName");
         bool declaredOnly = extractBool(args[2], "__reflect_getField", "declaredOnly");
 
         auto& handleRegistry = ReflectionHandleRegistry::instance();

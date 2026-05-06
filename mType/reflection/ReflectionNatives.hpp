@@ -268,6 +268,16 @@ namespace reflection
         static value::Value __reflect_getMethod(void* userData, NativeContext& ctx, std::span<const value::Value> args);
 
         /**
+         * @brief Get method by name and parameter count without allocating a parameter type array
+         * args[0]: classHandle (int)
+         * args[1]: methodName (String)
+         * args[2]: paramCount (int)
+         * args[3]: declaredOnly (bool)
+         * Returns: Method object
+         */
+        static value::Value __reflect_getMethodByArity(void* userData, NativeContext& ctx, std::span<const value::Value> args);
+
+        /**
          * @brief Get all methods
          * args[0]: classHandle (int)
          * args[1]: declaredOnly (bool)
@@ -361,6 +371,15 @@ namespace reflection
          * Returns: Constructor object
          */
         static value::Value __reflect_getConstructor(void* userData, NativeContext& ctx, std::span<const value::Value> args);
+
+        /**
+         * @brief Get constructor by parameter count without allocating a parameter type array
+         * args[0]: classHandle (int)
+         * args[1]: paramCount (int)
+         * args[2]: declaredOnly (bool)
+         * Returns: Constructor object
+         */
+        static value::Value __reflect_getConstructorByArity(void* userData, NativeContext& ctx, std::span<const value::Value> args);
 
         /**
          * @brief Get all constructors

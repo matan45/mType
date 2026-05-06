@@ -50,6 +50,7 @@ namespace reflection
 
         // Method reflection
         nativeRegistry->registerNativeFunction("__reflect_getMethod", { nullptr, __reflect_getMethod });
+        nativeRegistry->registerNativeFunction("__reflect_getMethodByArity", { nullptr, __reflect_getMethodByArity });
         nativeRegistry->registerNativeFunction("__reflect_getMethods", { nullptr, __reflect_getMethods });
         nativeRegistry->registerNativeFunction("__reflect_getMethodReturnType", { nullptr, __reflect_getMethodReturnType });
         nativeRegistry->registerNativeFunction("__reflect_getMethodParamTypes", { nullptr, __reflect_getMethodParamTypes });
@@ -64,6 +65,7 @@ namespace reflection
 
         // Constructor reflection
         nativeRegistry->registerNativeFunction("__reflect_getConstructor", { nullptr, __reflect_getConstructor });
+        nativeRegistry->registerNativeFunction("__reflect_getConstructorByArity", { nullptr, __reflect_getConstructorByArity });
         nativeRegistry->registerNativeFunction("__reflect_getConstructors", { nullptr, __reflect_getConstructors });
         nativeRegistry->registerNativeFunction("__reflect_getConstructorParamTypes", { nullptr, __reflect_getConstructorParamTypes });
         nativeRegistry->registerNativeFunction("__reflect_getConstructorParamCount", { nullptr, __reflect_getConstructorParamCount });

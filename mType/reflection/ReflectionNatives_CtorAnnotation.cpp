@@ -14,6 +14,54 @@ namespace reflection
     using namespace value;
     using namespace runtimeTypes::klass;
 
+    namespace
+    {
+        Value getConstructorByArityImpl(
+            int64_t classHandle,
+            size_t paramCount,
+            bool declaredOnly)
+        {
+            auto& handleRegistry = ReflectionHandleRegistry::instance();
+            auto classDef = handleRegistry.getClass(classHandle);
+            if (!classDef)
+            {
+                throw errors::RuntimeException("Invalid class handle");
+            }
+
+            int64_t cachedHandle = handleRegistry.findCachedConstructorLookup(
+                classHandle, paramCount, declaredOnly);
+            if (cachedHandle != -1)
+            {
+                return static_cast<int>(cachedHandle);
+            }
+
+            auto* ctorDef = classDef->findConstructor(paramCount);
+            if (!ctorDef)
+            {
+                throw errors::RuntimeException("Constructor not found with " + std::to_string(paramCount) + " parameters");
+            }
+
+            if (!declaredOnly && ctorDef->getAccessModifier() != ast::AccessModifier::PUBLIC)
+            {
+                throw errors::RuntimeException("Constructor is not public. Use getDeclaredConstructor() instead.");
+            }
+
+            const auto& constructors = classDef->getConstructors();
+            for (size_t i = 0; i < constructors.size(); ++i)
+            {
+                if (constructors[i].get() == ctorDef)
+                {
+                    int64_t ctorHandle = handleRegistry.registerConstructor(
+                        constructors[i], classHandle, static_cast<int>(i));
+                    handleRegistry.cacheConstructorLookup(
+                        classHandle, paramCount, declaredOnly, ctorHandle);
+                    return static_cast<int>(ctorHandle);
+                }
+            }
+
+            throw errors::RuntimeException("Constructor registration failed");
+        }
+    }
 
     Value ReflectionNatives::__reflect_getConstructor(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
@@ -22,13 +70,6 @@ namespace reflection
         // args[1] is paramTypes array
         bool declaredOnly = extractBool(args[2], "__reflect_getConstructor", "declaredOnly");
 
-        auto& handleRegistry = ReflectionHandleRegistry::instance();
-        auto classDef = handleRegistry.getClass(classHandle);
-        if (!classDef)
-        {
-            throw errors::RuntimeException("Invalid class handle");
-        }
-
         size_t paramCount = 0;
         if (isNativeArray(args[1]))
         {
@@ -36,29 +77,22 @@ namespace reflection
             paramCount = paramArray->size();
         }
 
-        auto* ctorDef = classDef->findConstructor(paramCount);
-        if (!ctorDef)
+        return getConstructorByArityImpl(classHandle, paramCount, declaredOnly);
+    }
+
+    Value ReflectionNatives::__reflect_getConstructorByArity(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
+    {
+        validateArgCount(args, 3, "__reflect_getConstructorByArity");
+        int64_t classHandle = extractInt(args[0], "__reflect_getConstructorByArity", "classHandle");
+        int64_t rawParamCount = extractInt(args[1], "__reflect_getConstructorByArity", "paramCount");
+        bool declaredOnly = extractBool(args[2], "__reflect_getConstructorByArity", "declaredOnly");
+
+        if (rawParamCount < 0)
         {
-            throw errors::RuntimeException("Constructor not found with " + std::to_string(paramCount) + " parameters");
+            throw errors::RuntimeException("__reflect_getConstructorByArity requires paramCount to be non-negative");
         }
 
-        if (!declaredOnly && ctorDef->getAccessModifier() != ast::AccessModifier::PUBLIC)
-        {
-            throw errors::RuntimeException("Constructor is not public. Use getDeclaredConstructor() instead.");
-        }
-
-        // Find the shared_ptr for this constructor
-        const auto& constructors = classDef->getConstructors();
-        for (size_t i = 0; i < constructors.size(); ++i)
-        {
-            if (constructors[i].get() == ctorDef)
-            {
-                int64_t ctorHandle = handleRegistry.registerConstructor(constructors[i], classHandle, static_cast<int>(i));
-                return static_cast<int>(ctorHandle);
-            }
-        }
-
-        throw errors::RuntimeException("Constructor registration failed");
+        return getConstructorByArityImpl(classHandle, static_cast<size_t>(rawParamCount), declaredOnly);
     }
 
     Value ReflectionNatives::__reflect_getConstructors(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)

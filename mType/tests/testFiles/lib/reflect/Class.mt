@@ -160,15 +160,13 @@ class Class {
 
     // Get a public method by name and parameter types
     public function getMethod(string name, int paramCount): Method {
-        int[] emptyTypes = new int[paramCount];
-        int methodHandle = __reflect_getMethod(this._nativeHandle, name, emptyTypes, false);
+        int methodHandle = __reflect_getMethodByArity(this._nativeHandle, name, paramCount, false);
         return new Method(methodHandle, this._nativeHandle, name);
     }
 
     // Get a declared method by name and parameter count
     public function getDeclaredMethod(string name, int paramCount): Method {
-        int[] emptyTypes = new int[paramCount];
-        int methodHandle = __reflect_getMethod(this._nativeHandle, name, emptyTypes, true);
+        int methodHandle = __reflect_getMethodByArity(this._nativeHandle, name, paramCount, true);
         return new Method(methodHandle, this._nativeHandle, name);
     }
 
@@ -196,15 +194,13 @@ class Class {
 
     // Get a public constructor by parameter count
     public function getConstructor(int paramCount): Constructor {
-        int[] emptyTypes = new int[paramCount];
-        int ctorHandle = __reflect_getConstructor(this._nativeHandle, emptyTypes, false);
+        int ctorHandle = __reflect_getConstructorByArity(this._nativeHandle, paramCount, false);
         return new Constructor(ctorHandle, this._nativeHandle);
     }
 
     // Get a declared constructor by parameter count
     public function getDeclaredConstructor(int paramCount): Constructor {
-        int[] emptyTypes = new int[paramCount];
-        int ctorHandle = __reflect_getConstructor(this._nativeHandle, emptyTypes, true);
+        int ctorHandle = __reflect_getConstructorByArity(this._nativeHandle, paramCount, true);
         return new Constructor(ctorHandle, this._nativeHandle);
     }
 

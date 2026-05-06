@@ -17,21 +17,70 @@ namespace reflection
     using namespace value;
     using namespace runtimeTypes::klass;
 
+    namespace
+    {
+        Value getMethodByArityImpl(
+            int64_t classHandle,
+            const std::string& methodName,
+            size_t paramCount,
+            bool declaredOnly)
+        {
+            auto& handleRegistry = ReflectionHandleRegistry::instance();
+            auto classDef = handleRegistry.getClass(classHandle);
+            if (!classDef)
+            {
+                throw errors::RuntimeException("Invalid class handle");
+            }
+
+            int64_t cachedHandle = handleRegistry.findCachedMethodLookup(
+                classHandle, methodName, paramCount, declaredOnly);
+            if (cachedHandle != -1)
+            {
+                return static_cast<int>(cachedHandle);
+            }
+
+            std::shared_ptr<MethodDefinition> methodDef = nullptr;
+
+            if (declaredOnly)
+            {
+                methodDef = classDef->findInstanceMethod(methodName, paramCount);
+                if (!methodDef)
+                {
+                    methodDef = classDef->findStaticMethod(methodName, paramCount);
+                }
+            }
+            else
+            {
+                methodDef = classDef->findInstanceMethodInHierarchy(methodName, paramCount);
+                if (!methodDef)
+                {
+                    methodDef = classDef->findStaticMethodInHierarchy(methodName, paramCount);
+                }
+            }
+
+            if (!methodDef)
+            {
+                throw errors::RuntimeException("Method not found: " + methodName);
+            }
+
+            if (!declaredOnly && methodDef->getAccessModifier() != ast::AccessModifier::PUBLIC)
+            {
+                throw errors::RuntimeException("Method " + methodName + " is not public. Use getDeclaredMethod() instead.");
+            }
+
+            int64_t methodHandle = handleRegistry.registerMethod(methodDef, classHandle, methodName);
+            handleRegistry.cacheMethodLookup(classHandle, methodName, paramCount, declaredOnly, methodHandle);
+            return static_cast<int>(methodHandle);
+        }
+    }
 
     Value ReflectionNatives::__reflect_getMethod(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 4, "__reflect_getMethod");
         int64_t classHandle = extractInt(args[0], "__reflect_getMethod", "classHandle");
-        std::string methodName = extractString(args[1], "__reflect_getMethod", "methodName");
+        const std::string& methodName = extractString(args[1], "__reflect_getMethod", "methodName");
         // args[2] is paramTypes array - for simplicity, we'll use argCount-based lookup
         bool declaredOnly = extractBool(args[3], "__reflect_getMethod", "declaredOnly");
-
-        auto& handleRegistry = ReflectionHandleRegistry::instance();
-        auto classDef = handleRegistry.getClass(classHandle);
-        if (!classDef)
-        {
-            throw errors::RuntimeException("Invalid class handle");
-        }
 
         // Get param count from array
         size_t paramCount = 0;
@@ -41,45 +90,24 @@ namespace reflection
             paramCount = paramArray->size();
         }
 
-        int64_t cachedHandle = handleRegistry.findCachedMethodLookup(
-            classHandle, methodName, paramCount, declaredOnly);
-        if (cachedHandle != -1)
+        return getMethodByArityImpl(classHandle, methodName, paramCount, declaredOnly);
+    }
+
+    Value ReflectionNatives::__reflect_getMethodByArity(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
+    {
+        validateArgCount(args, 4, "__reflect_getMethodByArity");
+        int64_t classHandle = extractInt(args[0], "__reflect_getMethodByArity", "classHandle");
+        const std::string& methodName = extractString(args[1], "__reflect_getMethodByArity", "methodName");
+        int64_t rawParamCount = extractInt(args[2], "__reflect_getMethodByArity", "paramCount");
+        bool declaredOnly = extractBool(args[3], "__reflect_getMethodByArity", "declaredOnly");
+
+        if (rawParamCount < 0)
         {
-            return static_cast<int>(cachedHandle);
+            throw errors::RuntimeException("__reflect_getMethodByArity requires paramCount to be non-negative");
         }
 
-        std::shared_ptr<MethodDefinition> methodDef = nullptr;
-
-        if (declaredOnly)
-        {
-            methodDef = classDef->findInstanceMethod(methodName, paramCount);
-            if (!methodDef)
-            {
-                methodDef = classDef->findStaticMethod(methodName, paramCount);
-            }
-        }
-        else
-        {
-            methodDef = classDef->findInstanceMethodInHierarchy(methodName, paramCount);
-            if (!methodDef)
-            {
-                methodDef = classDef->findStaticMethodInHierarchy(methodName, paramCount);
-            }
-        }
-
-        if (!methodDef)
-        {
-            throw errors::RuntimeException("Method not found: " + methodName);
-        }
-
-        if (!declaredOnly && methodDef->getAccessModifier() != ast::AccessModifier::PUBLIC)
-        {
-            throw errors::RuntimeException("Method " + methodName + " is not public. Use getDeclaredMethod() instead.");
-        }
-
-        int64_t methodHandle = handleRegistry.registerMethod(methodDef, classHandle, methodName);
-        handleRegistry.cacheMethodLookup(classHandle, methodName, paramCount, declaredOnly, methodHandle);
-        return static_cast<int>(methodHandle);
+        return getMethodByArityImpl(
+            classHandle, methodName, static_cast<size_t>(rawParamCount), declaredOnly);
     }
 
     Value ReflectionNatives::__reflect_getMethods(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
@@ -236,13 +264,13 @@ namespace reflection
         int64_t methodHandle = extractInt(args[0], "__reflect_getMethodParamCount", "methodHandle");
 
         auto& registry = ReflectionHandleRegistry::instance();
-        auto methodInfo = registry.getMethod(methodHandle);
-        if (!methodInfo.method)
+        const MethodHandleInfo* methodInfo = registry.getMethodInfo(methodHandle);
+        if (!methodInfo || !methodInfo->method)
         {
             throw errors::RuntimeException("Invalid method handle");
         }
 
-        return static_cast<int>(methodInfo.userParamCount);
+        return static_cast<int>(methodInfo->userParamCount);
     }
 
     Value ReflectionNatives::__reflect_getMethodDeclaringClass(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)

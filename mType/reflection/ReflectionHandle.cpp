@@ -7,6 +7,36 @@ namespace reflection
 {
     // ========== Cache Key Helper Functions ==========
 
+    namespace
+    {
+        inline size_t hashCombine(size_t seed, size_t value)
+        {
+            return seed ^ (value + 0x9e3779b97f4a7c15ull + (seed << 6) + (seed >> 2));
+        }
+    }
+
+    size_t FieldLookupKeyHash::operator()(const FieldLookupKey& key) const
+    {
+        size_t seed = std::hash<int64_t>{}(key.classHandle);
+        seed = hashCombine(seed, std::hash<bool>{}(key.declaredOnly));
+        return hashCombine(seed, std::hash<std::string>{}(key.fieldName));
+    }
+
+    size_t MethodLookupKeyHash::operator()(const MethodLookupKey& key) const
+    {
+        size_t seed = std::hash<int64_t>{}(key.classHandle);
+        seed = hashCombine(seed, std::hash<size_t>{}(key.paramCount));
+        seed = hashCombine(seed, std::hash<bool>{}(key.declaredOnly));
+        return hashCombine(seed, std::hash<std::string>{}(key.methodName));
+    }
+
+    size_t ConstructorLookupKeyHash::operator()(const ConstructorLookupKey& key) const
+    {
+        size_t seed = std::hash<int64_t>{}(key.classHandle);
+        seed = hashCombine(seed, std::hash<size_t>{}(key.paramCount));
+        return hashCombine(seed, std::hash<bool>{}(key.declaredOnly));
+    }
+
     std::string ReflectionHandleRegistry::makeFieldKey(int64_t classHandle, const std::string& fieldName)
     {
         return std::to_string(classHandle) + ":" + fieldName;
@@ -23,18 +53,6 @@ namespace reflection
             key += ":" + std::to_string(paramType.length()) + ":" + paramType;
         }
         return key;
-    }
-
-    std::string ReflectionHandleRegistry::makeLookupKey(
-        int64_t classHandle,
-        const std::string& name,
-        size_t arity,
-        bool declaredOnly)
-    {
-        return std::to_string(classHandle) + ":" +
-               (declaredOnly ? "D:" : "P:") +
-               std::to_string(name.length()) + ":" + name + "#" +
-               std::to_string(arity);
     }
 
     std::string ReflectionHandleRegistry::makeConstructorKey(int64_t classHandle, int constructorIndex)
@@ -206,13 +224,18 @@ namespace reflection
         return FieldHandleInfo{nullptr, -1, ""};
     }
 
+    const FieldHandleInfo* ReflectionHandleRegistry::getFieldInfo(int64_t handle) const
+    {
+        auto it = fieldHandles.find(handle);
+        return it != fieldHandles.end() ? &it->second : nullptr;
+    }
+
     int64_t ReflectionHandleRegistry::findCachedFieldLookup(
         int64_t classHandle,
         const std::string& fieldName,
         bool declaredOnly) const
     {
-        auto it = fieldLookupKeyToHandle.find(
-            makeLookupKey(classHandle, fieldName, 0, declaredOnly));
+        auto it = fieldLookupKeyToHandle.find(FieldLookupKey{classHandle, declaredOnly, fieldName});
         return it != fieldLookupKeyToHandle.end() ? it->second : -1;
     }
 
@@ -222,8 +245,7 @@ namespace reflection
         bool declaredOnly,
         int64_t fieldHandle)
     {
-        fieldLookupKeyToHandle[
-            makeLookupKey(classHandle, fieldName, 0, declaredOnly)] = fieldHandle;
+        fieldLookupKeyToHandle[FieldLookupKey{classHandle, declaredOnly, fieldName}] = fieldHandle;
     }
 
     // ========== Method Handle Management ==========
@@ -277,14 +299,20 @@ namespace reflection
         return MethodHandleInfo{nullptr, -1, "", 0};
     }
 
+    const MethodHandleInfo* ReflectionHandleRegistry::getMethodInfo(int64_t handle) const
+    {
+        auto it = methodHandles.find(handle);
+        return it != methodHandles.end() ? &it->second : nullptr;
+    }
+
     int64_t ReflectionHandleRegistry::findCachedMethodLookup(
         int64_t classHandle,
         const std::string& methodName,
         size_t paramCount,
         bool declaredOnly) const
     {
-        auto it = methodLookupKeyToHandle.find(
-            makeLookupKey(classHandle, methodName, paramCount, declaredOnly));
+        auto it = methodLookupKeyToHandle.find(MethodLookupKey{
+            classHandle, paramCount, declaredOnly, methodName});
         return it != methodLookupKeyToHandle.end() ? it->second : -1;
     }
 
@@ -295,8 +323,28 @@ namespace reflection
         bool declaredOnly,
         int64_t methodHandle)
     {
-        methodLookupKeyToHandle[
-            makeLookupKey(classHandle, methodName, paramCount, declaredOnly)] = methodHandle;
+        methodLookupKeyToHandle[MethodLookupKey{
+            classHandle, paramCount, declaredOnly, methodName}] = methodHandle;
+    }
+
+    int64_t ReflectionHandleRegistry::findCachedConstructorLookup(
+        int64_t classHandle,
+        size_t paramCount,
+        bool declaredOnly) const
+    {
+        auto it = constructorLookupKeyToHandle.find(ConstructorLookupKey{
+            classHandle, paramCount, declaredOnly});
+        return it != constructorLookupKeyToHandle.end() ? it->second : -1;
+    }
+
+    void ReflectionHandleRegistry::cacheConstructorLookup(
+        int64_t classHandle,
+        size_t paramCount,
+        bool declaredOnly,
+        int64_t constructorHandle)
+    {
+        constructorLookupKeyToHandle[ConstructorLookupKey{
+            classHandle, paramCount, declaredOnly}] = constructorHandle;
     }
 
     // ========== Constructor Handle Management ==========
@@ -336,6 +384,12 @@ namespace reflection
             return it->second;
         }
         return ConstructorHandleInfo{nullptr, -1, -1};
+    }
+
+    const ConstructorHandleInfo* ReflectionHandleRegistry::getConstructorInfo(int64_t handle) const
+    {
+        auto it = constructorHandles.find(handle);
+        return it != constructorHandles.end() ? &it->second : nullptr;
     }
 
     // ========== Annotation Handle Management ==========
@@ -434,16 +488,14 @@ namespace reflection
                 {
                     std::string key = makeFieldKey(fieldIt->second.classHandle, fieldIt->second.fieldName);
                     fieldKeyToHandle.erase(key);
-                    fieldLookupKeyToHandle.erase(makeLookupKey(
+                    fieldLookupKeyToHandle.erase(FieldLookupKey{
                         fieldIt->second.classHandle,
-                        fieldIt->second.fieldName,
-                        0,
-                        true));
-                    fieldLookupKeyToHandle.erase(makeLookupKey(
+                        true,
+                        fieldIt->second.fieldName});
+                    fieldLookupKeyToHandle.erase(FieldLookupKey{
                         fieldIt->second.classHandle,
-                        fieldIt->second.fieldName,
-                        0,
-                        false));
+                        false,
+                        fieldIt->second.fieldName});
                     fieldHandles.erase(fieldIt);
                 }
                 break;
@@ -463,16 +515,16 @@ namespace reflection
                         std::string key = makeMethodKey(methodIt->second.classHandle, methodIt->second.methodName,
                                                         paramTypes);
                         methodKeyToHandle.erase(key);
-                        methodLookupKeyToHandle.erase(makeLookupKey(
+                        methodLookupKeyToHandle.erase(MethodLookupKey{
                             methodIt->second.classHandle,
-                            methodIt->second.methodName,
                             methodIt->second.userParamCount,
-                            true));
-                        methodLookupKeyToHandle.erase(makeLookupKey(
+                            true,
+                            methodIt->second.methodName});
+                        methodLookupKeyToHandle.erase(MethodLookupKey{
                             methodIt->second.classHandle,
-                            methodIt->second.methodName,
                             methodIt->second.userParamCount,
-                            false));
+                            false,
+                            methodIt->second.methodName});
                     }
                     methodHandles.erase(methodIt);
                 }
@@ -485,6 +537,17 @@ namespace reflection
                 {
                     std::string key = makeConstructorKey(ctorIt->second.classHandle, ctorIt->second.constructorIndex);
                     constructorKeyToHandle.erase(key);
+                    if (ctorIt->second.constructor)
+                    {
+                        constructorLookupKeyToHandle.erase(ConstructorLookupKey{
+                            ctorIt->second.classHandle,
+                            ctorIt->second.constructor->getParameterCount(),
+                            true});
+                        constructorLookupKeyToHandle.erase(ConstructorLookupKey{
+                            ctorIt->second.classHandle,
+                            ctorIt->second.constructor->getParameterCount(),
+                            false});
+                    }
                     constructorHandles.erase(ctorIt);
                 }
                 break;
@@ -521,6 +584,7 @@ namespace reflection
         methodKeyToHandle.clear();
         fieldLookupKeyToHandle.clear();
         methodLookupKeyToHandle.clear();
+        constructorLookupKeyToHandle.clear();
         constructorKeyToHandle.clear();
         annotationPtrToHandle.clear();
 
