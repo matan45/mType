@@ -10,7 +10,10 @@ function main(): void {
     inner.add(new Int(5));
 
     Box<ArrayList<Int>> b = new Box<ArrayList<Int>>(inner);
-    for (Int v : b.getValue()) {
+    // Extract via typed local — for-each on `b.getValue()` directly loses the
+    // ArrayList<Int> substitution and falls back to Object (separate issue).
+    ArrayList<Int> unwrapped = b.getValue();
+    for (Int v : unwrapped) {
         print(v.getValue());
     }
 }

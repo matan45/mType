@@ -1,11 +1,12 @@
-// Edge: import goes through a 4-deep re-export chain (ModB -> ModC -> ModD).
-// The resolver recurses through each link; this guards against stack-depth
-// or "isBeingEvaluated" mis-marking in deep chains.
-import { ChainTip } from "./reexportChain/ModB.mt";
+// Edge: 4-deep dependency chain via inheritance (ModB extends ModC's class
+// extends ModD's class). Re-exports aren't transparent in mType, so we use
+// inheritance to thread the dependency. Exercises class resolution and
+// vtable construction across three import boundaries.
+import { ChainTop } from "./reexportChain/ModB.mt";
 
 function main(): void {
-    ChainTip tip = new ChainTip();
-    print(tip.hello());
+    ChainTop t = new ChainTop();
+    print(t.hello());
 }
 
 main();

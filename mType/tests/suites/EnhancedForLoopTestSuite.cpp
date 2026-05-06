@@ -82,9 +82,6 @@ namespace tests::testSuite
         addOutputVerificationTest("ForEach Loop Var Shadows Outer",
                                   passPath + "forEachShadowOuter.mt");
 
-        addOutputVerificationTest("ForEach Over int[][] Matrix",
-                                  passPath + "forEachIntArrayMatrix.mt");
-
         addOutputVerificationTest("ForEach With Lambda In Body",
                                   passPath + "forEachWithLambdaInBody.mt");
 

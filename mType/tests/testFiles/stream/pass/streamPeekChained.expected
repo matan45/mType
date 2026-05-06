@@ -1,8 +1,7 @@
 Testing peek after filter:
-log size: 3
-2
-3
-4
+peek:2
+peek:3
+peek:4
 result:
 20
 30
