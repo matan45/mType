@@ -53,10 +53,10 @@ namespace vm::optimization
                 case OpCode::PROMISE_RESOLVE:
                     return InlineDecision::HAS_ASYNC;
 
-                case OpCode::LOAD_UPVALUE:
-                case OpCode::STORE_UPVALUE:
-                case OpCode::CLOSE_UPVALUE:
-                    return InlineDecision::HAS_UPVALUES;
+                // MYT-B1: HAS_UPVALUES branch removed — LOAD/STORE/CLOSE_UPVALUE
+                // opcodes no longer exist. Lambda capture flows through
+                // SharedStackFrame parent chains, which the inliner handles
+                // via the SharedStackFrame visibility check elsewhere.
 
                 case OpCode::SUPER_INVOKE:
                 case OpCode::SUPER_CONSTRUCTOR:
@@ -69,7 +69,6 @@ namespace vm::optimization
                 case OpCode::CALL_FAST:
                 case OpCode::CALL_STATIC:
                 case OpCode::INVOKE:
-                case OpCode::LAMBDA_INVOKE:
                     return InlineDecision::HAS_NESTED_CALL;
 
                 // MYT-167 (F-e): ValueObject receivers are read-only inline

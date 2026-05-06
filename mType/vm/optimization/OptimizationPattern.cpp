@@ -81,7 +81,6 @@ namespace vm::optimization
         return opcode == OpCode::STORE_VAR ||
                opcode == OpCode::STORE_LOCAL ||
                opcode == OpCode::STORE_GLOBAL ||
-               opcode == OpCode::STORE_UPVALUE ||
                opcode == OpCode::SET_FIELD ||
                opcode == OpCode::SET_FIELD_FAST ||
                opcode == OpCode::INLINE_SET_FIELD ||

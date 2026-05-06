@@ -6,8 +6,10 @@ namespace vm::runtime
 {
     /**
      * Executes lambda-related opcodes
-     * Handles LAMBDA and LAMBDA_INVOKE
-     * Manages lambda creation and invocation with closure capture
+     * Handles LAMBDA (lambda value creation). Lambda *invocation* flows
+     * through CALL_METHOD with the lambda value as receiver — the legacy
+     * LAMBDA_INVOKE opcode was removed in MYT-B1 because the compiler
+     * never emitted it.
      */
     class LambdaExecutor
     {
@@ -15,9 +17,7 @@ namespace vm::runtime
         explicit LambdaExecutor(ExecutionContext& ctx);
         ~LambdaExecutor() = default;
 
-        // Lambda operations
         void handleLambda(const bytecode::BytecodeProgram::Instruction& instr);
-        void handleLambdaInvoke(const bytecode::BytecodeProgram::Instruction& instr);
 
     private:
         ExecutionContext& context;

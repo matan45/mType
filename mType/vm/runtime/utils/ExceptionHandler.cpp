@@ -58,7 +58,7 @@ namespace vm::runtime::utils
                 // Lambda function without metadata - search forward to find the actual end
                 // Need to handle multiple RETURNs (e.g., one in try, one in catch, one in finally)
                 // Strategy: Find all RETURNs until we hit another LAMBDA (lambdas don't nest inline)
-                // Note: CALL/LAMBDA_INVOKE don't introduce nested RETURNs in the same bytecode stream
+                // Note: CALL / CALL_METHOD don't introduce nested RETURNs in the same bytecode stream
                 size_t lastReturn = SIZE_MAX;
 
                 for (size_t searchIP = currentIP + 1; searchIP < program->getInstructionCount(); ++searchIP)

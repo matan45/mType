@@ -698,13 +698,26 @@ namespace vm::bytecode
         return oss.str();
     }
 
+    // Bytecode format version — bumped whenever the opcode numbering or the
+    // .mtc file layout changes. The deserializer rejects any other value with
+    // a "recompile" diagnostic so a stale .mtc cannot silently misexecute
+    // against a newer interpreter.
+    //
+    // History:
+    //   8: MYT-202 compile-time fused superinstructions
+    //   9: MYT-B1 dead lambda opcodes removed (LAMBDA_INVOKE / CLOSURE /
+    //      LOAD_UPVALUE / STORE_UPVALUE / CLOSE_UPVALUE) — opcode numbering
+    //      shifted, so prior .mtc files reference the wrong numeric op for
+    //      every entry past the deletions.
+    static constexpr uint32_t BYTECODE_FORMAT_VERSION = 9;
+
     void BytecodeProgram::serialize(std::ostream& out) const {
         // Write magic number
         uint32_t magic = 0x4D545950;  // "MTYP"
         out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
 
         // Write version
-        uint32_t version = 8;  // Version 8: MYT-202 compile-time fused superinstructions
+        uint32_t version = BYTECODE_FORMAT_VERSION;
         out.write(reinterpret_cast<const char*>(&version), sizeof(version));
 
         // Write entry point
@@ -753,13 +766,14 @@ namespace vm::bytecode
         // Read version
         uint32_t version;
         in.read(reinterpret_cast<char*>(&version), sizeof(version));
-        if (version < 8) {
+        if (version != BYTECODE_FORMAT_VERSION) {
             throw std::runtime_error(
-                "Bytecode file uses an outdated format (version " + std::to_string(version) + "). "
-                "Please recompile from source using the current compiler.");
-        }
-        if (version != 8) {
-            throw std::runtime_error("Unsupported bytecode version: " + std::to_string(version));
+                "Bytecode file format version " + std::to_string(version) +
+                " does not match the interpreter (expected " +
+                std::to_string(BYTECODE_FORMAT_VERSION) + "). " +
+                (version < BYTECODE_FORMAT_VERSION
+                    ? "The .mtc was produced by an older compiler — recompile from source."
+                    : "The .mtc was produced by a newer compiler — upgrade the interpreter."));
         }
 
         // Read entry point

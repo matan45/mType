@@ -1,4 +1,5 @@
 #include "TypeValidator.hpp"
+#include <algorithm>
 #include <cstddef>
 #include "../../../errors/TypeException.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
@@ -211,23 +212,42 @@ namespace vm::compiler::types
             return;
         }
 
-        // Array covariance check: arrays must have EXACT element type match
-        // (cannot assign Dog[] to Animal[] even though Dog extends Animal)
+        // MYT-137: strict declaration-time array invariance. Element types
+        // must match EXACTLY at the assignment site — `Animal[] a = new Dog[1]`
+        // and `Animal[] a = dogs` (where dogs is Dog[]) are both rejected at
+        // compile time. The historical covariant escape (allow when value's
+        // element is a subtype of var's) is gone; that masks the array-store
+        // soundness hole because once the alias is established the runtime
+        // can no longer tell that the storage is actually Dog-typed.
+        //
+        // Array literals like `Shape[] shapes = [new A(), new B(), new C()]`
+        // remain valid: StatementCompiler's decl path validates each element
+        // against the declared element type and retypes the literal to the
+        // declared array type before reaching this check (see
+        // StatementCompiler.cpp ~line 892, MYT-137 target-type-guided inference).
         bool varIsArray = (varClass.find("[]") != std::string::npos);
         bool valueIsArray = (valueClass.find("[]") != std::string::npos);
 
         if (varIsArray && valueIsArray) {
-            // Extract element types from both arrays (e.g., "Animal" from "Animal[]")
             std::string varElementType = varClass.substr(0, varClass.find("[]"));
             std::string valueElementType = valueClass.substr(0, valueClass.find("[]"));
 
-            // Allow covariant array assignment (e.g., Dog[] to Animal[])
-            // Check inheritance/interface compatibility via isClassCompatible
-            if (varElementType != valueElementType &&
-                !isClassCompatible(valueElementType, varElementType)) {
+            // Generic-arg whitespace is not load-bearing: the parser preserves
+            // user-written spacing ("Pair<String, Int>") while UnifiedType /
+            // bytecode emit a no-space canonical ("Pair<String,Int>"). Both
+            // refer to the same reified type. Strip all spaces before the
+            // strict comparison so identical types don't trip the invariance
+            // check on cosmetic differences. mType identifiers contain no
+            // spaces, so stripping is safe.
+            auto stripSpaces = [](std::string s) {
+                s.erase(std::remove(s.begin(), s.end(), ' '), s.end());
+                return s;
+            };
+            if (stripSpaces(varElementType) != stripSpaces(valueElementType)) {
                 throw errors::TypeException(
-                    "Array type mismatch: cannot assign " + valueElementType + "[] to " +
-                    varElementType + "[] (element types are not compatible)",
+                    "Array covariance violation: cannot assign " + valueElementType + "[] to " +
+                    varElementType + "[] (array element types are invariant; covariance must be "
+                    "explicit via array literal or runtime cast)",
                     location
                 );
             }

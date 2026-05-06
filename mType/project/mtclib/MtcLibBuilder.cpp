@@ -2,6 +2,7 @@
 #include "ContentHash.hpp"
 #include "MtcPathResolver.hpp"
 #include "../../types/TypeSignature.hpp"
+#include "../../version/Version.hpp"
 
 namespace project::mtclib
 {
@@ -39,7 +40,7 @@ namespace project::mtclib
         MtcLibMetadata metadata;
         metadata.name = config.name;
         metadata.version = config.version;
-        metadata.mtypeVersion = "0.2.0";  // Current mType version
+        metadata.mtypeVersion = mType::version::getVersionString();
         metadata.sourceHash = ContentHash::hashFiles(config.resolvedSourceFiles);
         return metadata;
     }

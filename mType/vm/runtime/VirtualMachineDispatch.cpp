@@ -691,8 +691,6 @@ namespace vm::runtime
         // Lambda operations - delegated to LambdaExecutor
         case OpCode::LAMBDA: lambdaExecutor->handleLambda(instr);
             break;
-        case OpCode::LAMBDA_INVOKE: lambdaExecutor->handleLambdaInvoke(instr);
-            break;
 
         // Exception handling - delegated to ExceptionExecutor
         case OpCode::TRY_BEGIN:

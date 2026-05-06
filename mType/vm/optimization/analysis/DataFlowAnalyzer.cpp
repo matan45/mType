@@ -90,7 +90,6 @@ namespace vm::optimization::analysis
             case OpCode::LOAD_VAR:
             case OpCode::LOAD_LOCAL:
             case OpCode::LOAD_GLOBAL:
-            case OpCode::LOAD_UPVALUE:
                 return StackEffect(0, 1);
 
             // Pop operations: consume 1, produce 0
@@ -98,7 +97,6 @@ namespace vm::optimization::analysis
             case OpCode::STORE_VAR:
             case OpCode::STORE_LOCAL:
             case OpCode::STORE_GLOBAL:
-            case OpCode::STORE_UPVALUE:
                 return StackEffect(1, 0);
 
             // DUP: consume 0, produce 1 (duplicates top)

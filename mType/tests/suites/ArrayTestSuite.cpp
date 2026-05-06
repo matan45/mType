@@ -416,6 +416,13 @@ namespace tests::testSuite
         addTestFromFile("Non-Array Object Cast To Array",
                         errorPath + "objectSubtype/nonArrayObjectCastToArray_error.mt",
                         TestType::ERROR_EXPECTED);
+        // MYT-137: strict declaration-time array invariance. `Animal[] a = new
+        // Dog[1]` must error at compile time — the array-store soundness hole
+        // is closed by rejecting the alias before it can form.
+        addTestFromFile("Array Decl Covariance Strict",
+                        errorPath + "objectSubtype/arrayDeclCovarianceStrict_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Array covariance violation");
 
         // Error tests — store-time invariance pins the soundness boundary
         // and wrong-element casts must throw at runtime. The MYT-279
