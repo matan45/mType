@@ -11,7 +11,7 @@
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
 #include <asmjit/x86.h>
 #include <cassert>
-#include <cstdlib>  // MYT-248/249/250: getenv for MTYPE_DISABLE_INLINING bisect
+#include <cstdlib>  // MYT-252: getenv for MTYPE_DISABLE_INLINE_FIELD_GET/SET (still scoped)
 #include <deque>    // MYT-251: stable storage for interned class names
 #include <string>   // MYT-251
 
@@ -1313,27 +1313,10 @@ namespace vm::jit
         if (nameIndex >= s.program.getConstantPool().strings.size())
             return false;
 
-        static const bool osrInliningEnabled = []() {
-            const char* v = std::getenv("MTYPE_ENABLE_OSR_INLINING");
-            return !(v && v[0] == '0' && v[1] == '\0');
-        }();
-        if (s.isOSRCompilation && !osrInliningEnabled)
-            return false;
-
-        static const bool inliningDisabled = []() {
-            const char* v = std::getenv("MTYPE_DISABLE_INLINING");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (inliningDisabled)
-            return false;
-
-        static const bool disableNestedInlining = []() {
-            const char* v = std::getenv("MTYPE_DISABLE_NESTED_INLINING");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (disableNestedInlining && !s.inlineStack.empty())
-            return false;
-
+        // MYT-248/249/250 kill switches (MTYPE_ENABLE_OSR_INLINING,
+        // MTYPE_DISABLE_INLINING, MTYPE_DISABLE_NESTED_INLINING) removed —
+        // the underlying overrun was fixed in MYT-251 (operand-stack
+        // headroom guards + widened MAX_OP_STACK / INLINE_LOCALS_SLACK).
         if (!s.usesBoxedTypes)
             return false;
 
@@ -1457,35 +1440,12 @@ namespace vm::jit
         //   outer class. Resolves the silent 0xE06D7363
         //   AccessViolationException on stream_pipeline_hot /
         //   reflection_lookup_hot.
-        // Set MTYPE_ENABLE_OSR_INLINING=0 to disable for diagnosis if a
-        // regression resurfaces.
-        static const bool osrInliningEnabled = []() {
-            const char* v = std::getenv("MTYPE_ENABLE_OSR_INLINING");
-            // Default: enabled. Only explicit "0" disables.
-            return !(v && v[0] == '0' && v[1] == '\0');
-        }();
-        const bool isOSRContext = s.isOSRCompilation;
-        if (isOSRContext && !osrInliningEnabled) return false;
-
-        // Global override — MTYPE_DISABLE_INLINING=1 turns off all
-        // speculative inlining (function-level too) for diagnosis or
-        // worst-case fallback. Kept as a permanent debug knob.
-        static const bool inliningDisabled = []() {
-            const char* v = std::getenv("MTYPE_DISABLE_INLINING");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (inliningDisabled) return false;
-
-        // MYT-252: opt-in disable of nested inlining only (depth-1 still
-        // fires; depth-2 falls back to the generic slow path).
-        // Equivalent semantically to INLINE_DEPTH_LIMIT=1 but lets us
-        // toggle without recompiling.
-        static const bool disableNestedInlining = []() {
-            const char* v = std::getenv("MTYPE_DISABLE_NESTED_INLINING");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (disableNestedInlining && !s.inlineStack.empty())
-            return false;
+        // MYT-248/249/250 kill switches removed (see the matching block at
+        // the top of tryEmitInlinedMethodCall): MTYPE_ENABLE_OSR_INLINING,
+        // MTYPE_DISABLE_INLINING, and MTYPE_DISABLE_NESTED_INLINING were
+        // diagnostic gates while the OSR-emitted operand-stack overrun was
+        // unrooted. MYT-251 added headroom guards that make inlining safe
+        // inside OSR; the kill switches were redundant.
 
         if (!s.typeFeedback) return false;
         auto& icTable = s.typeFeedback->getICTable();

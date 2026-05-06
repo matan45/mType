@@ -80,19 +80,20 @@ namespace vm::optimization
     //      Once both are OSR'd, count()'s depth-2 inlined view of
     //      hasNextElement reads it as permanently true.
     //
-    //      Confirmed OSR-specific: MTYPE_DISABLE_OSR=1 + LIMIT=2 +
-    //      M=10 produces the correct total=25000. With OSR off but
-    //      inlining on (function-level JIT), depth-2 inlined chain
+    //      Confirmed OSR-specific (historically): with OSR disabled but
+    //      inlining on (function-level JIT only), depth-2 inlined chain
     //      compiles and runs correctly. The InlineAnalysis decision
     //      sequence is identical between passing (M=4) and hanging
     //      (M=10) runs — the bug is in OSR codegen / re-entry, not
     //      in inline eligibility. Tracked as MYT-254. Cousin of
-    //      MYT-248/249/250 silent-OSR family.
+    //      MYT-248/249/250 silent-OSR family (which itself was rooted
+    //      in operand-stack overrun and fixed in MYT-251).
     //
-    // Workaround for (b) until MYT-254 lands: run with
-    // MTYPE_DISABLE_OSR=1. Other bypasses that also clear the hang:
-    // setting this constant to 0 or 1, MTYPE_DISABLE_NESTED_INLINING=1,
-    // MTYPE_DISABLE_INLINING=1.
+    // Workaround for (b) until MYT-254 lands: lower this constant to 0
+    // or 1, which keeps depth-1 inlining but disables depth-2.
+    // (The OSR/inlining MTYPE_DISABLE_* env vars referenced in earlier
+    // comment revisions were removed alongside MYT-251 — the only
+    // remaining knob is this constant.)
     //
     // The "InlineDepthGuard" hypothesis from earlier comment iterations
     // was unrelated and stays reverted.

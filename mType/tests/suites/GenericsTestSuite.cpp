@@ -551,9 +551,11 @@ namespace tests::testSuite
                     passPath + "recursiveListOfList.mt");
         addOutputVerificationTest("Generic Param Shadowing",
                     passPath + "genericParamShadowing.mt");
-        // TODO MYT-222: re-enable when (T)cast against generic type-param no longer throws.
-        // addOutputVerificationTest("CRTP Self Referential",
-        //             passPath + "crtpSelfReferential.mt");
+        // MYT-222 resolved — `(T)this` cast against a generic type-parameter
+        // resolves through TypeExecutor::handleCastTypeParam, dispatched via
+        // resolveTypeParameter against the receiver's class-level bindings.
+        addOutputVerificationTest("CRTP Self Referential",
+                    passPath + "crtpSelfReferential.mt");
         addOutputVerificationTest("Empty Generic Array",
                     passPath + "emptyGenericArray.mt");
     }
