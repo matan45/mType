@@ -286,6 +286,9 @@
     <Filter Include="testFiles\import\pass\nested">
       <UniqueIdentifier>{DA32A6DF-C6ED-958B-6FA5-0ED65B3FE01B}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\import\pass\staticArrayReturn">
+      <UniqueIdentifier>{3ECECFA0-AA5D-918B-B359-72A31F68CC97}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\import\pass\utils">
       <UniqueIdentifier>{68755526-D482-830C-5D69-7FF7C9754FC3}</UniqueIdentifier>
     </Filter>
@@ -7789,6 +7792,12 @@
     <None Include="tests\testFiles\import\pass\importSpecializedGeneric.mt">
       <Filter>testFiles\import\pass</Filter>
     </None>
+    <None Include="tests\testFiles\import\pass\importStaticArrayReturn.expected">
+      <Filter>testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\importStaticArrayReturn.mt">
+      <Filter>testFiles\import\pass</Filter>
+    </None>
     <None Include="tests\testFiles\import\pass\importStringPrimitive.expected">
       <Filter>testFiles\import\pass</Filter>
     </None>
@@ -7920,6 +7929,9 @@
     </None>
     <None Include="tests\testFiles\import\pass\selective_import_utils.mt">
       <Filter>testFiles\import\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\import\pass\staticArrayReturn\A.mt">
+      <Filter>testFiles\import\pass\staticArrayReturn</Filter>
     </None>
     <None Include="tests\testFiles\import\pass\test_public_array_object_import.expected">
       <Filter>testFiles\import\pass</Filter>
@@ -11692,6 +11704,9 @@
     <None Include="tests\testFiles\typeChecking\error\objectReturnTypesWrongObjectType.mt">
       <Filter>testFiles\typeChecking\error</Filter>
     </None>
+    <None Include="tests\testFiles\typeChecking\error\returnStaticArrayWrongType_error.mt">
+      <Filter>testFiles\typeChecking\error</Filter>
+    </None>
     <None Include="tests\testFiles\typeChecking\error\staticMethodNamingConventionError.mt">
       <Filter>testFiles\typeChecking\error</Filter>
     </None>
@@ -11915,6 +11930,12 @@
       <Filter>testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\objectReturnTypesStaticMethods.mt">
+      <Filter>testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\returnStaticArrayCall.expected">
+      <Filter>testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\returnStaticArrayCall.mt">
       <Filter>testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\sameTypeAssignment.expected">

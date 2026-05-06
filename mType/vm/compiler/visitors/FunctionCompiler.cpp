@@ -411,6 +411,27 @@ namespace vm::compiler::visitors
                         }
                     }
                 }
+                // MYT-278: ARRAY-vs-ARRAY needs element-type comparison via class name,
+                // mirroring the assignment path which calls validateAssignment with the
+                // array class name (e.g. "string[]" vs "int[]").
+                else if (expectedType == value::ValueType::ARRAY && actualType == value::ValueType::ARRAY)
+                {
+                    std::string actualClassName = ctx.typeInference.inferExpressionClassName(returnValue);
+
+                    bool isGenericArrayReturn = (expectedReturnType == "Array" || expectedReturnType.find("Array<") ==
+                        0);
+                    bool isConcreteArrayReturn = actualClassName.find("[]") != std::string::npos;
+
+                    if (!(isGenericArrayReturn && isConcreteArrayReturn) && !actualClassName.empty())
+                    {
+                        bool isNullValue = ctx.typeInference.isEffectivelyNullLiteral(returnValue);
+                        ctx.typeValidator.validateAssignment(
+                            expectedType, expectedReturnType,
+                            actualType, actualClassName,
+                            isNullValue, node->getLocation()
+                        );
+                    }
+                }
             }
         }
         else

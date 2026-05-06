@@ -214,10 +214,16 @@ namespace vm::compiler::types
             return value::ValueType::VOID;
         }
         if (funcMetadata && !funcMetadata->returnType.empty()) {
-            if (funcMetadata->returnType == "int") return value::ValueType::INT;
-            if (funcMetadata->returnType == "float") return value::ValueType::FLOAT;
-            if (funcMetadata->returnType == "string") return value::ValueType::STRING;
-            if (funcMetadata->returnType == "bool") return value::ValueType::BOOL;
+            const std::string& returnType = funcMetadata->returnType;
+            if (returnType == "int") return value::ValueType::INT;
+            if (returnType == "float") return value::ValueType::FLOAT;
+            if (returnType == "string") return value::ValueType::STRING;
+            if (returnType == "bool") return value::ValueType::BOOL;
+            if (returnType == "void") return value::ValueType::VOID;
+            if (returnType.find("[]") != std::string::npos ||
+                returnType.find("Array<") == 0) {
+                return value::ValueType::ARRAY;
+            }
             return value::ValueType::OBJECT;
         }
         return value::ValueType::VOID;

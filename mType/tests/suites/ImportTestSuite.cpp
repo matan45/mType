@@ -122,6 +122,14 @@ namespace tests::testSuite
         addOutputVerificationTest("Import With Dot Slash",
                         "mType/tests/testFiles/import/pass/importWithDotSlash.mt");
 
+        // MYT-278: cross-file static method returning typed array, returned directly
+        addOutputVerificationTest("Import Static Array Return",
+                        "mType/tests/testFiles/import/pass/importStaticArrayReturn.mt");
+        // MYT-278 (negative): returning string[] from an int[]-typed function must error
+        addTestFromFile("Import Static Array Wrong Type Return Error",
+                        "mType/tests/testFiles/import/error/importStaticArrayWrongTypeReturn_error.mt",
+                        TestType::ERROR_EXPECTED);
+
         // === DEPENDENCY TESTS (4 tests) ===
         addOutputVerificationTest("Import Diamond Dependency",
                         "mType/tests/testFiles/import/pass/importDiamondDependency.mt");

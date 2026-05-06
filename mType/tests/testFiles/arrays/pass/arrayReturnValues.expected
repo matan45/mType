@@ -9,4 +9,6 @@ String array from function:
   strings[0] = First
   strings[1] = Second
   strings[2] = Third
+wrapped[0] = 7
+wrapped[1] = 14
 Array return values test completed

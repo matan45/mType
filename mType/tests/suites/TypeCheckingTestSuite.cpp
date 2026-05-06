@@ -51,6 +51,9 @@ namespace tests::testSuite
                         passPath + "objectReturnTypesStaticMethods.mt");
         addOutputVerificationTest("Object Return Types Nested Objects",
                         passPath + "objectReturnTypesNestedObjects.mt");
+        // MYT-278: return of a typed-array static call from a typed-array function
+        addOutputVerificationTest("Return Static Array Call",
+                        passPath + "returnStaticArrayCall.mt");
 
         // String handling edge case tests
         addOutputVerificationTest("String Concatenation with Null Objects",
