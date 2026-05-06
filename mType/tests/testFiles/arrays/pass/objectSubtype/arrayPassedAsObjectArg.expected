@@ -1,0 +1,6 @@
+Testing array passed through Object parameters
+describe(int[]): int[]
+describe(string[]): string[]
+After roundtrip back[0]: 100
+Length preserved: 2
+Done

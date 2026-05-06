@@ -1,0 +1,5 @@
+Testing multidim array as Object
+back[0][0] = 1
+back[1][2] = 6
+Outer length: 2
+Done

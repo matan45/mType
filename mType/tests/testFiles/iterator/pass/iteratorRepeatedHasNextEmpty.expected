@@ -1,0 +1,5 @@
+Testing repeated hasNext on empty:
+call 1: false
+call 2: false
+call 3: false
+repeated hasNext empty test passed!

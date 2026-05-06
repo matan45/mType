@@ -1,0 +1,9 @@
+Testing terminals on empty stream:
+count: 0
+anyMatch: false
+allMatch: true
+noneMatch: true
+toArray length: 0
+forEach output:
+forEach done
+Stream empty terminals test passed!

@@ -1,0 +1,4 @@
+Testing HashMap resize preserves keys:
+size: 30
+hits: 30
+HashMap resize keeps all keys test passed!

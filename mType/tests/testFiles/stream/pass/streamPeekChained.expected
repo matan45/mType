@@ -1,0 +1,9 @@
+Testing peek after filter:
+peek:2
+peek:3
+peek:4
+result:
+20
+30
+40
+Stream peek chained test passed!

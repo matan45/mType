@@ -1,0 +1,7 @@
+Testing array in List<Object>
+Bag size: 2
+First element [0]: 100
+First element [1]: 200
+Second element [0]: foo
+Second element [1]: bar
+Done

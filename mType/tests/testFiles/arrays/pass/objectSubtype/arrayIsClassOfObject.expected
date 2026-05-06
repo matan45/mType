@@ -1,0 +1,4 @@
+Testing array isClassOf Object
+int[] is Object: yes
+string[] is Object: yes
+Done

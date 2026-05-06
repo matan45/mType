@@ -224,8 +224,14 @@ namespace vm::runtime
         if (array->getElementType() == value::ValueType::OBJECT) {
             std::string expectedTypeName = array->getElementTypeName();
 
+            // MYT-281: `Object[]` is the universal heap-typed slot — any class
+            // instance or array Value may be stored. Skip the strict
+            // element-type comparison below; soundness for narrower targets
+            // (`String[]`, `Animal[]`) is still enforced by the same check.
+            const bool isObjectSlot = (expectedTypeName == "Object");
+
             // Check for array-to-array assignment (e.g., int[][] where string[] is assigned to int[] slot)
-            if (value::isNativeArray(valueToSet)) {
+            if (!isObjectSlot && value::isNativeArray(valueToSet)) {
                 auto valueArray = value::asNativeArray(valueToSet);
                 std::string actualArrayElementType = valueArray->getElementTypeName();
                 value::ValueType actualElementValueType = valueArray->getElementType();

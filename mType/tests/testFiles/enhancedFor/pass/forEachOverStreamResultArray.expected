@@ -1,0 +1,6 @@
+Testing for-each over stream result:
+2
+4
+6
+sum: 12
+for-each over stream result test passed!

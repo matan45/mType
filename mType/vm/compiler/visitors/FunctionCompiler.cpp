@@ -279,6 +279,46 @@ namespace vm::compiler::visitors
         return callHelper->compileFunctionCall(node);
     }
 
+    bool FunctionCompiler::isGenericParamWithPossiblyNullableInstantiation(
+        const std::string& name) const
+    {
+        // Returns: -1 not found in this scope, 0 found-and-bound-non-nullable, 1 found-and-may-be-nullable.
+        // If ANY constraint is non-nullable, null cannot satisfy that constraint at any
+        // instantiation — so the parameter cannot legally be null.
+        auto check = [&](const std::vector<ast::GenericTypeParameter>& params) -> int {
+            for (const auto& p : params)
+            {
+                if (p.name != name) continue;
+                if (p.constraints.empty()) return 1;
+                for (const auto& c : p.constraints)
+                {
+                    if (::types::TypeConversionUtils::isNullableType(c)) return 1;
+                }
+                return 0;
+            }
+            return -1;
+        };
+
+        if (ctx.currentFunctionNode && ctx.currentFunctionNode->isGeneric())
+        {
+            int r = check(ctx.currentFunctionNode->getGenericTypeParameters());
+            if (r != -1) return r == 1;
+        }
+        // MethodCompiler does not push a T->T self-mapping like FunctionCompiler does
+        // (project_method_compiler_no_self_mapping.md), so walk method/class explicitly.
+        if (ctx.currentMethodNode && ctx.currentMethodNode->isGeneric())
+        {
+            int r = check(ctx.currentMethodNode->getGenericTypeParameters());
+            if (r != -1) return r == 1;
+        }
+        if (ctx.currentClassNode && ctx.currentClassNode->isGeneric())
+        {
+            int r = check(ctx.currentClassNode->getGenericParameters());
+            if (r != -1) return r == 1;
+        }
+        return false;
+    }
+
     void FunctionCompiler::validateReturnType(ast::ReturnNode* node, ast::ASTNode* returnValue)
     {
         if (!ctx.functionFrameManager.isInFunction())
@@ -300,10 +340,17 @@ namespace vm::compiler::visitors
 
         if (returnValue)
         {
-            // Null safety enforcement: reject nullable returns from non-nullable return types
-            // Skip for generic type parameters (T, K, V, etc.) since they may be nullable at instantiation
-            bool isGenericReturnType = ::types::TypeConversionUtils::isGenericTypeParameter(expectedReturnType);
-            if (!returnTypeNullable && !isGenericReturnType && ctx.typeInference.inferExpressionNullable(returnValue))
+            // Null safety enforcement: reject nullable returns from non-nullable return types.
+            // MYT-280: only skip when the return type is a generic parameter that COULD
+            // be instantiated nullable (unbound, or any constraint nullable). A T bound
+            // by a non-nullable type cannot be null at any legal instantiation, so the
+            // skip used to swallow `return null;` from `<T extends Animal>` silently.
+            // The cheap syntactic gate stays as a fast-path (skips the helper for any
+            // type name that isn't a single uppercase letter).
+            bool skipForGeneric =
+                ::types::TypeConversionUtils::isGenericTypeParameter(expectedReturnType)
+                && isGenericParamWithPossiblyNullableInstantiation(expectedReturnType);
+            if (!returnTypeNullable && !skipForGeneric && ctx.typeInference.inferExpressionNullable(returnValue))
             {
                 throw errors::TypeException(
                     "Cannot return nullable value from function with non-nullable return type '" +
@@ -373,6 +420,16 @@ namespace vm::compiler::visitors
                                 {
                                     canAutoBox = true;
                                 }
+
+                                // MYT-281: arrays widen to `Object` on return as
+                                // they do on assignment / parameter passing.
+                                // `function f(): Object { return arr; }` must
+                                // type-check.
+                                if (expectedReturnType == "Object" &&
+                                    actualType == value::ValueType::ARRAY)
+                                {
+                                    canAutoBox = true;
+                                }
                             }
 
                             if (!canAutoBox)
@@ -409,6 +466,27 @@ namespace vm::compiler::visitors
                                 isNullValue, node->getLocation()
                             );
                         }
+                    }
+                }
+                // MYT-278: ARRAY-vs-ARRAY needs element-type comparison via class name,
+                // mirroring the assignment path which calls validateAssignment with the
+                // array class name (e.g. "string[]" vs "int[]").
+                else if (expectedType == value::ValueType::ARRAY && actualType == value::ValueType::ARRAY)
+                {
+                    std::string actualClassName = ctx.typeInference.inferExpressionClassName(returnValue);
+
+                    bool isGenericArrayReturn = (expectedReturnType == "Array" || expectedReturnType.find("Array<") ==
+                        0);
+                    bool isConcreteArrayReturn = actualClassName.find("[]") != std::string::npos;
+
+                    if (!(isGenericArrayReturn && isConcreteArrayReturn) && !actualClassName.empty())
+                    {
+                        bool isNullValue = ctx.typeInference.isEffectivelyNullLiteral(returnValue);
+                        ctx.typeValidator.validateAssignment(
+                            expectedType, expectedReturnType,
+                            actualType, actualClassName,
+                            isNullValue, node->getLocation()
+                        );
                     }
                 }
             }

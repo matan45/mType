@@ -1,0 +1,4 @@
+Testing HashSet resize preserves elements:
+size: 30
+hits: 30
+HashSet resize keeps all elements test passed!

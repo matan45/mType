@@ -410,12 +410,11 @@ namespace runtimeTypes::klass
 
             const auto& paramType = parameters[i].second;
 
-            // Use class name if it's an object, otherwise use basic type display name
-            if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value()) {
-                signature += paramType.className.value();
-            } else {
-                signature += ::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType);
-            }
+            // MYT-282: route through the ParameterType overload so ARRAY-tag
+            // parameters serialize as `int[]`, `Animal[]`, etc. (instead of
+            // collapsing to "array"), preserving overload-resolution keys
+            // for array-typed methods.
+            signature += ::types::TypeConversionUtils::getTypeDisplayName(paramType);
         }
         return signature;
     }

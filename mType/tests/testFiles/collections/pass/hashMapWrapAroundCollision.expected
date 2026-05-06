@@ -1,0 +1,10 @@
+Testing wrap-around collision back-shift:
+get k1: A
+get k2: B
+get k3: C
+after remove k1, size: 2
+contains k2: true
+get k2: B
+contains k3: true
+get k3: C
+HashMap wrap-around collision test passed!

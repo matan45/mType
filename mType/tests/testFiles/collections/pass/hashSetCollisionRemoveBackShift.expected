@@ -1,0 +1,7 @@
+Testing HashSet collision remove back-shift:
+size before: 3
+size after remove: 2
+contains k2: true
+contains k3: true
+contains k1: false
+HashSet collision remove back-shift test passed!

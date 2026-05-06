@@ -416,6 +416,53 @@ namespace vm::runtime
         // Pop value to cast
         value::Value val = context.stackManager->pop();
 
+        // MYT-281: array values flow through Object slots and back. `(Object)arr`
+        // is an identity cast; `(T[])obj` is identity when the receiver is the
+        // matching array (preserves NativeArray bridge), or an error when the
+        // narrow element type disagrees. Never funnel an array through
+        // castToObject — that would try to materialize an ObjectInstance.
+        if (val.tag() == value::ValueType::ARRAY) {
+            if (targetTypeName == "Object") {
+                context.stackManager->push(val);
+                return;
+            }
+            // Target is an array type (`T[]`, `T[][]`, ...) — identity cast
+            // when the runtime element type matches. NativeArray exposes the
+            // element name; multi-dim variants only validate against `Object`
+            // in v1 and pass through for matching array-shaped targets.
+            const bool targetIsArrayType =
+                targetTypeName.size() >= 2 &&
+                targetTypeName.compare(targetTypeName.size() - 2, 2, "[]") == 0;
+            if (targetIsArrayType) {
+                if (value::isNativeArray(val)) {
+                    auto arr = value::asNativeArray(val);
+                    std::string fullName = arr->getElementTypeName() + "[]";
+                    if (fullName == targetTypeName) {
+                        context.stackManager->push(val);
+                        return;
+                    }
+                    utils::ErrorLocationHelper::throwUserException(context,
+                        "ClassCastException",
+                        "cannot cast " + fullName + " to " + targetTypeName);
+                }
+                // FIXME(MYT-281): multi-dimensional array cast is best-effort.
+                // FlatMultiArray and SparseMultiArray do NOT expose
+                // getElementTypeName() / dim-precise reconstruction yet, so
+                // `(int[][])obj` where obj holds an `int[]` (1D) succeeds
+                // silently when it should throw ClassCastException. Soundness
+                // hole limited to the multi-dim downcast path; 1D casts via
+                // the NativeArray branch above validate correctly. Tracked
+                // as a known limitation; precise multi-dim cast validation
+                // requires the multi-dim bridges to grow an element-name
+                // accessor first.
+                context.stackManager->push(val);
+                return;
+            }
+            utils::ErrorLocationHelper::throwUserException(context,
+                "ClassCastException",
+                "cannot cast array to " + targetTypeName);
+        }
+
         // Perform casting based on target type
         if (targetTypeName == "Int" || targetTypeName == "int") {
             context.stackManager->push(castToInt(val));
@@ -455,6 +502,25 @@ namespace vm::runtime
         const value::Value& val,
         const std::string& targetTypeName,
         environment::Environment* env) {
+        // MYT-281: arrays participate as `Object` subtypes. `arr isClassOf Object`
+        // is true for any array-shaped Value; `arr isClassOf T[]` is true when
+        // the runtime element type matches. NativeArray exposes the element
+        // type name directly; multi-dim variants only support the `Object`
+        // branch in v1 (precise T[][] matching is a documented follow-up).
+        if (val.tag() == value::ValueType::ARRAY) {
+            if (targetTypeName == "Object") {
+                return true;
+            }
+            if (value::isNativeArray(val)) {
+                auto arr = value::asNativeArray(val);
+                std::string fullName = arr->getElementTypeName() + "[]";
+                if (fullName == targetTypeName) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         // Object type check.
         // MYT-208: accept STACK_OBJECT — instanceof on a stack-promoted local
         // is a routine pattern (e.g. `if (p isClassOf Point)`).

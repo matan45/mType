@@ -4,6 +4,7 @@
 #include "../../bytecode/OpCode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
+#include "../../MethodSignature.hpp"
 #include "../validation/ReturnPathValidator.hpp"
 #include <iostream>
 namespace vm::compiler::visitors
@@ -429,38 +430,17 @@ namespace vm::compiler::visitors
         // Patch skip jump to current position (after method)
         ctx.emitter.patchJump(skipJump);
 
-        // Build qualified method name for registry with overload signature
-        // Instance methods: ClassName::methodName/paramType1,paramType2
-        // Static methods: ClassName::methodName/paramType1,paramType2$static
+        // Build qualified method name via MethodSignature so the format stays
+        // in lockstep with ClassRegistrar's MYT-279 pre-registration. Skip
+        // "this" for instance methods — it's added implicitly during compile.
         std::string qualifiedMethodName = node->getName();
         if (ctx.currentClassNode)
         {
-            // Build mangled name with parameter signature
-            std::string className = ctx.currentClassNode->getClassName();
-            std::string methodName = node->getName();
-
-            // Generate type signature from parameter types
-            // IMPORTANT: Skip "this" parameter for instance methods (it's added implicitly)
-            std::string typeSignature = "";
-            size_t startIndex = (isStatic ? 0 : 1); // Skip "this" for instance methods
-            for (size_t i = startIndex; i < params.paramTypes.size(); ++i)
-            {
-                if (i > startIndex) typeSignature += ",";
-                typeSignature += params.paramTypes[i];
-            }
-
-            // Only add slash if we have a signature
-            if (typeSignature.empty()) {
-                qualifiedMethodName = className + "::" + methodName;
-            } else {
-                qualifiedMethodName = className + "::" + methodName + "/" + typeSignature;
-            }
-
-            // Add suffix to distinguish static from instance methods
-            if (isStatic)
-            {
-                qualifiedMethodName += "$static";
-            }
+            std::vector<std::string> sigTypes(
+                params.paramTypes.begin() + (isStatic ? 0 : 1),
+                params.paramTypes.end());
+            qualifiedMethodName = vm::MethodSignature(node->getName(), sigTypes)
+                .toMangledName(ctx.currentClassNode->getClassName(), isStatic);
         }
 
         // Update method metadata (preserving exception table from body compilation)
@@ -565,35 +545,18 @@ namespace vm::compiler::visitors
         // Collect method parameters and return type
         MethodParameters params = collectMethodParameters(node, isStatic);
 
-        // Pre-register method metadata so exception tables can be added during body compilation
-        // Build mangled name with parameter signature for overload resolution
+        // Pre-register method metadata so exception tables can be added during body compilation.
+        // Routed through MethodSignature so the mangled name matches both
+        // finalizeMethodCompilation's overwrite and ClassRegistrar's MYT-279
+        // pre-registration. Skip "this" for instance methods.
         std::string qualifiedMethodName = node->getName();
         if (ctx.currentClassNode)
         {
-            std::string className = ctx.currentClassNode->getClassName();
-            std::string methodName = node->getName();
-
-            // Generate type signature from parameter types
-            // IMPORTANT: Skip "this" parameter for instance methods (it's added implicitly)
-            std::string typeSignature = "";
-            size_t startIndex = (isStatic ? 0 : 1); // Skip "this" for instance methods
-            for (size_t i = startIndex; i < params.paramTypes.size(); ++i)
-            {
-                if (i > startIndex) typeSignature += ",";
-                typeSignature += params.paramTypes[i];
-            }
-
-            // Only add slash if we have a signature
-            if (typeSignature.empty()) {
-                qualifiedMethodName = className + "::" + methodName;
-            } else {
-                qualifiedMethodName = className + "::" + methodName + "/" + typeSignature;
-            }
-
-            if (isStatic)
-            {
-                qualifiedMethodName += "$static";
-            }
+            std::vector<std::string> sigTypes(
+                params.paramTypes.begin() + (isStatic ? 0 : 1),
+                params.paramTypes.end());
+            qualifiedMethodName = vm::MethodSignature(node->getName(), sigTypes)
+                .toMangledName(ctx.currentClassNode->getClassName(), isStatic);
         }
 
         bytecode::BytecodeProgram::FunctionMetadata tempMetadata;
@@ -661,15 +624,12 @@ namespace vm::compiler::visitors
         std::string className = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
 
         // Build type signature from parameters
+        // MYT-282: ParameterType overload — preserves `int[]` etc. for
+        // ARRAY-tag parameters in constructor overload-resolution keys.
         std::string typeSignature;
         for (size_t i = 0; i < params.size(); ++i) {
             if (i > 0) typeSignature += ",";
-            const auto& paramType = params[i].second;
-            if (paramType.basicType == value::ValueType::OBJECT && paramType.className.has_value()) {
-                typeSignature += paramType.className.value();
-            } else {
-                typeSignature += ::types::TypeConversionUtils::getTypeDisplayName(paramType.basicType);
-            }
+            typeSignature += ::types::TypeConversionUtils::getTypeDisplayName(params[i].second);
         }
 
         // Only add slash if we have a signature

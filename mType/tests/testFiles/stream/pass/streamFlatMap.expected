@@ -1,0 +1,7 @@
+Testing flatMap with mixed inner streams:
+1
+2
+3
+4
+5
+Stream flatMap test passed!

@@ -12,6 +12,13 @@ namespace value {
         ValueType basicType;                    // INT, FLOAT, BOOL, STRING, OBJECT, etc.
         std::optional<std::string> interfaceName;  // Interface name if basicType is OBJECT
         std::optional<std::string> className;      // Class name if basicType is OBJECT
+        // MYT-282: precise array form for ARRAY-tag parameters, e.g. "int[]",
+        // "Animal[]", "string[][]". Set by ParameterType::forArray; read by
+        // toString() and TypeConversionUtils::getTypeDisplayName(ParameterType)
+        // so signatures, error messages, and overload-resolution keys
+        // distinguish `int[]` from `string[]` instead of collapsing both to
+        // "array".
+        std::optional<std::string> arrayElementTypeName;
         bool nullable = false;                     // Whether this parameter accepts null
 
         // Default constructor for basic types
@@ -34,6 +41,45 @@ namespace value {
             ParameterType param(ValueType::OBJECT);
             param.interfaceName = interfaceName;
             return param;
+        }
+
+        // MYT-282: array constructor — preserves the precise array form so
+        // signatures and error messages don't coarsen to "array". The full
+        // form (e.g. "int[]", "Animal[][]") is stored verbatim; callers
+        // that need the element type strip the trailing "[]" via
+        // getElementTypeName().
+        static ParameterType forArray(const std::string& fullArrayTypeName) {
+            ParameterType param(ValueType::ARRAY);
+            param.arrayElementTypeName = fullArrayTypeName;
+            return param;
+        }
+
+        // Check if this parameter is a typed array.
+        bool isArray() const {
+            return basicType == ValueType::ARRAY && arrayElementTypeName.has_value();
+        }
+
+        // Get the array's full type name (e.g. "int[]", "Animal[][]"). Throws
+        // if this is not an array parameter.
+        const std::string& getArrayTypeName() const {
+            if (!arrayElementTypeName.has_value()) {
+                throw errors::TypeResolutionException("Parameter is not an array type");
+            }
+            return arrayElementTypeName.value();
+        }
+
+        // Get the element type with one set of brackets stripped (e.g. "int"
+        // for "int[]", "int[]" for "int[][]"). Returns empty string if not
+        // an array or the stored form is malformed. Centralizes the
+        // trailing-"[]" splitting that callers would otherwise repeat.
+        std::string getElementTypeName() const {
+            if (!arrayElementTypeName.has_value()) return {};
+            const std::string& full = arrayElementTypeName.value();
+            if (full.size() < 2 ||
+                full.compare(full.size() - 2, 2, "[]") != 0) {
+                return {};
+            }
+            return full.substr(0, full.size() - 2);
         }
 
         // Check if this parameter represents an interface
@@ -69,6 +115,9 @@ namespace value {
                 base = interfaceName.value();
             } else if (isClass()) {
                 base = className.value();
+            } else if (basicType == ValueType::ARRAY && arrayElementTypeName.has_value()) {
+                // MYT-282: precise array form when available.
+                base = arrayElementTypeName.value();
             } else {
                 switch (basicType) {
                     case ValueType::INT: base = "int"; break;
@@ -92,6 +141,7 @@ namespace value {
             return basicType == other.basicType &&
                    interfaceName == other.interfaceName &&
                    className == other.className &&
+                   arrayElementTypeName == other.arrayElementTypeName &&
                    nullable == other.nullable;
         }
 

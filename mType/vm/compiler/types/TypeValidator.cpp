@@ -266,6 +266,14 @@ namespace vm::compiler::types
             return; // Auto-boxing will handle this
         }
 
+        // MYT-281: arrays widen to `Object` (the universal heap-typed slot).
+        // The runtime preserves the array bridge through Object-typed
+        // variables, fields, and parameters; round-trip narrowing goes
+        // through `(T[])obj` which validates element type at the cast.
+        if (varClassName == "Object" && valueType == value::ValueType::ARRAY) {
+            return;
+        }
+
         // Reject primitive values when OBJECT with specific class is expected
         if (!varClassName.empty()) {
             std::string valueTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(valueType);

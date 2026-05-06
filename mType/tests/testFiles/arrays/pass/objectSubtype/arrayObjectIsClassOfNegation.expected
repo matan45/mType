@@ -1,0 +1,7 @@
+Testing array isClassOf negation
+positive int[]: yes
+negation string[]: ok
+positive Object: yes
+negation int[] for string[]: ok
+positive string[] for string[]: yes
+Done

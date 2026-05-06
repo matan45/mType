@@ -332,5 +332,93 @@ namespace tests::testSuite
                         passPath + "emptyArrayLengthAndIteration.mt");
         addOutputVerificationTest("Array Of Lambdas",
                         passPath + "arrayOfLambdas.mt");
+
+        // === MYT-281: arrays as Object subtypes ===
+        // Pass tests — Object widening, isClassOf Object, (T[])obj round-trip,
+        // List<Object> storage, multi-dim Object widening, primitive
+        // element preservation through Object slots. The Object-method
+        // dispatch (arr.toString()/equals/hashCode) is deferred to a
+        // follow-up that lands the type-checker side; that single test is
+        // not in this set.
+        addOutputVerificationTest("Array Assign To Object",
+                        passPath + "objectSubtype/arrayAssignToObject.mt");
+        addOutputVerificationTest("Array Assign To Object Field",
+                        passPath + "objectSubtype/arrayAssignToObjectField.mt");
+        addOutputVerificationTest("Array IsClassOf Object",
+                        passPath + "objectSubtype/arrayIsClassOfObject.mt");
+        addOutputVerificationTest("Array IsClassOf Self",
+                        passPath + "objectSubtype/arrayIsClassOfSelf.mt");
+        addOutputVerificationTest("Array Downcast From Object",
+                        passPath + "objectSubtype/arrayDowncastFromObject.mt");
+        addOutputVerificationTest("Array Length Still Works",
+                        passPath + "objectSubtype/arrayLengthStillWorks.mt");
+        addOutputVerificationTest("Array Object Identity",
+                        passPath + "objectSubtype/arrayObjectIdentity.mt");
+        addOutputVerificationTest("Array Boxing Primitive Element",
+                        passPath + "objectSubtype/arrayBoxingPrimitiveElement.mt");
+        addOutputVerificationTest("Multidim Array As Object",
+                        passPath + "objectSubtype/multidimArrayAsObject.mt");
+        addOutputVerificationTest("Array In List Of Object",
+                        passPath + "objectSubtype/arrayInListOfObject.mt");
+        // MYT-282: deferred tests now registered.
+        addOutputVerificationTest("Array In Generic Object Param",
+                        passPath + "objectSubtype/arrayInGenericObjectParam.mt");
+        addOutputVerificationTest("Array Object Methods Callable",
+                        passPath + "objectSubtype/arrayObjectMethodsCallable.mt");
+
+        // MYT-281/282 edge cases — Object-method dispatch across element
+        // types, cross-feature widening (returns / fields / generics),
+        // mixed Object[] storage, equality / hashCode semantics,
+        // isClassOf negation, multi-stage Object pass-through.
+        addOutputVerificationTest("Array Object Methods Across Types",
+                        passPath + "objectSubtype/arrayObjectMethodsAcrossTypes.mt");
+        addOutputVerificationTest("Array Object Methods Object Element",
+                        passPath + "objectSubtype/arrayObjectMethodsObjectElement.mt");
+        addOutputVerificationTest("Array Returned As Object",
+                        passPath + "objectSubtype/arrayReturnedAsObject.mt");
+        addOutputVerificationTest("Array In Class Field List",
+                        passPath + "objectSubtype/arrayInClassFieldList.mt");
+        addOutputVerificationTest("Mixed Object Array With Arrays And Instances",
+                        passPath + "objectSubtype/mixedObjectArrayWithArraysAndInstances.mt");
+        addOutputVerificationTest("Array Object Equals Reference Semantics",
+                        passPath + "objectSubtype/arrayObjectEqualsReferenceSemantics.mt");
+        addOutputVerificationTest("Array Object IsClassOf Negation",
+                        passPath + "objectSubtype/arrayObjectIsClassOfNegation.mt");
+        addOutputVerificationTest("Array Passed As Object Arg",
+                        passPath + "objectSubtype/arrayPassedAsObjectArg.mt");
+        addOutputVerificationTest("Array HashCode Stable",
+                        passPath + "objectSubtype/arrayHashCodeStable.mt");
+
+        // Edge-case error tests — wrong-target casts after Object widening.
+        addTestFromFile("Array Cast To Concrete Class",
+                        errorPath + "objectSubtype/arrayCastToConcreteClass_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Array Cast To Wrong Dimensions",
+                        errorPath + "objectSubtype/arrayCastToWrongDimensions_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Non-Array Object Cast To Array",
+                        errorPath + "objectSubtype/nonArrayObjectCastToArray_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // Error tests — store-time invariance pins the soundness boundary
+        // and wrong-element casts must throw at runtime. The MYT-279
+        // metadata regression for primitive-element store wrong-type is
+        // already covered by the existing arrayDimensionTypeCheck.mt test
+        // (int[][] slot rejecting string[]); a top-level
+        // `int[] a; a[0] = "x"` does NOT error today (NativeArray
+        // setUnchecked falls back to heterogeneous storage), so no test is
+        // pinned here for that surface.
+        addTestFromFile("Array Store Invariance",
+                        errorPath + "objectSubtype/arrayStoreInvariance_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Array Downcast Wrong Element",
+                        errorPath + "objectSubtype/arrayDowncastWrongElement_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Array Alias Invariance",
+                        errorPath + "objectSubtype/arrayAliasInvariance_error.mt",
+                        TestType::ERROR_EXPECTED);
+        // arrayDeclCovarianceStrict_error.mt is intentionally left
+        // unregistered: it pins MYT-137 strict-invariance, which is blocked
+        // on array-literal target-type inference. Flip on with MYT-137.
     }
 }

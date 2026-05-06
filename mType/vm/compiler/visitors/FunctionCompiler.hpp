@@ -50,5 +50,13 @@ namespace vm::compiler::visitors
 
         // Type validation helper
         bool isValidTypeName(const std::string& typeName, const std::vector<std::string>& validGenericParams);
+
+        // MYT-280: returns true iff `name` is a generic type parameter currently
+        // in scope (free function, method, or enclosing class) AND that parameter
+        // MAY be instantiated with a nullable type — i.e. it has no constraint
+        // or any of its constraints is nullable. Returns false when the name is
+        // not a generic parameter in scope (caller falls through to normal
+        // validation) or when every constraint is non-nullable.
+        bool isGenericParamWithPossiblyNullableInstantiation(const std::string& name) const;
     };
 }

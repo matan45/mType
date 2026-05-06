@@ -1,0 +1,6 @@
+Testing array returned as Object
+Int[] back[0]: 10
+Int[] back length: 3
+String[] back[0]: hello
+String[] back[1]: world
+Done

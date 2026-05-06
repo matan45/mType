@@ -1,0 +1,8 @@
+Testing array Object methods across element types
+string toString: string[2]
+string getClass: string[]
+bool toString: bool[3]
+bool getClass: bool[]
+float toString: float[1]
+float getClass: float[]
+Done

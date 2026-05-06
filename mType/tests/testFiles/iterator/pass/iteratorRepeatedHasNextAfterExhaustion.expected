@@ -1,0 +1,6 @@
+Testing hasNext after exhaustion:
+1
+2
+post-drain 1: false
+post-drain 2: false
+hasNext after exhaustion test passed!

@@ -1,0 +1,5 @@
+Testing array length still works
+Direct length: 5
+After round-trip length: 5
+2D outer length: 3
+Done

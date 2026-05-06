@@ -1,0 +1,5 @@
+Testing noneMatch:
+none > 10 in [1,2,3]: true
+none > 10 in [1,2,11]: false
+none > 10 in []: true
+Stream noneMatch test passed!

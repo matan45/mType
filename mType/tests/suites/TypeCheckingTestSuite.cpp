@@ -51,6 +51,21 @@ namespace tests::testSuite
                         passPath + "objectReturnTypesStaticMethods.mt");
         addOutputVerificationTest("Object Return Types Nested Objects",
                         passPath + "objectReturnTypesNestedObjects.mt");
+        // MYT-278: return of a typed-array static call from a typed-array function
+        addOutputVerificationTest("Return Static Array Call",
+                        passPath + "returnStaticArrayCall.mt");
+
+        // === Asymmetry edge cases (Tier A) — return vs assignment, free fn vs method ===
+        addOutputVerificationTest("Return Ternary Asymmetry (Nullable)",
+                        passPath + "typeReturnTernaryAsymmetry_pass.mt");
+        addOutputVerificationTest("Free Function vs Static Method Generic Inference",
+                        passPath + "typeFreeFunctionVsStaticGeneric_pass.mt");
+        addTestFromFile("Return Nullable to Non-Nullable Error",
+                        errorPath + "typeReturnNullableToNonNullable_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Async Return Inner Array Mismatch Error",
+                        errorPath + "typeAsyncReturnInnerArrayMismatch_error.mt",
+                        TestType::ERROR_EXPECTED);
 
         // String handling edge case tests
         addOutputVerificationTest("String Concatenation with Null Objects",
@@ -201,6 +216,37 @@ namespace tests::testSuite
                         passPath + "typeMixedSerialization_pass.mt");
 
         // === ADDITIONAL ERROR TESTS (19 tests) ===
+        // === Escape-hatch edge cases (Tier B) — paths with `// skip validation` ===
+        addTestFromFile("Array Mixed Format Mismatch Error",
+                        errorPath + "typeArrayMixedFormatMismatch_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Auto-Box Object To Wrong Primitive Error",
+                        errorPath + "typeAutoBoxObjectToWrongPrimitive_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Generic Return Null Violates Bound Error",
+                        errorPath + "typeGenericReturnNullViolatesBound_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Static Method Same-File Wrong Type Return Error",
+                        errorPath + "staticMethodSameFileWrongTypeReturn_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Array Literal Incompatible Element Error",
+                        errorPath + "typeArrayLiteralIncompatibleElement_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === Advanced-features error coverage (Tier C) ===
+        addTestFromFile("Structural Incompatible Class Error",
+                        errorPath + "typeStructuralIncompatibleClass_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Subclass Method on Base Variable Error",
+                        errorPath + "typeSubclassMethodOnBaseVar_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Missing Interface Method Error",
+                        errorPath + "typeMissingInterfaceMethod_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Nullable Member Access Without Check Error",
+                        errorPath + "typeNullableMemberAccessWithoutCheck_error.mt",
+                        TestType::ERROR_EXPECTED);
+
         addTestFromFile("Type Array Covariance Error",
                         errorPath + "typeArrayCovariance_error.mt",
                         TestType::ERROR_EXPECTED);

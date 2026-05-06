@@ -1,0 +1,9 @@
+Testing for-each break on LinkedList:
+10
+20
+Testing for-each continue on LinkedList:
+10
+20
+40
+50
+LinkedList break/continue test passed!

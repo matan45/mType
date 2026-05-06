@@ -373,6 +373,12 @@ namespace types {
         registerPrimitiveType("null", value::ValueType::NULL_TYPE);
         registerPrimitiveType("lambda", value::ValueType::LAMBDA);
 
+        // MYT-281: register Object as the synthetic root class so scripts can
+        // reference it (`Object x = new Int[3];`, `arr isClassOf Object`,
+        // `(Object)arr`). Inheritance edges below already use "Object" as
+        // a parent name; this entry makes it resolvable as a usable type.
+        registerCustomType("Object", "Object");
+
         // Register Box classes as proper object types
         registerCustomType("Int", "Int");
         registerCustomType("Float", "Float");

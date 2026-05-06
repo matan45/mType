@@ -495,7 +495,12 @@ namespace vm::compiler::visitors
                 statementCleanup::emitStatementCleanup(ctx, node->getBody(), feBodyOffsetBefore);
             }
 
-            ctx.loopManager.exitLoop();
+            // `continue` inside the body must jump to the counter increment, not to the
+            // top of the body — otherwise the counter never advances and we infinite-loop.
+            size_t incrementStart = ctx.program.getCurrentOffset();
+            for (size_t continueJump : ctx.loopManager.getContinueJumps()) {
+                ctx.program.patchJump(continueJump, static_cast<uint64_t>(incrementStart));
+            }
 
             // Increment counter
             ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(counterSlot), node);
@@ -511,8 +516,15 @@ namespace vm::compiler::visitors
             // Emit LOOP_END marker
             ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_END, node);
 
-            // Patch exit jump
+            // Patch exit jump (target for the loop-condition exit)
             ctx.emitter.patchJump(exitJump);
+
+            // `break` jumps land here — past the loop entirely.
+            for (size_t breakJump : ctx.loopManager.getBreakJumps()) {
+                ctx.emitter.patchJump(breakJump);
+            }
+
+            ctx.loopManager.exitLoop();
         }
         else {
             // === ITERATOR PATH ===
@@ -631,7 +643,10 @@ namespace vm::compiler::visitors
                 statementCleanup::emitStatementCleanup(ctx, node->getBody(), feBodyOffsetBefore);
             }
 
-            ctx.loopManager.exitLoop();
+            // `continue` inside the body re-runs the hasNext check at loopStart.
+            for (size_t continueJump : ctx.loopManager.getContinueJumps()) {
+                ctx.program.patchJump(continueJump, static_cast<uint64_t>(loopStart));
+            }
 
             // Jump back to loop start (hasNext check)
             ctx.emitter.emitLoop(loopStart);
@@ -642,9 +657,17 @@ namespace vm::compiler::visitors
             // Patch exit jump
             ctx.emitter.patchJump(exitJump);
 
+            // `break` lands here so it still falls through to ITERATOR_CLOSE — otherwise
+            // the iterator's resources leak when a loop is exited via break.
+            for (size_t breakJump : ctx.loopManager.getBreakJumps()) {
+                ctx.emitter.patchJump(breakJump);
+            }
+
             // Cleanup: Close the iterator
             ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(iteratorSlot), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::ITERATOR_CLOSE, node);
+
+            ctx.loopManager.exitLoop();
         }
 
         ctx.variableTracker.endScope();

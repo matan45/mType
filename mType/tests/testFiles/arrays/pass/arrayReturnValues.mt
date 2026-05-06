@@ -29,4 +29,14 @@ for (int i = 0; i < strings.length; i++) {
     print("  strings[" + i + "] = " + strings[i]);
 }
 
+// MYT-278: free function whose return statement is itself a function call
+// returning a typed array. Hits the same inferFunctionCallType path.
+function wrapInt(): int[] {
+    return createIntArray(2, 7);
+}
+
+int[] wrapped = wrapInt();
+print("wrapped[0] = " + wrapped[0]);
+print("wrapped[1] = " + wrapped[1]);
+
 print("Array return values test completed");

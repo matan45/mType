@@ -1,0 +1,7 @@
+Testing array Object methods callable
+toString: int[3]
+getClass: int[]
+hashCode equals self: true
+equals self: true
+equals other: false
+Done

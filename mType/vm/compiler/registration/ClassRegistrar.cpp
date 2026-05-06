@@ -253,10 +253,24 @@ namespace vm::compiler::registration
                                 params.emplace_back(name, value::ParameterType::forInterface(typeName));
                             }
                             else {
-                                // It's an actual generic type parameter (T, K, etc.) or unknown type
-                                // Store the full type name (which could include parameters)
-                                // This allows the validator to match against bytecode function names
-                                params.emplace_back(name, value::ParameterType::forClass(typeName));
+                                // MYT-282: array-typed parameters carry an ARRAY
+                                // tag plus the precise full form ("int[]",
+                                // "Animal[][]"). Pre-MYT-282 this branch coerced
+                                // arrays to forClass() and lied about basicType
+                                // (claiming OBJECT); now they get the proper
+                                // tag and round-trip through getTypeDisplayName.
+                                if (typeName.size() >= 2 &&
+                                    typeName.compare(typeName.size() - 2, 2, "[]") == 0)
+                                {
+                                    params.emplace_back(name, value::ParameterType::forArray(typeName));
+                                }
+                                else
+                                {
+                                    // It's an actual generic type parameter (T, K, etc.) or unknown type
+                                    // Store the full type name (which could include parameters)
+                                    // This allows the validator to match against bytecode function names
+                                    params.emplace_back(name, value::ParameterType::forClass(typeName));
+                                }
                             }
                         }
                     }
@@ -846,6 +860,85 @@ namespace vm::compiler::registration
                 metadata.staticMethods.push_back(methodMeta);
             } else {
                 metadata.instanceMethods.push_back(methodMeta);
+            }
+
+            // MYT-279: pre-register non-generic STATIC methods as callable functions
+            // so caller-side type inference (TypeInferenceEngine::findOverloadMetadata)
+            // can resolve same-file Class::staticMethod() calls that appear before the
+            // method's body has been compiled.
+            //
+            // Skipped intentionally:
+            //   * Instance methods — this.method() resolves via the class definition
+            //     (instanceMethods on ClassMetadata, populated above) which already
+            //     had correct return types before this fix. Shadowing that path with
+            //     a placeholder breaks generic return inference (e.g. T[] toArray()
+            //     reading wrong shape for elements.length).
+            //   * Generic static methods — setupGenericTypeBindings would treat the
+            //     placeholder as authoritative and try to infer T from parameterTypes,
+            //     but FunctionRegistrar's extractTypeParametersFromGenericType +
+            //     parameterTypeParameterUsage population is non-trivial to mirror
+            //     here. The MYT-279 ticket repro is non-generic; generic same-file
+            //     forward references can be a follow-up if needed.
+            //
+            // The shape below mirrors collectMethodParameters' output so
+            // MethodCompilerHelper's later overwrite (same qualified name) is
+            // byte-compatible.
+            if (method->getIsStatic() && !method->isGeneric())
+            {
+                const std::string ownerClassName = classNode->getClassName();
+
+                std::vector<std::string> fmParamNames;
+                std::vector<std::string> fmParamTypes;
+                std::vector<bool>        fmParamNullable;
+
+                const auto& methodGenericParams = method->getGenericParameters();
+                for (const auto& [pname, ptype] : methodGenericParams)
+                {
+                    fmParamNames.push_back(pname);
+                    std::string ts = ptype ? ptype->toString() : "void";
+                    bool isNullable = ptype && ptype->isNullable();
+                    ts = ::types::TypeConversionUtils::stripNullable(ts);
+                    fmParamTypes.push_back(ts);
+                    fmParamNullable.push_back(isNullable);
+                }
+
+                std::string fmReturnType;
+                if (auto genReturn = method->getGenericReturnType())
+                {
+                    fmReturnType = genReturn->toString();
+                }
+                else
+                {
+                    fmReturnType = ::types::TypeConversionUtils::getTypeDisplayName(method->getReturnType());
+                }
+
+                std::string qualifiedName = vm::MethodSignature(method->getName(), fmParamTypes)
+                    .toMangledName(ownerClassName, /*isStatic=*/true);
+                // Bare "Class::method" key: callers parse `A::names()` into a
+                // FunctionCallNode whose name is "A::names" (no $static, no
+                // /sig). findOverloadMetadata's exact-match lookup uses that
+                // raw name, so without this entry zero-param static calls can
+                // never be resolved (the prefix-match fallback only catches
+                // entries containing '/'). Mirrors FunctionRegistrar.cpp which
+                // registers both bare funcName and mangledName for free funcs.
+                const std::string bareQualifiedName = ownerClassName + "::" + method->getName();
+
+                bytecode::BytecodeProgram::FunctionMetadata fm;
+                fm.name              = qualifiedName;
+                fm.startOffset       = 0;
+                fm.instructionCount  = 0;
+                fm.localCount        = 0;
+                fm.parameterCount    = fmParamNames.size();
+                fm.parameterNames    = fmParamNames;
+                fm.parameterTypes    = fmParamTypes;
+                fm.parameterNullable = fmParamNullable;
+                fm.returnType        = fmReturnType;
+                fm.isStatic          = true;
+                fm.isNative          = false;
+                fm.isAsync           = method->getIsAsync();
+                // genericTypeParameters intentionally left empty — gated above.
+                program.registerFunction(qualifiedName, fm);
+                program.registerFunction(bareQualifiedName, fm);
             }
         }
 

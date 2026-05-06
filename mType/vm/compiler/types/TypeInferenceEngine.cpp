@@ -14,6 +14,7 @@
 #include "../../../ast/nodes/expressions/AwaitExpression.hpp"
 #include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../../ast/nodes/expressions/ArrayLiteralNode.hpp"
+#include "../../../ast/nodes/expressions/ArrayCreationNode.hpp"
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../../ast/nodes/classes/MethodCallNode.hpp"
@@ -58,6 +59,12 @@ namespace vm::compiler::types
         if (dynamic_cast<ast::NewNode*>(node)) return value::ValueType::OBJECT;
         if (dynamic_cast<ast::LambdaNode*>(node)) return value::ValueType::OBJECT;
         if (dynamic_cast<ast::nodes::expressions::ArrayLiteralNode*>(node)) return value::ValueType::ARRAY;
+        // MYT-282: `new int[N]` / `new T[N]` parses as ArrayCreationNode,
+        // distinct from the bracket-literal ArrayLiteralNode form. Pre-fix
+        // this fell through to VOID, which caused method-arg type checks
+        // to report "expects Object but got void" when arrays were
+        // passed as new-expressions instead of via intermediate variables.
+        if (dynamic_cast<ast::nodes::expressions::ArrayCreationNode*>(node)) return value::ValueType::ARRAY;
         return value::ValueType::VOID;
     }
 
@@ -214,10 +221,16 @@ namespace vm::compiler::types
             return value::ValueType::VOID;
         }
         if (funcMetadata && !funcMetadata->returnType.empty()) {
-            if (funcMetadata->returnType == "int") return value::ValueType::INT;
-            if (funcMetadata->returnType == "float") return value::ValueType::FLOAT;
-            if (funcMetadata->returnType == "string") return value::ValueType::STRING;
-            if (funcMetadata->returnType == "bool") return value::ValueType::BOOL;
+            const std::string& returnType = funcMetadata->returnType;
+            if (returnType == "int") return value::ValueType::INT;
+            if (returnType == "float") return value::ValueType::FLOAT;
+            if (returnType == "string") return value::ValueType::STRING;
+            if (returnType == "bool") return value::ValueType::BOOL;
+            if (returnType == "void") return value::ValueType::VOID;
+            if (returnType.find("[]") != std::string::npos ||
+                returnType.find("Array<") == 0) {
+                return value::ValueType::ARRAY;
+            }
             return value::ValueType::OBJECT;
         }
         return value::ValueType::VOID;
@@ -1042,6 +1055,23 @@ namespace vm::compiler::types
         // NewNode
         if (auto* newNode = dynamic_cast<ast::NewNode*>(node)) {
             return newNode->getClassName();
+        }
+
+        // MYT-282: `new int[N]` / `new T[N]` parses as ArrayCreationNode.
+        // Return the precise full form ("int[]", "Animal[]", etc.) so
+        // FunctionCallHelper::inferTypeFromArgument binds generic type
+        // parameters to the precise array type instead of falling back
+        // to the coarse "array" string. The dimension count appends one
+        // pair of brackets per dimension.
+        if (auto* arrCreate = dynamic_cast<ast::nodes::expressions::ArrayCreationNode*>(node)) {
+            std::string elementName = arrCreate->getElementTypeInfo().toString();
+            if (!elementName.empty()) {
+                std::string result = std::move(elementName);
+                for (size_t i = 0; i < arrCreate->getDimensionCount(); ++i) {
+                    result += "[]";
+                }
+                return result;
+            }
         }
 
         // Array literals - infer element type from first element
