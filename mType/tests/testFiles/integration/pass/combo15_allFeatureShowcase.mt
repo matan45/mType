@@ -23,6 +23,10 @@ interface Clickable {
     function onClick(): void;
 }
 
+interface Formatter {
+    function format(string value): string;
+}
+
 // --- Abstract class with generics ---
 abstract class Widget<T> implements Renderable {
     protected T data;
@@ -189,10 +193,6 @@ function async main(): Promise<void> {
     }
 
     print("--- Lambda + interpolation ---");
-    interface Formatter {
-        function format(string value): string;
-    }
-
     final string tag = "widget";
     Formatter f = value -> $"<{tag}>{value}</{tag}>";
     string[] names = ["alpha", "beta", "gamma"];

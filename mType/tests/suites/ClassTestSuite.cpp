@@ -340,6 +340,9 @@ namespace tests::testSuite
         addTestFromFile("Static Class Declaration Error",
                         errorPath + "staticClassDeclaration.mt",
                         TestType::ERROR_EXPECTED);
+        addTestFromFile("Class Inside Function Body Error (MYT-285)",
+                        errorPath + "classInsideFunctionBody.mt",
+                        TestType::ERROR_EXPECTED);
         addTestFromFile("Static Constructor Error",
                         errorPath + "staticConstructor.mt",
                         TestType::ERROR_EXPECTED);

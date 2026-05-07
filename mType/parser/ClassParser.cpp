@@ -113,6 +113,12 @@ namespace parser
             throw ParseException("Class declarations inside interface bodies are not allowed.",
                                  tokenStream.current().location);
         }
+        if (context.isInsideFunctionBody())
+        {
+            throw ParseException("Class declarations inside function bodies are not allowed. "
+                                 "Declare classes at file scope.",
+                                 tokenStream.current().location);
+        }
     }
 
     ast::nodes::classes::ClassNode* ClassParser::parseAndValidateClassHeader(std::unique_ptr<ASTNode>& classNode)

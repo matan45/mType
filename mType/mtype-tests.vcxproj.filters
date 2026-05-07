@@ -3634,6 +3634,9 @@
     <None Include="tests\testFiles\class\error\classExtendsInterface.mt">
       <Filter>testFiles\class\error</Filter>
     </None>
+    <None Include="tests\testFiles\class\error\classInsideFunctionBody.mt">
+      <Filter>testFiles\class\error</Filter>
+    </None>
     <None Include="tests\testFiles\class\error\conditionalScopingFail.mt">
       <Filter>testFiles\class\error</Filter>
     </None>
@@ -9377,6 +9380,9 @@
       <Filter>testFiles\interface\error</Filter>
     </None>
     <None Include="tests\testFiles\interface\error\interfaceGenericPrimitiveConstraint.mt">
+      <Filter>testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\error\interfaceInsideFunctionBody.mt">
       <Filter>testFiles\interface\error</Filter>
     </None>
     <None Include="tests\testFiles\interface\error\interfaceInstantiation.mt">

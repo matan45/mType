@@ -92,6 +92,10 @@ namespace tests::testSuite
                         errorPath + "wrongParameterType.mt",
                         TestType::ERROR_EXPECTED);
 
+        addTestFromFile("Interface Inside Function Body Error (MYT-285)",
+                        errorPath + "interfaceInsideFunctionBody.mt",
+                        TestType::ERROR_EXPECTED);
+
         addTestFromFile("Missing Multiple Methods Error",
                         errorPath + "missingMultipleMethods.mt",
                         TestType::ERROR_EXPECTED);

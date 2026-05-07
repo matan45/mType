@@ -435,18 +435,8 @@ namespace tests::testSuite
                                   passPath + "combo13_abstractAsyncGenericError.mt");
         addOutputVerificationTest("Combo 14: Reflection + Value Class + Annotation",
                                   passPath + "combo14_reflectionValueClassAnnotation.mt");
-        // TODO MYT-285: combo15 fails at line 197 with "Undefined class or
-        // interface: 'Formatter'" — the test declares `interface Formatter`
-        // inside `function main()` (block-scoped interface declaration) and
-        // the symbol resolver can't see it. The original MYT-223 ("static
-        // method overload calls type as void") was a separate failure mode
-        // masking this one; MYT-223 is now closed and combo15 advances past
-        // the old error site to surface this nested-interface bug instead.
-        // Re-enable once MYT-285 either supports block-scoped interfaces or
-        // rejects them at parse time (test would then need its `Formatter`
-        // declaration moved to file scope).
-        // addOutputVerificationTest("Combo 15: Grand Feature Showcase",
-        //                           passPath + "combo15_allFeatureShowcase.mt");
+        addOutputVerificationTest("Combo 15: Grand Feature Showcase",
+                                  passPath + "combo15_allFeatureShowcase.mt");
 
         // ====================================
         // PHASE 4: ADDITIONAL CROSS-FEATURE COMBO TESTS
@@ -463,17 +453,8 @@ namespace tests::testSuite
                                   passPath + "combo20_hashSetLambdaStream.mt");
         addOutputVerificationTest("Combo 21: Pattern Match + Annotation",
                                   passPath + "combo21_patternMatchAnnotation.mt");
-        // TODO MYT-284 (was MYT-224): combo22 fails at line 38 with "expects
-        // 2 type argument(s) but 1 provided". The call `Util::apply<Int>(...)`
-        // should select the 1-type-param Predicate overload but instead
-        // matches the 2-type-param UnaryFn overload. Overload resolution
-        // doesn't dispatch on explicit-type-arg arity yet — fix lives in
-        // the function-call resolver, not the type-unifier the original
-        // ticket title hinted at. MYT-284 tracks the dispatch fix; MYT-224
-        // remains for the unifier issue if it still applies after dispatch
-        // lands.
-        // addOutputVerificationTest("Combo 22: Static + Generic + Lambda Overload",
-        //                           passPath + "combo22_staticGenericLambdaOverload.mt");
+        addOutputVerificationTest("Combo 22: Static + Generic + Lambda Overload",
+                                  passPath + "combo22_staticGenericLambdaOverload.mt");
         addOutputVerificationTest("Combo 23: Value Class + Reflection",
                                   passPath + "combo23_valueClassReflection.mt");
         addOutputVerificationTest("Combo 24: Inheritance + Async Super Call",

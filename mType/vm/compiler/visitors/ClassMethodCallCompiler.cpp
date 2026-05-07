@@ -1,6 +1,7 @@
 #include "ClassCompiler.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <set>
 #include "GenericScopeHelper.hpp"
 #include "../validation/CompileTimeValidator.hpp"
 #include "../../../runtimeTypes/klass/SignatureUtils.hpp"
@@ -104,54 +105,56 @@ namespace vm::compiler::visitors
                     }
                 }
 
-                // Validate: Method must be generic
-                const auto* funcMetadata = ctx.program.getFunction(qualifiedName);
-                if (funcMetadata) {
-                    const auto& genericParams = funcMetadata->genericTypeParameters;
-
-                    // Validate: Non-generic method cannot be used with type arguments
-                    if (genericParams.empty()) {
-                        throw errors::TypeException(
-                            "Method '" + qualifiedName + "' is not generic but used with type arguments",
-                            node->getLocation()
-                        );
-                    }
-
-                    // Validate: Number of type arguments must match number of generic parameters
-                    if (typeArgs.size() != genericParams.size()) {
-                        throw errors::TypeException(
-                            "Method '" + qualifiedName + "' expects " +
-                            std::to_string(genericParams.size()) +
-                            " type argument(s) but " + std::to_string(typeArgs.size()) + " provided",
-                            node->getLocation()
-                        );
-                    }
-                }
-                else {
-                    // Fallback: Check environment if metadata not yet registered
-                    auto classDef = ctx.env->findClass(className);
-                    if (classDef) {
-                        auto methodDef = classDef->getMethod(methodName);
-                        if (methodDef) {
-                            const auto& genericParams = methodDef->getGenericTypeParameters();
-
-                            // Validate: Non-generic method cannot be used with type arguments
-                            if (genericParams.empty()) {
-                                throw errors::TypeException(
-                                    "Method '" + qualifiedName + "' is not generic but used with type arguments",
-                                    node->getLocation()
-                                );
+                // MYT-284: Validate against the full overload set, not a single
+                // by-name registry lookup. Two overloads share the unmangled
+                // qualified name, so program.getFunction(qualifiedName) returns
+                // whichever was registered first and its arity may not match
+                // the overload the resolver actually picked. The resolver
+                // (OverloadResolutionHelper::resolveStaticMethodOverload) already
+                // filters candidates by declared-type-arg arity; here we only
+                // need to confirm that *some* overload of this name accepts the
+                // supplied count, otherwise emit the friendly diagnostic.
+                auto classDef = ctx.env->findClass(className);
+                if (classDef) {
+                    auto overloads = classDef->getAllStaticMethodOverloadsInHierarchy(methodName);
+                    if (!overloads.empty()) {
+                        bool anyGeneric = false;
+                        bool arityMatches = false;
+                        std::vector<size_t> declaredCounts;
+                        declaredCounts.reserve(overloads.size());
+                        for (const auto& overload : overloads) {
+                            const auto& genericParams = overload->getGenericTypeParameters();
+                            if (!genericParams.empty()) {
+                                anyGeneric = true;
                             }
-
-                            // Validate: Number of type arguments must match number of generic parameters
-                            if (typeArgs.size() != genericParams.size()) {
-                                throw errors::TypeException(
-                                    "Method '" + qualifiedName + "' expects " +
-                                    std::to_string(genericParams.size()) +
-                                    " type argument(s) but " + std::to_string(typeArgs.size()) + " provided",
-                                    node->getLocation()
-                                );
+                            declaredCounts.push_back(genericParams.size());
+                            if (genericParams.size() == typeArgs.size()) {
+                                arityMatches = true;
                             }
+                        }
+
+                        if (!anyGeneric) {
+                            throw errors::TypeException(
+                                "Method '" + qualifiedName + "' is not generic but used with type arguments",
+                                node->getLocation()
+                            );
+                        }
+
+                        if (!arityMatches) {
+                            std::set<size_t> uniqueCounts(declaredCounts.begin(), declaredCounts.end());
+                            std::string expectedList;
+                            bool first = true;
+                            for (size_t c : uniqueCounts) {
+                                if (!first) expectedList += " or ";
+                                expectedList += std::to_string(c);
+                                first = false;
+                            }
+                            throw errors::TypeException(
+                                "Method '" + qualifiedName + "' expects " +
+                                expectedList +
+                                " type argument(s) but " + std::to_string(typeArgs.size()) + " provided",
+                                node->getLocation()
+                            );
                         }
                     }
                 }
