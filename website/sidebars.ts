@@ -23,6 +23,7 @@ const sidebars: SidebarsConfig = {
         'language/interfaces',
         'language/generics',
         'language/lambdas',
+        'language/arrays',
         'language/control-flow',
         'language/imports',
         'language/annotations',

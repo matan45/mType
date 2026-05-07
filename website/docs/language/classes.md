@@ -90,12 +90,15 @@ class Counter {
     public static int total = 0;
 
     public static function increment(): void {
-        Counter.total = Counter.total + 1;
+        Counter::total = Counter::total + 1;
     }
 }
+
+Counter::increment();
+print(Counter::total);
 ```
 
-`static` members belong to the class, not instances. Access via `ClassName.member`.
+`static` members belong to the class, not instances. **Access them with the scope operator `::`, not `.`** — `ClassName::member` and `ClassName::method(args)`. The `.` operator is for instance access. This applies to every static reference in the language: standard library factories like `Matrix4f::identity()`, reflection lookups like `Class::forName("Service")`, and any user-defined static method.
 
 ## Value Classes
 

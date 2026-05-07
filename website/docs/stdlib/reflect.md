@@ -61,12 +61,15 @@ if (t != null) {
 ## Invocation
 
 ```mtype
+Constructor ctor = c.getConstructor(0);
+Object[] args = new Object[0];
+Object instance = ctor.newInstance(args);
+
 Method m = c.getDeclaredMethod("greet", 0);
-Object instance = c.newInstance();
-m.invoke(instance, []);
+m.invoke(instance, args);
 ```
 
-`Constructor.newInstance(args)` and `Method.invoke(target, args)` accept arrays of arguments.
+`newInstance` and `invoke` are **instance** methods — call them with `.` on a `Constructor` or `Method` value returned from reflection. Both take a `Object[]` of arguments.
 
 ## See Also
 

@@ -31,12 +31,14 @@ Common methods: `add`, `subtract`, `scale`, `dot`, `cross` (3D), `length`, `norm
 
 ## Matrices
 
+Static factories use `::`; instance methods use `.`.
+
 ```mtype
 import * from "lib/math/Matrix4f.mt";
 
-Matrix4f identity = Matrix4f.identity();
-Matrix4f translation = Matrix4f.translate(1.0, 2.0, 3.0);
-Matrix4f combined = identity.multiply(translation);
+Matrix4f identity    = Matrix4f::identity();              // static factory
+Matrix4f translation = Matrix4f::translate(1.0, 2.0, 3.0); // static factory
+Matrix4f combined    = identity.multiply(translation);    // instance method
 ```
 
 ## Quaternion
@@ -44,7 +46,7 @@ Matrix4f combined = identity.multiply(translation);
 ```mtype
 import * from "lib/math/Quaternion.mt";
 
-Quaternion q = Quaternion.fromAxisAngle(0.0, 1.0, 0.0, 1.5708);
+Quaternion q = Quaternion::fromAxisAngle(new Vec3f(0.0, 1.0, 0.0), 1.5708);
 Vec3f rotated = q.rotate(new Vec3f(1.0, 0.0, 0.0));
 ```
 
