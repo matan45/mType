@@ -57,6 +57,7 @@ const sidebars: SidebarsConfig = {
         'cli/package-manager',
         'cli/vscode-extension',
         'cli/language-server',
+        'cli/native-interop',
       ],
     },
     {

@@ -54,6 +54,8 @@ public class GameLogic {
 
 Use `mType --find-script-classes <file.mt>` to list `@Script` classes in a script.
 
+See [Native Interop (FFN)](../cli/native-interop.md) for the full embedding API and the C++ side of the bridge.
+
 ## `@Override`
 
 ```mtype
