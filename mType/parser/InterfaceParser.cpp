@@ -110,6 +110,12 @@ namespace parser
                                  "Nested interfaces are not supported.",
                                  tokenStream.current().location);
         }
+        if (context.isInsideFunctionBody())
+        {
+            throw ParseException("Interface declarations inside function bodies are not allowed. "
+                                 "Declare interfaces at file scope.",
+                                 tokenStream.current().location);
+        }
     }
 
     void InterfaceParser::parseInterfaceHeader(

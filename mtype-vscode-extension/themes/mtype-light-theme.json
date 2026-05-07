@@ -1,0 +1,80 @@
+{
+  "name": "mType Light",
+  "type": "light",
+  "colors": {
+    "editor.background": "#ffffff",
+    "editor.foreground": "#24292f",
+    "editor.lineHighlightBackground": "#f6f8fa",
+    "editor.selectionBackground": "#add6ff",
+    "editorCursor.foreground": "#0969da",
+    "editorLineNumber.foreground": "#8c959f",
+    "editorLineNumber.activeForeground": "#24292f",
+    "sideBar.background": "#f6f8fa",
+    "sideBar.foreground": "#24292f",
+    "activityBar.background": "#24292f",
+    "activityBar.foreground": "#ffffff",
+    "statusBar.background": "#0969da",
+    "statusBar.foreground": "#ffffff",
+    "titleBar.activeBackground": "#f6f8fa",
+    "titleBar.activeForeground": "#24292f"
+  },
+  "tokenColors": [
+    {
+      "name": "Comment",
+      "scope": ["comment", "punctuation.definition.comment"],
+      "settings": {
+        "foreground": "#6e7781",
+        "fontStyle": "italic"
+      }
+    },
+    {
+      "name": "Keywords",
+      "scope": ["keyword.control.mtype", "keyword.other.mtype"],
+      "settings": {
+        "foreground": "#cf222e"
+      }
+    },
+    {
+      "name": "Types",
+      "scope": ["storage.type.primitive.mtype", "storage.type.collection.mtype", "storage.type.mtype"],
+      "settings": {
+        "foreground": "#8250df"
+      }
+    },
+    {
+      "name": "Strings",
+      "scope": ["string.quoted.double.mtype", "string.quoted.single.mtype"],
+      "settings": {
+        "foreground": "#116329"
+      }
+    },
+    {
+      "name": "Numbers and Constants",
+      "scope": ["constant.numeric.mtype", "constant.language.mtype"],
+      "settings": {
+        "foreground": "#0550ae"
+      }
+    },
+    {
+      "name": "Functions",
+      "scope": ["entity.name.function.mtype", "support.function.mtype"],
+      "settings": {
+        "foreground": "#6639ba"
+      }
+    },
+    {
+      "name": "Classes",
+      "scope": ["entity.name.type.class.mtype", "support.class.mtype"],
+      "settings": {
+        "foreground": "#953800"
+      }
+    },
+    {
+      "name": "Operators",
+      "scope": ["keyword.operator.mtype"],
+      "settings": {
+        "foreground": "#0550ae"
+      }
+    }
+  ]
+}

@@ -1,14 +1,11 @@
-// KNOWN-BUG MYT-137 prerequisite — DO NOT REGISTER until MYT-137 lands.
-//
-// Strict declaration-time invariance: `Animal[] a = new Dog[1]` must error
-// at compile time. Today it is intentionally allowed (see
-// arrays/pass/arrayCovariance.mt) because mType follows the Java model
-// where covariance is allowed at the declaration and invariance is enforced
-// at the array-store. Flipping this to strict-invariance is the MYT-137
-// design decision; this test file is the spec.
-//
-// This file is committed but unregistered. When MYT-137 lands, register it
-// in ArrayTestSuite::setupTests() as ERROR_EXPECTED.
+// MYT-137: strict declaration-time array invariance. `Animal[] a = new
+// Dog[1]` errors at compile time — the array-store soundness hole (once
+// the Animal[] alias forms, runtime element-type tagging cannot be relied
+// on for invariant store-checks) is closed by rejecting the assignment
+// before the alias can form. Array literals (`Animal[] = [new Dog()]`)
+// remain accepted via target-type-guided inference at the decl site
+// (StatementCompiler.cpp ~line 892); explicit runtime casts (`(Animal[])dogs`)
+// are unaffected.
 class Animal {
     string name;
     constructor(string n) { name = n; }

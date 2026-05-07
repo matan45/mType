@@ -17,6 +17,7 @@
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../reflection/ReflectionNatives.hpp"
 #include "../json/JsonNatives.hpp"
+#include "../version/Version.hpp"
 #include "../project/ProjectConfigParser.hpp"
 #include "../project/ProjectBuilder.hpp"
 #include "../project/ProjectDiscovery.hpp"
@@ -261,8 +262,15 @@ int main(int argc, char* argv[])
         }
     }
 
+    if (argc >= 2 && (std::string(argv[1]) == "--version" || std::string(argv[1]) == "-v"))
+    {
+        std::cout << "mType " << mType::version::getVersionString() << "\n";
+        return 0;
+    }
+
     if (argc >= 2 && std::string(argv[1]) == "--help")
     {
+        std::cout << "mType " << mType::version::getVersionString() << "\n\n";
         std::cout << "Usage:\n";
         std::cout << "  " << argv[0] << " <script_file.mt>           - Run a script file\n";
         std::cout << "  " << argv[0] << " --debug <script.mt>        - Run with debugger (breakpoints, stepping)\n";
@@ -305,7 +313,8 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --benchmark-lexer=<path>   - Run a lexer-only microbenchmark on this .mt file\n";
         std::cout << "  " << argv[0] << " --benchmark-iterations=<N> - Measured iterations per script (default 3)\n";
         std::cout << "  " << argv[0] << " --benchmark-output=<fmt>   - Output format: text (default) or json\n";
-        std::cout << "  " << argv[0] << " --help                     - Show this help message\n\n";
+        std::cout << "  " << argv[0] << " --help                     - Show this help message\n";
+        std::cout << "  " << argv[0] << " --version, -v              - Print version (" << mType::version::getVersionString() << ") and exit\n\n";
         printAvailableTestSuites();
         return 0;
     }

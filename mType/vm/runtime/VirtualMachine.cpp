@@ -355,6 +355,18 @@ namespace vm::runtime
         callStack.clear();
         instructionPointer = 0;
         stats = ExecutionStats{};
+
+        // MYT-A4: drop all JIT-side state that points at script-defined
+        // ClassDefinitions. ScriptInterpreter::resetForRebuild — the sole
+        // caller — also runs Environment::resetForRebuild → clearScriptDefinitions
+        // which frees those ClassDefinitions. IC entries (InlineCacheTable),
+        // cached compiled stubs (JitCodeCache), and feedback counters
+        // (JitProfiler) all hold raw pointers into that lifetime. Without
+        // this clear, the next compile-and-run with the same VM dispatches
+        // through stale stubs and dereferences freed CDs (use-after-free).
+        if (jitCodeCache) jitCodeCache->clear();
+        if (jitProfiler)  jitProfiler->reset();
+        if (inlineCacheTable) inlineCacheTable->clear();
     }
 
     std::vector<void*> VirtualMachine::collectGCRoots() const

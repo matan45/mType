@@ -1,4 +1,5 @@
 import * as path from 'path';
+import * as fs from 'fs';
 import * as vscode from 'vscode';
 import {
     LanguageClient,
@@ -8,51 +9,119 @@ import {
 } from 'vscode-languageclient/node';
 
 let client: LanguageClient | undefined;
+let outputChannel: vscode.OutputChannel | undefined;
 
-export function activateLanguageServer(context: vscode.ExtensionContext): void {
-    const config = vscode.workspace.getConfiguration('mType');
+function languageServerExecutableName(): string {
+    return process.platform === 'win32' ? 'mtype-language-server.exe' : 'mtype-language-server';
+}
 
-    // Get language server executable path from settings
-    let serverExecutable = config.get<string>('languageServer.path', '');
+function isExistingFile(filePath: string): boolean {
+    try {
+        return fs.statSync(filePath).isFile();
+    } catch {
+        return false;
+    }
+}
 
-    // If not configured, use default path relative to the extension
-    if (!serverExecutable) {
-        // Default: look in languageserver/bin/Debug-windows-x86_64/ relative to extension
-        // Extension is in mtype-vscode-extension/, server is in languageserver/
-        // Both are siblings in the mType/ directory
-        const mtypeRootDir = path.dirname(context.extensionPath);
-        serverExecutable = path.join(
-            mtypeRootDir,
-            'languageserver',
-            'bin',
-            'Debug-windows-x86_64',
-            'mtype-language-server.exe'
-        );
+function pathEntries(): string[] {
+    const pathValue = process.env.PATH || '';
+    return pathValue.split(path.delimiter).filter((entry) => entry.length > 0);
+}
+
+function executableCandidates(directory: string, executable: string): string[] {
+    const candidate = path.join(directory, executable);
+    if (process.platform !== 'win32' || path.extname(executable)) {
+        return [candidate];
     }
 
-    // If not an absolute path, try to find it relative to workspace or in PATH
-    if (!path.isAbsolute(serverExecutable)) {
-        // Check if it's in workspace
-        const workspaceFolders = vscode.workspace.workspaceFolders;
-        if (workspaceFolders && workspaceFolders.length > 0) {
-            const workspacePath = workspaceFolders[0].uri.fsPath;
-            const localServer = path.join(workspacePath, 'bin', serverExecutable);
-            if (require('fs').existsSync(localServer)) {
-                serverExecutable = localServer;
+    const extensions = (process.env.PATHEXT || '.EXE;.CMD;.BAT')
+        .split(';')
+        .filter((ext) => ext.length > 0);
+    return extensions.map((ext) => candidate + ext.toLowerCase());
+}
+
+function findOnPath(executable: string): string | undefined {
+    for (const entry of pathEntries()) {
+        for (const candidate of executableCandidates(entry, executable)) {
+            if (isExistingFile(candidate)) {
+                return candidate;
             }
         }
     }
+    return undefined;
+}
 
-    // Verify the server exists
-    if (!require('fs').existsSync(serverExecutable)) {
-        const errorMsg = `mType Language Server not found at: ${serverExecutable}\n\nPlease build the language server or configure the path in settings.`;
-        vscode.window.showErrorMessage(errorMsg);
+function formatError(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
+function resolveLanguageServerPath(
+    context: vscode.ExtensionContext,
+    channel: vscode.OutputChannel
+): string | undefined {
+    const config = vscode.workspace.getConfiguration('mType');
+    const configuredPath = config.get<string>('languageServer.path', '').trim();
+    const executable = languageServerExecutableName();
+
+    if (configuredPath) {
+        const resolved = path.isAbsolute(configuredPath)
+            ? configuredPath
+            : path.resolve(configuredPath);
+        if (isExistingFile(resolved)) {
+            channel.appendLine(`[mType LSP] Using configured language server: ${resolved}`);
+            return resolved;
+        }
+
+        const message = `Configured mType Language Server path does not exist: ${resolved}. Update mType.languageServer.path or install mtype-language-server 1.0.0.`;
+        channel.appendLine(`[mType LSP] ERROR: ${message}`);
+        vscode.window.showErrorMessage(message);
+        return undefined;
+    }
+
+    const bundledCandidates = [
+        context.asAbsolutePath(path.join('bin', `${process.platform}-${process.arch}`, executable)),
+        context.asAbsolutePath(path.join('bin', executable)),
+        context.asAbsolutePath(path.join('server', executable)),
+        context.asAbsolutePath(executable)
+    ];
+
+    for (const candidate of bundledCandidates) {
+        if (isExistingFile(candidate)) {
+            channel.appendLine(`[mType LSP] Using bundled language server: ${candidate}`);
+            return candidate;
+        }
+    }
+
+    const pathMatch = findOnPath(executable);
+    if (pathMatch) {
+        channel.appendLine(`[mType LSP] Using language server from PATH: ${pathMatch}`);
+        return pathMatch;
+    }
+
+    const message = `mType Language Server binary not found. Set mType.languageServer.path, install ${executable} on PATH, or install a release bundle that includes the binary.`;
+    channel.appendLine(`[mType LSP] ERROR: ${message}`);
+    channel.appendLine('[mType LSP] Checked bundled paths:');
+    for (const candidate of bundledCandidates) {
+        channel.appendLine(`[mType LSP]   ${candidate}`);
+    }
+    vscode.window.showErrorMessage(message);
+    return undefined;
+}
+
+export function activateLanguageServer(context: vscode.ExtensionContext): void {
+    if (client) {
         return;
     }
 
-    // Create output channel for LSP communication
-    const outputChannel = vscode.window.createOutputChannel('mType Language Server');
+    if (!outputChannel) {
+        outputChannel = vscode.window.createOutputChannel('mType Language Server');
+    }
     outputChannel.appendLine('[mType LSP] Initializing language server...');
+
+    const serverExecutable = resolveLanguageServerPath(context, outputChannel);
+    if (!serverExecutable) {
+        return;
+    }
 
     // Server options
     const serverOptions: ServerOptions = {
@@ -69,7 +138,7 @@ export function activateLanguageServer(context: vscode.ExtensionContext): void {
         synchronize: {
             fileEvents: vscode.workspace.createFileSystemWatcher('**/*.mt')
         },
-        outputChannel: outputChannel
+        outputChannel
     };
 
     // Create the language client
@@ -82,12 +151,12 @@ export function activateLanguageServer(context: vscode.ExtensionContext): void {
 
     // Start the client and server
     client.start().then(() => {
-        outputChannel.appendLine('[mType LSP] Language server started successfully!');
-        outputChannel.appendLine('[mType LSP] Ready for requests.');
-        vscode.window.showInformationMessage('mType Language Server started successfully!');
+        outputChannel?.appendLine('[mType LSP] Language server started successfully.');
+        outputChannel?.appendLine('[mType LSP] Ready for requests.');
     }).catch((error) => {
-        outputChannel.appendLine(`[mType LSP] ERROR: Failed to start: ${error.message}`);
-        vscode.window.showErrorMessage(`Failed to start mType Language Server: ${error.message}`);
+        const message = formatError(error);
+        outputChannel?.appendLine(`[mType LSP] ERROR: Failed to start: ${message}`);
+        vscode.window.showErrorMessage(`Failed to start mType Language Server: ${message}`);
     });
 
     // Register command to restart server
@@ -96,7 +165,7 @@ export function activateLanguageServer(context: vscode.ExtensionContext): void {
             if (client) {
                 client.stop().then(() => {
                     client!.start();
-                    vscode.window.showInformationMessage('mType Language Server restarted');
+                    outputChannel?.appendLine('[mType LSP] Language server restarted.');
                 });
             }
         })

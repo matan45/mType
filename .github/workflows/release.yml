@@ -1,33 +1,32 @@
-name: CI
+name: Release
 
 on:
-  pull_request:
-    branches: ["**"]
   push:
-    branches: ["dev"]
     tags: ["v*"]
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: write
 
 jobs:
   native:
-    name: ${{ matrix.name }}
+    name: Package ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: Windows x64
+          - name: windows-x64
             os: windows-latest
             premake_action: vs2022
-          - name: Linux x64
+            archive: mType-${{ github.ref_name }}-windows-x64.zip
+          - name: linux-x64
             os: ubuntu-24.04
             premake_action: gmake2
-          - name: macOS x64
+            archive: mType-${{ github.ref_name }}-linux-x64.tar.gz
+          - name: macos-x64
             os: macos-15-intel
             premake_action: gmake2
+            archive: mType-${{ github.ref_name }}-macos-x64.tar.gz
 
     steps:
       - name: Checkout
@@ -86,42 +85,65 @@ jobs:
         if: runner.os == 'macOS'
         run: make -j$(sysctl -n hw.logicalcpu) config=release_x64
 
-      - name: Smoke binaries on Windows
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          ./bin/mType/Release/x64/mType.exe --version
-          ./bin/mtpm/Release/x64/mtpm.exe --version
-          ./bin/mtype-language-server/Release/x64/mtype-language-server.exe --version
-          ./bin/mType/Release/x64/mType.exe --help
-          ./bin/mtpm/Release/x64/mtpm.exe --help
-
-      - name: Smoke binaries on Unix
-        if: runner.os != 'Windows'
-        run: |
-          ./bin/mType/Release/x64/mType --version
-          ./bin/mtpm/Release/x64/mtpm --version
-          ./bin/mtype-language-server/Release/x64/mtype-language-server --version
-          ./bin/mType/Release/x64/mType --help
-          ./bin/mtpm/Release/x64/mtpm --help
-
-      - name: Run tests on Windows
+      - name: Test release binaries on Windows
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           ./bin/mType/Release/x64/mType.exe --tests
           ./bin/mType/Release/x64/mType.exe --tests --no-jit
           ./bin/mtype-language-server-tests/Release/x64/mtype-language-server-tests.exe
+          ./bin/mType/Release/x64/mType.exe --version
+          ./bin/mtpm/Release/x64/mtpm.exe --version
+          ./bin/mtype-language-server/Release/x64/mtype-language-server.exe --version
 
-      - name: Run tests on Unix
+      - name: Test release binaries on Unix
         if: runner.os != 'Windows'
         run: |
           ./bin/mType/Release/x64/mType --tests
           ./bin/mType/Release/x64/mType --tests --no-jit
           ./bin/mtype-language-server-tests/Release/x64/mtype-language-server-tests
+          ./bin/mType/Release/x64/mType --version
+          ./bin/mtpm/Release/x64/mtpm --version
+          ./bin/mtype-language-server/Release/x64/mtype-language-server --version
+
+      - name: Stage package on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $stage = "dist/mType-${{ github.ref_name }}-${{ matrix.name }}"
+          New-Item -ItemType Directory -Force $stage | Out-Null
+          Copy-Item bin/mType/Release/x64/mType.exe $stage/
+          Copy-Item bin/mType/Release/x64/mtype-launcher.exe $stage/
+          Copy-Item bin/mtpm/Release/x64/mtpm.exe $stage/
+          Copy-Item bin/mtype-language-server/Release/x64/mtype-language-server.exe $stage/
+          Copy-Item mType/tests/testFiles/lib "$stage/lib" -Recurse
+          Copy-Item docs "$stage/docs" -Recurse
+          Copy-Item README.md,LICENSE,CHANGELOG.md,RELEASE.md $stage/
+          Compress-Archive -Path "$stage/*" -DestinationPath "dist/${{ matrix.archive }}" -Force
+
+      - name: Stage package on Unix
+        if: runner.os != 'Windows'
+        run: |
+          stage="dist/mType-${{ github.ref_name }}-${{ matrix.name }}"
+          mkdir -p "$stage"
+          cp bin/mType/Release/x64/mType "$stage/"
+          cp bin/mType/Release/x64/mtype-launcher "$stage/"
+          cp bin/mtpm/Release/x64/mtpm "$stage/"
+          cp bin/mtype-language-server/Release/x64/mtype-language-server "$stage/"
+          cp -R mType/tests/testFiles/lib "$stage/lib"
+          cp -R docs "$stage/docs"
+          cp README.md LICENSE CHANGELOG.md RELEASE.md "$stage/"
+          tar -czf "dist/${{ matrix.archive }}" -C dist "mType-${{ github.ref_name }}-${{ matrix.name }}"
+
+      - name: Upload native package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive }}
+          path: dist/${{ matrix.archive }}
+          if-no-files-found: error
 
   vscode-extension:
-    name: VS Code extension
+    name: Package VS Code extension
     runs-on: ubuntu-24.04
 
     steps:
@@ -145,12 +167,36 @@ jobs:
 
       - name: Package VSIX
         working-directory: mtype-vscode-extension
-        run: npx --yes @vscode/vsce package
+        run: |
+          mkdir -p ../dist
+          npx --yes @vscode/vsce package --out ../dist/mtype-language-support-${{ github.ref_name }}.vsix
 
-      - name: Upload VSIX smoke artifact
+      - name: Upload VSIX package
         uses: actions/upload-artifact@v4
         with:
-          name: mtype-language-support-vsix
-          path: mtype-vscode-extension/*.vsix
+          name: mtype-language-support-${{ github.ref_name }}.vsix
+          path: dist/mtype-language-support-${{ github.ref_name }}.vsix
           if-no-files-found: error
-          retention-days: 7
+
+  publish:
+    name: Publish GitHub Release
+    runs-on: ubuntu-24.04
+    needs: [native, vscode-extension]
+
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: mType ${{ github.ref_name }}
+          body: |
+            mType ${{ github.ref_name }} release.
+
+            See CHANGELOG.md and RELEASE.md for release notes and validation steps.
+          files: release-assets/*

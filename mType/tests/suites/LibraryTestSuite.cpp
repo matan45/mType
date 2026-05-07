@@ -23,6 +23,7 @@
 #include "../../environment/EnvironmentBuilder.hpp"
 #include "../../environment/NativeContext.hpp"
 #include "../../environment/registry/NativeRegistry.hpp"
+#include "../../version/Version.hpp"
 #include <sstream>
 #include <stdexcept>
 #include <cstring>
@@ -258,7 +259,7 @@ namespace tests::testSuite
                 lib.header = MtcLibHeader{};
                 lib.metadata.name = "testlib";
                 lib.metadata.version = "1.0.0";
-                lib.metadata.mtypeVersion = "0.2.0";
+                lib.metadata.mtypeVersion = mType::version::getVersionString();
                 lib.metadata.sourceHash = 42;
 
                 MtcLibDependency dep;

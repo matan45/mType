@@ -7,12 +7,12 @@
   "icon": "images/logo-circle.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mtype-lang/mtype"
+    "url": "https://github.com/matan45/mType"
   },
   "bugs": {
-    "url": "https://github.com/mtype-lang/mtype/issues"
+    "url": "https://github.com/matan45/mType/issues"
   },
-  "homepage": "https://github.com/mtype-lang/mtype#readme",
+  "homepage": "https://github.com/matan45/mType#readme",
   "license": "MIT",
   "engines": {
     "vscode": "^1.60.0"
@@ -29,9 +29,11 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
-    "onStartupFinished",
     "onLanguage:mtype",
     "onLanguage:mtype-compiled",
+    "onCommand:mtype.run",
+    "onCommand:mtype.restartLanguageServer",
+    "onCommand:mtype.formatDocument",
     "onDebugResolve:mtype",
     "onDebugDynamicConfigurations:mtype"
   ],

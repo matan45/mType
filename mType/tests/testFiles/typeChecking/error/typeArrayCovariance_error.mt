@@ -1,4 +1,14 @@
-// ERROR: Test array covariance violation - derived type array cannot be assigned to base type array
+// MYT-137: variable-to-variable array assignment is invariant. A `Car[]`
+// cannot be aliased through a `Vehicle[]` declaration because once the
+// alias exists a `vehicles[i] = new Motorcycle(...)` would corrupt the
+// underlying typed Car-array storage. The strict check at
+// TypeValidator::validateObjectTypeAssignment rejects this at compile
+// time; the historical covariant escape was removed.
+//
+// (Pre-MYT-137 this file relied on a parse error in `string getBrand():
+// string` to pass as ERROR_EXPECTED — a false positive that did not
+// actually exercise the covariance path. Body now uses correct mType
+// syntax so the test pins the real check.)
 
 class Vehicle {
     string brand;
@@ -7,7 +17,7 @@ class Vehicle {
         brand = b;
     }
 
-    string getBrand(): string {
+    public function getBrand(): string {
         return brand;
     }
 }
@@ -15,12 +25,11 @@ class Vehicle {
 class Car extends Vehicle {
     int doors;
 
-    constructor(string b, int d) {
-        super(b);
+    constructor(string b, int d) : super(b) {
         doors = d;
     }
 
-    int getDoors(): int {
+    public function getDoors(): int {
         return doors;
     }
 }
@@ -28,24 +37,19 @@ class Car extends Vehicle {
 class Motorcycle extends Vehicle {
     bool hasSidecar;
 
-    constructor(string b, bool s) {
-        super(b);
+    constructor(string b, bool s) : super(b) {
         hasSidecar = s;
     }
 }
 
 function main(): void {
-    // Create Car array
     Car[] cars = new Car[2];
     cars[0] = new Car("Toyota", 4);
     cars[1] = new Car("Honda", 2);
 
-    // ERROR: Array covariance violation - cannot assign Car[] to Vehicle[]
-    // This would be unsafe because we could then add a Motorcycle to the array
+    // ERROR: array invariance — Car[] cannot be assigned to Vehicle[]
+    // because the alias would let a Motorcycle store corrupt cars[].
     Vehicle[] vehicles = cars;
-
-    // This would corrupt the cars array if the above were allowed:
-    // vehicles[0] = new Motorcycle("Harley", false);
 
     print("This should not execute");
 }

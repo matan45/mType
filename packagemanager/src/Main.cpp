@@ -2,6 +2,7 @@
 #include "PackageManifest.hpp"
 #include "PackageRegistry.hpp"
 #include "SemVer.hpp"
+#include "../../mType/version/Version.hpp"
 #include "../../mType/project/ProjectConfigParser.hpp"
 #include "../../mType/project/ProjectConfig.hpp"
 #include <iostream>
@@ -20,6 +21,7 @@ static void printUsage(const char* argv0)
     std::cout << "  " << argv0 << " list [.mtproj]                                    - List installed packages\n";
     std::cout << "  " << argv0 << " init <name> <version>                             - Create mtpkg.json\n";
     std::cout << "  " << argv0 << " --help                                            - Show this help\n";
+    std::cout << "  " << argv0 << " --version                                         - Print version\n";
     std::cout << "\nSource formats:\n";
     std::cout << "  github:user/repo                  - GitHub shorthand\n";
     std::cout << "  https://github.com/user/repo.git  - Full git URL\n";
@@ -198,6 +200,12 @@ int main(int argc, char* argv[])
     if (command == "--help" || command == "-h")
     {
         printUsage(argv[0]);
+        return 0;
+    }
+
+    if (command == "--version" || command == "-v")
+    {
+        std::cout << "mtpm " << mType::version::getVersionString() << "\n";
         return 0;
     }
 

@@ -396,9 +396,33 @@ namespace tests::testSuite
         addTestFromFile("Array Cast To Wrong Dimensions",
                         errorPath + "objectSubtype/arrayCastToWrongDimensions_error.mt",
                         TestType::ERROR_EXPECTED);
+        // MYT-281: multi-dim cast soundness — rank and element type are
+        // both validated against the runtime bridge. Substring pins the
+        // rendered message ("cannot cast <runtime> to <target>") so a
+        // future regression silently producing a different error type
+        // surfaces here.
+        addTestFromFile("Multidim Array Cast Rank Too High",
+                        errorPath + "objectSubtype/multidimArrayCastRankTooHigh_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "cannot cast int[][][] to int[][]");
+        addTestFromFile("Multidim Array Cast Rank Too Low",
+                        errorPath + "objectSubtype/multidimArrayCastRankTooLow_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "cannot cast int[][] to int[][][]");
+        addTestFromFile("Multidim Array Cast Element Mismatch",
+                        errorPath + "objectSubtype/multidimArrayCastElementMismatch_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "cannot cast int[][] to float[][]");
         addTestFromFile("Non-Array Object Cast To Array",
                         errorPath + "objectSubtype/nonArrayObjectCastToArray_error.mt",
                         TestType::ERROR_EXPECTED);
+        // MYT-137: strict declaration-time array invariance. `Animal[] a = new
+        // Dog[1]` must error at compile time — the array-store soundness hole
+        // is closed by rejecting the alias before it can form.
+        addTestFromFile("Array Decl Covariance Strict",
+                        errorPath + "objectSubtype/arrayDeclCovarianceStrict_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Array covariance violation");
 
         // Error tests — store-time invariance pins the soundness boundary
         // and wrong-element casts must throw at runtime. The MYT-279

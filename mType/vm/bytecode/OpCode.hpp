@@ -115,9 +115,9 @@ namespace vm::bytecode
         STORE_LOCAL_BOXED_INST,
         LOAD_GLOBAL,        // Load global variable (by name index)
         STORE_GLOBAL,       // Store to global variable (by name index)
-        LOAD_UPVALUE,       // Load closure upvalue (for lambdas)
-        STORE_UPVALUE,      // Store to closure upvalue
-        CLOSE_UPVALUE,      // Close upvalue (move to heap)
+        // MYT-B1: LOAD_UPVALUE / STORE_UPVALUE / CLOSE_UPVALUE removed —
+        // declared but never emitted (the compiler routes lambda capture
+        // through SharedStackFrame parent-chain lookup, not upvalue ops).
 
         // === Control Flow (50-59) ===
         JUMP,               // Unconditional jump (operand: offset)
@@ -134,7 +134,8 @@ namespace vm::bytecode
         CALL,               // Call function (operand: arg count)
         CALL_FAST,          // Optimized call for known functions
         TAIL_CALL,          // Tail call optimization
-        CLOSURE,            // Create closure (operand: function index)
+        // MYT-B1: CLOSURE removed — declared but never emitted; lambda
+        // creation flows through OpCode::LAMBDA exclusively.
 
         // === Object/Class Operations (65-79) ===
         NEW_OBJECT,         // Create new object (operand: class index)
@@ -218,7 +219,9 @@ namespace vm::bytecode
 
         // === Lambda Operations (95-99) ===
         LAMBDA,             // Create lambda value
-        LAMBDA_INVOKE,      // Invoke lambda
+        // MYT-B1: LAMBDA_INVOKE removed — lambdas dispatch through
+        // CALL_METHOD with the lambda value as receiver; this opcode
+        // was declared but never emitted by the compiler.
         CAPTURE_VARIABLE,   // Capture variable for closure
 
         // === Generic Type Operations (100-104) ===
@@ -501,9 +504,6 @@ namespace vm::bytecode
             case OpCode::STORE_LOCAL_BOXED_INST: return "STORE_LOCAL_BOXED_INST";
             case OpCode::LOAD_GLOBAL: return "LOAD_GLOBAL";
             case OpCode::STORE_GLOBAL: return "STORE_GLOBAL";
-            case OpCode::LOAD_UPVALUE: return "LOAD_UPVALUE";
-            case OpCode::STORE_UPVALUE: return "STORE_UPVALUE";
-            case OpCode::CLOSE_UPVALUE: return "CLOSE_UPVALUE";
 
             case OpCode::JUMP: return "JUMP";
             case OpCode::JUMP_IF_FALSE: return "JUMP_IF_FALSE";
@@ -518,7 +518,6 @@ namespace vm::bytecode
             case OpCode::CALL: return "CALL";
             case OpCode::CALL_FAST: return "CALL_FAST";
             case OpCode::TAIL_CALL: return "TAIL_CALL";
-            case OpCode::CLOSURE: return "CLOSURE";
 
             case OpCode::NEW_OBJECT: return "NEW_OBJECT";
             case OpCode::NEW_STACK: return "NEW_STACK";
@@ -569,7 +568,6 @@ namespace vm::bytecode
             case OpCode::ARRAY_LENGTH_LOCAL: return "ARRAY_LENGTH_LOCAL";
 
             case OpCode::LAMBDA: return "LAMBDA";
-            case OpCode::LAMBDA_INVOKE: return "LAMBDA_INVOKE";
             case OpCode::CAPTURE_VARIABLE: return "CAPTURE_VARIABLE";
 
             case OpCode::BIND_GENERIC: return "BIND_GENERIC";

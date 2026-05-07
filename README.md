@@ -4,7 +4,7 @@
 
 # mType Programming Language
 
-![Version](https://img.shields.io/badge/version-0.2.0-blue)
+![Version](https://img.shields.io/badge/version-1.0.0-blue)
 [![CI](https://github.com/matan45/mType/actions/workflows/ci.yml/badge.svg)](https://github.com/matan45/mType/actions/workflows/ci.yml)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![C++](https://img.shields.io/badge/C%2B%2B-20-blue.svg)
@@ -433,11 +433,14 @@ Distributed as `lib` (canonical packaging) with sources mirrored under `mType/te
 | Project / workspace builds | ✓ Working | `.mtproj`, `.mtworkspace` parsed and built |
 | `.mtcLib` libraries | ✓ Working | `--build --lib` produces a single packaged library |
 | Native executables | ✓ Working | `--build --exe` embeds bytecode in launcher |
+| `mtype-launcher` | ✓ Working | Stub binary used by `--build --exe`; bytecode is appended to a copy at build time. Shipped in release archives so end users can produce native exes without rebuilding mType. |
 | Cross-platform CI | ✓ Working | Windows (MSVC v143), Linux (GCC), macOS (Clang, Intel) |
 | Language server | ✓ Working | Standalone exe; full LSP capability set |
 | VS Code extension | ⚠ Built, not on Marketplace | Source under `mtype-vscode-extension/`; package locally with `vsce` |
 | Package manager (`mtpm`) | ⚠ CLI works, registry planned | `install` / `add` / `remove` / `list` / `init` work; sources are git-based, no central registry |
 | Installer / distribution | ✗ Planned | No `.msi`, Homebrew, or apt packaging — build from source |
+
+Known advanced limitations are documented in [`docs/limitations.md`](docs/limitations.md).
 
 ### Compiler, VM, and JIT
 
@@ -468,6 +471,7 @@ mtpm remove <pkg>
 mtpm list
 mtpm init <name> <version>
 mtpm --help
+mtpm --version
 ```
 
 `.mtproj` dependencies are resolved against git sources (e.g. `github:user/repo` or full git URLs). A central registry is on the roadmap.
@@ -542,12 +546,13 @@ Full flag list (from `mType --help`):
 |  | `--find-script-classes <file>` | List `@Script` classes in a file |
 |  | `--test-script-objects <file>` | Demo: create objects and call methods from C++ |
 | **Info** | `--help` | Print this help |
+|  | `--version`, `-v` | Print version |
 
 ---
 
 ## CI and Tests
 
-The pipeline at [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on:
+The pipeline at [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on pull requests, pushes to `dev`, and tags.
 
 | Platform | Toolchain | Build system |
 |---|---|---|
@@ -558,8 +563,10 @@ The pipeline at [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs on:
 The CI job builds the root solution and runs:
 
 - interpreter unit tests (`mType --tests`)
-- `mtpm --help` smoke test
+- no-JIT interpreter unit tests (`mType --tests --no-jit`)
+- version/help smoke tests for `mType`, `mtpm`, and `mtype-language-server`
 - language-server tests (`mtype-language-server-tests`)
+- VS Code extension compile and `.vsix` packaging smoke checks
 
 Test fixtures under `mType/tests/testFiles/` cover (file counts approximate):
 

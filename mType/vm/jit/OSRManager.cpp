@@ -9,8 +9,7 @@
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/NativeArray.hpp"
 #include "../../value/StringPool.hpp"
-#include <iostream>      // MYT-XXX DEBUG
-#include <cstdlib>       // MYT-XXX DEBUG (getenv)
+#include <iostream>      // MYT-248/249/250: cerr in catch handler diagnostic
 #include <typeinfo>      // MYT-248/249/250: typeid(e).name() in catch handler
 
 namespace vm::jit
@@ -98,17 +97,16 @@ namespace vm::jit
                              JitCompiler& compiler,
                              JitCodeCache& codeCache)
     {
-        // MYT-248/249/250: bisect helper. Setting MTYPE_DISABLE_OSR=1 keeps
-        // JIT enabled but skips the on-stack-replacement path entirely, so
-        // the user can determine whether the silent-exit failure mode lives
-        // in OSR machinery or elsewhere (IC fast-path, JIT helpers).
-        // Cached on first call to keep the hot-loop path branch-predictor
-        // friendly.
-        static const bool osrDisabled = []() {
-            const char* v = std::getenv("MTYPE_DISABLE_OSR");
-            return v && v[0] == '1' && v[1] == '\0';
-        }();
-        if (osrDisabled) return false;
+        // MYT-248/249/250 bisect knob (MTYPE_DISABLE_OSR) removed — the
+        // underlying stack-buffer-overrun in OSR-emitted asmjit code was
+        // root-caused (speculative method inlining inside OSR-compiled
+        // loops overflowing operand-stack/locals slack and clobbering the
+        // /GS cookie) and fixed in MYT-251 (MAX_OP_STACK 64→256,
+        // INLINE_LOCALS_SLACK 32→96, plus runtime headroom guards in
+        // computeCalleePeakOperandStack and checkOpStackHeadroom). OSR is
+        // safe with inlining on; if a regression resurfaces, reproduce
+        // against the bench suite and fix the underlying overrun rather
+        // than reintroducing the kill switch.
 
         LoopId loopId{jumpBackOffset};
 

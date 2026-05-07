@@ -2757,3 +2757,63 @@ This is the third entry today. Read order:
    construction direct-build in NEW_VALUE_OBJECT + JIT. Drops boxed-
    dispatch and HashSet hot paths another 24-48%. Compounds with caches
    (cache miss now hits fast path; cache hit skips construction entirely).
+
+## 2026-05-07 — post MYT-284 / MYT-285 (overload-validator + nested-decl parser rejection)
+
+- Machine: dev machine (Windows 11 Home)
+- Build:   Release x64, MSVC v145
+- Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
+- Scope: correctness-only — MYT-284 swaps the post-resolve overload
+  validator from a single by-name registry lookup to an overload-set
+  scan; MYT-285 adds a parser-side rejection of `class`/`interface`
+  declarations inside function bodies. Neither touches a hot path; this
+  entry is a baseline re-confirmation that the validator change in
+  `ClassMethodCallCompiler::compileStaticMethodCall` did not regress the
+  static-call benchmarks.
+
+### Summary (jit=on)
+
+```
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt            104.11        105.12           20017         0
+  method_dispatch.mt                   99.19         99.92           14043       506
+  object_alloc.mt                     517.74        521.50           12511         0
+  object_alloc_nested.mt             1213.88       1215.04           16811       500
+  field_write_hot.mt                   66.98         67.54            8018         1
+  field_read_hot.mt                    67.07         67.65            9020         1
+  string_ops.mt                       114.22        115.56           19019         0
+  recursive.mt                        741.83        754.82           17261   2545487
+  bitwise_tight_loop.mt                77.62         78.03           23019         0
+  short_circuit_chain.mt               63.03         63.56           24909         0
+  primitive_method_dispatch.mt        219.67        220.22           32039         0
+  array_multi_alloc.mt                 75.97         76.95            9911       500
+  array_multi_get.mt                  326.32        329.07           49787       500
+  for_each_loop.mt                    280.36        282.52           75654      5604
+  inline_monomorphic.mt                60.58         60.78           13017       501
+  inline_branching.mt                  63.72         64.48           15017       501
+  inline_polymorphic.mt                97.54         97.74           14052       508
+  inline_value_object_hot.mt          125.56        128.64           12518       500
+  function_call_hot.mt                186.78        187.32           15011       500
+  async_await_tight_loop.mt           701.95        703.78           12423       501
+  async_await_chain.mt               1405.85       1412.65           23323      2001
+  lambda_call_hot.mt                  845.96        850.10           12522   1999501
+  lambda_closure_hot.mt               872.25        876.51           12527   1999502
+  generic_dispatch_hot.mt             616.10        622.39           20075      1012
+  try_catch_finally_hot.mt            418.48        418.79           50020      2000
+  switch_dispatch_hot.mt              465.41        469.12           14634       500
+  overload_dispatch_hot.mt            492.80        496.79           34029      2001
+  abstract_dispatch_hot.mt             97.36         98.48           14043       506
+  cast_hot.mt                         195.93        196.48           19561       505
+  collections_hash_hot.mt             621.06        623.06           32762       502
+  collections_hash_user_class_hot.mt        633.77        643.34           35774       502
+  collections_hashset_hot.mt          168.24        169.06           18654         1
+  stream_pipeline_hot.mt              416.67        419.66         2090492    306881
+  reflection_lookup_hot.mt           2151.01       2172.07           81542   1203001
+  pattern_match_hot.mt                453.98        458.34           12861       500
+  string_interpolation_hot.mt         248.40        249.24         7400025         0
+  boxed_primitive_dispatch_hot.mt        627.57        630.63           32803         0
+  boxed_bool_dispatch_hot.mt          484.79        490.81           29277         0
+  boxed_string_dispatch_hot.mt        374.78        375.40           24262         0
+  static_call_hot.mt                  169.48        170.92           32517      2000
+  linked_list_nested_hot.mt           341.37        341.58          124920     81001
+```

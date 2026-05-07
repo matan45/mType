@@ -155,6 +155,16 @@ namespace value
             return dimensions_ == dims;
         }
 
+        // MYT-281: cast / instanceof validation for multi-dim arrays needs to
+        // reconstruct the full type name (`int[][]`, `string[][][]`, ...). The
+        // element type is encoded in defaultValue_'s tag (set by
+        // ArrayExecutor::buildMultiArray for the primitive multi-dim path);
+        // rank is dimensions_.size(). Sub-views inherit defaultValue_ so the
+        // same accessor works on `arr[0]` of `int[][][]`.
+        const Value& getDefaultValue() const {
+            return defaultValue_;
+        }
+
     protected:
         // Common helper methods
 

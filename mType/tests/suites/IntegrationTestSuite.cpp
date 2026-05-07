@@ -435,9 +435,8 @@ namespace tests::testSuite
                                   passPath + "combo13_abstractAsyncGenericError.mt");
         addOutputVerificationTest("Combo 14: Reflection + Value Class + Annotation",
                                   passPath + "combo14_reflectionValueClassAnnotation.mt");
-        // TODO MYT-223: re-enable when static method overload calls no longer type as void.
-        // addOutputVerificationTest("Combo 15: Grand Feature Showcase",
-        //                           passPath + "combo15_allFeatureShowcase.mt");
+        addOutputVerificationTest("Combo 15: Grand Feature Showcase",
+                                  passPath + "combo15_allFeatureShowcase.mt");
 
         // ====================================
         // PHASE 4: ADDITIONAL CROSS-FEATURE COMBO TESTS
@@ -454,9 +453,8 @@ namespace tests::testSuite
                                   passPath + "combo20_hashSetLambdaStream.mt");
         addOutputVerificationTest("Combo 21: Pattern Match + Annotation",
                                   passPath + "combo21_patternMatchAnnotation.mt");
-        // TODO MYT-224: re-enable when generic overload resolution unifies functional-interface types.
-        // addOutputVerificationTest("Combo 22: Static + Generic + Lambda Overload",
-        //                           passPath + "combo22_staticGenericLambdaOverload.mt");
+        addOutputVerificationTest("Combo 22: Static + Generic + Lambda Overload",
+                                  passPath + "combo22_staticGenericLambdaOverload.mt");
         addOutputVerificationTest("Combo 23: Value Class + Reflection",
                                   passPath + "combo23_valueClassReflection.mt");
         addOutputVerificationTest("Combo 24: Inheritance + Async Super Call",

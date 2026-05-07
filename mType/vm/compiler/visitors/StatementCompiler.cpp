@@ -889,18 +889,38 @@ namespace vm::compiler::visitors
 
                 if (!canAutoBox)
                 {
-                    ctx.typeValidator.validateAssignment(varType, varClassName, valueType,
-                                                         valueClassName, isNullValue, node->getLocation(),
-                                                         node->isNullableType());
-
-                    // For array literals assigned to typed arrays, validate each element
-                    // against the declared element type (catches incompatible objects)
+                    // MYT-137: target-type-guided array-literal inference. The
+                    // RHS literal `[new A(), new B(), new C()]` is otherwise
+                    // typed as `A[]` (first-element rule in TypeInferenceEngine
+                    // line ~1078) which forces the strict invariance check
+                    // below to reject `Shape[] = A[]`. Validate each NewNode
+                    // element against the declared element type and, on
+                    // success, retype the literal as the declared array type
+                    // so the strict check passes for valid covariant literals
+                    // while still rejecting `Animal[] = new Dog[]` (which is
+                    // a NewArrayCreation, not an ArrayLiteral).
                     auto* arrayLit = dynamic_cast<ast::nodes::expressions::ArrayLiteralNode*>(value);
                     if (arrayLit && varClassName.find("[]") != std::string::npos) {
                         std::string declaredElementType = varClassName.substr(0, varClassName.find("[]"));
                         const auto& elements = arrayLit->getElements();
-                        for (size_t i = 0; i < elements.size(); ++i) {
-                            if (auto* newNode = dynamic_cast<ast::NewNode*>(elements[i].get())) {
+
+                        // Only apply the target-type retype when every element is
+                        // a NewNode we can validate here. If any element is a
+                        // variable ref, call, or other expression we can't
+                        // type-check at this site, fall through to the standard
+                        // assignment validator — silently retyping would skip
+                        // the type-check for those elements entirely.
+                        bool allElementsAreNew = !elements.empty();
+                        for (const auto& element : elements) {
+                            if (!dynamic_cast<ast::NewNode*>(element.get())) {
+                                allElementsAreNew = false;
+                                break;
+                            }
+                        }
+
+                        if (allElementsAreNew) {
+                            for (size_t i = 0; i < elements.size(); ++i) {
+                                auto* newNode = dynamic_cast<ast::NewNode*>(elements[i].get());
                                 std::string elementClass = newNode->getClassName();
                                 if (elementClass != declaredElementType &&
                                     !ctx.typeValidator.isClassCompatible(elementClass, declaredElementType)) {
@@ -910,8 +930,16 @@ namespace vm::compiler::visitors
                                         node->getLocation());
                                 }
                             }
+                            // All NewNode elements are compatible with the declared
+                            // element type — retype the literal so the strict
+                            // invariance check below sees `Shape[] = Shape[]`.
+                            valueClassName = varClassName;
                         }
                     }
+
+                    ctx.typeValidator.validateAssignment(varType, varClassName, valueType,
+                                                         valueClassName, isNullValue, node->getLocation(),
+                                                         node->isNullableType());
                 }
 
                 // Check for auto-unboxing (Box type to primitive)
