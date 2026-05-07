@@ -1,0 +1,86 @@
+name: Docs Site
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'website/**'
+      - 'docs/**'
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - 'logo.png'
+      - 'mtype-vscode-extension/syntaxes/**'
+      - 'mtype-vscode-extension/themes/**'
+      - '.github/workflows/docs-deploy.yml'
+  pull_request:
+    paths:
+      - 'website/**'
+      - 'docs/**'
+      - 'mtype-vscode-extension/syntaxes/**'
+      - 'mtype-vscode-extension/themes/**'
+      - '.github/workflows/docs-deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Single concurrent deploy queue; in-progress deploy is allowed to finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Build site
+        run: npm run build
+
+      # Internal link integrity is enforced by Docusaurus itself via
+      # `onBrokenLinks: 'throw'` in docusaurus.config.ts — the build step
+      # above fails on any broken internal link, so a separate offline link
+      # checker would only duplicate that. External-link checking is best
+      # done as a scheduled job (external links are flaky and shouldn't gate
+      # every PR).
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/build
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

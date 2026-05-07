@@ -1,0 +1,100 @@
+/**
+ * mType website custom styles. Layered on top of Docusaurus Infima defaults.
+ */
+
+:root {
+  --ifm-color-primary: #4a7fc1;
+  --ifm-color-primary-dark: #3970b5;
+  --ifm-color-primary-darker: #366aac;
+  --ifm-color-primary-darkest: #2c578d;
+  --ifm-color-primary-light: #5d8ec8;
+  --ifm-color-primary-lighter: #6a96cc;
+  --ifm-color-primary-lightest: #88abd6;
+
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #7fa9d9;
+  --ifm-color-primary-dark: #6498cf;
+  --ifm-color-primary-darker: #5990ca;
+  --ifm-color-primary-darkest: #3f78b3;
+  --ifm-color-primary-light: #9abbe1;
+  --ifm-color-primary-lighter: #a5c3e4;
+  --ifm-color-primary-lightest: #c2d6ec;
+
+  --docusaurus-highlighted-code-line-bg: rgba(255, 255, 255, 0.1);
+}
+
+/* Hero on landing page */
+.hero {
+  padding: 4rem 0 3rem 0;
+  background: linear-gradient(135deg, var(--ifm-color-primary-darkest) 0%, var(--ifm-color-primary) 100%);
+  color: var(--ifm-color-white);
+}
+
+.hero__title {
+  font-size: 3rem;
+  font-weight: 700;
+}
+
+.hero__subtitle {
+  font-size: 1.4rem;
+  max-width: 720px;
+  margin: 1rem auto 2rem auto;
+  opacity: 0.95;
+}
+
+.heroButtons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Feature cards */
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  padding: 3rem 0;
+}
+
+.feature {
+  background: var(--ifm-card-background-color, var(--ifm-background-surface-color));
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.feature:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.feature h3 {
+  margin-top: 0;
+  color: var(--ifm-color-primary);
+}
+
+.feature p {
+  margin-bottom: 0;
+  color: var(--ifm-color-emphasis-700);
+}
+
+/* Code preview block on landing page */
+.codePreview {
+  padding: 3rem 0;
+}
+
+.codePreview h2 {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 768px) {
+  .hero__title { font-size: 2.2rem; }
+  .hero__subtitle { font-size: 1.1rem; }
+}
