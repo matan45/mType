@@ -1,5 +1,6 @@
 #include "MTypeLanguageServer.hpp"
 #include "utils/UriUtils.hpp"
+#include "version/Version.hpp"
 #include <chrono>
 #include <filesystem>
 #include <future>
@@ -289,7 +290,7 @@ namespace mtype::lsp
             {
                 "serverInfo", {
                     {"name", "mType Language Server"},
-                    {"version", "0.2.0"}
+                    {"version", mType::version::getVersionString()}
                 }
             }
         };

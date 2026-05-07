@@ -222,7 +222,7 @@ Create a `.vscode/launch.json` file:
 
 ```json
 {
-  "version": "0.2.0",
+  "version": "1.0.0",
   "configurations": [
     {
       "type": "mtype",
