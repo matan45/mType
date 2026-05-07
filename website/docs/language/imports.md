@@ -31,6 +31,51 @@ import { Int as MyInt } from "lib/primitives/Int.mt";
 
 Renames a symbol locally to avoid collision.
 
+## Visibility — `public` and `private`
+
+Top-level declarations control whether they can be imported from other files. The modifier goes on the **declaration**, not on the `import` statement — there is no `public import` or `private import` syntax in mType.
+
+```mtype
+// utils/MathCore.mt
+
+public class MathCore {
+    public function square(int x): int { return x * x; }
+}
+
+public function abs(int n): int {
+    return n < 0 ? -n : n;
+}
+
+// File-local — can't be imported
+private function internalHelper(int x): int {
+    return x * 2;
+}
+
+public  int[] publicNumbers  = [1, 2, 3];
+private int[] privateNumbers = [10, 20];
+```
+
+- **Default visibility is public.** A declaration without a modifier behaves the same as `public`.
+- **`private` declarations are file-local.** Trying to import them from another file is a compile error.
+- The modifier applies to: classes, interfaces, functions, annotations, and top-level variables / arrays / objects.
+
+### Re-exports are NOT transitive
+
+If file `B.mt` imports something from `A.mt`, that symbol does **not** automatically flow through to whoever imports `B.mt`. To expose a chain of types across module boundaries, use **inheritance** — a `public` subclass in `B.mt` extending a class from `A.mt` is visible to `B`'s importers without re-exporting `A`.
+
+```mtype
+// A.mt
+public class Base {
+    public function hello(): string { return "hi"; }
+}
+
+// B.mt
+import { Base } from "./A.mt";
+public class Mid extends Base { }   // importers of B see Mid (and its inherited hello)
+```
+
+The same rule applies to private symbols: even if `B.mt` imports a private symbol from `A.mt` directly, no third file can reach it through `B`.
+
 ## Resolution
 
 - The path string is resolved against the project's import search paths (`<importPaths>` in `.mtproj`).
