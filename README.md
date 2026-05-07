@@ -433,6 +433,7 @@ Distributed as `lib` (canonical packaging) with sources mirrored under `mType/te
 | Project / workspace builds | ✓ Working | `.mtproj`, `.mtworkspace` parsed and built |
 | `.mtcLib` libraries | ✓ Working | `--build --lib` produces a single packaged library |
 | Native executables | ✓ Working | `--build --exe` embeds bytecode in launcher |
+| `mtype-launcher` | ✓ Working | Stub binary used by `--build --exe`; bytecode is appended to a copy at build time. Shipped in release archives so end users can produce native exes without rebuilding mType. |
 | Cross-platform CI | ✓ Working | Windows (MSVC v143), Linux (GCC), macOS (Clang, Intel) |
 | Language server | ✓ Working | Standalone exe; full LSP capability set |
 | VS Code extension | ⚠ Built, not on Marketplace | Source under `mtype-vscode-extension/`; package locally with `vsce` |

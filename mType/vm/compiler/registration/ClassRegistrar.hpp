@@ -114,6 +114,14 @@ namespace vm::compiler::registration
         // (different node, same name -> error). Pre-fix, registerSingleClass
         // queried environment->findClass() and silently skipped on either case,
         // masking diamond-conflicting and import-then-local-redefine bugs.
+        //
+        // Lifetime contract: the AST that owns these ClassNodes must outlive
+        // the ClassRegistrar. In the current pipeline, ScriptInterpreter holds
+        // the AST root for the duration of compilation and ClassRegistrar is
+        // constructed and destroyed within that scope, so the raw pointers
+        // remain valid. If the pipeline ever moves AST ownership inside the
+        // registrar's lifetime, switch to a stable identity (e.g. ast node
+        // ID) to avoid a UAF on lookup.
         std::unordered_map<std::string, ast::ClassNode*> firstClassNodeByName;
     };
 }

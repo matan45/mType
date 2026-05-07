@@ -903,8 +903,24 @@ namespace vm::compiler::visitors
                     if (arrayLit && varClassName.find("[]") != std::string::npos) {
                         std::string declaredElementType = varClassName.substr(0, varClassName.find("[]"));
                         const auto& elements = arrayLit->getElements();
-                        for (size_t i = 0; i < elements.size(); ++i) {
-                            if (auto* newNode = dynamic_cast<ast::NewNode*>(elements[i].get())) {
+
+                        // Only apply the target-type retype when every element is
+                        // a NewNode we can validate here. If any element is a
+                        // variable ref, call, or other expression we can't
+                        // type-check at this site, fall through to the standard
+                        // assignment validator — silently retyping would skip
+                        // the type-check for those elements entirely.
+                        bool allElementsAreNew = !elements.empty();
+                        for (const auto& element : elements) {
+                            if (!dynamic_cast<ast::NewNode*>(element.get())) {
+                                allElementsAreNew = false;
+                                break;
+                            }
+                        }
+
+                        if (allElementsAreNew) {
+                            for (size_t i = 0; i < elements.size(); ++i) {
+                                auto* newNode = dynamic_cast<ast::NewNode*>(elements[i].get());
                                 std::string elementClass = newNode->getClassName();
                                 if (elementClass != declaredElementType &&
                                     !ctx.typeValidator.isClassCompatible(elementClass, declaredElementType)) {
@@ -914,16 +930,11 @@ namespace vm::compiler::visitors
                                         node->getLocation());
                                 }
                             }
+                            // All NewNode elements are compatible with the declared
+                            // element type — retype the literal so the strict
+                            // invariance check below sees `Shape[] = Shape[]`.
+                            valueClassName = varClassName;
                         }
-                        // All NewNode elements are compatible with the declared
-                        // element type — retype the literal so the strict
-                        // invariance check below sees `Shape[] = Shape[]`.
-                        // Non-NewNode elements (variable refs, calls) are not
-                        // exercised by the current test corpus; preserving
-                        // first-element inference for them would defeat the
-                        // override, so we treat the literal as the declared
-                        // type unconditionally once NewNode validation passes.
-                        valueClassName = varClassName;
                     }
 
                     ctx.typeValidator.validateAssignment(varType, varClassName, valueType,

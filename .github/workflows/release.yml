@@ -2,7 +2,7 @@ name: Release
 
 on:
   push:
-    tags: ["v1.0.0"]
+    tags: ["v*"]
 
 permissions:
   contents: write
@@ -18,15 +18,15 @@ jobs:
           - name: windows-x64
             os: windows-latest
             premake_action: vs2022
-            archive: mType-1.0.0-windows-x64.zip
+            archive: mType-${{ github.ref_name }}-windows-x64.zip
           - name: linux-x64
             os: ubuntu-24.04
             premake_action: gmake2
-            archive: mType-1.0.0-linux-x64.tar.gz
+            archive: mType-${{ github.ref_name }}-linux-x64.tar.gz
           - name: macos-x64
             os: macos-15-intel
             premake_action: gmake2
-            archive: mType-1.0.0-macos-x64.tar.gz
+            archive: mType-${{ github.ref_name }}-macos-x64.tar.gz
 
     steps:
       - name: Checkout
@@ -110,7 +110,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $stage = "dist/mType-1.0.0-${{ matrix.name }}"
+          $stage = "dist/mType-${{ github.ref_name }}-${{ matrix.name }}"
           New-Item -ItemType Directory -Force $stage | Out-Null
           Copy-Item bin/mType/Release/x64/mType.exe $stage/
           Copy-Item bin/mType/Release/x64/mtype-launcher.exe $stage/
@@ -124,7 +124,7 @@ jobs:
       - name: Stage package on Unix
         if: runner.os != 'Windows'
         run: |
-          stage="dist/mType-1.0.0-${{ matrix.name }}"
+          stage="dist/mType-${{ github.ref_name }}-${{ matrix.name }}"
           mkdir -p "$stage"
           cp bin/mType/Release/x64/mType "$stage/"
           cp bin/mType/Release/x64/mtype-launcher "$stage/"
@@ -133,7 +133,7 @@ jobs:
           cp -R mType/tests/testFiles/lib "$stage/lib"
           cp -R docs "$stage/docs"
           cp README.md LICENSE CHANGELOG.md RELEASE.md "$stage/"
-          tar -czf "dist/${{ matrix.archive }}" -C dist "mType-1.0.0-${{ matrix.name }}"
+          tar -czf "dist/${{ matrix.archive }}" -C dist "mType-${{ github.ref_name }}-${{ matrix.name }}"
 
       - name: Upload native package
         uses: actions/upload-artifact@v4
@@ -169,13 +169,13 @@ jobs:
         working-directory: mtype-vscode-extension
         run: |
           mkdir -p ../dist
-          npx --yes @vscode/vsce package --out ../dist/mtype-language-support-1.0.0.vsix
+          npx --yes @vscode/vsce package --out ../dist/mtype-language-support-${{ github.ref_name }}.vsix
 
       - name: Upload VSIX package
         uses: actions/upload-artifact@v4
         with:
-          name: mtype-language-support-1.0.0.vsix
-          path: dist/mtype-language-support-1.0.0.vsix
+          name: mtype-language-support-${{ github.ref_name }}.vsix
+          path: dist/mtype-language-support-${{ github.ref_name }}.vsix
           if-no-files-found: error
 
   publish:
@@ -193,10 +193,10 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0
-          name: mType 1.0.0
+          tag_name: ${{ github.ref_name }}
+          name: mType ${{ github.ref_name }}
           body: |
-            mType 1.0.0 stable-core release.
+            mType ${{ github.ref_name }} release.
 
             See CHANGELOG.md and RELEASE.md for release notes and validation steps.
           files: release-assets/*
