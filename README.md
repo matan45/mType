@@ -6,8 +6,11 @@
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 [![CI](https://github.com/matan45/mType/actions/workflows/ci.yml/badge.svg)](https://github.com/matan45/mType/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-matan45.github.io%2FmType-4a7fc1)](https://matan45.github.io/mType/)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![C++](https://img.shields.io/badge/C%2B%2B-20-blue.svg)
+
+📖 **Documentation:** https://matan45.github.io/mType/
 
 mType is a statically typed, class-based language with a bytecode VM, an x86-64 JIT, a project / workspace build system, a `mtpm` package manager, a standalone language server, and a VS Code extension. The repository ships the compiler, runtime, standard library, language server, package manager, extension source, and ~1,350+ test fixtures.
 
