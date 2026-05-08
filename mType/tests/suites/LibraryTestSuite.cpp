@@ -182,6 +182,123 @@ namespace tests::testSuite
                 requireEq("compareTo", interfaces[0].methods[0].name, "Method name");
                 requireEq("int", interfaces[0].methods[0].returnType, "Return type");
             });
+
+        // MYT-286: peephole shrinking instructions inside a function body
+        // leaves that function's recorded instructionCount stale (too large).
+        // Pre-fix, deserialize at load rejected start+count > instructions.size()
+        // and the user's RTSCameraController.mtcLib failed to load. Fix: clamp
+        // instructionCount at serialize time so the on-disk range always fits.
+        addCallbackTest("Stale FunctionMetadata.instructionCount round-trips (MYT-286)",
+            "",
+            [](ScriptAPI&) {
+                BytecodeProgram prog;
+
+                // Layout: JUMP at 0, then a 5-instruction "function body" at [1..6).
+                prog.emit(OpCode::JUMP, 6);
+                prog.emit(OpCode::NOP);   // 1
+                prog.emit(OpCode::NOP);   // 2  <- will be removed by replaceInstructions
+                prog.emit(OpCode::NOP);   // 3  <- will be removed by replaceInstructions
+                prog.emit(OpCode::NOP);   // 4
+                prog.emit(OpCode::HALT);  // 5
+
+                BytecodeProgram::FunctionMetadata meta;
+                meta.name = "Inner::method";
+                meta.mangledName = meta.name;
+                meta.startOffset = 1;
+                meta.instructionCount = 5;
+                meta.localCount = 0;
+                meta.parameterCount = 1;
+                meta.parameterNames = {"this"};
+                meta.returnType = "void";
+                meta.isStatic = false;
+                meta.isNative = false;
+                prog.registerFunction(meta.name, meta);
+                prog.setEntryPoint(0);
+
+                // Simulate peephole shrinking the body by 1 (replace 2 NOPs with
+                // 1 NOP) without updating instructionCount — this is exactly the
+                // state the RTSCameraController constructor was in on disk.
+                std::vector<BytecodeProgram::Instruction> replacement;
+                BytecodeProgram::Instruction r;
+                r.opcode = OpCode::NOP;
+                replacement.push_back(r);
+                prog.replaceInstructions(2, 2, replacement);
+                prog.updateFunctionOffsets(2 + 2, -1);  // current behavior: only shifts later startOffsets
+
+                // In-memory: instructionCount is still 5 (stale). The body
+                // [1, 6) overflows the now-5-instruction array by exactly 1.
+                const auto* f = prog.getFunction("Inner::method");
+                require(f != nullptr, "Function should be registered");
+                require(f->instructionCount == 5, "In-memory count is intentionally stale");
+                require(prog.getInstructionCount() == 5, "Array should have shrunk by 1");
+
+                // Round-trip — the writer must clamp the count so deserialize
+                // doesn't reject the body as out-of-range. Pre-fix this throws.
+                std::stringstream ss;
+                prog.serialize(ss);
+                auto deserialized = BytecodeProgram::deserialize(ss);
+
+                const auto* g = deserialized.getFunction("Inner::method");
+                require(g != nullptr, "Function should round-trip");
+                require(g->startOffset + g->instructionCount
+                            <= deserialized.getInstructionCount(),
+                    "Deserialized body must fit within the instruction array");
+            });
+
+        // MYT-286: end-to-end repro. Mirrors C:\matan\RTSDemo\scripts\game\
+        // RTSCameraController.mt — @Script class with many inline-initialized
+        // fields and an empty user-defined constructor, run through the real
+        // compile pipeline (with release-mode peephole) and then deserialized
+        // from disk. Pre-fix this throws "out-of-range body" at deserialize
+        // because the constructor's recorded instructionCount goes stale after
+        // peephole shrinks the body.
+        addCallbackTest("@Script empty-ctor class round-trips through .mtc on disk (MYT-286)",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+
+                std::string sourcePath =
+                    "mType/tests/testFiles/library/pass/rtsCameraStyleEmptyCtor.mt";
+                require(fs::exists(sourcePath),
+                    "fixture not found at: " + sourcePath);
+
+                fs::path tempDir = fs::temp_directory_path() / "myt286";
+                fs::create_directories(tempDir);
+                std::string outPath = (tempDir / "rtsCameraStyleEmptyCtor.mtc").string();
+                if (fs::exists(outPath)) fs::remove(outPath);
+
+                // Compile through the production pipeline (lexer/parser/compiler/
+                // optimizer/peephole) and write the .mtc.
+                {
+                    ScriptInterpreter interpreter;
+                    interpreter.compileToFile(sourcePath, outPath);
+                }
+                require(fs::exists(outPath), ".mtc not produced at: " + outPath);
+
+                // Deserialize. Pre-fix this throws because the empty
+                // constructor's instructionCount overflowed instructions.size().
+                std::ifstream in(outPath, std::ios::binary);
+                require(in.good(), "cannot open compiled .mtc");
+                auto reloaded = BytecodeProgram::deserialize(in);
+                in.close();
+
+                // Sanity-check the constructor metadata is consistent with the
+                // instruction array we just loaded.
+                bool foundCtor = false;
+                for (const auto& [name, meta] : reloaded.getFunctions()) {
+                    if (name.find("RTSCameraStyleScript::<init>") == 0) {
+                        foundCtor = true;
+                        require(meta.startOffset + meta.instructionCount
+                                    <= reloaded.getInstructionCount(),
+                            "ctor body must fit in instruction array: " + name);
+                    }
+                }
+                require(foundCtor, "expected to find RTSCameraStyleScript::<init>");
+
+                fs::remove(outPath);
+                std::error_code ec;
+                fs::remove_all(tempDir, ec);
+            });
     }
 
     // =========================================================================

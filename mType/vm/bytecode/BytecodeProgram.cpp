@@ -980,9 +980,21 @@ namespace vm::bytecode
             out.write(reinterpret_cast<const char*>(&len), sizeof(len));
             out.write(name.data(), len);
 
-            // Write function metadata
+            // Write function metadata.
+            // MYT-286: clamp instructionCount so the on-disk range never extends
+            // past the instruction array. Peephole's updateFunctionOffsets only
+            // shifts startOffsets of *later* functions; a body that contained
+            // the modification keeps its now-stale (too-large) instructionCount,
+            // and the deserialization validator at readFunctions correctly
+            // rejects start+count > instructions.size(). Runtime use sites
+            // (JIT scanCalleeOpcodes, JumpThreading, fuseLocalArrayOps, etc.)
+            // already cap defensively, so a tighter on-disk count is safe.
+            size_t writeCount = func.instructionCount;
+            if (!func.isNative && func.startOffset + writeCount > instructions.size()) {
+                writeCount = instructions.size() - func.startOffset;
+            }
             out.write(reinterpret_cast<const char*>(&func.startOffset), sizeof(func.startOffset));
-            out.write(reinterpret_cast<const char*>(&func.instructionCount), sizeof(func.instructionCount));
+            out.write(reinterpret_cast<const char*>(&writeCount), sizeof(writeCount));
             out.write(reinterpret_cast<const char*>(&func.localCount), sizeof(func.localCount));
             out.write(reinterpret_cast<const char*>(&func.parameterCount), sizeof(func.parameterCount));
             out.write(reinterpret_cast<const char*>(&func.isStatic), sizeof(func.isStatic));
