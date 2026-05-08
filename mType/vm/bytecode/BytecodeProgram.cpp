@@ -980,9 +980,44 @@ namespace vm::bytecode
             out.write(reinterpret_cast<const char*>(&len), sizeof(len));
             out.write(name.data(), len);
 
-            // Write function metadata
+            // Write function metadata.
+            // MYT-286: serialize-time backstop for stale instructionCount.
+            // The real root cause is in updateFunctionOffsets: when peephole
+            // removes instructions from inside a function body, that function's
+            // recorded length stays at the pre-shrink value. The right fix is
+            // to teach updateFunctionOffsets to also shrink instructionCount
+            // for the enclosing function, but a literal version of that change
+            // broke 22 tests in code paths that read the loose count without
+            // defensive caps; pinning down which sites depend on the slack is
+            // its own follow-up. Until then, clamp here so the on-disk range
+            // never extends past instructions.size() and deserialize doesn't
+            // reject otherwise-valid bytecode. Runtime use sites (JIT
+            // scanCalleeOpcodes, JumpThreading, fuseLocalArrayOps) already cap
+            // defensively, so a tighter on-disk count is safe.
+            size_t writeCount = func.instructionCount;
+            if (!func.isNative) {
+                // Guard the subtraction: startOffset can be >= instructions.size()
+                // for genuinely corrupt or placeholder metadata, in which case
+                // size_t arithmetic would wrap. Producing a writeCount of 0 here
+                // is fine — the deserializer's startOffset > size check rejects
+                // that record on its own.
+                size_t available = (func.startOffset < instructions.size())
+                                   ? instructions.size() - func.startOffset
+                                   : 0;
+                if (writeCount > available) {
+#ifndef NDEBUG
+                    std::cerr << "[MYT-286] writeFunctions clamped '"
+                              << name << "': "
+                              << writeCount << " -> " << available
+                              << " (startOffset=" << func.startOffset
+                              << ", instructions.size=" << instructions.size()
+                              << ")\n";
+#endif
+                    writeCount = available;
+                }
+            }
             out.write(reinterpret_cast<const char*>(&func.startOffset), sizeof(func.startOffset));
-            out.write(reinterpret_cast<const char*>(&func.instructionCount), sizeof(func.instructionCount));
+            out.write(reinterpret_cast<const char*>(&writeCount), sizeof(writeCount));
             out.write(reinterpret_cast<const char*>(&func.localCount), sizeof(func.localCount));
             out.write(reinterpret_cast<const char*>(&func.parameterCount), sizeof(func.parameterCount));
             out.write(reinterpret_cast<const char*>(&func.isStatic), sizeof(func.isStatic));

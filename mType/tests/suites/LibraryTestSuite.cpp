@@ -182,6 +182,382 @@ namespace tests::testSuite
                 requireEq("compareTo", interfaces[0].methods[0].name, "Method name");
                 requireEq("int", interfaces[0].methods[0].returnType, "Return type");
             });
+
+        // MYT-286: peephole shrinking instructions inside a function body
+        // leaves that function's recorded instructionCount stale (too large).
+        // Pre-fix, deserialize at load rejected start+count > instructions.size()
+        // and the user's RTSCameraController.mtcLib failed to load. Fix: clamp
+        // instructionCount at serialize time so the on-disk range always fits.
+        addCallbackTest("Stale FunctionMetadata.instructionCount round-trips (MYT-286)",
+            "",
+            [](ScriptAPI&) {
+                BytecodeProgram prog;
+
+                // Layout: JUMP at 0, then a 5-instruction "function body" at [1..6).
+                prog.emit(OpCode::JUMP, 6);
+                prog.emit(OpCode::NOP);   // 1
+                prog.emit(OpCode::NOP);   // 2  <- will be removed by replaceInstructions
+                prog.emit(OpCode::NOP);   // 3  <- will be removed by replaceInstructions
+                prog.emit(OpCode::NOP);   // 4
+                prog.emit(OpCode::HALT);  // 5
+
+                BytecodeProgram::FunctionMetadata meta;
+                meta.name = "Inner::method";
+                meta.mangledName = meta.name;
+                meta.startOffset = 1;
+                meta.instructionCount = 5;
+                meta.localCount = 0;
+                meta.parameterCount = 1;
+                meta.parameterNames = {"this"};
+                meta.returnType = "void";
+                meta.isStatic = false;
+                meta.isNative = false;
+                prog.registerFunction(meta.name, meta);
+                prog.setEntryPoint(0);
+
+                // Simulate peephole shrinking the body by 1 (replace 2 NOPs with
+                // 1 NOP) without updating instructionCount — this is exactly the
+                // state the RTSCameraController constructor was in on disk.
+                std::vector<BytecodeProgram::Instruction> replacement;
+                BytecodeProgram::Instruction r;
+                r.opcode = OpCode::NOP;
+                replacement.push_back(r);
+                prog.replaceInstructions(2, 2, replacement);
+                prog.updateFunctionOffsets(2 + 2, -1);  // current behavior: only shifts later startOffsets
+
+                // In-memory: instructionCount is still 5 (stale). The body
+                // [1, 6) overflows the now-5-instruction array by exactly 1.
+                const auto* f = prog.getFunction("Inner::method");
+                require(f != nullptr, "Function should be registered");
+                require(f->instructionCount == 5, "In-memory count is intentionally stale");
+                require(prog.getInstructionCount() == 5, "Array should have shrunk by 1");
+
+                // Round-trip — the writer must clamp the count so deserialize
+                // doesn't reject the body as out-of-range. Pre-fix this throws.
+                std::stringstream ss;
+                prog.serialize(ss);
+                auto deserialized = BytecodeProgram::deserialize(ss);
+
+                const auto* g = deserialized.getFunction("Inner::method");
+                require(g != nullptr, "Function should round-trip");
+                require(g->startOffset + g->instructionCount
+                            <= deserialized.getInstructionCount(),
+                    "Deserialized body must fit within the instruction array");
+            });
+
+        // MYT-286: end-to-end repro. Mirrors C:\matan\RTSDemo\scripts\game\
+        // RTSCameraController.mt — @Script class with many inline-initialized
+        // fields and an empty user-defined constructor, run through the real
+        // compile pipeline (with release-mode peephole) and then deserialized
+        // from disk. Pre-fix this throws "out-of-range body" at deserialize
+        // because the constructor's recorded instructionCount goes stale after
+        // peephole shrinks the body.
+        addCallbackTest("@Script empty-ctor class round-trips through .mtc on disk (MYT-286)",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+
+                std::string sourcePath =
+                    "mType/tests/testFiles/library/pass/rtsCameraStyleEmptyCtor.mt";
+                require(fs::exists(sourcePath),
+                    "fixture not found at: " + sourcePath);
+
+                fs::path tempDir = fs::temp_directory_path() / "myt286";
+                fs::create_directories(tempDir);
+                std::string outPath = (tempDir / "rtsCameraStyleEmptyCtor.mtc").string();
+                if (fs::exists(outPath)) fs::remove(outPath);
+
+                // RAII cleanup so the temp dir is removed even if a require()
+                // below throws. Captures by value to avoid dangling refs.
+                struct ScopedRemove {
+                    fs::path dir;
+                    ~ScopedRemove() { std::error_code ec; fs::remove_all(dir, ec); }
+                } cleanup{tempDir};
+
+                // Compile through the production pipeline (lexer/parser/compiler/
+                // optimizer/peephole) and write the .mtc.
+                {
+                    ScriptInterpreter interpreter;
+                    interpreter.compileToFile(sourcePath, outPath);
+                }
+                require(fs::exists(outPath), ".mtc not produced at: " + outPath);
+
+                // Deserialize. Pre-fix this throws because the empty
+                // constructor's instructionCount overflowed instructions.size().
+                std::ifstream in(outPath, std::ios::binary);
+                require(in.good(), "cannot open compiled .mtc");
+                auto reloaded = BytecodeProgram::deserialize(in);
+                in.close();
+
+                // Sanity-check the constructor metadata is consistent with the
+                // instruction array we just loaded.
+                bool foundCtor = false;
+                for (const auto& [name, meta] : reloaded.getFunctions()) {
+                    if (name.find("RTSCameraStyleScript::<init>") == 0) {
+                        foundCtor = true;
+                        require(meta.startOffset + meta.instructionCount
+                                    <= reloaded.getInstructionCount(),
+                            "ctor body must fit in instruction array: " + name);
+                    }
+                }
+                require(foundCtor, "expected to find RTSCameraStyleScript::<init>");
+            });
+
+        // MYT-286 edge: function whose body shrinks ALL the way down to zero
+        // (peephole removes everything between the entry and the trailing
+        // RETURN). The clamp must produce a non-negative count.
+        addCallbackTest("Peephole shrink-to-empty body still serializes (MYT-286 edge)",
+            "",
+            [](ScriptAPI&) {
+                BytecodeProgram prog;
+                prog.emit(OpCode::JUMP, 4);  // 0  skip-jump
+                prog.emit(OpCode::NOP);       // 1  body inst 1
+                prog.emit(OpCode::NOP);       // 2  body inst 2
+                prog.emit(OpCode::NOP);       // 3  body inst 3
+                prog.emit(OpCode::HALT);      // 4
+
+                BytecodeProgram::FunctionMetadata meta;
+                meta.name = "Empty::method";
+                meta.mangledName = meta.name;
+                meta.startOffset = 1;
+                meta.instructionCount = 3;
+                meta.parameterCount = 1;
+                meta.parameterNames = {"this"};
+                meta.returnType = "void";
+                prog.registerFunction(meta.name, meta);
+                prog.setEntryPoint(0);
+
+                // Wipe the entire body — replace 3 instructions with none.
+                prog.replaceInstructions(1, 3, {});
+                prog.updateFunctionOffsets(1 + 3, -3);
+                require(prog.getInstructionCount() == 2,
+                    "Array should be JUMP + HALT only");
+
+                std::stringstream ss;
+                prog.serialize(ss);
+                auto reloaded = BytecodeProgram::deserialize(ss);
+                const auto* f = reloaded.getFunction("Empty::method");
+                require(f != nullptr, "Function survives empty-body shrink");
+                require(f->startOffset + f->instructionCount
+                            <= reloaded.getInstructionCount(),
+                    "Empty body fits inside array (count clamped to 0 or less)");
+            });
+
+        // MYT-286 edge: function whose body sits at the very end of the
+        // instructions array — there's no padding past startOffset+count for a
+        // stale count to "spill into," so the clamp is the only thing keeping
+        // serialize honest. (Real-world: RTSCameraController's <init> was the
+        // last function before HALT; this is the same shape.)
+        addCallbackTest("Peephole shrink at end-of-program clamps correctly (MYT-286 edge)",
+            "",
+            [](ScriptAPI&) {
+                BytecodeProgram prog;
+                prog.emit(OpCode::JUMP, 5);   // 0
+                prog.emit(OpCode::NOP);        // 1  body
+                prog.emit(OpCode::NOP);        // 2  body  <- removed
+                prog.emit(OpCode::NOP);        // 3  body  <- removed
+                prog.emit(OpCode::NOP);        // 4  body
+                prog.emit(OpCode::HALT);       // 5
+
+                BytecodeProgram::FunctionMetadata meta;
+                meta.name = "Tail::method";
+                meta.mangledName = meta.name;
+                meta.startOffset = 1;
+                meta.instructionCount = 4;
+                meta.parameterCount = 1;
+                meta.parameterNames = {"this"};
+                meta.returnType = "void";
+                prog.registerFunction(meta.name, meta);
+                prog.setEntryPoint(0);
+
+                std::vector<BytecodeProgram::Instruction> one(1);
+                one[0].opcode = OpCode::NOP;
+                prog.replaceInstructions(2, 2, one);
+                prog.updateFunctionOffsets(2 + 2, -1);
+
+                // In-memory the count is still 4; on-disk must be clamped.
+                std::stringstream ss;
+                prog.serialize(ss);
+                auto reloaded = BytecodeProgram::deserialize(ss);
+                const auto* f = reloaded.getFunction("Tail::method");
+                require(f != nullptr, "function round-trips");
+                require(f->startOffset == 1, "startOffset preserved");
+                require(f->startOffset + f->instructionCount
+                            <= reloaded.getInstructionCount(),
+                    "clamped count fits in deserialized array");
+            });
+
+        // MYT-286 edge: native functions have instructionCount = 0 and
+        // isNative = true. The clamp's `!isNative` guard must NOT touch them —
+        // their startOffset is a placeholder and any clamp arithmetic would be
+        // meaningless. (No bug today; this test pins the guard so a future
+        // refactor doesn't accidentally drop the isNative check.)
+        addCallbackTest("Native function metadata is not clamped on serialize",
+            "",
+            [](ScriptAPI&) {
+                BytecodeProgram prog;
+                prog.emit(OpCode::HALT);
+
+                BytecodeProgram::FunctionMetadata native;
+                native.name = "ext::nativeFn";
+                native.mangledName = native.name;
+                native.startOffset = 999999;   // bogus, won't fit in any array
+                native.instructionCount = 0;
+                native.parameterCount = 0;
+                native.returnType = "void";
+                native.isNative = true;
+                prog.registerFunction(native.name, native);
+                prog.setEntryPoint(0);
+
+                std::stringstream ss;
+                prog.serialize(ss);
+                auto reloaded = BytecodeProgram::deserialize(ss);
+                const auto* f = reloaded.getFunction("ext::nativeFn");
+                require(f != nullptr, "native function round-trips");
+                require(f->isNative, "isNative preserved");
+                require(f->startOffset == 999999,
+                    "native startOffset preserved verbatim (no clamp)");
+                require(f->instructionCount == 0,
+                    "native instructionCount preserved");
+            });
+
+        // MYT-286 edge: peephole INSERTS instructions (delta > 0). The clamp
+        // only applies when start+count overflows; growth must pass through
+        // untouched. Without my fix this case wasn't broken either, but it
+        // pins the boundary behavior so a tighter clamp later doesn't
+        // accidentally shrink a perfectly valid body.
+        addCallbackTest("Peephole insertion preserves on-disk instructionCount",
+            "",
+            [](ScriptAPI&) {
+                BytecodeProgram prog;
+                prog.emit(OpCode::JUMP, 4);   // 0
+                prog.emit(OpCode::NOP);        // 1
+                prog.emit(OpCode::NOP);        // 2  <- replace with 2 instrs
+                prog.emit(OpCode::NOP);        // 3
+                prog.emit(OpCode::HALT);       // 4
+
+                BytecodeProgram::FunctionMetadata meta;
+                meta.name = "Grow::method";
+                meta.mangledName = meta.name;
+                meta.startOffset = 1;
+                meta.instructionCount = 3;
+                meta.parameterCount = 1;
+                meta.parameterNames = {"this"};
+                meta.returnType = "void";
+                prog.registerFunction(meta.name, meta);
+                prog.setEntryPoint(0);
+
+                std::vector<BytecodeProgram::Instruction> two(2);
+                two[0].opcode = OpCode::NOP;
+                two[1].opcode = OpCode::NOP;
+                prog.replaceInstructions(2, 1, two);
+                prog.updateFunctionOffsets(2 + 1, +1);
+
+                require(prog.getInstructionCount() == 6, "array grew by 1");
+
+                std::stringstream ss;
+                prog.serialize(ss);
+                auto reloaded = BytecodeProgram::deserialize(ss);
+                const auto* f = reloaded.getFunction("Grow::method");
+                require(f != nullptr, "function round-trips after growth");
+                // In-memory count is still 3 (peephole's updateFunctionOffsets
+                // does not grow either), and start+count = 4 <= size 6, so the
+                // clamp is a no-op and the original 3 is what we should see.
+                require(f->instructionCount == 3,
+                    "growth path leaves count untouched (no clamp triggered)");
+            });
+
+        // MYT-286 adversarial: two functions, peephole shrinks INSIDE the
+        // second one. The first must round-trip with its original count
+        // unchanged, the second's stale count must be clamped on disk.
+        addCallbackTest("Two functions, mod inside second — first preserved",
+            "",
+            [](ScriptAPI&) {
+                BytecodeProgram prog;
+                prog.emit(OpCode::JUMP, 4);   // 0   skip fn1
+                prog.emit(OpCode::NOP);        // 1   fn1 body
+                prog.emit(OpCode::NOP);        // 2   fn1 body
+                prog.emit(OpCode::NOP);        // 3   fn1 body
+                prog.emit(OpCode::JUMP, 8);   // 4   skip fn2
+                prog.emit(OpCode::NOP);        // 5   fn2 body
+                prog.emit(OpCode::NOP);        // 6   fn2 body  <- shrunk
+                prog.emit(OpCode::NOP);        // 7   fn2 body  <- shrunk
+                prog.emit(OpCode::HALT);       // 8
+
+                BytecodeProgram::FunctionMetadata fn1;
+                fn1.name = "Two::first";
+                fn1.mangledName = fn1.name;
+                fn1.startOffset = 1;
+                fn1.instructionCount = 3;
+                fn1.parameterCount = 1;
+                fn1.parameterNames = {"this"};
+                fn1.returnType = "void";
+                prog.registerFunction(fn1.name, fn1);
+
+                BytecodeProgram::FunctionMetadata fn2;
+                fn2.name = "Two::second";
+                fn2.mangledName = fn2.name;
+                fn2.startOffset = 5;
+                fn2.instructionCount = 3;
+                fn2.parameterCount = 1;
+                fn2.parameterNames = {"this"};
+                fn2.returnType = "void";
+                prog.registerFunction(fn2.name, fn2);
+                prog.setEntryPoint(0);
+
+                std::vector<BytecodeProgram::Instruction> one(1);
+                one[0].opcode = OpCode::NOP;
+                prog.replaceInstructions(6, 2, one);  // shrink inside fn2
+                prog.updateFunctionOffsets(6 + 2, -1);
+
+                std::stringstream ss;
+                prog.serialize(ss);
+                auto reloaded = BytecodeProgram::deserialize(ss);
+
+                const auto* f1 = reloaded.getFunction("Two::first");
+                const auto* f2 = reloaded.getFunction("Two::second");
+                require(f1 != nullptr && f2 != nullptr, "both functions present");
+                require(f1->startOffset == 1 && f1->instructionCount == 3,
+                    "fn1 untouched by mod inside fn2");
+                require(f2->startOffset + f2->instructionCount
+                            <= reloaded.getInstructionCount(),
+                    "fn2 body fits in array on reload");
+            });
+
+        // MYT-286 adversarial: adversarially-constructed input with a function
+        // whose startOffset is past instructions.size(). The deserializer
+        // already rejects this (independent check at readFunctions); the test
+        // pins the behavior so the clamp doesn't mask a genuine corruption.
+        addCallbackTest("Deserializer still rejects out-of-range startOffset",
+            "",
+            [](ScriptAPI&) {
+                BytecodeProgram prog;
+                prog.emit(OpCode::HALT);  // single instruction
+
+                BytecodeProgram::FunctionMetadata meta;
+                meta.name = "Bogus::method";
+                meta.mangledName = meta.name;
+                meta.startOffset = 9999;   // way past array end
+                meta.instructionCount = 0;
+                meta.parameterCount = 1;
+                meta.parameterNames = {"this"};
+                meta.returnType = "void";
+                meta.isNative = false;     // critical: not native, so validated
+                prog.registerFunction(meta.name, meta);
+                prog.setEntryPoint(0);
+
+                std::stringstream ss;
+                prog.serialize(ss);
+                bool threw = false;
+                try {
+                    auto reloaded = BytecodeProgram::deserialize(ss);
+                } catch (const std::runtime_error&) {
+                    threw = true;
+                }
+                require(threw,
+                    "deserializer must reject a non-native function whose "
+                    "startOffset is past the instruction array end");
+            });
     }
 
     // =========================================================================
