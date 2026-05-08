@@ -267,6 +267,13 @@ namespace tests::testSuite
                 std::string outPath = (tempDir / "rtsCameraStyleEmptyCtor.mtc").string();
                 if (fs::exists(outPath)) fs::remove(outPath);
 
+                // RAII cleanup so the temp dir is removed even if a require()
+                // below throws. Captures by value to avoid dangling refs.
+                struct ScopedRemove {
+                    fs::path dir;
+                    ~ScopedRemove() { std::error_code ec; fs::remove_all(dir, ec); }
+                } cleanup{tempDir};
+
                 // Compile through the production pipeline (lexer/parser/compiler/
                 // optimizer/peephole) and write the .mtc.
                 {
@@ -294,10 +301,6 @@ namespace tests::testSuite
                     }
                 }
                 require(foundCtor, "expected to find RTSCameraStyleScript::<init>");
-
-                fs::remove(outPath);
-                std::error_code ec;
-                fs::remove_all(tempDir, ec);
             });
 
         // MYT-286 edge: function whose body shrinks ALL the way down to zero
@@ -358,6 +361,7 @@ namespace tests::testSuite
 
                 BytecodeProgram::FunctionMetadata meta;
                 meta.name = "Tail::method";
+                meta.mangledName = meta.name;
                 meta.startOffset = 1;
                 meta.instructionCount = 4;
                 meta.parameterCount = 1;
@@ -434,6 +438,7 @@ namespace tests::testSuite
 
                 BytecodeProgram::FunctionMetadata meta;
                 meta.name = "Grow::method";
+                meta.mangledName = meta.name;
                 meta.startOffset = 1;
                 meta.instructionCount = 3;
                 meta.parameterCount = 1;
@@ -481,6 +486,7 @@ namespace tests::testSuite
 
                 BytecodeProgram::FunctionMetadata fn1;
                 fn1.name = "Two::first";
+                fn1.mangledName = fn1.name;
                 fn1.startOffset = 1;
                 fn1.instructionCount = 3;
                 fn1.parameterCount = 1;
@@ -490,6 +496,7 @@ namespace tests::testSuite
 
                 BytecodeProgram::FunctionMetadata fn2;
                 fn2.name = "Two::second";
+                fn2.mangledName = fn2.name;
                 fn2.startOffset = 5;
                 fn2.instructionCount = 3;
                 fn2.parameterCount = 1;
@@ -529,6 +536,7 @@ namespace tests::testSuite
 
                 BytecodeProgram::FunctionMetadata meta;
                 meta.name = "Bogus::method";
+                meta.mangledName = meta.name;
                 meta.startOffset = 9999;   // way past array end
                 meta.instructionCount = 0;
                 meta.parameterCount = 1;
