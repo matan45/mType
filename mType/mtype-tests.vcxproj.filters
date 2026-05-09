@@ -11095,6 +11095,9 @@
     <None Include="tests\testFiles\library\pass\reflectionLibraryType.mt">
       <Filter>testFiles\library\pass</Filter>
     </None>
+    <None Include="tests\testFiles\library\pass\rtsCameraStyleEmptyCtor.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
     <None Include="tests\testFiles\library\pass\staticMethodCall.expected">
       <Filter>testFiles\library\pass</Filter>
     </None>
