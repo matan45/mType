@@ -129,6 +129,13 @@ namespace types {
          */
         static bool isGenericTypeParameter(const std::string& typeName);
 
+        /**
+         * Check whether a type expression contains an unresolved generic type
+         * parameter anywhere inside it, e.g. "T", "Predicate<T>", or
+         * "Map<K, List<V>>".
+         */
+        static bool containsGenericTypeParameter(const std::string& typeName);
+
     private:
         /**
          * Handle conversion of generic type parameters

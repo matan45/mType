@@ -1,6 +1,7 @@
 #include "TypeConversionUtils.hpp"
 #include <cstddef>
 #include <algorithm>
+#include <cctype>
 #include <sstream>
 #include <set>
 
@@ -379,7 +380,32 @@ namespace types {
 
     bool TypeConversionUtils::isGenericTypeParameter(const std::string& typeName)
     {
-        return typeName.length() == 1 && std::isupper(typeName[0]);
+        return typeName.length() == 1 && std::isupper(static_cast<unsigned char>(typeName[0]));
+    }
+
+    bool TypeConversionUtils::containsGenericTypeParameter(const std::string& typeName)
+    {
+        std::string token;
+        for (char ch : typeName)
+        {
+            unsigned char c = static_cast<unsigned char>(ch);
+            if (std::isalnum(c) || ch == '_')
+            {
+                token.push_back(ch);
+                continue;
+            }
+
+            if (!token.empty())
+            {
+                if (isGenericTypeParameter(token))
+                {
+                    return true;
+                }
+                token.clear();
+            }
+        }
+
+        return !token.empty() && isGenericTypeParameter(token);
     }
 
 } // namespace types

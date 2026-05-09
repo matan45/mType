@@ -1103,8 +1103,21 @@ namespace vm::compiler::visitors
 
         if (!isBoxType)
         {
-            // Not a Box type, compile normally
+            // Not a Box type, compile with the expected object/interface type.
+            // Lambdas need this target type to infer SAM parameter types when
+            // passed directly as function arguments.
+            bool pushedExpectedType = false;
+            if (!::types::TypeConversionUtils::containsGenericTypeParameter(expectedTypeName))
+            {
+                types::ExpectedTypeContext expectedCtx(expectedType, expectedTypeName);
+                ctx.pushExpectedTypeContext(expectedCtx);
+                pushedExpectedType = true;
+            }
             argument->accept(ctx.visitor);
+            if (pushedExpectedType)
+            {
+                ctx.popExpectedTypeContext();
+            }
             return;
         }
 
@@ -1130,8 +1143,20 @@ namespace vm::compiler::visitors
 
         if (!needsBoxing)
         {
-            // Argument is not a primitive literal, compile normally
+            // Argument is not a primitive literal, compile with the expected
+            // object type so lambda arguments still receive target typing.
+            bool pushedExpectedType = false;
+            if (!::types::TypeConversionUtils::containsGenericTypeParameter(expectedTypeName))
+            {
+                types::ExpectedTypeContext expectedCtx(expectedType, expectedTypeName);
+                ctx.pushExpectedTypeContext(expectedCtx);
+                pushedExpectedType = true;
+            }
             argument->accept(ctx.visitor);
+            if (pushedExpectedType)
+            {
+                ctx.popExpectedTypeContext();
+            }
             return;
         }
 

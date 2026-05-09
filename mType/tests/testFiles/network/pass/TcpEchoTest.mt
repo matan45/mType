@@ -13,6 +13,16 @@ import * from "../../lib/primitives/String.mt";
 public class TcpEchoTest extends TestSuite {
     public constructor() : super() { }
 
+    private function async handleEchoClient(TcpSocket conn): Promise<void> {
+        try {
+            String data = await conn.receiveAsync(1024);
+            Int sent = await conn.sendAsync("HELPER:" + data.getValue());
+        } catch (Exception e) {
+            print("server helper error: " + e.getMessage());
+        }
+        conn.close();
+    }
+
     @Test
     public function async testEchoLoopback(): Promise<void> {
         int port = 18765;
@@ -52,5 +62,31 @@ public class TcpEchoTest extends TestSuite {
         srv.stop();
         // Successfully reaching here means stop() joined the accept thread.
         assertTrue(true);
+    }
+
+    @Test
+    public function async testOnConnectionLambdaParameterCanBeForwarded(): Promise<void> {
+        int port = 18767;
+
+        TcpServer srv = new TcpServer();
+        srv.onConnection(async conn -> {
+            await this.handleEchoClient(conn);
+        });
+        srv.listen(port);
+
+        TcpSocket client = new TcpSocket();
+        client.setTimeout(2000);
+        try {
+            await client.connectAsync("127.0.0.1", port);
+            Int sent = await client.sendAsync("typed");
+            String reply = await client.receiveAsync(1024);
+            assertEqual(reply.getValue(), "HELPER:typed");
+        } catch (Exception e) {
+            client.close();
+            srv.stop();
+            throw e;
+        }
+        client.close();
+        srv.stop();
     }
 }
