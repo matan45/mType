@@ -194,7 +194,29 @@ namespace vm::compiler::visitors
                 // If not auto-boxed, compile argument normally
                 if (!autoBoxed)
                 {
+                    bool pushedExpectedType = false;
+                    if (methodMetadata && !methodMetadata->isNative)
+                    {
+                        size_t paramOffset = (!methodMetadata->isStatic && !methodMetadata->parameterTypes.empty()) ? 1 : 0;
+                        if (i + paramOffset < methodMetadata->parameterTypes.size())
+                        {
+                            std::string expectedType = ctx.resolveGenericType(methodMetadata->parameterTypes[i + paramOffset]);
+                            value::ValueType expectedValueType = ::types::TypeConversionUtils::stringToValueType(expectedType);
+                            if (expectedValueType == value::ValueType::OBJECT && !expectedType.empty() &&
+                                !::types::TypeConversionUtils::containsGenericTypeParameter(expectedType))
+                            {
+                                ctx.pushExpectedTypeContext(types::ExpectedTypeContext(expectedValueType, expectedType));
+                                pushedExpectedType = true;
+                            }
+                        }
+                    }
+
                     arguments[i]->accept(ctx.visitor);
+
+                    if (pushedExpectedType)
+                    {
+                        ctx.popExpectedTypeContext();
+                    }
                 }
             }
 
@@ -614,16 +636,9 @@ namespace vm::compiler::visitors
                             expectedType = it->second;
                         }
                     }
-                    // If not found in method bindings, check class-level bindings
-                    // E.g., if expectedType is "T" and genericBindings has {T: Int}, resolve to "Int"
-                    if (!genericBindings.empty())
-                    {
-                        auto it = genericBindings.find(expectedType);
-                        if (it != genericBindings.end())
-                        {
-                            expectedType = it->second;
-                        }
-                    }
+                    // Resolve nested generic parameters too, e.g.
+                    // Predicate<T> on Stream<Int> -> Predicate<Int>.
+                    expectedType = ctx.resolveGenericType(expectedType);
 
                     value::ValueType argType = ctx.typeInference.inferExpressionType(arguments[i].get());
 
@@ -676,7 +691,24 @@ namespace vm::compiler::visitors
                 // If not auto-boxed, compile argument normally
                 if (!autoBoxed)
                 {
+                    bool pushedExpectedType = false;
+                    if (hasExpectedType)
+                    {
+                        value::ValueType expectedValueType = ::types::TypeConversionUtils::stringToValueType(expectedType);
+                        if (expectedValueType == value::ValueType::OBJECT && !expectedType.empty() &&
+                            !::types::TypeConversionUtils::containsGenericTypeParameter(expectedType))
+                        {
+                            ctx.pushExpectedTypeContext(types::ExpectedTypeContext(expectedValueType, expectedType));
+                            pushedExpectedType = true;
+                        }
+                    }
+
                     arguments[i]->accept(ctx.visitor);
+
+                    if (pushedExpectedType)
+                    {
+                        ctx.popExpectedTypeContext();
+                    }
                 }
             }
 

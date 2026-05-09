@@ -117,14 +117,21 @@ import * from "lib/net/TcpServer.mt";
 import * from "lib/net/TcpSocket.mt";
 
 function async main(): Promise<void> {
-    TcpServer server = new TcpServer(8080);
-    while (true) {
-        TcpSocket client = await server.accept();
-        await client.write("hello\n");
-        await client.close();
-    }
+    TcpServer server = new TcpServer();
+
+    server.onConnection(async client -> {
+        String data = await client.receiveAsync(1024);
+        await client.sendAsync("echo: " + data.getValue());
+        client.close();
+    });
+
+    server.listen(8080);
+    await delay(30000);
+    server.stop();
 }
 ```
+
+For a larger TCP sample, see `examples/chat-room/`, which starts a callback-based chat server and scripted clients.
 
 ## Exceptions
 
