@@ -22,12 +22,54 @@ namespace vm::jit
 
         const auto& supported = getSupportedOpcodes();
         size_t endOffset = meta.startOffset + meta.instructionCount;
+
+        // MYT-291 workaround: function-level JIT codegen produces broken
+        // output (and sometimes crashes asmjit's cc.finalize) for any
+        // function that combines a regular loop (LOOP_START + JUMP_BACK)
+        // with one or more CALL_METHOD / CALL ops inside the loop body.
+        // Two reproducible symptoms in examples/code-editor:
+        //   * JsonCursor::skipWs — cc.finalize 0xC0000005 (multi-OR_POP
+        //     short-circuit chain feeding an IF in the loop body)
+        //   * JsonNode::parseObject — silent empty-object result on the
+        //     second invocation (recursive parser; JIT compiles after the
+        //     first response's nested objects push it past the 100-call
+        //     hot threshold, then the second response's body parses to
+        //     mapSize=0 even though the bytes contain valid keys)
+        // The IR usually survives emitFunctionBody; the issue is inside
+        // asmjit's own reg-alloc / assembler pass when loop back-edges
+        // intersect cc.invoke clobber regions. Bailing canCompile keeps
+        // these functions in the interpreter, which is correct (and OSR
+        // can still JIT the loop body when it tiers up). Track in a
+        // follow-up ticket — root cause is in JIT codegen, not here.
+        bool hasLoopStart = false;
+        bool hasCallInLoop = false;
+        size_t loopDepth = 0;
         for (size_t ip = meta.startOffset; ip < endOffset; ++ip)
         {
             const auto& instr = program.getInstruction(ip);
             if (supported.find(static_cast<uint8_t>(instr.opcode)) == supported.end())
                 return false;
+            switch (instr.opcode)
+            {
+                case OpCode::LOOP_START:
+                    hasLoopStart = true;
+                    ++loopDepth;
+                    break;
+                case OpCode::LOOP_END:
+                    if (loopDepth > 0) --loopDepth;
+                    break;
+                case OpCode::CALL:
+                case OpCode::CALL_FAST:
+                case OpCode::CALL_METHOD:
+                case OpCode::CALL_METHOD_CACHED:
+                    if (loopDepth > 0) hasCallInLoop = true;
+                    break;
+                default: break;
+            }
         }
+        if (hasLoopStart && hasCallInLoop)
+            return false;
+
         return true;
     }
 

@@ -199,6 +199,12 @@
     <Filter Include="testFiles\exe\src">
       <UniqueIdentifier>{600915DA-CC1F-1370-1597-9E9181ECE3F7}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\exe\static-init">
+      <UniqueIdentifier>{6185A4D7-CD47-D861-16F8-66EE82F9B03F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\static-init\src">
+      <UniqueIdentifier>{F80B5677-6424-3DA1-2DD1-CC3A99A8D13A}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\exe\streams">
       <UniqueIdentifier>{97872D8C-03F4-E886-CCE7-80E438130BEF}</UniqueIdentifier>
     </Filter>
@@ -4639,6 +4645,12 @@
     <None Include="tests\testFiles\collections\error\hashMapGetMissingAfterCollisionRemove.mt">
       <Filter>testFiles\collections\error</Filter>
     </None>
+    <None Include="tests\testFiles\collections\pass\arrayListNestedResizeDuringSubstringScan.expected">
+      <Filter>testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayListNestedResizeDuringSubstringScan.mt">
+      <Filter>testFiles\collections\pass</Filter>
+    </None>
     <None Include="tests\testFiles\collections\pass\arrayListResizeManyAdds.expected">
       <Filter>testFiles\collections\pass</Filter>
     </None>
@@ -6744,6 +6756,12 @@
     </None>
     <None Include="tests\testFiles\exe\src\Main.mt">
       <Filter>testFiles\exe\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\static-init\StaticInitExe.expected">
+      <Filter>testFiles\exe\static-init</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\static-init\src\Main.mt">
+      <Filter>testFiles\exe\static-init\src</Filter>
     </None>
     <None Include="tests\testFiles\exe\streams\StreamExe.expected">
       <Filter>testFiles\exe\streams</Filter>
