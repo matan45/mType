@@ -9031,6 +9031,12 @@
     <None Include="tests\testFiles\integration\pass\invalidCombinationsHandling.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\jitOrChainInLoop_pass.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\jitOrChainInLoop_pass.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\largeDataStructures.expected">
       <Filter>testFiles\integration\pass</Filter>
     </None>

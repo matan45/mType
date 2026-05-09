@@ -24,6 +24,7 @@ Each file maps to one subtask:
 | MYT-226  | `jitTailCallNoOverflow.mt`                 | JIT TCO bypasses pushCallFrame's stack-overflow guard — infinite tail recursion hangs |
 | MYT-227  | `infiniteLoopHangs.mt`                     | for/while loop back-edge has no interrupt poll — `while (true) {}` hangs with no diagnostic |
 | MYT-271  | ~~`bracelessIfNativeUnderflow.mt`~~        | ~~braceless `if (!fn()) <stmt>;` underflows stack when fn() calls a native (MT-E5005)~~ — fixed; promoted to `controlFlow/pass/bracelessIfNativeUnderflow_pass.mt` |
+| MYT-291  | ~~`myt291_jit_orpop_loop_asmjit_crash.mt`~~ | ~~asmjit `cc.finalize` 0xC0000005 on a regular loop containing 3+ JUMP_IF_*_OR_POPs (skipWs shape)~~ — workaround landed in `canCompile`; promoted to `integration/pass/jitOrChainInLoop_pass.mt`. Underlying JIT codegen fix still pending; remove the canCompile heuristic when fixed and re-run the integration test to confirm. |
 
 ## Running
 

@@ -675,5 +675,14 @@ namespace tests::testSuite
                         passPath + "integrationAllFeatureShowcase_pass.mt");
         */
         ;
+
+        // MYT-291: regression guard for the asmjit cc.finalize crash on a
+        // regular loop containing a 3+ JUMP_IF_*_OR_POP short-circuit
+        // chain (JsonCursor::skipWs shape). Currently passes because
+        // canCompile bails the pattern; once the underlying JIT codegen
+        // issue is fixed, the canCompile heuristic comes out and this
+        // test continues passing as a real JIT-compiled regression check.
+        addOutputVerificationTest("MYT-291 JIT OR-chain in loop",
+                        passPath + "jitOrChainInLoop_pass.mt");
     }
 }
