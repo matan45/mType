@@ -14,6 +14,60 @@ namespace vm::jit
 
     JitCompiler::JitCompiler() {}
 
+    static bool hasUnsafeOrPopLoopShape(
+        const bytecode::BytecodeProgram& program,
+        size_t startOffset,
+        size_t endOffsetInclusive)
+    {
+        bool hasLoopStart = false;
+        bool hasJumpBack = false;
+        size_t orPopCount = 0;
+
+        for (size_t ip = startOffset; ip <= endOffsetInclusive; ++ip)
+        {
+            const auto& instr = program.getInstruction(ip);
+            switch (instr.opcode)
+            {
+                case OpCode::LOOP_START: hasLoopStart = true; break;
+                case OpCode::JUMP_BACK:  hasJumpBack = true;  break;
+                case OpCode::JUMP_IF_TRUE_OR_POP:
+                case OpCode::JUMP_IF_FALSE_OR_POP: ++orPopCount; break;
+                default: break;
+            }
+        }
+
+        return hasLoopStart && hasJumpBack && orPopCount >= 3;
+    }
+
+    static bool isPrimitiveOrVoidReturnType(const std::string& type)
+    {
+        return type == "void" || type == "int" || type == "float" || type == "bool";
+    }
+
+    static bool hasUnsafeEarlyBoxedReturnLoopShape(
+        const bytecode::BytecodeProgram& program,
+        size_t startOffset,
+        size_t endOffsetInclusive)
+    {
+        bool hasLoopStart = false;
+        bool hasJumpBack = false;
+        size_t returnValueCount = 0;
+
+        for (size_t ip = startOffset; ip <= endOffsetInclusive; ++ip)
+        {
+            const auto& instr = program.getInstruction(ip);
+            switch (instr.opcode)
+            {
+                case OpCode::LOOP_START: hasLoopStart = true; break;
+                case OpCode::JUMP_BACK:  hasJumpBack = true;  break;
+                case OpCode::RETURN_VALUE: ++returnValueCount; break;
+                default: break;
+            }
+        }
+
+        return hasLoopStart && hasJumpBack && returnValueCount >= 3;
+    }
+
     bool JitCompiler::canCompile(const bytecode::BytecodeProgram::FunctionMetadata& meta,
                                   const bytecode::BytecodeProgram& program) const
     {
@@ -36,31 +90,25 @@ namespace vm::jit
         //   }
         // The IR survives emitFunctionBody; the crash is inside asmjit's
         // own register allocator / assembler pass on the loop back-edge.
-        // Bailing canCompile keeps such functions in the interpreter; OSR
-        // can still JIT the loop body. Narrow heuristic — earlier broader
-        // form (any LOOP_START + CALL_METHOD) was masking a separate
-        // jit_values_equal cross-kind STRING bug; now that's fixed in
-        // JitHelpers_Core.cpp, the only remaining JIT issue is the asmjit
-        // crash on this specific OR-chain shape. Track in a follow-up
-        // ticket — root cause is in JIT codegen, not here.
-        bool hasLoopStart = false;
-        bool hasJumpBack = false;
-        size_t orPopCount = 0;
+        // Keep this narrow so unrelated loop/call functions and OSR-compiled
+        // top-level loops can still use the JIT.
         for (size_t ip = meta.startOffset; ip < endOffset; ++ip)
         {
             const auto& instr = program.getInstruction(ip);
             if (supported.find(static_cast<uint8_t>(instr.opcode)) == supported.end())
                 return false;
-            switch (instr.opcode)
-            {
-                case OpCode::LOOP_START: hasLoopStart = true; break;
-                case OpCode::JUMP_BACK:  hasJumpBack = true;  break;
-                case OpCode::JUMP_IF_TRUE_OR_POP:
-                case OpCode::JUMP_IF_FALSE_OR_POP: ++orPopCount; break;
-                default: break;
-            }
         }
-        if (hasLoopStart && hasJumpBack && orPopCount >= 3)
+        if (endOffset > meta.startOffset &&
+            hasUnsafeOrPopLoopShape(program, meta.startOffset, endOffset - 1))
+            return false;
+        // MYT-291 follow-up: JsonNode::parseObject exposed a second unsafe
+        // function-level shape: a regular loop with several boxed early
+        // RETURN_VALUE exits returning the same object local. Until the
+        // boxed-return cleanup/codegen path is fixed, keep these functions in
+        // the VM. Primitive return loops are unaffected.
+        if (!isPrimitiveOrVoidReturnType(meta.returnType) &&
+            endOffset > meta.startOffset &&
+            hasUnsafeEarlyBoxedReturnLoopShape(program, meta.startOffset, endOffset - 1))
             return false;
 
         return true;

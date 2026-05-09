@@ -684,5 +684,7 @@ namespace tests::testSuite
         // test continues passing as a real JIT-compiled regression check.
         addOutputVerificationTest("MYT-291 JIT OR-chain in loop",
                         passPath + "jitOrChainInLoop_pass.mt");
+        addOutputVerificationTest("MYT-291 code-editor JSON LSP startup",
+                        passPath + "jitJsonLspStartup_pass.mt");
     }
 }
