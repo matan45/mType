@@ -307,6 +307,7 @@ namespace vm::bytecode
         std::vector<ClassMetadata> classes;
         std::vector<InterfaceMetadata> interfaces;
         std::vector<AnnotationDeclData> annotationDeclarations;
+        std::vector<std::string> staticInitializerFunctions;
         std::vector<GlobalVariableMetadata> globalVariables;
         ExceptionTable globalExceptionTable;
         size_t entryPoint;
@@ -396,6 +397,9 @@ namespace vm::bytecode
 
         void addAnnotationDeclaration(const AnnotationDeclData& declData);
         const std::vector<AnnotationDeclData>& getAnnotationDeclarations() const;
+
+        void addStaticInitializerFunction(const std::string& functionName);
+        const std::vector<std::string>& getStaticInitializerFunctions() const;
 
         bool hasAsyncFunctions() const;
         bool hasAwaitInstructions() const;

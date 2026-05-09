@@ -60,6 +60,10 @@ namespace tests::testSuite
         addExeTest("Exe - Cast",
                    basePath + "cast/CastExe.mtproj");
 
+        // ===== REGRESSION: MYT-290 - static initializers before entry point =====
+        addExeTest("Exe - Regression: Static Initializers (MYT-290)",
+                   basePath + "static-init/StaticInitExe.mtproj");
+
         // ===== REGRESSION: MYT-63 — parent class linking =====
         addExeTest("Exe - Regression: Exception Catch Dispatch (MYT-63)",
                    basePath + "regression-catch/RegressionCatchExe.mtproj");

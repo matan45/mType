@@ -226,6 +226,152 @@ namespace vm::runtime
         }
     }
 
+    void VirtualMachine::runStaticInitializers(const bytecode::BytecodeProgram& bytecodeProgram)
+    {
+        bool isLoadedProgram = false;
+        for (const auto* loadedProgram : loadedPrograms)
+        {
+            if (loadedProgram == &bytecodeProgram)
+            {
+                isLoadedProgram = true;
+                break;
+            }
+        }
+
+        if (!isLoadedProgram && program != &bytecodeProgram)
+        {
+            setProgram(&bytecodeProgram);
+        }
+
+        if (staticInitializedPrograms.count(&bytecodeProgram) > 0)
+        {
+            return;
+        }
+
+        const auto& initializerNames = bytecodeProgram.getStaticInitializerFunctions();
+        if (initializerNames.empty())
+        {
+            staticInitializedPrograms.insert(&bytecodeProgram);
+            return;
+        }
+
+        const bytecode::BytecodeProgram* savedProgram = program;
+        size_t savedIP = instructionPointer;
+        std::vector<CallFrame> savedCallStack = callStack;
+        size_t savedCurrentFinallyOffset = currentFinallyOffset;
+
+        if (!program)
+        {
+            setProgram(&bytecodeProgram);
+        }
+        else
+        {
+            program = &bytecodeProgram;
+            if (executionCtx)
+            {
+                executionCtx->program = &bytecodeProgram;
+            }
+        }
+
+        size_t programIndex = 0;
+        for (size_t i = 0; i < loadedPrograms.size(); ++i)
+        {
+            if (loadedPrograms[i] == &bytecodeProgram)
+            {
+                programIndex = i;
+                break;
+            }
+        }
+
+        try
+        {
+            for (const auto& initializerName : initializerNames)
+            {
+                auto* funcMetadata = bytecodeProgram.getFunction(initializerName);
+                if (!funcMetadata)
+                {
+                    throw errors::RuntimeException(
+                        "Static initializer '" + initializerName + "' has no bytecode");
+                }
+
+                size_t frameBase = stackManager->size();
+
+                CallFrame frame;
+                frame.returnAddress = bytecodeProgram.getInstructionCount();
+                frame.frameBase = frameBase;
+                frame.localBase = frameBase;
+                frame.functionName = bytecodeProgram.internFrameName(initializerName);
+                frame.thisInstance = nullptr;
+                frame.programIndex = programIndex;
+
+                size_t colonPos = initializerName.find("::");
+                if (colonPos != std::string::npos)
+                {
+                    frame.definingClassName = initializerName.substr(0, colonPos);
+                }
+
+                pushCallFrame(std::move(frame));
+                stats.functionCalls++;
+                instructionPointer = funcMetadata->startOffset;
+
+                interpretLoop();
+
+                while (stackManager->size() > frameBase)
+                {
+                    stackManager->pop();
+                }
+            }
+
+            staticInitializedPrograms.insert(&bytecodeProgram);
+
+            instructionPointer = savedIP;
+            callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
+            program = savedProgram;
+            if (executionCtx)
+            {
+                executionCtx->program = savedProgram;
+            }
+        }
+        catch (...)
+        {
+            instructionPointer = savedIP;
+            callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
+            program = savedProgram;
+            if (executionCtx)
+            {
+                executionCtx->program = savedProgram;
+            }
+            throw;
+        }
+    }
+
+    void VirtualMachine::runStaticInitializersForLoadedPrograms()
+    {
+        if (loadedPrograms.empty())
+        {
+            if (program)
+            {
+                runStaticInitializers(*program);
+            }
+            return;
+        }
+
+        for (size_t i = 1; i < loadedPrograms.size(); ++i)
+        {
+            if (loadedPrograms[i])
+            {
+                runStaticInitializers(*loadedPrograms[i]);
+            }
+        }
+
+        if (loadedPrograms[0])
+        {
+            runStaticInitializers(*loadedPrograms[0]);
+        }
+    }
+
     void VirtualMachine::push(const value::Value& value)
     {
         stackManager->push(value);

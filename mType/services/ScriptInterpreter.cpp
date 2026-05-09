@@ -530,4 +530,12 @@ namespace services
     {
         transitiveDependencyLoader->addSearchPath(path);
     }
+
+    void ScriptInterpreter::runStaticInitializersForLoadedPrograms()
+    {
+        if (vm)
+        {
+            vm->runStaticInitializersForLoadedPrograms();
+        }
+    }
 }

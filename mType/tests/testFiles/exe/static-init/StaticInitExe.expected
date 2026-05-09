@@ -1,0 +1,9 @@
+INT=42
+TEXT=ready
+FLOAT=2.5
+BOOL=true
+COMPUTED=50
+LABEL=ready-go
+COUNTER=51
+CHAINED=93
+Static init test passed
