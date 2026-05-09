@@ -313,6 +313,64 @@ namespace tests::testSuite
                 throw std::runtime_error("Expected root tag 'Root', got '" + element.tagName + "'");
         });
 
+        addCallbackTest("XmlParser drops comment between siblings", "", [](services::ScriptAPI&) {
+            project::XmlParser xmlParser;
+            auto element = xmlParser.parse("<Root><!-- foo --><Child/></Root>");
+
+            if (element.children.size() != 1)
+                throw std::runtime_error("Expected 1 child after dropping comment, got " +
+                                         std::to_string(element.children.size()));
+            if (element.children[0].tagName != "Child")
+                throw std::runtime_error("Expected child tag 'Child', got '" + element.children[0].tagName + "'");
+        });
+
+        addCallbackTest("XmlParser handles comment with embedded gt", "", [](services::ScriptAPI&) {
+            project::XmlParser xmlParser;
+            auto element = xmlParser.parse("<Root><!-- a > b --><Child/></Root>");
+
+            if (element.children.size() != 1)
+                throw std::runtime_error("Embedded '>' in comment corrupted parsing; got " +
+                                         std::to_string(element.children.size()) + " children");
+            if (element.children[0].tagName != "Child")
+                throw std::runtime_error("Expected child tag 'Child', got '" + element.children[0].tagName + "'");
+        });
+
+        addCallbackTest("XmlParser handles comment with embedded markup", "", [](services::ScriptAPI&) {
+            project::XmlParser xmlParser;
+            auto element = xmlParser.parse("<Root><!-- < </X> --><Child/></Root>");
+
+            if (element.children.size() != 1)
+                throw std::runtime_error("Embedded '</X>' in comment corrupted parsing; got " +
+                                         std::to_string(element.children.size()) + " children");
+            if (element.children[0].tagName != "Child")
+                throw std::runtime_error("Expected child tag 'Child', got '" + element.children[0].tagName + "'");
+        });
+
+        addCallbackTest("XmlParser handles comments around root", "", [](services::ScriptAPI&) {
+            project::XmlParser xmlParser;
+            auto element = xmlParser.parse("<!-- before --><Root Name=\"x\"/><!-- after -->");
+
+            if (element.tagName != "Root")
+                throw std::runtime_error("Expected root tag 'Root', got '" + element.tagName + "'");
+            auto nameIt = element.attributes.find("Name");
+            if (nameIt == element.attributes.end())
+                throw std::runtime_error("Expected 'Name' attribute on root");
+            if (nameIt->second != "x")
+                throw std::runtime_error("Expected Name='x', got '" + nameIt->second + "'");
+        });
+
+        addCallbackTest("XmlParser preserves content with leading comment", "", [](services::ScriptAPI&) {
+            project::XmlParser xmlParser;
+            auto element = xmlParser.parse("<Root><Item><!-- inner -->value</Item></Root>");
+
+            if (element.children.size() != 1)
+                throw std::runtime_error("Expected 1 child, got " + std::to_string(element.children.size()));
+            if (element.children[0].tagName != "Item")
+                throw std::runtime_error("Expected child tag 'Item', got '" + element.children[0].tagName + "'");
+            if (element.children[0].content != "value")
+                throw std::runtime_error("Expected content 'value', got '" + element.children[0].content + "'");
+        });
+
         // =============================================
         // ProjectConfigParser still works after refactor
         // =============================================
@@ -327,6 +385,20 @@ namespace tests::testSuite
                 throw std::runtime_error("Expected search paths, got none");
             if (config->imports.aliases.empty())
                 throw std::runtime_error("Expected aliases, got none");
+            if (config->resolvedSourceFiles.empty())
+                throw std::runtime_error("Expected resolved source files, got none");
+        });
+
+        addCallbackTest("ProjectConfigParser parses .mtproj with comments", "", [](services::ScriptAPI&) {
+            project::ProjectConfigParser parser;
+            auto config = parser.parse("mType/tests/testFiles/projectManifest/TestProjectWithComments.mtproj");
+
+            if (config->name != "TestProjectWithComments")
+                throw std::runtime_error("Expected 'TestProjectWithComments', got '" + config->name + "'");
+            if (config->imports.searchPaths.empty())
+                throw std::runtime_error("Expected search paths after comment-laden manifest, got none");
+            if (config->imports.aliases.empty())
+                throw std::runtime_error("Expected aliases after comment-laden manifest, got none");
             if (config->resolvedSourceFiles.empty())
                 throw std::runtime_error("Expected resolved source files, got none");
         });

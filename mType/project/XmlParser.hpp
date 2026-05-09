@@ -24,6 +24,10 @@ namespace project
     private:
         void skipWhitespace(const std::string& xml, size_t& pos);
 
+        void skipWhitespaceAndComments(const std::string& xml, size_t& pos);
+
+        bool tryConsumeComment(const std::string& xml, size_t& pos);
+
         std::string parseTagName(const std::string& xml, size_t& pos);
 
         std::unordered_map<std::string, std::string> parseAttributes(const std::string& xml, size_t& pos);
