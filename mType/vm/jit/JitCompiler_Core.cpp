@@ -23,27 +23,29 @@ namespace vm::jit
         const auto& supported = getSupportedOpcodes();
         size_t endOffset = meta.startOffset + meta.instructionCount;
 
-        // MYT-291 workaround: function-level JIT codegen produces broken
-        // output (and sometimes crashes asmjit's cc.finalize) for any
-        // function that combines a regular loop (LOOP_START + JUMP_BACK)
-        // with one or more CALL_METHOD / CALL ops inside the loop body.
-        // Two reproducible symptoms in examples/code-editor:
-        //   * JsonCursor::skipWs — cc.finalize 0xC0000005 (multi-OR_POP
-        //     short-circuit chain feeding an IF in the loop body)
-        //   * JsonNode::parseObject — silent empty-object result on the
-        //     second invocation (recursive parser; JIT compiles after the
-        //     first response's nested objects push it past the 100-call
-        //     hot threshold, then the second response's body parses to
-        //     mapSize=0 even though the bytes contain valid keys)
-        // The IR usually survives emitFunctionBody; the issue is inside
-        // asmjit's own reg-alloc / assembler pass when loop back-edges
-        // intersect cc.invoke clobber regions. Bailing canCompile keeps
-        // these functions in the interpreter, which is correct (and OSR
-        // can still JIT the loop body when it tiers up). Track in a
-        // follow-up ticket — root cause is in JIT codegen, not here.
+        // MYT-291 workaround: asmjit's cc.finalize() crashes (0xC0000005)
+        // when a non-OSR function combines a regular loop (LOOP_START +
+        // JUMP_BACK) with a cascading short-circuit OR/AND chain of three
+        // or more JUMP_IF_*_OR_POPs. Reproduces in examples/code-editor's
+        // JsonCursor::skipWs:
+        //   while (!this.eof()) {
+        //     string c = this.peek();
+        //     if (c == " " || c == "\t" || c == "\n" || c == "\r") {
+        //       this.advance();
+        //     } else { return; }
+        //   }
+        // The IR survives emitFunctionBody; the crash is inside asmjit's
+        // own register allocator / assembler pass on the loop back-edge.
+        // Bailing canCompile keeps such functions in the interpreter; OSR
+        // can still JIT the loop body. Narrow heuristic — earlier broader
+        // form (any LOOP_START + CALL_METHOD) was masking a separate
+        // jit_values_equal cross-kind STRING bug; now that's fixed in
+        // JitHelpers_Core.cpp, the only remaining JIT issue is the asmjit
+        // crash on this specific OR-chain shape. Track in a follow-up
+        // ticket — root cause is in JIT codegen, not here.
         bool hasLoopStart = false;
-        bool hasCallInLoop = false;
-        size_t loopDepth = 0;
+        bool hasJumpBack = false;
+        size_t orPopCount = 0;
         for (size_t ip = meta.startOffset; ip < endOffset; ++ip)
         {
             const auto& instr = program.getInstruction(ip);
@@ -51,23 +53,14 @@ namespace vm::jit
                 return false;
             switch (instr.opcode)
             {
-                case OpCode::LOOP_START:
-                    hasLoopStart = true;
-                    ++loopDepth;
-                    break;
-                case OpCode::LOOP_END:
-                    if (loopDepth > 0) --loopDepth;
-                    break;
-                case OpCode::CALL:
-                case OpCode::CALL_FAST:
-                case OpCode::CALL_METHOD:
-                case OpCode::CALL_METHOD_CACHED:
-                    if (loopDepth > 0) hasCallInLoop = true;
-                    break;
+                case OpCode::LOOP_START: hasLoopStart = true; break;
+                case OpCode::JUMP_BACK:  hasJumpBack = true;  break;
+                case OpCode::JUMP_IF_TRUE_OR_POP:
+                case OpCode::JUMP_IF_FALSE_OR_POP: ++orPopCount; break;
                 default: break;
             }
         }
-        if (hasLoopStart && hasCallInLoop)
+        if (hasLoopStart && hasJumpBack && orPopCount >= 3)
             return false;
 
         return true;

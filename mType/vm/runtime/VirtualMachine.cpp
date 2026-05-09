@@ -228,6 +228,16 @@ namespace vm::runtime
 
     void VirtualMachine::runStaticInitializers(const bytecode::BytecodeProgram& bytecodeProgram)
     {
+        // Idempotency check first — return immediately for an already-
+        // initialized program without touching `program` or executionCtx.
+        // Previously the setProgram call below ran first and (in the old
+        // implementation that cleared staticInitializedPrograms wholesale)
+        // ensured this guard could never fire on the !isLoadedProgram path.
+        if (staticInitializedPrograms.count(&bytecodeProgram) > 0)
+        {
+            return;
+        }
+
         bool isLoadedProgram = false;
         for (const auto* loadedProgram : loadedPrograms)
         {
@@ -243,11 +253,6 @@ namespace vm::runtime
             setProgram(&bytecodeProgram);
         }
 
-        if (staticInitializedPrograms.count(&bytecodeProgram) > 0)
-        {
-            return;
-        }
-
         const auto& initializerNames = bytecodeProgram.getStaticInitializerFunctions();
         if (initializerNames.empty())
         {
@@ -259,6 +264,11 @@ namespace vm::runtime
         size_t savedIP = instructionPointer;
         std::vector<CallFrame> savedCallStack = callStack;
         size_t savedCurrentFinallyOffset = currentFinallyOffset;
+        // Capture the operand-stack high-water mark BEFORE the try so a
+        // throw partway through an initializer can drain leftover pushes
+        // back to the caller's view. Without this, an exception escaping
+        // mid-init left the operand stack with phantom values.
+        size_t savedStackSize = stackManager->size();
 
         if (!program)
         {
@@ -282,6 +292,21 @@ namespace vm::runtime
                 break;
             }
         }
+
+        auto restoreState = [&]() {
+            while (stackManager->size() > savedStackSize)
+            {
+                stackManager->pop();
+            }
+            instructionPointer = savedIP;
+            callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
+            program = savedProgram;
+            if (executionCtx)
+            {
+                executionCtx->program = savedProgram;
+            }
+        };
 
         try
         {
@@ -323,26 +348,11 @@ namespace vm::runtime
             }
 
             staticInitializedPrograms.insert(&bytecodeProgram);
-
-            instructionPointer = savedIP;
-            callStack = savedCallStack;
-            currentFinallyOffset = savedCurrentFinallyOffset;
-            program = savedProgram;
-            if (executionCtx)
-            {
-                executionCtx->program = savedProgram;
-            }
+            restoreState();
         }
         catch (...)
         {
-            instructionPointer = savedIP;
-            callStack = savedCallStack;
-            currentFinallyOffset = savedCurrentFinallyOffset;
-            program = savedProgram;
-            if (executionCtx)
-            {
-                executionCtx->program = savedProgram;
-            }
+            restoreState();
             throw;
         }
     }

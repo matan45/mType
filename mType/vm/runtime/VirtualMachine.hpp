@@ -264,8 +264,13 @@ namespace vm::runtime
 
         // Program management
         void setProgram(const bytecode::BytecodeProgram* prog) {
-            if (program != prog) {
-                staticInitializedPrograms.clear();
+            // Only forget the OLD program's init state on swap. Library
+            // entries in staticInitializedPrograms must survive a main-
+            // program swap, otherwise loaded libraries get re-initialized
+            // and any side effects (counter increments, registrations)
+            // run twice.
+            if (program != prog && program != nullptr) {
+                staticInitializedPrograms.erase(program);
             }
             program = prog;
             if (executionCtx) { executionCtx->program = prog; }
