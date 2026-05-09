@@ -209,6 +209,9 @@ int main(int argc, char* argv[])
         // (must happen after main program is set so loadedPrograms[0] = main)
         loadSidecarLibraries(exePath, interpreter);
 
+        // Run static field initializers before invoking the entry point.
+        interpreter.runStaticInitializersForLoadedPrograms();
+
         // Find @EntryPoint class
         auto env = interpreter.getEnvironment();
         std::string entryClass = findEntryPointClass(env);

@@ -226,6 +226,162 @@ namespace vm::runtime
         }
     }
 
+    void VirtualMachine::runStaticInitializers(const bytecode::BytecodeProgram& bytecodeProgram)
+    {
+        // Idempotency check first — return immediately for an already-
+        // initialized program without touching `program` or executionCtx.
+        // Previously the setProgram call below ran first and (in the old
+        // implementation that cleared staticInitializedPrograms wholesale)
+        // ensured this guard could never fire on the !isLoadedProgram path.
+        if (staticInitializedPrograms.count(&bytecodeProgram) > 0)
+        {
+            return;
+        }
+
+        bool isLoadedProgram = false;
+        for (const auto* loadedProgram : loadedPrograms)
+        {
+            if (loadedProgram == &bytecodeProgram)
+            {
+                isLoadedProgram = true;
+                break;
+            }
+        }
+
+        if (!isLoadedProgram && program != &bytecodeProgram)
+        {
+            setProgram(&bytecodeProgram);
+        }
+
+        const auto& initializerNames = bytecodeProgram.getStaticInitializerFunctions();
+        if (initializerNames.empty())
+        {
+            staticInitializedPrograms.insert(&bytecodeProgram);
+            return;
+        }
+
+        const bytecode::BytecodeProgram* savedProgram = program;
+        size_t savedIP = instructionPointer;
+        std::vector<CallFrame> savedCallStack = callStack;
+        size_t savedCurrentFinallyOffset = currentFinallyOffset;
+        // Capture the operand-stack high-water mark BEFORE the try so a
+        // throw partway through an initializer can drain leftover pushes
+        // back to the caller's view. Without this, an exception escaping
+        // mid-init left the operand stack with phantom values.
+        size_t savedStackSize = stackManager->size();
+
+        if (!program)
+        {
+            setProgram(&bytecodeProgram);
+        }
+        else
+        {
+            program = &bytecodeProgram;
+            if (executionCtx)
+            {
+                executionCtx->program = &bytecodeProgram;
+            }
+        }
+
+        size_t programIndex = 0;
+        for (size_t i = 0; i < loadedPrograms.size(); ++i)
+        {
+            if (loadedPrograms[i] == &bytecodeProgram)
+            {
+                programIndex = i;
+                break;
+            }
+        }
+
+        auto restoreState = [&]() {
+            while (stackManager->size() > savedStackSize)
+            {
+                stackManager->pop();
+            }
+            instructionPointer = savedIP;
+            callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
+            program = savedProgram;
+            if (executionCtx)
+            {
+                executionCtx->program = savedProgram;
+            }
+        };
+
+        try
+        {
+            for (const auto& initializerName : initializerNames)
+            {
+                auto* funcMetadata = bytecodeProgram.getFunction(initializerName);
+                if (!funcMetadata)
+                {
+                    throw errors::RuntimeException(
+                        "Static initializer '" + initializerName + "' has no bytecode");
+                }
+
+                size_t frameBase = stackManager->size();
+
+                CallFrame frame;
+                frame.returnAddress = bytecodeProgram.getInstructionCount();
+                frame.frameBase = frameBase;
+                frame.localBase = frameBase;
+                frame.functionName = bytecodeProgram.internFrameName(initializerName);
+                frame.thisInstance = nullptr;
+                frame.programIndex = programIndex;
+
+                size_t colonPos = initializerName.find("::");
+                if (colonPos != std::string::npos)
+                {
+                    frame.definingClassName = initializerName.substr(0, colonPos);
+                }
+
+                pushCallFrame(std::move(frame));
+                stats.functionCalls++;
+                instructionPointer = funcMetadata->startOffset;
+
+                interpretLoop();
+
+                while (stackManager->size() > frameBase)
+                {
+                    stackManager->pop();
+                }
+            }
+
+            staticInitializedPrograms.insert(&bytecodeProgram);
+            restoreState();
+        }
+        catch (...)
+        {
+            restoreState();
+            throw;
+        }
+    }
+
+    void VirtualMachine::runStaticInitializersForLoadedPrograms()
+    {
+        if (loadedPrograms.empty())
+        {
+            if (program)
+            {
+                runStaticInitializers(*program);
+            }
+            return;
+        }
+
+        for (size_t i = 1; i < loadedPrograms.size(); ++i)
+        {
+            if (loadedPrograms[i])
+            {
+                runStaticInitializers(*loadedPrograms[i]);
+            }
+        }
+
+        if (loadedPrograms[0])
+        {
+            runStaticInitializers(*loadedPrograms[0]);
+        }
+    }
+
     void VirtualMachine::push(const value::Value& value)
     {
         stackManager->push(value);

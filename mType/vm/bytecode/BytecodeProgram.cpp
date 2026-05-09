@@ -709,7 +709,8 @@ namespace vm::bytecode
     //      LOAD_UPVALUE / STORE_UPVALUE / CLOSE_UPVALUE) — opcode numbering
     //      shifted, so prior .mtc files reference the wrong numeric op for
     //      every entry past the deletions.
-    static constexpr uint32_t BYTECODE_FORMAT_VERSION = 9;
+    //   10: MYT-290 serialized static-initializer function list.
+    static constexpr uint32_t BYTECODE_FORMAT_VERSION = 10;
 
     void BytecodeProgram::serialize(std::ostream& out) const {
         // Write magic number
@@ -746,6 +747,9 @@ namespace vm::bytecode
 
         // Write annotation declarations (MYT-108, .mtc v5+)
         writeAnnotationDeclarations(out);
+
+        // Write static initializer function names (MYT-290)
+        BytecodeIOHelper::writeStringVector(out, staticInitializerFunctions);
 
         // Write source file path
         size_t len = sourceFilePath.size();
@@ -802,6 +806,9 @@ namespace vm::bytecode
 
         // Read annotation declarations (MYT-108, .mtc v5+)
         program.readAnnotationDeclarations(in);
+
+        // Read static initializer function names (MYT-290)
+        program.staticInitializerFunctions = BytecodeIOHelper::readStringVector(in);
 
         // Read source file path
         size_t len;
@@ -1556,6 +1563,14 @@ namespace vm::bytecode
     const std::vector<BytecodeProgram::AnnotationDeclData>&
         BytecodeProgram::getAnnotationDeclarations() const {
         return annotationDeclarations;
+    }
+
+    void BytecodeProgram::addStaticInitializerFunction(const std::string& functionName) {
+        staticInitializerFunctions.push_back(functionName);
+    }
+
+    const std::vector<std::string>& BytecodeProgram::getStaticInitializerFunctions() const {
+        return staticInitializerFunctions;
     }
 
     void BytecodeProgram::readFieldMetadata(std::istream& in, FieldMetadata& field) {

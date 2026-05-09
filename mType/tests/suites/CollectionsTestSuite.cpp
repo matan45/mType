@@ -64,6 +64,9 @@ namespace tests::testSuite
         addOutputVerificationTest("ArrayList Resize Many Adds",
                                   passPath + "arrayListResizeManyAdds.mt");
 
+        addOutputVerificationTest("ArrayList Nested Resize During Substring Scan",
+                                  passPath + "arrayListNestedResizeDuringSubstringScan.mt");
+
         // === LINKEDLIST REMOVE EDGE CASES ===
         addOutputVerificationTest("LinkedList Remove Middle",
                                   passPath + "linkedListRemoveMiddle.mt");

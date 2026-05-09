@@ -1,6 +1,9 @@
 #include "VirtualMachine.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <string>
+#include <unordered_map>
+#include <vector>
 #include "executors/ControlFlowExecutor.hpp"
 #include "utils/InteropExceptionDecorator.hpp"
 #include "utils/ExceptionHandler.hpp"
@@ -19,6 +22,89 @@
 
 namespace vm::runtime
 {
+    namespace
+    {
+        std::vector<std::string> parseTypeArguments(const std::string& typeArgsStr)
+        {
+            std::vector<std::string> typeArgs;
+            std::string current;
+            int depth = 0;
+
+            for (char c : typeArgsStr)
+            {
+                if (c == '<')
+                {
+                    depth++;
+                    current += c;
+                }
+                else if (c == '>')
+                {
+                    depth--;
+                    current += c;
+                }
+                else if (c == ',' && depth == 0)
+                {
+                    size_t start = current.find_first_not_of(" \t");
+                    size_t end = current.find_last_not_of(" \t");
+                    if (start != std::string::npos && end != std::string::npos)
+                    {
+                        typeArgs.push_back(current.substr(start, end - start + 1));
+                    }
+                    current.clear();
+                }
+                else
+                {
+                    current += c;
+                }
+            }
+
+            size_t start = current.find_first_not_of(" \t");
+            size_t end = current.find_last_not_of(" \t");
+            if (start != std::string::npos && end != std::string::npos)
+            {
+                typeArgs.push_back(current.substr(start, end - start + 1));
+            }
+
+            return typeArgs;
+        }
+
+        std::string parseGenericTypeName(
+            const std::string& fullClassName,
+            const std::shared_ptr<environment::Environment>& environment,
+            std::unordered_map<std::string, std::string>& genericTypeBindings)
+        {
+            size_t genericStart = fullClassName.find('<');
+            if (genericStart == std::string::npos)
+            {
+                return fullClassName;
+            }
+
+            std::string baseClassName = fullClassName.substr(0, genericStart);
+            size_t genericEnd = fullClassName.rfind('>');
+            if (genericEnd == std::string::npos || genericEnd <= genericStart)
+            {
+                return baseClassName;
+            }
+
+            auto classDef = environment ? environment->findClass(baseClassName) : nullptr;
+            if (!classDef)
+            {
+                return baseClassName;
+            }
+
+            std::string typeArgsStr = fullClassName.substr(
+                genericStart + 1, genericEnd - genericStart - 1);
+            std::vector<std::string> typeArgs = parseTypeArguments(typeArgsStr);
+            const auto& genericParams = classDef->getGenericParameters();
+            for (size_t i = 0; i < genericParams.size() && i < typeArgs.size(); ++i)
+            {
+                genericTypeBindings[genericParams[i].name] = typeArgs[i];
+            }
+
+            return baseClassName;
+        }
+    }
+
     // Object construction & lambda invocation
     value::Value VirtualMachine::createObject(const std::string& className, std::span<const value::Value> args)
     {
@@ -36,15 +122,21 @@ namespace vm::runtime
                     "No program loaded - cannot create object in bytecode mode without compiled bytecode");
             }
 
+            std::unordered_map<std::string, std::string> genericTypeBindings;
+            std::string baseClassName = parseGenericTypeName(
+                className, environment, genericTypeBindings);
+
             // Find class definition
-            auto classDef = environment->findClass(className);
+            auto classDef = environment->findClass(baseClassName);
             if (!classDef)
             {
                 throw errors::ClassNotFoundException(className);
             }
 
             // Create object instance
-            auto instance = value::ObjectInstancePool::getInstance().acquire(classDef);
+            auto instance = genericTypeBindings.empty()
+                ? value::ObjectInstancePool::getInstance().acquire(classDef)
+                : value::ObjectInstancePool::getInstance().acquire(classDef, genericTypeBindings);
 
             // Find constructor using type-aware lookup
             auto constructor = classDef->findConstructorByTypes(args);
@@ -100,8 +192,8 @@ namespace vm::runtime
             {
                 std::string typeSignature = constructor->getTypeSignature();
                 std::string qualifiedName = typeSignature.empty()
-                    ? className + "::<init>"
-                    : className + "::<init>/" + typeSignature;
+                    ? baseClassName + "::<init>"
+                    : baseClassName + "::<init>/" + typeSignature;
                 ctorMetadata = program->getFunction(qualifiedName);
                 if (!ctorMetadata)
                 {
@@ -133,7 +225,7 @@ namespace vm::runtime
             frame.localBase = frameBase;
             frame.functionName = frameNameHandle;
             frame.thisInstance = instance;
-            frame.definingClassName = className;
+            frame.definingClassName = baseClassName;
 
             pushCallFrame(std::move(frame));
             stats.functionCalls++;
@@ -253,23 +345,21 @@ namespace vm::runtime
             return createObject(className, args);
         }
 
-        auto classDef = environment->findClass(className);
+        std::unordered_map<std::string, std::string> genericTypeBindings;
+        std::string baseClassName = parseGenericTypeName(
+            className, environment, genericTypeBindings);
+
+        auto classDef = environment->findClass(baseClassName);
         if (!classDef)
         {
             throw errors::ClassNotFoundException(className);
         }
 
-        // MYT-208: shared empty bindings map — constructing a fresh empty
-        // unordered_map per call cost ~15ns × 4M allocs on the nested bench.
-        // Generic-binding STACK_OBJECT promotion isn't supported in v1, so
-        // this is always-empty.
-        static const std::unordered_map<std::string, std::string> kEmptyBindings;
-
         auto constructor = classDef->findConstructorByTypes(args);
         if (constructor && constructor->isTrivialConstructor())
         {
             auto* raw = value::ObjectInstancePool::getInstance()
-                            .acquireRaw(classDef, kEmptyBindings);
+                            .acquireRaw(classDef, genericTypeBindings);
             const auto& indexed = constructor->getTrivialFieldIndexAssignments();
             raw->ensureFieldVector();
             for (const auto& [fieldIdx, paramIdx] : indexed)
@@ -297,7 +387,7 @@ namespace vm::runtime
         if (!constructor && args.empty() && classDef->getConstructors().empty())
         {
             auto* raw = value::ObjectInstancePool::getInstance()
-                            .acquireRaw(classDef, kEmptyBindings);
+                            .acquireRaw(classDef, genericTypeBindings);
             if (!callStack.back().tryPushStackObject(raw))
             {
                 value::ObjectInstancePool::getInstance().releaseRaw(raw);

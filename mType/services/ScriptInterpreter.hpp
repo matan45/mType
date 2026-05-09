@@ -87,6 +87,7 @@ namespace services
         void unloadLibrary(const std::string& libraryName);              // Unload a loaded library
         void loadLibrariesWithDependencies(const std::vector<std::string>& paths);  // Batch load with transitive deps
         void addLibrarySearchPath(const std::string& path);              // Add search path for dep resolution
+        void runStaticInitializersForLoadedPrograms();
 
         // Execution mode control
         void setExecutionMode(constants::ExecutionMode mode);

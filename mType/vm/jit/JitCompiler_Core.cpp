@@ -22,12 +22,47 @@ namespace vm::jit
 
         const auto& supported = getSupportedOpcodes();
         size_t endOffset = meta.startOffset + meta.instructionCount;
+
+        // MYT-291 workaround: asmjit's cc.finalize() crashes (0xC0000005)
+        // when a non-OSR function combines a regular loop (LOOP_START +
+        // JUMP_BACK) with a cascading short-circuit OR/AND chain of three
+        // or more JUMP_IF_*_OR_POPs. Reproduces in examples/code-editor's
+        // JsonCursor::skipWs:
+        //   while (!this.eof()) {
+        //     string c = this.peek();
+        //     if (c == " " || c == "\t" || c == "\n" || c == "\r") {
+        //       this.advance();
+        //     } else { return; }
+        //   }
+        // The IR survives emitFunctionBody; the crash is inside asmjit's
+        // own register allocator / assembler pass on the loop back-edge.
+        // Bailing canCompile keeps such functions in the interpreter; OSR
+        // can still JIT the loop body. Narrow heuristic — earlier broader
+        // form (any LOOP_START + CALL_METHOD) was masking a separate
+        // jit_values_equal cross-kind STRING bug; now that's fixed in
+        // JitHelpers_Core.cpp, the only remaining JIT issue is the asmjit
+        // crash on this specific OR-chain shape. Track in a follow-up
+        // ticket — root cause is in JIT codegen, not here.
+        bool hasLoopStart = false;
+        bool hasJumpBack = false;
+        size_t orPopCount = 0;
         for (size_t ip = meta.startOffset; ip < endOffset; ++ip)
         {
             const auto& instr = program.getInstruction(ip);
             if (supported.find(static_cast<uint8_t>(instr.opcode)) == supported.end())
                 return false;
+            switch (instr.opcode)
+            {
+                case OpCode::LOOP_START: hasLoopStart = true; break;
+                case OpCode::JUMP_BACK:  hasJumpBack = true;  break;
+                case OpCode::JUMP_IF_TRUE_OR_POP:
+                case OpCode::JUMP_IF_FALSE_OR_POP: ++orPopCount; break;
+                default: break;
+            }
         }
+        if (hasLoopStart && hasJumpBack && orPopCount >= 3)
+            return false;
+
         return true;
     }
 

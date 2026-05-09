@@ -12,6 +12,38 @@ namespace project
         }
     }
 
+    bool XmlParser::tryConsumeComment(const std::string& xml, size_t& pos)
+    {
+        if (pos + 3 >= xml.size() || xml[pos] != '<' || xml[pos + 1] != '!' ||
+            xml[pos + 2] != '-' || xml[pos + 3] != '-')
+        {
+            return false;
+        }
+
+        size_t end = xml.find("-->", pos + 4);
+        if (end == std::string::npos)
+        {
+            pos = xml.size();
+        }
+        else
+        {
+            pos = end + 3;
+        }
+        return true;
+    }
+
+    void XmlParser::skipWhitespaceAndComments(const std::string& xml, size_t& pos)
+    {
+        for (;;)
+        {
+            skipWhitespace(xml, pos);
+            if (!tryConsumeComment(xml, pos))
+            {
+                break;
+            }
+        }
+    }
+
     std::string XmlParser::parseTagName(const std::string& xml, size_t& pos)
     {
         std::string name;
@@ -79,7 +111,7 @@ namespace project
     XmlElement XmlParser::parse(const std::string& xml)
     {
         size_t pos = 0;
-        skipWhitespace(xml, pos);
+        skipWhitespaceAndComments(xml, pos);
 
         if (xml.substr(pos, 5) == "<?xml")
         {
@@ -88,7 +120,7 @@ namespace project
             {
                 pos += 2;
             }
-            skipWhitespace(xml, pos);
+            skipWhitespaceAndComments(xml, pos);
         }
 
         if (pos >= xml.size() || xml[pos] != '<')
@@ -101,7 +133,7 @@ namespace project
         element.tagName = parseTagName(xml, pos);
         element.attributes = parseAttributes(xml, pos);
 
-        skipWhitespace(xml, pos);
+        skipWhitespaceAndComments(xml, pos);
 
         if (pos < xml.size() && xml[pos] == '/')
         {
@@ -131,6 +163,12 @@ namespace project
 
         while (pos < xml.size())
         {
+            skipWhitespaceAndComments(xml, pos);
+            if (pos >= xml.size())
+            {
+                break;
+            }
+
             if (xml[pos] == '<')
             {
                 if (pos + 1 < xml.size() && xml[pos + 1] == '/')
@@ -155,7 +193,7 @@ namespace project
                 child.tagName = parseTagName(xml, pos);
                 child.attributes = parseAttributes(xml, pos);
 
-                skipWhitespace(xml, pos);
+                skipWhitespaceAndComments(xml, pos);
 
                 if (pos < xml.size() && xml[pos] == '/')
                 {
@@ -178,6 +216,10 @@ namespace project
                     {
                         if (xml[pos] == '<')
                         {
+                            if (tryConsumeComment(xml, pos))
+                            {
+                                continue;
+                            }
                             if (pos + 1 < xml.size() && xml[pos + 1] == '/')
                             {
                                 --depth;
@@ -216,6 +258,10 @@ namespace project
                     bool hasChildElements = false;
                     while (innerPos < innerContent.size())
                     {
+                        if (tryConsumeComment(innerContent, innerPos))
+                        {
+                            continue;
+                        }
                         if (innerContent[innerPos] == '<' && innerPos + 1 < innerContent.size() &&
                             innerContent[innerPos + 1] != '/')
                         {
@@ -232,17 +278,30 @@ namespace project
                     }
                     else
                     {
+                        std::string text;
+                        text.reserve(innerContent.size());
+                        size_t i = 0;
+                        while (i < innerContent.size())
+                        {
+                            if (tryConsumeComment(innerContent, i))
+                            {
+                                continue;
+                            }
+                            text += innerContent[i];
+                            ++i;
+                        }
+
                         size_t start = 0;
-                        size_t end = innerContent.size();
-                        while (start < end && std::isspace(static_cast<unsigned char>(innerContent[start])))
+                        size_t end = text.size();
+                        while (start < end && std::isspace(static_cast<unsigned char>(text[start])))
                         {
                             ++start;
                         }
-                        while (end > start && std::isspace(static_cast<unsigned char>(innerContent[end - 1])))
+                        while (end > start && std::isspace(static_cast<unsigned char>(text[end - 1])))
                         {
                             --end;
                         }
-                        child.content = innerContent.substr(start, end - start);
+                        child.content = text.substr(start, end - start);
                     }
 
                     while (pos < xml.size() && xml[pos] != '>')

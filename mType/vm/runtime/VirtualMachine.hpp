@@ -7,6 +7,7 @@
 #include <optional>
 #include <algorithm>
 #include <span>
+#include <unordered_set>
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../../value/ValueType.hpp"
 #include "../../environment/Environment.hpp"
@@ -95,6 +96,7 @@ namespace vm::runtime
 
         // Multi-program support: loaded library programs (index 0 = main)
         std::vector<const bytecode::BytecodeProgram*> loadedPrograms;
+        std::unordered_set<const bytecode::BytecodeProgram*> staticInitializedPrograms;
 
         // Execution state
         std::shared_ptr<StackManager> stackManager;
@@ -205,6 +207,8 @@ namespace vm::runtime
         // Execution
         value::Value execute(const bytecode::BytecodeProgram& bytecodeProgram);
         value::Value executeFunction(const std::string& functionName, const std::vector<value::Value>& args);
+        void runStaticInitializers(const bytecode::BytecodeProgram& bytecodeProgram);
+        void runStaticInitializersForLoadedPrograms();
 
         // C++ Interop API - Object creation and method invocation.
         // MYT-208: takes a span so JIT helpers (jit_new_object, jit_new_stack)
@@ -260,6 +264,14 @@ namespace vm::runtime
 
         // Program management
         void setProgram(const bytecode::BytecodeProgram* prog) {
+            // Only forget the OLD program's init state on swap. Library
+            // entries in staticInitializedPrograms must survive a main-
+            // program swap, otherwise loaded libraries get re-initialized
+            // and any side effects (counter increments, registrations)
+            // run twice.
+            if (program != prog && program != nullptr) {
+                staticInitializedPrograms.erase(program);
+            }
             program = prog;
             if (executionCtx) { executionCtx->program = prog; }
             // Ensure main program is at index 0 in loadedPrograms

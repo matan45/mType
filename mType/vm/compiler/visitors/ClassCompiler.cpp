@@ -57,11 +57,9 @@ namespace vm::compiler::visitors
             methodHelper->compileDefaultConstructor(node);
         }
 
-        // Compile static field initializers if any
-        for (const auto& field : node->getFields())
-        {
-            field->accept(ctx.visitor);
-        }
+        // Compile static field initializers into an explicit synthetic
+        // function. Startup paths invoke these before user code runs.
+        compileStaticInitializer(node);
 
         // Phase 2 (allocation perf): record the set of own-class instance
         // fields that every constructor definitely assigns before any read.
@@ -80,6 +78,107 @@ namespace vm::compiler::visitors
         ctx.currentClassNode = previousClassNode;
 
         return std::monostate{};
+    }
+
+    void ClassCompiler::compileStaticInitializer(ast::ClassNode* node)
+    {
+        bool hasStaticInitializers = false;
+        for (const auto& fieldPtr : node->getFields())
+        {
+            auto* fieldNode = dynamic_cast<ast::FieldNode*>(fieldPtr.get());
+            if (fieldNode && fieldNode->getIsStatic() && fieldNode->hasInitialValue())
+            {
+                hasStaticInitializers = true;
+                break;
+            }
+        }
+
+        if (!hasStaticInitializers)
+        {
+            return;
+        }
+
+        const std::string className = node->getClassName();
+        const std::string initializerName = className + "::<static_init>$static";
+
+        size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP, node);
+        size_t initializerStart = ctx.program.getCurrentOffset();
+
+        bytecode::BytecodeProgram::FunctionMetadata tempMetadata;
+        tempMetadata.name = initializerName;
+        tempMetadata.startOffset = initializerStart;
+        tempMetadata.instructionCount = 0;
+        tempMetadata.localCount = 0;
+        tempMetadata.parameterCount = 0;
+        tempMetadata.returnType = "void";
+        tempMetadata.isStatic = true;
+        tempMetadata.isNative = false;
+        ctx.program.registerFunction(initializerName, tempMetadata);
+
+        ctx.functionFrameManager.enterFunctionFrame(initializerName,
+                                                    "void",
+                                                    ctx.variableTracker.getNextLocalSlot(),
+                                                    ctx.variableTracker.getCurrentScopeDepth(),
+                                                    false,
+                                                    false);
+        ctx.variableTracker.beginScope();
+
+        const bool previousStaticInitializer = ctx.inStaticFieldInitializer;
+        ctx.inStaticFieldInitializer = true;
+
+        for (const auto& fieldPtr : node->getFields())
+        {
+            auto* fieldNode = dynamic_cast<ast::FieldNode*>(fieldPtr.get());
+            if (!fieldNode || !fieldNode->getIsStatic() || !fieldNode->hasInitialValue())
+            {
+                continue;
+            }
+
+            fieldNode->getInitialValue()->accept(ctx.visitor);
+
+            std::string qualifiedName = className + "::" + fieldNode->getName();
+            size_t nameIndex = ctx.program.getConstantPool().addString(qualifiedName);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::SET_STATIC,
+                                         static_cast<uint64_t>(nameIndex),
+                                         fieldNode);
+        }
+
+        ctx.inStaticFieldInitializer = previousStaticInitializer;
+
+        ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
+
+        size_t localCount = ctx.functionFrameManager.getLocalCount();
+        ctx.variableTracker.endScope();
+        ctx.functionFrameManager.exitFunctionFrame();
+
+        size_t initializerEnd = ctx.program.getCurrentOffset();
+        ctx.emitter.patchJump(skipJump);
+
+        size_t initializerNameIndex = ctx.program.getConstantPool().addString(initializerName);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::CALL,
+                                     static_cast<uint64_t>(initializerNameIndex),
+                                     0u,
+                                     node);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
+
+        bytecode::BytecodeProgram::FunctionMetadata metadata;
+        metadata.name = initializerName;
+        metadata.startOffset = initializerStart;
+        metadata.instructionCount = initializerEnd - initializerStart;
+        metadata.localCount = localCount;
+        metadata.parameterCount = 0;
+        metadata.returnType = "void";
+        metadata.isStatic = true;
+        metadata.isNative = false;
+
+        if (const auto* existingMetadata = ctx.program.getFunction(initializerName))
+        {
+            metadata.exceptionTable = existingMetadata->exceptionTable;
+        }
+
+        ctx.program.registerFunction(initializerName, metadata);
+        ctx.program.addStaticInitializerFunction(initializerName);
     }
 
     void ClassCompiler::markTrivialConstructors(ast::ClassNode* node)

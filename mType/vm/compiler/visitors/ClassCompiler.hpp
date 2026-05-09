@@ -77,6 +77,10 @@ namespace vm::compiler::visitors
         // VM's fast-path copy-args-into-fields path.
         void markTrivialConstructors(ast::ClassNode* node);
 
+        // MYT-290: emit a synthetic function that owns this class's static
+        // field initializer bytecode. Startup paths invoke these explicitly.
+        void compileStaticInitializer(ast::ClassNode* node);
+
         // MYT-228: emit BIND_TYPE_ARGS just before a method-call's terminal
         // CALL_*. `bindings` maps each callee-side method-level generic
         // parameter name to its resolved value (concrete name OR an outer

@@ -187,6 +187,23 @@ namespace vm::jit
 
             if (isNull(*left) && isNull(*right)) return 1;
             if (isNull(*left) || isNull(*right)) return 0;
+
+            const bool leftString =
+                value::isString(*left) || value::isInternedString(*left);
+            const bool rightString =
+                value::isString(*right) || value::isInternedString(*right);
+            if (leftString || rightString)
+            {
+                if (!leftString || !rightString) return 0;
+                std::string leftValue = value::isString(*left)
+                    ? value::asString(*left)
+                    : std::string(value::asInternedString(*left).getString());
+                std::string rightValue = value::isString(*right)
+                    ? value::asString(*right)
+                    : std::string(value::asInternedString(*right).getString());
+                return leftValue == rightValue ? 1 : 0;
+            }
+
             if (left->tag() != right->tag()) return 0;
 
             if (value::isInt(*left))
@@ -195,10 +212,6 @@ namespace vm::jit
                 return value::asFloat(*left) == value::asFloat(*right) ? 1 : 0;
             if (value::isBool(*left))
                 return value::asBool(*left) == value::asBool(*right) ? 1 : 0;
-            if (value::isString(*left))
-                return value::asString(*left) == value::asString(*right) ? 1 : 0;
-            if (value::isInternedString(*left))
-                return value::asInternedString(*left) == value::asInternedString(*right) ? 1 : 0;
 
             return 0;
         }
