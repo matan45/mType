@@ -685,3 +685,63 @@ project "plugin-test-fixture"
    filter "system:linux or system:macosx"
       buildoptions { "-fvisibility=hidden" }
    filter {}
+
+
+--------------------------------------------------------------------------------
+-- Shared library: mtype-sdl-imgui-plugin
+-- Phase 1 SDL3 + ImGui (docking branch) plugin. Loaded via __plugin_load.
+-- Does NOT link the engine — plugin C ABI only (PluginHostApi.h).
+--
+-- Gated on vendor/SDL3 and vendor/imgui being present so the workspace
+-- still generates cleanly for contributors who haven't vendored those
+-- libs. See mType/sdlImguiPlugin/README.md for vendoring instructions.
+--------------------------------------------------------------------------------
+if os.isdir("vendor/SDL3") and os.isdir("vendor/imgui") then
+project "mtype-sdl-imgui-plugin"
+   kind "SharedLib"
+   location "mType"
+   commonConfig()
+
+   targetdir   "bin/mType/%{cfg.buildcfg}/%{cfg.platform}"
+   targetname  "mtype_sdl_imgui"
+   targetprefix ""
+
+   includedirs {
+      "mType/plugin",
+      "mType/sdlImguiPlugin",
+      "vendor/SDL3/include",
+      "vendor/imgui",
+      "vendor/imgui/backends",
+   }
+
+   files {
+      "mType/sdlImguiPlugin/**.hpp",
+      "mType/sdlImguiPlugin/**.cpp",
+      -- ImGui core
+      "vendor/imgui/imgui.cpp",
+      "vendor/imgui/imgui_demo.cpp",
+      "vendor/imgui/imgui_draw.cpp",
+      "vendor/imgui/imgui_tables.cpp",
+      "vendor/imgui/imgui_widgets.cpp",
+      -- SDL3 backends
+      "vendor/imgui/backends/imgui_impl_sdl3.cpp",
+      "vendor/imgui/backends/imgui_impl_sdlrenderer3.cpp",
+   }
+
+   -- SDL3 is vendored as source, built once via its own CMake (see
+   -- mType/sdlImguiPlugin/README.md). Output lands at
+   -- vendor/SDL3/build/Release/SDL3.{lib,dll} on Windows.
+   filter "system:windows"
+      libdirs { "vendor/SDL3/build/Release", "vendor/SDL3/build/Debug" }
+      links   { "SDL3" }
+      -- SDL3.dll must be alongside mType.exe at runtime; user copies it
+      -- per the plugin README (we don't auto-copy here so the workspace
+      -- stays declarative).
+
+   filter "system:linux or system:macosx"
+      buildoptions { "-fvisibility=hidden" }
+      libdirs { "vendor/SDL3/build" }
+      links   { "SDL3" }
+
+   filter {}
+end

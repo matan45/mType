@@ -7,14 +7,14 @@ function double(int n): int {
 
 __plugin_load("./hello.dll")
 
-print(__hello_greet("world"))
-print(__hello_greet("native plugin"))
+print(__native__hello_greet("world"))
+print(__native__hello_greet("native plugin"))
 
-// Plugin -> mType reentrancy: __hello_apply_twice calls double() twice.
+// Plugin -> mType reentrancy: __native__hello_apply_twice calls double() twice.
 // double(double(3)) == 12.
-print(__hello_apply_twice("double", 3))
+print(__native__hello_apply_twice("double", 3))
 
 // Plugin enumerates all registered functions (mType + native) via listFunctions.
-print(__hello_count_natives())
+print(__native__hello_count_natives())
 
 __plugin_unload("./hello.dll")

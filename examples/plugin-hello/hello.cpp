@@ -30,7 +30,7 @@ MTypeValue* greet(void*, MTypeContext* ctx,
                   const MTypeValue* const* args, int argc)
 {
     if (argc != 1 || g_host->getTag(args[0]) != MT_TAG_STRING) {
-        g_host->raiseError(ctx, "PluginError", "__hello_greet: expected one string arg");
+        g_host->raiseError(ctx, "PluginError", "__native__hello_greet: expected one string arg");
         return g_host->makeNull(ctx);
     }
     size_t nameLen = 0;
@@ -48,7 +48,7 @@ MTypeValue* applyTwice(void*, MTypeContext* ctx,
         || g_host->getTag(args[0]) != MT_TAG_STRING
         || g_host->getTag(args[1]) != MT_TAG_INT) {
         g_host->raiseError(ctx, "PluginError",
-                           "__hello_apply_twice: expected (string funcName, int value)");
+                           "__native__hello_apply_twice: expected (string funcName, int value)");
         return g_host->makeNull(ctx);
     }
 
@@ -58,7 +58,7 @@ MTypeValue* applyTwice(void*, MTypeContext* ctx,
 
     if (!g_host->hasFunction(ctx, funcName)) {
         g_host->raiseError(ctx, "PluginError",
-                           (std::string("__hello_apply_twice: no such function '")
+                           (std::string("__native__hello_apply_twice: no such function '")
                             + funcName + "'").c_str());
         return g_host->makeNull(ctx);
     }
@@ -69,7 +69,7 @@ MTypeValue* applyTwice(void*, MTypeContext* ctx,
     MTypeValue* r1 = g_host->callFunction(ctx, funcName, call1args, 1);
     if (g_host->getTag(r1) != MT_TAG_INT) {
         g_host->raiseError(ctx, "PluginError",
-                           "__hello_apply_twice: callee did not return int");
+                           "__native__hello_apply_twice: callee did not return int");
         return g_host->makeNull(ctx);
     }
 
@@ -78,7 +78,7 @@ MTypeValue* applyTwice(void*, MTypeContext* ctx,
     MTypeValue* r2 = g_host->callFunction(ctx, funcName, call2args, 1);
     if (g_host->getTag(r2) != MT_TAG_INT) {
         g_host->raiseError(ctx, "PluginError",
-                           "__hello_apply_twice: callee did not return int (2nd call)");
+                           "__native__hello_apply_twice: callee did not return int (2nd call)");
         return g_host->makeNull(ctx);
     }
     return r2;
@@ -92,7 +92,7 @@ MTypeValue* countNatives(void*, MTypeContext* ctx,
                          const MTypeValue* const*, int argc)
 {
     if (argc != 0) {
-        g_host->raiseError(ctx, "PluginError", "__hello_count_natives: expected no args");
+        g_host->raiseError(ctx, "PluginError", "__native__hello_count_natives: expected no args");
         return g_host->makeNull(ctx);
     }
     int64_t total = 0;
@@ -110,8 +110,8 @@ int mtype_plugin_register(uint32_t hostAbiVersion,
         return 1;  /* ABI mismatch — host will close us. */
     }
     g_host = host;
-    host->registerFunction(registrationCtx, "__hello_greet",         &greet,        nullptr);
-    host->registerFunction(registrationCtx, "__hello_apply_twice",   &applyTwice,   nullptr);
-    host->registerFunction(registrationCtx, "__hello_count_natives", &countNatives, nullptr);
+    host->registerFunction(registrationCtx, "__native__hello_greet",         &greet,        nullptr);
+    host->registerFunction(registrationCtx, "__native__hello_apply_twice",   &applyTwice,   nullptr);
+    host->registerFunction(registrationCtx, "__native__hello_count_natives", &countNatives, nullptr);
     return 0;
 }

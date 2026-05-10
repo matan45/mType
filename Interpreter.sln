@@ -34,6 +34,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-language-server-tests
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-launcher", "mType\mtype-launcher.vcxproj", "{B35EF1BA-9F2C-E5C0-88C0-55E7742DC125}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-sdl-imgui-plugin", "mType\mtype-sdl-imgui-plugin.vcxproj", "{087B8AE5-F474-B337-DDE1-4948C97A19A4}"
+EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-tests", "mType\mtype-tests.vcxproj", "{34D569C4-A08A-E2B9-297F-DC909533D9BD}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-vm", "mType\mtype-vm.vcxproj", "{24938117-1060-DC22-3979-CACA25A511B1}"
@@ -106,6 +108,10 @@ Global
 		{B35EF1BA-9F2C-E5C0-88C0-55E7742DC125}.Debug|x64.Build.0 = Debug|x64
 		{B35EF1BA-9F2C-E5C0-88C0-55E7742DC125}.Release|x64.ActiveCfg = Release|x64
 		{B35EF1BA-9F2C-E5C0-88C0-55E7742DC125}.Release|x64.Build.0 = Release|x64
+		{087B8AE5-F474-B337-DDE1-4948C97A19A4}.Debug|x64.ActiveCfg = Debug|x64
+		{087B8AE5-F474-B337-DDE1-4948C97A19A4}.Debug|x64.Build.0 = Debug|x64
+		{087B8AE5-F474-B337-DDE1-4948C97A19A4}.Release|x64.ActiveCfg = Release|x64
+		{087B8AE5-F474-B337-DDE1-4948C97A19A4}.Release|x64.Build.0 = Release|x64
 		{34D569C4-A08A-E2B9-297F-DC909533D9BD}.Debug|x64.ActiveCfg = Debug|x64
 		{34D569C4-A08A-E2B9-297F-DC909533D9BD}.Debug|x64.Build.0 = Debug|x64
 		{34D569C4-A08A-E2B9-297F-DC909533D9BD}.Release|x64.ActiveCfg = Release|x64

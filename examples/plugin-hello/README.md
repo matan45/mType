@@ -1,7 +1,7 @@
 # hello-from-plugin (MYT-289)
 
 Minimal example of an mType native plugin: a C/C++ shared library that
-registers a single native function (`__hello_greet`) callable from `.mt`
+registers a single native function (`__native__hello_greet`) callable from `.mt`
 scripts via the runtime plugin loader.
 
 ## Build
@@ -57,8 +57,8 @@ hello, native plugin
 <some integer — current count of registered functions>
 ```
 
-The first two lines come from `__hello_greet`. The `12` line comes from
-`__hello_apply_twice("double", 3)` — the plugin called the mType `double`
+The first two lines come from `__native__hello_greet`. The `12` line comes from
+`__native__hello_apply_twice("double", 3)` — the plugin called the mType `double`
 function twice (3 → 6 → 12) using `host->callFunction`. The last line is
 the plugin enumerating every registered function (via
 `host->listFunctions`) and counting them.
@@ -70,8 +70,8 @@ the plugin enumerating every registered function (via
 2. The loader opens the library (`LoadLibraryW` / `dlopen`) and resolves
    `mtype_plugin_register`.
 3. The plugin's `mtype_plugin_register` validates the ABI version and calls
-   `host->registerFunction("__hello_greet", &greet, nullptr)`.
-4. From this point `__hello_greet` is a normal native function and can be
+   `host->registerFunction("__native__hello_greet", &greet, nullptr)`.
+4. From this point `__native__hello_greet` is a normal native function and can be
    called from any `.mt` code.
 5. `__plugin_unload("./hello.dll")` removes the registered names from the
    runtime registry, invalidates inline-cache slots, and closes the library.
@@ -79,6 +79,14 @@ the plugin enumerating every registered function (via
 ## Plugin author quick reference
 
 The complete C ABI is in `mType/plugin/PluginHostApi.h`. Key rules:
+
+- **Native names must start with `__native__`** (e.g. `__native__hello_greet`).
+  The mType compiler statically validates every called function against the
+  registry; built-in natives are present at compile time, but plugin natives
+  are registered at runtime by `__plugin_load` — way after compilation. The
+  `__native__` prefix is the explicit opt-out that tells the compiler "this
+  resolves at runtime, don't error". Without it, every script that calls
+  your plugin's functions fails to compile with "Function 'X' not found".
 
 - `MTypeValue*` pointers are valid only for the duration of the current
   native call. Copy primitive data out (via `getInt` / `getFloat` /

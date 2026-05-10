@@ -72,6 +72,9 @@ The runtime exposes two natives:
 
 A plugin is a single shared library that includes one C header (`mType/plugin/PluginHostApi.h`). It does **not** link against the engine — only the C ABI is shared, so a plugin built with one toolchain (MSVC vNNN, gcc, clang) loads cleanly into an engine built with another.
 
+> **Naming convention**: plugin natives **must** be registered under names starting with `__native__`. The mType compiler validates every called function against the registry at compile time and rejects unknown names — but plugin natives are registered at runtime by `__plugin_load`, after compilation. The `__native__` prefix is the explicit opt-out: any name with this prefix is treated as runtime-resolved and skipped from compile-time existence checks. Built-in natives keep the regular `__name` convention (`__json_serialize`, `__plugin_load`, …) and remain compile-time validated. Pick `__native__yourmod_op` to match.
+
+
 Minimal plugin (`hello.cpp`):
 
 ```cpp
@@ -98,7 +101,7 @@ int mtype_plugin_register(uint32_t hostAbiVersion,
                           MTypeContext* registrationCtx) {
     if (hostAbiVersion != MTYPE_PLUGIN_ABI_VERSION) return 1;
     g_host = host;
-    host->registerFunction(registrationCtx, "__hello_greet", &greet, nullptr);
+    host->registerFunction(registrationCtx, "__native__hello_greet", &greet, nullptr);
     return 0;
 }
 ```
@@ -107,7 +110,7 @@ Build it as a shared library that exports `mtype_plugin_register`. From `.mt` co
 
 ```mtype
 __plugin_load("./hello.dll")
-print(__hello_greet("world"))   // -> "hello, world"
+print(__native__hello_greet("world"))   // -> "hello, world"
 __plugin_unload("./hello.dll")
 ```
 
