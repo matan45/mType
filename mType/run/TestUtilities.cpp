@@ -35,6 +35,7 @@
 #include "../tests/suites/DependencyGraphTestSuite.hpp"
 #include "../tests/suites/LibraryTestSuite.hpp"
 #include "../tests/suites/EscapeAnalysisTestSuite.hpp"
+#include "../tests/suites/PluginTestSuite.hpp"
 
 #include "../gc/GC.hpp"
 #include "../services/ScriptInterpreter.hpp"
@@ -42,6 +43,7 @@
 #include "../reflection/ReflectionNatives.hpp"
 #include "../json/JsonNatives.hpp"
 #include "../project/mtclib/LibraryNatives.hpp"
+#include "../plugin/PluginNatives.hpp"
 
 #include <vector>
 #include <memory>
@@ -193,6 +195,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<EscapeAnalysisTestSuite>();
     }
+    else if (suiteName == "plugin" || suiteName == "plugins" || suiteName == "ffn-plugin")
+    {
+        return std::make_unique<PluginTestSuite>();
+    }
     return nullptr;
 }
 
@@ -234,6 +240,7 @@ void printAvailableTestSuites()
     std::cout << "  deps         - Dependency Graph Test Suite\n";
     std::cout << "  library      - Library Linking (.mtcLib) Test Suite\n";
     std::cout << "  escape       - Escape Analysis Test Suite (MYT-134)\n";
+    std::cout << "  plugin       - Native Plugin Loader Test Suite (MYT-289)\n";
 }
 
 int runSpecificTestSuite(const std::string& suiteName,
@@ -271,6 +278,7 @@ int runSpecificTestSuite(const std::string& suiteName,
     reflection::ReflectionNatives::cleanup();
     json::JsonNatives::cleanup();
     project::mtclib::LibraryNatives::cleanup();
+    plugin::PluginNatives::cleanup();
 
     return failureCount;
 }
@@ -317,6 +325,7 @@ int runAllTests(constants::ExecutionMode execMode, bool jitEnabled)
     suites.push_back(std::make_unique<DependencyGraphTestSuite>());
     suites.push_back(std::make_unique<LibraryTestSuite>());
     suites.push_back(std::make_unique<EscapeAnalysisTestSuite>());
+    suites.push_back(std::make_unique<PluginTestSuite>());
 
     int totalFailures = 0;
     int totalErrors   = 0;
@@ -370,6 +379,7 @@ int runAllTests(constants::ExecutionMode execMode, bool jitEnabled)
     reflection::ReflectionNatives::cleanup();
     json::JsonNatives::cleanup();
     project::mtclib::LibraryNatives::cleanup();
+    plugin::PluginNatives::cleanup();
 
     // Print final summary
     std::cout << "\n" << std::string(80, '=') << std::endl;

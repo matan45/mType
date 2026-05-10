@@ -348,6 +348,21 @@ namespace vm::bytecode
             return it == cachedStates.end() ? nullptr : &it->second;
         }
 
+        // Plugin unload hook: zero every populated cachedNativeFunc slot.
+        // After a plugin is unloaded, any IC entry holding a NativeDelegate
+        // whose `invoke` pointer lives in the unloaded image would jump into
+        // freed code on next dispatch. This resets all FFI-cached slots and
+        // forces the next call at each IP to re-resolve via NativeRegistry,
+        // which will now miss for the unregistered names. Other cache fields
+        // (cachedFuncMetadata, method-IC entries, etc.) are preserved.
+        void clearNativeCacheSlots() const
+        {
+            for (auto& [ip, state] : cachedStates)
+            {
+                state.cachedNativeFunc = ::environment::registry::NativeDelegate{};
+            }
+        }
+
         bool isFusionUnsafeTarget(size_t offset) const;
 
         void replaceInstructions(size_t offset, size_t count, const std::vector<Instruction>& newInstructions);

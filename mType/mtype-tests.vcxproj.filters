@@ -753,6 +753,9 @@
     <ClInclude Include="tests\suites\PackageManagerTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\PluginTestSuite.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\ReflectionTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
@@ -867,6 +870,9 @@
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\PackageManagerTestSuite.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\PluginTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ReflectionTestSuite.cpp">

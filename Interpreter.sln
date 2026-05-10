@@ -2,6 +2,9 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mType", "mType\mType.vcxproj", "{7490E30F-E0A4-0BC1-A926-AF2015FA07F2}"
+	ProjectSection(ProjectDependencies) = postProject
+		{D596F202-41F8-CF10-CA65-16C336C606D0} = {D596F202-41F8-CF10-CA65-16C336C606D0}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtpm", "packagemanager\mtpm.vcxproj", "{23D19A7C-0F08-9C0D-B8F4-8110A40A180F}"
 EndProject
@@ -34,6 +37,8 @@ EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-tests", "mType\mtype-tests.vcxproj", "{34D569C4-A08A-E2B9-297F-DC909533D9BD}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-vm", "mType\mtype-vm.vcxproj", "{24938117-1060-DC22-3979-CACA25A511B1}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "plugin-test-fixture", "mType\plugin-test-fixture.vcxproj", "{D596F202-41F8-CF10-CA65-16C336C606D0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -109,6 +114,10 @@ Global
 		{24938117-1060-DC22-3979-CACA25A511B1}.Debug|x64.Build.0 = Debug|x64
 		{24938117-1060-DC22-3979-CACA25A511B1}.Release|x64.ActiveCfg = Release|x64
 		{24938117-1060-DC22-3979-CACA25A511B1}.Release|x64.Build.0 = Release|x64
+		{D596F202-41F8-CF10-CA65-16C336C606D0}.Debug|x64.ActiveCfg = Debug|x64
+		{D596F202-41F8-CF10-CA65-16C336C606D0}.Debug|x64.Build.0 = Debug|x64
+		{D596F202-41F8-CF10-CA65-16C336C606D0}.Release|x64.ActiveCfg = Release|x64
+		{D596F202-41F8-CF10-CA65-16C336C606D0}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

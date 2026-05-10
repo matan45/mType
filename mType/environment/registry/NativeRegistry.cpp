@@ -28,6 +28,11 @@ namespace environment::registry
         nativeFunctions[name] = function;
     }
 
+    bool NativeRegistry::unregisterNativeFunction(const std::string& name)
+    {
+        return nativeFunctions.erase(name) > 0;
+    }
+
     NativeFunction NativeRegistry::findNativeFunction(const std::string& name) const
     {
         auto it = nativeFunctions.find(name);

@@ -29,6 +29,7 @@ Lexer / Parser  →  AST  →  Optimizer  →  Bytecode Compiler  →  .mtc
 | **Type Registry** | `mType/types/` | Declared types, generic parameters, conversion rules. |
 | **Runtime Types** | `mType/runtimeTypes/` | Class, function, and global definitions used at runtime. |
 | **Services** | `mType/services/` | File reading, import management, top-level script driver. |
+| **Plugin Loader** | `mType/plugin/` | Runtime loader for native `.dll`/`.so`/`.dylib` plugins via a stable C ABI. See [Native Interop → Runtime Native Plugins](../cli/native-interop.md#runtime-native-plugins-dll--so--dylib). |
 
 ## Detailed Pages
 
