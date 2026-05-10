@@ -8440,6 +8440,9 @@
     <None Include="tests\testFiles\integration\error\modules\StrictInterface.mt">
       <Filter>testFiles\integration\error\modules</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\JsonNode.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\bitwiseSpecialization.expected">
       <Filter>testFiles\integration\pass</Filter>
     </None>
