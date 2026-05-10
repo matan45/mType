@@ -4,7 +4,7 @@
 // JsonCursor::skipWs OR-chain loop hot enough for JIT/OSR decisions without
 // requiring an SDL window in the test runner.
 
-import * from "../../../../../examples/code-editor/JsonNode.mt";
+import * from "JsonNode.mt";
 
 function buildInitializeBody(int id): string {
     JsonNode capabilities = JsonNode::objectNode();
