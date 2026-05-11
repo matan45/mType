@@ -73,7 +73,9 @@ MTypeValue* applyTwice(void*, MTypeContext* ctx,
         return g_host->makeNull(ctx);
     }
 
-    /* Second call: f(f(v)) */
+    /* Second call: f(f(v)). r1 stays valid here because the host pushed it
+     * into ctx->arena (same arena as a0 / call1args); the whole arena lives
+     * for the duration of this applyTwice call. */
     const MTypeValue* call2args[] = { r1 };
     MTypeValue* r2 = g_host->callFunction(ctx, funcName, call2args, 1);
     if (g_host->getTag(r2) != MT_TAG_INT) {

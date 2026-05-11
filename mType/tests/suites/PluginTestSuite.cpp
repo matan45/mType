@@ -12,7 +12,9 @@
 #include "../../value/InternedString.hpp"
 #include "../../value/NativeArray.hpp"
 #include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../runtimeTypes/klass/FieldDefinition.hpp"
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../services/ScriptAPI.hpp"
 #include "../../errors/RuntimeException.hpp"
 
 #include "../../plugin/PluginHostApi.h"
@@ -51,6 +53,22 @@ namespace tests::testSuite
             std::vector<::value::Value> argsVec(args);
             return fn(ctx, std::span<const ::value::Value>(argsVec.data(), argsVec.size()));
         }
+
+        /* RAII guard: ensures a loaded plugin is unloaded from the singleton
+         * even if an assertion between load() and the natural unload() throws.
+         * Without this, a failed assertion poisons every subsequent test on
+         * the same path with "already loaded". */
+        struct LoadedPluginGuard
+        {
+            std::string path;
+            std::shared_ptr<::environment::Environment> env;
+            std::shared_ptr<::vm::runtime::VirtualMachine> vm;
+            ~LoadedPluginGuard()
+            {
+                try { ::plugin::PluginLoader::instance().unload(path, env, vm); }
+                catch (...) {}
+            }
+        };
 
         /* Register a synthetic plugin-style native into the engine's registry.
          * Uses the real plugin trampoline (so all v1+v2 ABI features run end to
@@ -286,6 +304,65 @@ namespace tests::testSuite
                 require(::value::asInt(arr->get(1)) == 20, "arr[1] should be 20");
                 require(::value::asInt(arr->get(2)) == 30, "arr[2] should be 30");
             });
+
+        addCallbackTest("arraySet out-of-bounds returns MT_ERR_RANGE",
+            "",
+            [](services::ScriptAPI&) {
+                auto env = ::environment::EnvironmentBuilder().build();
+                auto vm = std::make_shared<::vm::runtime::VirtualMachine>(env);
+
+                /* Plugin returns the status code arraySet returned for an OOB index. */
+                auto probe = +[](void*, ::MTypeContext* ctx,
+                                  const ::MTypeValue* const*, int) -> ::MTypeValue* {
+                    const ::MTypePluginHost* host = ::plugin::getHostVTable();
+                    ::MTypeValue* arr = host->makeArray(ctx, MT_TAG_INT, 2);
+                    ::MTypeStatus st = host->arraySet(arr, 5, host->makeInt(ctx, 99));
+                    return host->makeInt(ctx, static_cast<int64_t>(st));
+                };
+                auto binding = installSyntheticPlugin(env, "__pt_arr_oob", probe);
+
+                auto fn = env->getNativeRegistry()->findNativeFunction("__pt_arr_oob");
+                ::value::Value out = invokeNative(fn, env, vm, {});
+                require(::value::isInt(out), "result should be int");
+                require(::value::asInt(out) == static_cast<int64_t>(MT_ERR_RANGE),
+                        "OOB arraySet should return MT_ERR_RANGE, got "
+                        + std::to_string(::value::asInt(out)));
+            });
+
+        addCallbackTest("makeObject + objSet + objGet round-trip an int field",
+            "",
+            [](services::ScriptAPI&) {
+                auto env = ::environment::EnvironmentBuilder().build();
+                auto vm = std::make_shared<::vm::runtime::VirtualMachine>(env);
+
+                /* Register a minimal class "__pt_obj { x: int }" so the host has
+                 * something for makeObject(...) to resolve. */
+                auto classDef = std::make_shared<::runtimeTypes::klass::ClassDefinition>("__pt_obj");
+                auto xField = std::make_shared<::runtimeTypes::klass::FieldDefinition>(
+                    "x", ::value::ValueType::INT);
+                classDef->addInstanceField("x", xField);
+                env->registerClass("__pt_obj", classDef);
+
+                /* Plugin creates an instance, sets x, then reads x back and returns it. */
+                auto rt = +[](void*, ::MTypeContext* ctx,
+                              const ::MTypeValue* const*, int) -> ::MTypeValue* {
+                    const ::MTypePluginHost* host = ::plugin::getHostVTable();
+                    ::MTypeValue* obj = host->makeObject(ctx, "__pt_obj");
+                    if (host->getTag(obj) != MT_TAG_OBJECT) {
+                        host->raiseError(ctx, "TestError", "makeObject did not return OBJECT");
+                        return host->makeNull(ctx);
+                    }
+                    host->objSet(obj, "x", host->makeInt(ctx, 73));
+                    return host->objGet(ctx, obj, "x");
+                };
+                auto binding = installSyntheticPlugin(env, "__pt_obj_rt", rt);
+
+                auto fn = env->getNativeRegistry()->findNativeFunction("__pt_obj_rt");
+                ::value::Value out = invokeNative(fn, env, vm, {});
+                require(::value::isInt(out), "result should be int after objGet");
+                require(::value::asInt(out) == 73,
+                        "expected 73, got " + std::to_string(::value::asInt(out)));
+            });
     }
 
     /* ============================================================
@@ -382,6 +459,70 @@ namespace tests::testSuite
                 require(::value::asInt(out) > 0,
                         "listFunctions should yield at least one name, got "
                         + std::to_string(::value::asInt(out)));
+            });
+
+        /* Reentrancy: plugin native uses hostCallFunction to invoke an
+         * mType function declared in reentrancy_bootstrap.mt. Exercises the
+         * trampoline → vm->executeFunction → arenaPush return path as a unit
+         * test (the example in hello.cpp does this end-to-end via a .mt
+         * script). Single-level reentrancy only — chained executeFunction
+         * composition is a separate VM concern. */
+        addCallbackTest("hostCallFunction reentrantly invokes an mType function",
+            "mType/tests/testFiles/plugin/reentrancy_bootstrap.mt",
+            [](services::ScriptAPI& api) {
+                auto env = api.getEnvironment();
+
+                /* Plugin native: applyOnce(name, n) = double(n). */
+                auto applyOnce = +[](void*, ::MTypeContext* ctx,
+                                      const ::MTypeValue* const* args, int argc) -> ::MTypeValue* {
+                    const ::MTypePluginHost* host = ::plugin::getHostVTable();
+                    if (argc != 2) {
+                        host->raiseError(ctx, "TestError", "applyOnce: expected 2 args");
+                        return host->makeNull(ctx);
+                    }
+                    size_t n = 0;
+                    const char* funcName = host->getString(args[0], &n);
+                    int64_t v = host->getInt(args[1]);
+
+                    ::MTypeValue* a0 = host->makeInt(ctx, v);
+                    const ::MTypeValue* call1[] = { a0 };
+                    return host->callFunction(ctx, funcName, call1, 1);
+                };
+                auto binding = installSyntheticPlugin(env, "__pt_apply_once", applyOnce);
+
+                /* Invoke via ScriptAPI so the route is identical to a real
+                 * .mt script calling the plugin: env→native→trampoline→VM. */
+                ::value::Value out = api.callFunction(
+                    "__pt_apply_once",
+                    { ::value::Value(std::string("double")), ::value::Value(int64_t{21}) });
+
+                require(::value::isInt(out), "result should be int");
+                require(::value::asInt(out) == 42,
+                        "double(21) via callFunction should be 42, got "
+                        + std::to_string(::value::asInt(out)));
+            });
+
+        addCallbackTest("hostCallFunction surfaces inner errors via errorPending",
+            "mType/tests/testFiles/plugin/reentrancy_bootstrap.mt",
+            [](services::ScriptAPI& api) {
+                auto env = api.getEnvironment();
+
+                /* Plugin calls a function that doesn't exist; we expect the
+                 * trampoline to throw RuntimeException to the caller. */
+                auto badCall = +[](void*, ::MTypeContext* ctx,
+                                    const ::MTypeValue* const*, int) -> ::MTypeValue* {
+                    const ::MTypePluginHost* host = ::plugin::getHostVTable();
+                    return host->callFunction(ctx, "__pt_no_such_fn_zz", nullptr, 0);
+                };
+                auto binding = installSyntheticPlugin(env, "__pt_bad_call", badCall);
+
+                bool threw = false;
+                try {
+                    api.callFunction("__pt_bad_call", {});
+                } catch (const ::errors::RuntimeException&) {
+                    threw = true;
+                }
+                require(threw, "callFunction of unknown name should surface as an exception");
             });
     }
 
@@ -524,13 +665,12 @@ namespace tests::testSuite
                 auto vm = std::make_shared<::vm::runtime::VirtualMachine>(env);
 
                 ::plugin::PluginLoader::instance().load(fixturePath, env, vm);
+                LoadedPluginGuard guard{fixturePath, env, vm};
+
                 require(::plugin::PluginLoader::instance().isLoaded(fixturePath),
                         "isLoaded should report true after load");
                 require(env->getNativeRegistry()->hasNativeFunction("__pt_fixture_plus_seven"),
                         "fixture should have registered __pt_fixture_plus_seven");
-
-                /* Clean up so other tests get a fresh state. */
-                ::plugin::PluginLoader::instance().unload(fixturePath, env, vm);
             });
 
         addCallbackTest("Integration: __pt_fixture_plus_seven returns arg + 7",
@@ -540,6 +680,7 @@ namespace tests::testSuite
                 auto vm = std::make_shared<::vm::runtime::VirtualMachine>(env);
 
                 ::plugin::PluginLoader::instance().load(fixturePath, env, vm);
+                LoadedPluginGuard guard{fixturePath, env, vm};
 
                 auto fn = env->getNativeRegistry()->findNativeFunction("__pt_fixture_plus_seven");
                 require(static_cast<bool>(fn), "fixture native should be findable");
@@ -548,8 +689,6 @@ namespace tests::testSuite
                 require(::value::isInt(out), "result should be int");
                 require(::value::asInt(out) == 42,
                         "expected 42, got " + std::to_string(::value::asInt(out)));
-
-                ::plugin::PluginLoader::instance().unload(fixturePath, env, vm);
             });
 
         addCallbackTest("Integration: unload removes the registered native",
@@ -559,6 +698,10 @@ namespace tests::testSuite
                 auto vm = std::make_shared<::vm::runtime::VirtualMachine>(env);
 
                 ::plugin::PluginLoader::instance().load(fixturePath, env, vm);
+                /* Guard catches everything, so the deliberate unload below
+                 * leaves the guard's dtor with a harmless "not loaded" that
+                 * gets swallowed — keeps cleanup correct if a require() fires. */
+                LoadedPluginGuard guard{fixturePath, env, vm};
                 require(env->getNativeRegistry()->hasNativeFunction("__pt_fixture_plus_seven"),
                         "precondition: fixture native registered");
 
@@ -567,6 +710,28 @@ namespace tests::testSuite
                         "fixture native should be gone after unload");
                 require(!::plugin::PluginLoader::instance().isLoaded(fixturePath),
                         "isLoaded should report false after unload");
+            });
+
+        addCallbackTest("Integration: double-load of the same path throws",
+            "",
+            [fixturePath](services::ScriptAPI&) {
+                auto env = ::environment::EnvironmentBuilder().build();
+                auto vm = std::make_shared<::vm::runtime::VirtualMachine>(env);
+
+                ::plugin::PluginLoader::instance().load(fixturePath, env, vm);
+                LoadedPluginGuard guard{fixturePath, env, vm};
+
+                bool threw = false;
+                std::string msg;
+                try {
+                    ::plugin::PluginLoader::instance().load(fixturePath, env, vm);
+                } catch (const ::errors::RuntimeException& e) {
+                    threw = true;
+                    msg = e.what();
+                }
+                require(threw, "second load() of an already-loaded path should throw");
+                require(msg.find("already loaded") != std::string::npos,
+                        "exception should mention 'already loaded', got: " + msg);
             });
     }
 }

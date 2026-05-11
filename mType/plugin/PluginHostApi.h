@@ -20,8 +20,12 @@
  *   should return immediately (e.g. `return host->makeNull(ctx);`).
  *
  * Reentrancy and threading:
- *   v1 plugin natives must not call back into the mType VM and run on the
- *   single VM thread. Both are out of scope for this revision.
+ *   All plugin natives run on the single VM thread; the host does not call
+ *   them concurrently. From ABI v2 onward, plugins MAY call back into the VM
+ *   via host->callFunction / host->callMethod — the inner call runs on the
+ *   same thread, and the VM saves and restores its IP/call stack across the
+ *   reentrant execution. Plugins must not spawn their own threads that touch
+ *   any MTypeContext / MTypeValue.
  */
 #ifndef MTYPE_PLUGIN_HOST_API_H
 #define MTYPE_PLUGIN_HOST_API_H

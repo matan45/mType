@@ -12,8 +12,9 @@
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../errors/RuntimeException.hpp"
 
-#include <vector>
+#include <memory>
 #include <string>
+#include <vector>
 
 /*
  * The opaque MTypeValue / MTypeContext types are defined at file scope in
@@ -70,6 +71,11 @@ namespace plugin
             return &ctx->arena.values.back();
         }
 
+        /* Forward-declared: hostMakeString needs it for a null-arg guard. */
+        void hostRaiseError(::MTypeContext* ctx,
+                            const char* exceptionType,
+                            const char* message);
+
         /* ---- vtable function impls ---- */
 
         ::MTypeValue* hostMakeNull(::MTypeContext* ctx)
@@ -94,7 +100,16 @@ namespace plugin
         }
         ::MTypeValue* hostMakeString(::MTypeContext* ctx, const char* utf8, size_t len)
         {
-            std::string s(utf8 != nullptr ? utf8 : "", len);
+            /* (utf8 == null, len > 0) used to fall into std::string("", len) which
+             * reads `len` bytes past the empty string literal — undefined behaviour.
+             * Raise instead so the script sees the contract violation. */
+            if (utf8 == nullptr && len > 0)
+            {
+                hostRaiseError(ctx, "PluginError",
+                               "makeString: null pointer with non-zero length");
+                return arenaPush(ctx, ::value::Value(nullptr));
+            }
+            std::string s(utf8 ? utf8 : "", len);
             return arenaPush(ctx, ::value::Value(std::move(s)));
         }
         ::MTypeValue* hostMakeArray(::MTypeContext* ctx, ::MTypeTag elemTag, size_t length)
@@ -256,7 +271,8 @@ namespace plugin
         void hostListClasses(::MTypeContext* ctx, ::MTypeNameCallback cb, void* userData)
         {
             if (!ctx || !ctx->env || !cb) return;
-            for (const auto& name : ctx->env->getClassRegistry()->getAllItemNames())
+            const auto& names = ctx->env->getClassRegistry()->getAllItemNames();
+            for (const auto& name : names)
             {
                 cb(userData, name.c_str());
             }
@@ -264,11 +280,17 @@ namespace plugin
         void hostListFunctions(::MTypeContext* ctx, ::MTypeNameCallback cb, void* userData)
         {
             if (!ctx || !ctx->env || !cb) return;
-            for (const auto& name : ctx->env->getFunctionRegistry()->getAllFunctionNames())
+            /* Bind to const& so the returned vector lives until end-of-loop and
+             * isn't copied. The registries still allocate+sort once per call
+             * (ABI promises alphabetical order); making the iteration itself
+             * allocation-free would require a forEach-style registry API. */
+            const auto& fnNames = ctx->env->getFunctionRegistry()->getAllFunctionNames();
+            for (const auto& name : fnNames)
             {
                 cb(userData, name.c_str());
             }
-            for (const auto& name : ctx->env->getNativeRegistry()->getAllNativeFunctionNames())
+            const auto& natNames = ctx->env->getNativeRegistry()->getAllNativeFunctionNames();
+            for (const auto& name : natNames)
             {
                 cb(userData, name.c_str());
             }
@@ -392,18 +414,28 @@ namespace plugin
         callCtx.env = ctx.env;
         callCtx.vm = ctx.vm;
 
-        std::vector<const ::MTypeValue*> argPtrs;
-        argPtrs.reserve(args.size());
-        for (const auto& a : args)
+        /* Small-buffer optimization: most plugin calls have ≤8 args, so avoid
+         * the per-call heap allocation a std::vector would do. Falls back to
+         * a heap buffer for unusually wide calls. */
+        constexpr size_t kInlineArgCap = 8;
+        const ::MTypeValue* inlinePtrs[kInlineArgCap];
+        std::unique_ptr<const ::MTypeValue*[]> heapPtrs;
+        const ::MTypeValue** argPtrs = inlinePtrs;
+        if (args.size() > kInlineArgCap)
+        {
+            heapPtrs = std::make_unique<const ::MTypeValue*[]>(args.size());
+            argPtrs = heapPtrs.get();
+        }
+        for (size_t i = 0; i < args.size(); ++i)
         {
             callCtx.arena.values.emplace_back();
-            callCtx.arena.values.back().v = a;  /* copy; refcounts via Value::copy-ctor */
-            argPtrs.push_back(&callCtx.arena.values.back());
+            callCtx.arena.values.back().v = args[i];  /* copy; refcounts via Value::copy-ctor */
+            argPtrs[i] = &callCtx.arena.values.back();
         }
 
         ::MTypeValue* ret = binding->fn(binding->userData,
                                          &callCtx,
-                                         argPtrs.empty() ? nullptr : argPtrs.data(),
+                                         args.empty() ? nullptr : argPtrs,
                                          static_cast<int>(args.size()));
 
         if (callCtx.errorPending)

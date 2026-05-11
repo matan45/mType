@@ -97,7 +97,29 @@ The complete C ABI is in `mType/plugin/PluginHostApi.h`. Key rules:
 - `mtype_plugin_register` must check `hostAbiVersion == MTYPE_PLUGIN_ABI_VERSION`
   and return non-zero on mismatch. The host will close the library on a
   non-zero return.
-- Plugins run on the single VM thread.
+- Plugins run on the single VM thread. The `g_host` file-scope pointer in
+  `hello.cpp` is safe **because of this**; do not adapt this pattern for a
+  multi-threaded loader without converting it to per-call state.
 - Plugins **may** call back into mType (ABI v2) via `host->callFunction` /
   `host->callMethod` — the inner call runs on the same thread; the VM
   saves/restores its IP and call stack across the inner execution.
+
+## Security model
+
+`__plugin_load` is an **elevated-trust operation**. It runs in the same
+process as the interpreter, so a loaded plugin can do anything the host
+process can (filesystem, network, native syscalls).
+
+- **Path is not sandboxed.** The loader accepts any path the script gives
+  it and only checks `std::filesystem::exists`. There is no allow-list,
+  no directory containment, no signature verification. Loading a plugin
+  is equivalent to running native code; trust the source accordingly.
+- **No script-level isolation.** Treat scripts that call `__plugin_load`
+  the same way you'd treat any other native code execution.
+- **Windows CRT compatibility.** When the host and the plugin are built
+  with different MSVC CRTs (e.g. debug vs. release, or different MSVC
+  versions), passing heap-allocated objects across the boundary can
+  corrupt either heap. The C ABI in `PluginHostApi.h` deliberately
+  avoids passing STL types across the boundary, but plugins that
+  allocate memory the host then frees (or vice versa) will hit this.
+  Build host and plugin with matching CRTs when in doubt.

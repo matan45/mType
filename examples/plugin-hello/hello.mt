@@ -5,6 +5,7 @@ function double(int n): int {
     return n * 2
 }
 
+// Extension is platform-specific: ".so" on Linux, ".dylib" on macOS.
 __plugin_load("./hello.dll")
 
 print(__native__hello_greet("world"))

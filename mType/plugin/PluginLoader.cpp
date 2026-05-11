@@ -27,6 +27,23 @@ namespace plugin
             if (ec) return p;
             return canon.string();
         }
+
+        /* Shared rollback for every load() failure branch: unregister any
+         * names the plugin's register fn managed to add. Centralised so the
+         * three failure arms can't drift apart. Caller still owns closing
+         * the OS handle (osClose is a private static on PluginLoader, not
+         * reachable from this anonymous-namespace helper). */
+        void rollbackRegistrations(PluginHandle& handle,
+                                   const std::shared_ptr<::environment::Environment>& env)
+        {
+            if (!env) return;
+            auto registry = env->getNativeRegistry();
+            if (!registry) return;
+            for (const auto& name : handle.registeredNames)
+            {
+                registry->unregisterNativeFunction(name);
+            }
+        }
     }
 
     PluginLoader& PluginLoader::instance()
@@ -95,10 +112,7 @@ namespace plugin
         catch (const std::exception& e)
         {
             /* Plugin shouldn't throw, but if it does, undo registration. */
-            for (const auto& name : handle->registeredNames)
-            {
-                env->getNativeRegistry()->unregisterNativeFunction(name);
-            }
+            rollbackRegistrations(*handle, env);
             osClose(osHandle);
             throw ::errors::RuntimeException(
                 "PluginError: '" + path + "' threw during register: " + e.what());
@@ -108,20 +122,14 @@ namespace plugin
         {
             std::string type = std::move(regCtx.errorType);
             std::string msg  = std::move(regCtx.errorMessage);
-            for (const auto& name : handle->registeredNames)
-            {
-                env->getNativeRegistry()->unregisterNativeFunction(name);
-            }
+            rollbackRegistrations(*handle, env);
             osClose(osHandle);
             throw ::errors::RuntimeException(type + ": " + msg);
         }
 
         if (rc != 0)
         {
-            for (const auto& name : handle->registeredNames)
-            {
-                env->getNativeRegistry()->unregisterNativeFunction(name);
-            }
+            rollbackRegistrations(*handle, env);
             osClose(osHandle);
             throw ::errors::RuntimeException(
                 "PluginError: '" + path + "' register returned " + std::to_string(rc));
@@ -159,8 +167,19 @@ namespace plugin
 
         invalidateNativeCaches(vm);
 
-        /* Bindings drop here, so the trampoline's userData becomes inaccessible
-         * BEFORE we close the OS handle that holds the plugin's fn pointers. */
+        /* Unload ordering (must stay in this order):
+         *   1. registry->unregisterNativeFunction (above)  — no new dispatch
+         *      can resolve to this plugin's names.
+         *   2. invalidateNativeCaches                       — every IC slot
+         *      holding a NativeDelegate into this plugin is zeroed.
+         *   3. handle->bindings.clear()                     — trampoline
+         *      userData is dropped so no in-flight pointer can be reused.
+         *   4. osClose                                       — unmap plugin
+         *      code last.
+         *
+         * Any new cache that stores a NativeDelegate or a raw function pointer
+         * into plugin code MUST hook into invalidateNativeCaches; otherwise it
+         * will hold a dangling pointer after step 4. */
         handle->bindings.clear();
         osClose(handle->osHandle);
     }
