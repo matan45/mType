@@ -692,5 +692,11 @@ namespace tests::testSuite
                         passPath + "jitOrChainInLoop_pass.mt");
         addOutputVerificationTest("MYT-291 code-editor JSON LSP startup",
                         passPath + "jitJsonLspStartup_pass.mt");
+
+        // MYT-300 regression: chained float `&&` misbehaves under JIT.
+        // Pins two patterns from rts_step2.mt — selection-store (bool field
+        // on SoA object array) and edge-pan guard with `(float)int` cast.
+        addOutputVerificationTest("MYT-300 JIT chained float AND",
+                        passPath + "myt300JitFloatAndChain.mt");
     }
 }
