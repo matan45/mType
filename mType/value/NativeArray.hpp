@@ -444,6 +444,12 @@ namespace value
             return storage.index() == 5 ? std::get<5>(storage) : nullptr;
         }
 
+        void materializeObjectStorageForAlias() {
+            if (storage.index() == 5) {
+                convertToHeterogeneous();
+            }
+        }
+
     private:
         /**
          * Convert SIMD storage to heterogeneous storage

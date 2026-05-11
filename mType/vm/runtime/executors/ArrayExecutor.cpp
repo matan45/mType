@@ -140,6 +140,13 @@ namespace vm::runtime
         // Bounds check (VM does bounds check once)
         utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), array->size(), "Array");
 
+        // A full object element load can escape into a local alias. SoA object
+        // storage materializes snapshots, so convert to normal object-reference
+        // storage before returning arr[i] as a value.
+        if (array->getObjectArrayData()) {
+            array->materializeObjectStorageForAlias();
+        }
+
         // Get element using unchecked access (bounds already verified)
         // PERFORMANCE: Eliminates redundant bounds check in array->get()
         value::Value element = array->getUnchecked(static_cast<size_t>(index));

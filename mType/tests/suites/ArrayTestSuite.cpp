@@ -67,6 +67,9 @@ namespace tests::testSuite
         addOutputVerificationTest("SoA Object Arrays (Structure-of-Arrays) - 1D, 2D, 3D",
                                   passPath + "soaObjectArrays.mt");
 
+        addOutputVerificationTest("Object Array Element Alias Write",
+                                  passPath + "arrayElementAliasWrite.mt");
+
         addOutputVerificationTest("Generic Arrays with SIMD/SoA Optimization",
                                   passPath + "genericArraysOptimized.mt");
 
