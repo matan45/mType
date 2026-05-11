@@ -73,6 +73,22 @@ namespace vm::jit
                       FuncSignature::build<void, value::Value*, const value::Value*>());
             inv->set_arg(0, dst);
             inv->set_arg(1, src);
+
+            // MYT-292: mirror the primitive payload to stackBase so primitive-
+            // stack consumers (JUMP_IF_FALSE / JUMP_IF_TRUE / arith) see the
+            // right value when the local holds a BOOL/INT stored via the boxed
+            // path (e.g. a native-call return — emitReturnValueCopyBoxed pushes
+            // SlotType::BOXED, which propagates through STORE_LOCAL into
+            // localTypes; without this mirror, JUMP_IF_FALSE reads stale
+            // stackBase and `if (helloOpen)` consistently branches false after
+            // tier-up). Symmetric to MYT-154 / MYT-252.
+            InvokeNode* unbox;
+            cc.invoke(Out(unbox), reinterpret_cast<uint64_t>(jit_unbox_int),
+                      FuncSignature::build<int64_t, const value::Value*>());
+            unbox->set_arg(0, dst);
+            Gp unboxed = cc.new_gp64();
+            unbox->set_ret(0, unboxed);
+            cc.mov(Mem(s.stackBase, s.stackDepth * 8), unboxed);
         }
         else if (s.usesBoxedTypes)
         {
