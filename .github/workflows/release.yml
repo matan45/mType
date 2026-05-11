@@ -30,9 +30,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
+          fetch-depth: 1
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
@@ -136,7 +137,7 @@ jobs:
           tar -czf "dist/${{ matrix.archive }}" -C dist "mType-${{ github.ref_name }}-${{ matrix.name }}"
 
       - name: Upload native package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.archive }}
           path: dist/${{ matrix.archive }}
@@ -148,12 +149,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: mtype-vscode-extension/package-lock.json
 
@@ -172,7 +175,7 @@ jobs:
           npx --yes @vscode/vsce package --out ../dist/mtype-language-support-${{ github.ref_name }}.vsix
 
       - name: Upload VSIX package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: mtype-language-support-${{ github.ref_name }}.vsix
           path: dist/mtype-language-support-${{ github.ref_name }}.vsix
@@ -185,7 +188,7 @@ jobs:
 
     steps:
       - name: Download packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: release-assets
           merge-multiple: true
