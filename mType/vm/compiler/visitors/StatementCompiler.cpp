@@ -507,6 +507,11 @@ namespace vm::compiler::visitors
             size_t absoluteSlot = ctx.variableTracker.getNextLocalSlot() - 1;
             size_t relativeSlot = absoluteSlot - ctx.functionFrameManager.currentFrame().localStartSlot;
             size_t nameIndex = ctx.program.getConstantPool().addString(name);
+            const auto& frame = ctx.functionFrameManager.currentFrame();
+            if (frame.scopeDepthStart == 0 && frame.localStartSlot == 0)
+            {
+                ctx.program.setTopLevelLocalName(relativeSlot, name);
+            }
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL,
                                          static_cast<uint64_t>(relativeSlot),
                                          static_cast<uint64_t>(nameIndex), node);

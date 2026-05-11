@@ -81,14 +81,26 @@ void runInDebugMode(const std::string& filename,
             debugServer.setVM(vm);
         }
 
-        // Run the script (will pause at breakpoints)
-        interpreter.runScript(filename);
+        try
+        {
+            // Run the script (will pause at breakpoints)
+            interpreter.runScript(filename);
 
-        // Pop main script frame after completion
-        debugger::DebugHookHelper::exitFunctionHook("<main>");
+            // Pop main script frame after completion
+            debugger::DebugHookHelper::exitFunctionHook("<main>");
 
-        // Notify debugger that script completed
-        debugger::DebugHookHelper::notifyScriptComplete(filename);
+            // Notify debugger that script completed
+            debugger::DebugHookHelper::notifyScriptComplete(filename);
+        }
+        catch (...)
+        {
+            debugServer.stop();
+            if (serverThread.joinable())
+            {
+                serverThread.join();
+            }
+            throw;
+        }
 
         // Stop debug server
         debugServer.stop();

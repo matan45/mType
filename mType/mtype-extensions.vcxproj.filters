@@ -75,6 +75,9 @@
     <ClInclude Include="debugger\DebugContext.hpp">
       <Filter>debugger</Filter>
     </ClInclude>
+    <ClInclude Include="debugger\DebugExpressionEvaluator.hpp">
+      <Filter>debugger</Filter>
+    </ClInclude>
     <ClInclude Include="debugger\DebugHookHelper.hpp">
       <Filter>debugger</Filter>
     </ClInclude>
@@ -330,6 +333,9 @@
       <Filter>packagemanager\src</Filter>
     </ClCompile>
     <ClCompile Include="debugger\DebugContext.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\DebugExpressionEvaluator.cpp">
       <Filter>debugger</Filter>
     </ClCompile>
     <ClCompile Include="debugger\DebugHookHelper.cpp">

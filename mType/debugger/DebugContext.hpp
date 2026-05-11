@@ -146,6 +146,7 @@ namespace debugger
         // Debug state
         DebugMode mode;
         ExecutionState state;
+        mutable std::mutex stateMutex;
         std::atomic<bool> enabled;
 
         // Breakpoints (maps location to info including conditions and log messages)
@@ -204,7 +205,7 @@ namespace debugger
         void clearAllBreakpoints();
         bool hasBreakpoint(const SourceLocation& location) const;
         bool hasBreakpoint(const std::string& filename, int line) const;
-        BreakpointInfo* getBreakpointInfo(const std::string& filename, int line);
+        bool getBreakpointInfo(const std::string& filename, int line, BreakpointInfo& outInfo);
         std::vector<BreakpointKey> getBreakpoints() const;
 
         // Exception breakpoint management

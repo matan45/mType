@@ -323,6 +323,7 @@ namespace vm::runtime
         bool isDebuggingEnabled() const { return debuggingEnabled; }
         std::shared_ptr<environment::Environment> getEnvironment() const { return environment; }
         const std::vector<CallFrame>& getCallStack() const { return callStack; }
+        size_t getInstructionPointer() const { return instructionPointer; }
         // MYT-228: mutable access for JIT helpers that need to consult the
         // current top frame's typeArgBindings (jit_cast_typeparam,
         // jit_instanceof_typeparam, jit_bind_type_args).

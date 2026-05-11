@@ -496,7 +496,19 @@ namespace vm::compiler
         // Publish the top-level local count before tearing the frame down
         // — OSR needs this to tier-up loops at script scope (the top-level
         // isn't registered as a FunctionMetadata).
-        program.setTopLevelLocalCount(context.functionFrameManager.getLocalCount());
+        const size_t topLevelLocalCount = context.functionFrameManager.getLocalCount();
+        program.setTopLevelLocalCount(topLevelLocalCount);
+
+        std::vector<std::string> topLevelLocalNames = program.getTopLevelLocalNames();
+        if (topLevelLocalNames.size() < topLevelLocalCount) {
+            topLevelLocalNames.resize(topLevelLocalCount);
+        }
+        for (const auto& local : context.variableTracker.getLocals()) {
+            if (local.slot < topLevelLocalNames.size()) {
+                topLevelLocalNames[local.slot] = local.name;
+            }
+        }
+        program.setTopLevelLocalNames(topLevelLocalNames);
 
         // Exit the implicit main function frame
         context.variableTracker.endScope();

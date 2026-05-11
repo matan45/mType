@@ -35,6 +35,7 @@ export class MTypeDebugSession extends LoggingDebugSession {
     private stopOnEntry: boolean = true;
     private lastStoppedFile: string = '';
     private lastStoppedLine: number = 0;
+    private terminatedSent: boolean = false;
 
     constructor() {
         super('mtype-debug.txt');
@@ -59,7 +60,7 @@ export class MTypeDebugSession extends LoggingDebugSession {
         });
 
         this.connection.on('terminated', () => {
-            this.sendEvent(new TerminatedEvent());
+            this.sendTerminatedOnce();
         });
 
         this.connection.on('output', (text: string, category: string) => {
@@ -67,7 +68,7 @@ export class MTypeDebugSession extends LoggingDebugSession {
         });
 
         this.connection.on('exit', () => {
-            this.sendEvent(new TerminatedEvent());
+            this.sendTerminatedOnce();
         });
     }
 
@@ -99,6 +100,7 @@ export class MTypeDebugSession extends LoggingDebugSession {
     }
 
     protected async launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments): Promise<void> {
+        this.terminatedSent = false;
         this.stopOnEntry = args.stopOnEntry !== false;
 
         const interpreterPath = args.interpreterPath || '';
@@ -132,7 +134,7 @@ export class MTypeDebugSession extends LoggingDebugSession {
 
     protected async setBreakPointsRequest(response: DebugProtocol.SetBreakpointsResponse, args: DebugProtocol.SetBreakpointsArguments): Promise<void> {
         const filePath = args.source.path || '';
-        const breakpoints: Breakpoint[] = [];
+        const breakpoints: DebugProtocol.Breakpoint[] = [];
 
         try {
             // Clear existing breakpoints for this file
@@ -152,8 +154,23 @@ export class MTypeDebugSession extends LoggingDebugSession {
                         params['logMessage'] = bp.logMessage;
                     }
 
-                    await this.connection.sendCommandExpectOK('SETBREAKPOINT', params);
-                    breakpoints.push(new Breakpoint(true, bp.line));
+                    const msg = await this.connection.sendCommand('SETBREAKPOINT', params);
+                    if (msg.command === 'ERROR') {
+                        breakpoints.push(new Breakpoint(false, bp.line));
+                        continue;
+                    }
+
+                    const verified = msg.parameters.get('verified') !== 'false';
+                    const resolvedLine = parseInt(msg.parameters.get('line') || String(bp.line), 10) || bp.line;
+                    const breakpoint: DebugProtocol.Breakpoint = {
+                        verified,
+                        line: resolvedLine
+                    };
+                    const message = msg.parameters.get('message');
+                    if (!verified && message) {
+                        breakpoint.message = message;
+                    }
+                    breakpoints.push(breakpoint);
                 }
             }
         } catch (err: any) {
@@ -397,6 +414,29 @@ export class MTypeDebugSession extends LoggingDebugSession {
      * Format: var0="name=value:type:refId" or child0="name=value:type:refId"
      */
     private parseVariables(msg: ProtocolMessage, variables: DebugProtocol.Variable[], prefix: string): void {
+        const countStr = msg.parameters.get('count');
+        if (countStr !== undefined) {
+            const count = parseInt(countStr, 10) || 0;
+            for (let idx = 0; idx < count; idx++) {
+                const fieldPrefix = `${prefix}${idx}_`;
+                const name = msg.parameters.get(`${fieldPrefix}name`);
+                if (name === undefined) { continue; }
+
+                const value = msg.parameters.get(`${fieldPrefix}value`) || '';
+                const type = msg.parameters.get(`${fieldPrefix}type`) || '';
+                const refId = parseInt(msg.parameters.get(`${fieldPrefix}ref`) || '0', 10) || 0;
+
+                variables.push({
+                    name,
+                    value,
+                    type,
+                    variablesReference: refId,
+                    evaluateName: name
+                });
+            }
+            return;
+        }
+
         let idx = 0;
         while (true) {
             const varStr = msg.parameters.get(`${prefix}${idx}`);
@@ -440,5 +480,13 @@ export class MTypeDebugSession extends LoggingDebugSession {
 
             idx++;
         }
+    }
+
+    private sendTerminatedOnce(): void {
+        if (this.terminatedSent) {
+            return;
+        }
+        this.terminatedSent = true;
+        this.sendEvent(new TerminatedEvent());
     }
 }

@@ -562,6 +562,9 @@
     <Filter Include="testFiles\packagemanager\registry\utils\2.1.0\src">
       <UniqueIdentifier>{0B85CCDB-774B-29F8-C0A6-B75A2CAC975C}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\plugin">
+      <UniqueIdentifier>{36A9C255-22A2-E1A7-4BD4-C62C372CC1B3}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\projectManifest">
       <UniqueIdentifier>{55FC83A7-C1BE-B731-0A6F-46BE7670900F}</UniqueIdentifier>
     </Filter>
@@ -696,6 +699,9 @@
     <ClInclude Include="tests\suites\ControlFlowTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\DebuggerTestSuite.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\DependencyGraphTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
@@ -813,6 +819,9 @@
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ControlFlowTestSuite.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\DebuggerTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\DependencyGraphTestSuite.cpp">
@@ -9106,6 +9115,12 @@
     <None Include="tests\testFiles\integration\pass\multiTypeGenericSerialization.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\myt292JitBoolAfterCall.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt292JitBoolAfterCall.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\namespaceClassNameCollisions.expected">
       <Filter>testFiles\integration\pass</Filter>
     </None>
@@ -11649,6 +11664,9 @@
     </None>
     <None Include="tests\testFiles\packagemanager\registry\utils\2.1.0\src\StringUtil.mt">
       <Filter>testFiles\packagemanager\registry\utils\2.1.0\src</Filter>
+    </None>
+    <None Include="tests\testFiles\plugin\reentrancy_bootstrap.mt">
+      <Filter>testFiles\plugin</Filter>
     </None>
     <None Include="tests\testFiles\projectManifest\lib\LibUtil.mt">
       <Filter>testFiles\projectManifest\lib</Filter>

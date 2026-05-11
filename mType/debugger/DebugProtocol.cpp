@@ -1,14 +1,98 @@
 #include "DebugProtocol.hpp"
 #include <cstddef>
+#include "DebugExpressionEvaluator.hpp"
 #include "VariableInspector.hpp"
 #include "VMVariableInspector.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../environment/manager/VariableManager.hpp"
 #include "../environment/manager/ScopeManager.hpp"
+#include <filesystem>
+#include <fstream>
 #include <sstream>
 #include <iostream>
+#include <chrono>
+#include <thread>
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <cerrno>
+#include <sys/select.h>
+#include <unistd.h>
+#endif
 
 namespace debugger {
+
+    namespace {
+        struct BreakpointValidation {
+            bool verified = false;
+            std::string message;
+        };
+
+        BreakpointValidation validateBreakpointLocation(const std::string& file, int line) {
+            if (file.empty() || line <= 0) {
+                return {false, "Invalid breakpoint location"};
+            }
+
+            std::error_code ec;
+            if (!std::filesystem::exists(file, ec) || ec) {
+                return {false, "Source file not found"};
+            }
+
+            std::ifstream in(file);
+            if (!in.is_open()) {
+                return {false, "Source file cannot be opened"};
+            }
+
+            int lineCount = 0;
+            std::string unused;
+            while (std::getline(in, unused)) {
+                ++lineCount;
+            }
+
+            if (line > lineCount) {
+                return {false, "Line is outside the source file"};
+            }
+
+            return {true, ""};
+        }
+
+        bool waitForProtocolInput(bool& running) {
+#ifdef _WIN32
+            HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
+            if (stdinHandle == INVALID_HANDLE_VALUE || stdinHandle == nullptr) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                return false;
+            }
+
+            DWORD waitResult = WaitForSingleObject(stdinHandle, 10);
+            if (waitResult == WAIT_OBJECT_0) {
+                return true;
+            }
+            if (waitResult == WAIT_TIMEOUT) {
+                return false;
+            }
+
+            running = false;
+            return false;
+#else
+            fd_set readSet;
+            FD_ZERO(&readSet);
+            FD_SET(STDIN_FILENO, &readSet);
+
+            timeval timeout{};
+            timeout.tv_usec = 10'000;
+
+            int result = select(STDIN_FILENO + 1, &readSet, nullptr, nullptr, &timeout);
+            if (result > 0 && FD_ISSET(STDIN_FILENO, &readSet)) {
+                return true;
+            }
+            if (result < 0 && errno != EINTR) {
+                running = false;
+            }
+            return false;
+#endif
+        }
+    }
 
     std::atomic<std::ostream*> DebugProtocol::protocolOutputStream{nullptr};
 
@@ -67,7 +151,15 @@ namespace debugger {
                 while (pos < trimmedLine.length()) {
                     char c = trimmedLine[pos];
                     if (escaped) {
-                        value += c;
+                        if (c == 'n') {
+                            value += '\n';
+                        } else if (c == 'r') {
+                            value += '\r';
+                        } else if (c == 't') {
+                            value += '\t';
+                        } else {
+                            value += c;
+                        }
                         escaped = false;
                     } else if (c == '\\') {
                         escaped = true;
@@ -109,18 +201,31 @@ namespace debugger {
         send(msg);
     }
 
+    void DebugProtocol::sendOK(const std::map<std::string, std::string>& parameters) {
+        Message msg("OK");
+        for (const auto& [key, value] : parameters) {
+            msg.addParameter(key, value);
+        }
+        send(msg);
+    }
+
     void DebugProtocol::sendError(const std::string& errorMessage) {
         Message msg("ERROR");
         msg.addParameter("message", errorMessage);
         send(msg);
     }
 
-    void DebugProtocol::sendStoppedEvent(const std::string& reason, const SourceLocation& location) {
+    void DebugProtocol::sendStoppedEvent(const std::string& reason,
+                                         const SourceLocation& location,
+                                         const std::string& message) {
         Message msg("STOPPED");
         msg.addParameter("reason", reason);
         msg.addParameter("file", location.getFilename());
         msg.addParameter("line", location.getLine());
         msg.addParameter("column", location.getColumn());
+        if (!message.empty()) {
+            msg.addParameter("message", message);
+        }
         send(msg);
     }
 
@@ -147,10 +252,16 @@ namespace debugger {
         const std::vector<std::tuple<std::string, std::string, std::string, int64_t>>& vars) {
 
         Message msg("VARIABLES");
+        msg.addParameter("count", static_cast<int>(vars.size()));
         for (size_t i = 0; i < vars.size(); i++) {
             const auto& [name, value, type, refId] = vars[i];
             std::string varStr = name + "=" + value + ":" + type + ":" + std::to_string(refId);
             msg.addParameter("var" + std::to_string(i), varStr);
+            const std::string prefix = "var" + std::to_string(i) + "_";
+            msg.addParameter(prefix + "name", name);
+            msg.addParameter(prefix + "value", value);
+            msg.addParameter(prefix + "type", type);
+            msg.addParameter(prefix + "ref", refId);
         }
         send(msg);
     }
@@ -159,10 +270,16 @@ namespace debugger {
         const std::vector<std::tuple<std::string, std::string, std::string, int64_t>>& children) {
 
         Message msg("EXPANDEDVAR");
+        msg.addParameter("count", static_cast<int>(children.size()));
         for (size_t i = 0; i < children.size(); i++) {
             const auto& [name, value, type, refId] = children[i];
             std::string childStr = name + "=" + value + ":" + type + ":" + std::to_string(refId);
             msg.addParameter("child" + std::to_string(i), childStr);
+            const std::string prefix = "child" + std::to_string(i) + "_";
+            msg.addParameter(prefix + "name", name);
+            msg.addParameter(prefix + "value", value);
+            msg.addParameter(prefix + "type", type);
+            msg.addParameter(prefix + "ref", refId);
         }
         send(msg);
     }
@@ -195,6 +312,21 @@ namespace debugger {
 
     void DebugServer::setVM(std::shared_ptr<vm::runtime::VirtualMachine> vm) {
         currentVM = vm;
+        if (debugContext) {
+            debugContext->setConditionEvaluator([this](const std::string& condition) {
+                if (!currentVM || !vmVariableInspector) {
+                    return true;
+                }
+
+                auto result = DebugExpressionEvaluator::evaluate(currentVM, *vmVariableInspector, condition);
+                if (!result.success) {
+                    DebugProtocol::sendOutput("Conditional breakpoint evaluation failed: " + result.error, "stderr");
+                    return true;
+                }
+
+                return DebugExpressionEvaluator::isTruthy(result.value);
+            });
+        }
     }
 
     void DebugServer::run() {
@@ -210,7 +342,7 @@ namespace debugger {
                     DebugProtocol::sendStoppedEvent("step", event.location);
                     break;
                 case DebugEvent::Type::EXCEPTION_THROWN:
-                    DebugProtocol::sendStoppedEvent("exception", event.location);
+                    DebugProtocol::sendStoppedEvent("exception", event.location, event.message);
                     DebugProtocol::sendOutput(event.message, "stderr");
                     break;
                 case DebugEvent::Type::SCRIPT_STARTED:
@@ -225,9 +357,19 @@ namespace debugger {
             }
         });
 
-        // Read commands from stdin
+        // Read commands from stdin without blocking shutdown. On Windows, VS Code
+        // talks to us through anonymous pipes where streambuf::in_avail() can
+        // stay at zero even after data is written.
         std::string line;
-        while (running && std::getline(std::cin, line)) {
+        while (running) {
+            if (!waitForProtocolInput(running)) {
+                continue;
+            }
+
+            if (!std::getline(std::cin, line)) {
+                break;
+            }
+
             if (line.empty()) continue;
 
             DebugProtocol::Message msg = DebugProtocol::parse(line);
@@ -240,6 +382,7 @@ namespace debugger {
     void DebugServer::stop() {
         running = false;
         if (debugContext) {
+            debugContext->setConditionEvaluator(nullptr);
             debugContext->stop();
         }
     }
@@ -291,13 +434,21 @@ namespace debugger {
         std::string condition = message.getParameter("condition");      // Optional
         std::string logMessage = message.getParameter("logMessage");    // Optional
 
-        if (file.empty() || line < 0) {
+        if (file.empty() || line <= 0) {
             DebugProtocol::sendError("Invalid breakpoint parameters");
             return;
         }
 
-        debugContext->addBreakpoint(file, line, condition, logMessage);
-        DebugProtocol::sendOK();
+        auto validation = validateBreakpointLocation(file, line);
+        if (validation.verified) {
+            debugContext->addBreakpoint(file, line, condition, logMessage);
+        }
+
+        DebugProtocol::sendOK({
+            {"verified", validation.verified ? "true" : "false"},
+            {"line", std::to_string(line)},
+            {"message", validation.message}
+        });
     }
 
     void DebugServer::handleClearBreakpoint(const DebugProtocol::Message& message) {
@@ -483,7 +634,7 @@ namespace debugger {
 
     void DebugServer::handleEvaluate(const DebugProtocol::Message& message) {
         std::string expression = message.getParameter("expr");
-        int frameId = message.getIntParameter("frame", 0);
+        (void)message.getIntParameter("frame", 0);
 
         if (expression.empty()) {
             DebugProtocol::sendError("Empty expression");
@@ -491,38 +642,23 @@ namespace debugger {
         }
 
         try {
-            // Trim whitespace
             size_t start = expression.find_first_not_of(" \t\r\n");
             size_t end = expression.find_last_not_of(" \t\r\n");
             if (start == std::string::npos) {
                 DebugProtocol::sendError("Empty expression");
                 return;
             }
-            std::string varName = expression.substr(start, end - start + 1);
+            std::string trimmedExpression = expression.substr(start, end - start + 1);
 
-            // For now, support simple variable lookup only
-            // TODO: Full expression evaluation requires parser/evaluator integration
-
-            // Try VM mode first (bytecode execution)
             if (currentVM && vmVariableInspector) {
-                // Look up in local variables first, then global
-                auto locals = vmVariableInspector->getLocalVariables(currentVM);
-                for (const auto& var : locals) {
-                    if (var.name == varName) {
-                        DebugProtocol::sendEvaluateResult(var.value, var.type, var.referenceId);
-                        return;
-                    }
+                auto result = DebugExpressionEvaluator::evaluate(currentVM, *vmVariableInspector, trimmedExpression);
+                if (!result.success) {
+                    DebugProtocol::sendError("Evaluation error: " + result.error);
+                    return;
                 }
 
-                auto globals = vmVariableInspector->getGlobalVariables(currentVM);
-                for (const auto& var : globals) {
-                    if (var.name == varName) {
-                        DebugProtocol::sendEvaluateResult(var.value, var.type, var.referenceId);
-                        return;
-                    }
-                }
-
-                DebugProtocol::sendError("Variable not found: " + varName);
+                auto debugVar = vmVariableInspector->formatValue(trimmedExpression, result.value);
+                DebugProtocol::sendEvaluateResult(debugVar.value, debugVar.type, debugVar.referenceId);
                 return;
             }
 
@@ -538,14 +674,14 @@ namespace debugger {
                 return;
             }
 
-            auto varDef = scopeManager->findVariable(varName);
+            auto varDef = scopeManager->findVariable(trimmedExpression);
             if (!varDef) {
-                DebugProtocol::sendError("Variable not found: " + varName);
+                DebugProtocol::sendError("Variable not found: " + trimmedExpression);
                 return;
             }
 
             // Format and send the result
-            auto debugVar = variableInspector->formatValue(varName, varDef->getValue());
+            auto debugVar = variableInspector->formatValue(trimmedExpression, varDef->getValue());
             DebugProtocol::sendEvaluateResult(debugVar.value, debugVar.type, debugVar.referenceId);
 
         } catch (const std::exception& e) {
