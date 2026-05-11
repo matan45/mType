@@ -710,7 +710,8 @@ namespace vm::bytecode
     //      shifted, so prior .mtc files reference the wrong numeric op for
     //      every entry past the deletions.
     //   10: MYT-290 serialized static-initializer function list.
-    static constexpr uint32_t BYTECODE_FORMAT_VERSION = 10;
+    //   11: Serialized top-level local names for debugger variable inspection.
+    static constexpr uint32_t BYTECODE_FORMAT_VERSION = 11;
 
     void BytecodeProgram::serialize(std::ostream& out) const {
         // Write magic number
@@ -750,6 +751,9 @@ namespace vm::bytecode
 
         // Write static initializer function names (MYT-290)
         BytecodeIOHelper::writeStringVector(out, staticInitializerFunctions);
+
+        // Write top-level local names for debugger inspection
+        BytecodeIOHelper::writeStringVector(out, topLevelLocalNames);
 
         // Write source file path
         size_t len = sourceFilePath.size();
@@ -809,6 +813,10 @@ namespace vm::bytecode
 
         // Read static initializer function names (MYT-290)
         program.staticInitializerFunctions = BytecodeIOHelper::readStringVector(in);
+
+        // Read top-level local names for debugger inspection
+        program.topLevelLocalNames = BytecodeIOHelper::readStringVector(in);
+        program.topLevelLocalCount = program.topLevelLocalNames.size();
 
         // Read source file path
         size_t len;

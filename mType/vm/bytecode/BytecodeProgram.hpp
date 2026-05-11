@@ -312,6 +312,7 @@ namespace vm::bytecode
         ExceptionTable globalExceptionTable;
         size_t entryPoint;
         size_t topLevelLocalCount = 0;
+        std::vector<std::string> topLevelLocalNames;
         std::string sourceFilePath;
 
         mutable std::unordered_set<size_t> fusionUnsafeTargets;
@@ -377,6 +378,20 @@ namespace vm::bytecode
 
         void setTopLevelLocalCount(size_t count) { topLevelLocalCount = count; }
         size_t getTopLevelLocalCount() const { return topLevelLocalCount; }
+        void setTopLevelLocalNames(const std::vector<std::string>& names) { topLevelLocalNames = names; }
+        void setTopLevelLocalName(size_t slot, const std::string& name)
+        {
+            if (slot >= topLevelLocalNames.size())
+            {
+                topLevelLocalNames.resize(slot + 1);
+            }
+            topLevelLocalNames[slot] = name;
+            if (slot + 1 > topLevelLocalCount)
+            {
+                topLevelLocalCount = slot + 1;
+            }
+        }
+        const std::vector<std::string>& getTopLevelLocalNames() const { return topLevelLocalNames; }
 
         void registerFunction(const std::string& name, const FunctionMetadata& metadata);
         const FunctionMetadata* getFunction(const std::string& name) const;

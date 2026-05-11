@@ -16,6 +16,93 @@
 
 namespace debugger
 {
+    namespace
+    {
+        bool isLocalStoreOpcode(vm::bytecode::OpCode opcode)
+        {
+            using vm::bytecode::OpCode;
+            return opcode == OpCode::STORE_LOCAL ||
+                   opcode == OpCode::STORE_LOCAL_INT ||
+                   opcode == OpCode::STORE_LOCAL_FLOAT ||
+                   opcode == OpCode::STORE_LOCAL_BOOL ||
+                   opcode == OpCode::STORE_LOCAL_BOXED_INST;
+        }
+
+        bool isTopLevelScriptFrame(std::shared_ptr<vm::runtime::VirtualMachine> vm,
+                                   const vm::runtime::CallFrame& frame)
+        {
+            const auto* program = vm ? vm->getProgram() : nullptr;
+            return program &&
+                   frame.localBase == 0 &&
+                   program->getFrameName(frame.functionName) == "__script_main__";
+        }
+
+        std::unordered_map<std::string, size_t> collectTopLevelLocalSlots(
+            std::shared_ptr<vm::runtime::VirtualMachine> vm)
+        {
+            std::unordered_map<std::string, size_t> slots;
+            if (!vm)
+            {
+                return slots;
+            }
+
+            const auto* program = vm->getProgram();
+            if (!program)
+            {
+                return slots;
+            }
+
+            const auto& topLevelNames = program->getTopLevelLocalNames();
+            for (size_t slot = 0; slot < topLevelNames.size(); ++slot)
+            {
+                if (!topLevelNames[slot].empty())
+                {
+                    slots[topLevelNames[slot]] = slot;
+                }
+            }
+
+            const size_t instructionCount = program->getInstructionCount();
+            if (!slots.empty() || instructionCount == 0)
+            {
+                return slots;
+            }
+
+            const size_t currentIp = std::min(vm->getInstructionPointer(), instructionCount - 1);
+            const size_t startIp = std::min(program->getEntryPoint(), currentIp);
+
+            for (size_t ip = startIp; ip <= currentIp; ++ip)
+            {
+                const auto& instr = program->getInstruction(ip);
+                if (!isLocalStoreOpcode(instr.opcode) || instr.operands.size() < 2)
+                {
+                    continue;
+                }
+
+                const size_t slot = static_cast<size_t>(instr.operands[0]);
+                const size_t nameIndex = static_cast<size_t>(instr.operands[1]);
+                if (slot >= program->getTopLevelLocalCount())
+                {
+                    continue;
+                }
+
+                try
+                {
+                    const std::string& name = program->getConstantPool().getString(nameIndex);
+                    if (!name.empty())
+                    {
+                        slots[name] = slot;
+                    }
+                }
+                catch (...)
+                {
+                    // Ignore malformed debug metadata and keep inspecting other stores.
+                }
+            }
+
+            return slots;
+        }
+    }
+
     VMVariableInspector::VMVariableInspector()
         : nextRefId(constants::INITIAL_REFERENCE_ID)
     {
@@ -66,6 +153,27 @@ namespace debugger
         }
 
         const auto& callStack = vm->getCallStack();
+        if (callStack.empty() || isTopLevelScriptFrame(vm, callStack.back()))
+        {
+            auto stackManager = vm->getStackManager();
+            if (stackManager)
+            {
+                auto topLevelSlots = collectTopLevelLocalSlots(vm);
+                auto slotIt = topLevelSlots.find(name);
+                if (slotIt != topLevelSlots.end())
+                {
+                    const auto& stack = stackManager->getStack();
+                    const size_t stackIndex = callStack.empty()
+                        ? slotIt->second
+                        : callStack.back().localBase + slotIt->second;
+                    if (stackIndex < stack.size() && !value::isVoid(stack[stackIndex]))
+                    {
+                        return stack[stackIndex];
+                    }
+                }
+            }
+        }
+
         if (!callStack.empty())
         {
             const auto& currentFrame = callStack.back();
@@ -202,9 +310,27 @@ namespace debugger
             }
 
             const auto& callStack = vm->getCallStack();
-            if (callStack.empty())
+            if (callStack.empty() || isTopLevelScriptFrame(vm, callStack.back()))
             {
-                // Not an error - just means no function is executing
+                auto stackManager = vm->getStackManager();
+                const auto* program = vm->getProgram();
+                if (!stackManager || !program)
+                {
+                    return variables;
+                }
+
+                auto topLevelSlots = collectTopLevelLocalSlots(vm);
+                const auto& stack = stackManager->getStack();
+                for (const auto& [name, slot] : topLevelSlots)
+                {
+                    const size_t stackIndex = callStack.empty()
+                        ? slot
+                        : callStack.back().localBase + slot;
+                    if (stackIndex < stack.size() && !value::isVoid(stack[stackIndex]))
+                    {
+                        variables.push_back(valueToDebugVariable(name, stack[stackIndex]));
+                    }
+                }
                 return variables;
             }
 
