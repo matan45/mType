@@ -705,5 +705,11 @@ namespace tests::testSuite
         // MYT-300 which covered the fused `arr[i].field` direct path.
         addOutputVerificationTest("MYT-302 JIT SoA bool alias snapshot",
                         passPath + "myt302JitBoolAliasSnapshot.mt");
+        // MYT-302 ticket-repro variant: verbatim script from the bug report
+        // (512-element array, 20 initialized units all selected=false). Pins
+        // the exact pattern users hit so a regression that breaks only the
+        // sparsely-populated / large-array shape also gets caught.
+        addOutputVerificationTest("MYT-302 JIT bool alias ticket repro",
+                        passPath + "myt302JitBoolAliasTicketRepro.mt");
     }
 }
