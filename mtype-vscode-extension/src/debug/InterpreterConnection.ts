@@ -34,6 +34,7 @@ export class InterpreterConnection extends EventEmitter {
         reject: (err: Error) => void;
     }> = [];
     private processingCommand: boolean = false;
+    private ended: boolean = false;
 
     /**
      * Spawn the mType interpreter in debug mode.
@@ -46,28 +47,35 @@ export class InterpreterConnection extends EventEmitter {
     public start(interpreterPath: string, scriptPath: string, args: string[] = [], cwd?: string): Promise<ProtocolMessage> {
         return new Promise((resolve, reject) => {
             try {
+                this.ended = false;
                 this.process = spawn(interpreterPath, ['--debug', scriptPath, ...args], {
                     cwd: cwd,
                     stdio: ['pipe', 'pipe', 'pipe']
                 });
 
+                let entryReceived = false;
+                const startTimeout = setTimeout(() => {
+                    if (!entryReceived && !this.ended) {
+                        reject(new Error('Timeout waiting for debugger to start'));
+                    }
+                }, 10000);
+
                 this.process.on('error', (err) => {
+                    clearTimeout(startTimeout);
+                    this.drainQueue();
                     reject(new Error(`Failed to start interpreter: ${err.message}`));
                 });
 
                 this.process.on('exit', (code, signal) => {
+                    this.ended = true;
+                    clearTimeout(startTimeout);
+                    this.drainQueue();
                     this.emit('exit', code, signal);
                 });
-
-                // Timeout for initial connection
-                const startTimeout = setTimeout(() => {
-                    reject(new Error('Timeout waiting for debugger to start'));
-                }, 10000);
 
                 // Read protocol messages from stdout
                 if (this.process.stdout) {
                     this.stdoutReader = readline.createInterface({ input: this.process.stdout });
-                    let entryReceived = false;
 
                     this.stdoutReader.on('line', (line: string) => {
                         if (!line.trim()) { return; }
@@ -290,6 +298,8 @@ export class InterpreterConnection extends EventEmitter {
                     const c = trimmed[pos];
                     if (escaped) {
                         if (c === 'n') { value += '\n'; }
+                        else if (c === 'r') { value += '\r'; }
+                        else if (c === 't') { value += '\t'; }
                         else { value += c; }
                         escaped = false;
                     } else if (c === '\\') {
@@ -321,10 +331,19 @@ export class InterpreterConnection extends EventEmitter {
     }
 
     private escapeValue(value: string): string {
-        if (value.indexOf(' ') !== -1 || value.indexOf('=') !== -1 || value.indexOf('\n') !== -1 || value.indexOf('"') !== -1) {
+        if (value.indexOf(' ') !== -1 ||
+            value.indexOf('=') !== -1 ||
+            value.indexOf(':') !== -1 ||
+            value.indexOf('\n') !== -1 ||
+            value.indexOf('\r') !== -1 ||
+            value.indexOf('\t') !== -1 ||
+            value.indexOf('"') !== -1 ||
+            value.indexOf('\\') !== -1) {
             let escaped = '"';
             for (const c of value) {
                 if (c === '\n') { escaped += '\\n'; continue; }
+                if (c === '\r') { escaped += '\\r'; continue; }
+                if (c === '\t') { escaped += '\\t'; continue; }
                 if (c === '"' || c === '\\') { escaped += '\\'; }
                 escaped += c;
             }

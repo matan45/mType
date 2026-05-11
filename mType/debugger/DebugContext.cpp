@@ -83,12 +83,14 @@ namespace debugger {
     }
 
     void DebugContext::enable() {
+        std::lock_guard<std::mutex> lock(stateMutex);
         enabled = true;
         state = ExecutionState::PAUSED;
         mode = DebugMode::PAUSED;
     }
 
     void DebugContext::disable() {
+        std::lock_guard<std::mutex> lock(stateMutex);
         enabled = false;
         state = ExecutionState::STOPPED;
         mode = DebugMode::DISABLED;
@@ -160,7 +162,7 @@ namespace debugger {
         return breakpoints.find({normalizedFilename, line}) != breakpoints.end();
     }
 
-    BreakpointInfo* DebugContext::getBreakpointInfo(const std::string& filename, int line) {
+    bool DebugContext::getBreakpointInfo(const std::string& filename, int line, BreakpointInfo& outInfo) {
         std::lock_guard<std::mutex> lock(breakpointMutex);
 
         // PERFORMANCE: Normalize once and use O(1) hash lookup instead of O(n) iteration
@@ -168,7 +170,13 @@ namespace debugger {
 
         // Direct O(1) hash lookup - stored keys already have normalized paths
         auto it = breakpoints.find({normalizedFilename, line});
-        return (it != breakpoints.end()) ? &it->second : nullptr;
+        if (it == breakpoints.end()) {
+            return false;
+        }
+
+        it->second.hitCount++;
+        outInfo = it->second;
+        return true;
     }
 
     std::vector<BreakpointKey> DebugContext::getBreakpoints() const {
@@ -211,6 +219,7 @@ namespace debugger {
 
     void DebugContext::pause() {
         std::lock_guard<std::mutex> lock(pauseMutex);
+        std::lock_guard<std::mutex> stateLock(stateMutex);
         paused = true;
         state = ExecutionState::PAUSED;
         mode = DebugMode::PAUSED;
@@ -219,6 +228,7 @@ namespace debugger {
     void DebugContext::resume() {
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
+            std::lock_guard<std::mutex> stateLock(stateMutex);
             paused = false;
             state = ExecutionState::RUNNING;
         }
@@ -228,6 +238,7 @@ namespace debugger {
     void DebugContext::stepInto() {
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
+            std::lock_guard<std::mutex> stateLock(stateMutex);
             mode = DebugMode::STEP_INTO;
             stepStartDepth = getCurrentDepth();
             paused = false;
@@ -239,6 +250,7 @@ namespace debugger {
     void DebugContext::stepOver() {
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
+            std::lock_guard<std::mutex> stateLock(stateMutex);
             mode = DebugMode::STEP_OVER;
             stepStartDepth = getCurrentDepth();
             paused = false;
@@ -250,6 +262,7 @@ namespace debugger {
     void DebugContext::stepOut() {
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
+            std::lock_guard<std::mutex> stateLock(stateMutex);
             mode = DebugMode::STEP_OUT;
             stepStartDepth = getCurrentDepth();
             paused = false;
@@ -261,6 +274,7 @@ namespace debugger {
     void DebugContext::continueExecution() {
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
+            std::lock_guard<std::mutex> stateLock(stateMutex);
             mode = DebugMode::CONTINUE;
             paused = false;
             state = ExecutionState::RUNNING;
@@ -271,6 +285,7 @@ namespace debugger {
     void DebugContext::stop() {
         {
             std::lock_guard<std::mutex> lock(pauseMutex);
+            std::lock_guard<std::mutex> stateLock(stateMutex);
             state = ExecutionState::STOPPED;
             mode = DebugMode::DISABLED;
             paused = false;
@@ -279,10 +294,12 @@ namespace debugger {
     }
 
     DebugMode DebugContext::getMode() const {
+        std::lock_guard<std::mutex> lock(stateMutex);
         return mode;
     }
 
     ExecutionState DebugContext::getState() const {
+        std::lock_guard<std::mutex> lock(stateMutex);
         return state;
     }
 
@@ -291,7 +308,15 @@ namespace debugger {
     }
 
     bool DebugContext::shouldPauseAt(const SourceLocation& location) {
-        if (!enabled || state == ExecutionState::STOPPED) {
+        DebugMode currentMode;
+        ExecutionState currentState;
+        {
+            std::lock_guard<std::mutex> lock(stateMutex);
+            currentMode = mode;
+            currentState = state;
+        }
+
+        if (!enabled || currentState == ExecutionState::STOPPED) {
             return false;
         }
 
@@ -301,18 +326,24 @@ namespace debugger {
                               location.getLine() <= 0;
 
         // Don't pause at the same location twice in a row
-        if (location.getFilename() == lastStopLocation.getFilename() &&
-            location.getLine() == lastStopLocation.getLine()) {
-            return false;
+        {
+            std::lock_guard<std::mutex> lock(stateMutex);
+            if (location.getFilename() == lastStopLocation.getFilename() &&
+                location.getLine() == lastStopLocation.getLine()) {
+                return false;
+            }
         }
 
         // When stepping (STEP_INTO, STEP_OVER, STEP_OUT), ignore breakpoints and only check stepping logic
-        bool isStepping = (mode == DebugMode::STEP_INTO || mode == DebugMode::STEP_OVER || mode == DebugMode::STEP_OUT);
+        bool isStepping = (currentMode == DebugMode::STEP_INTO || currentMode == DebugMode::STEP_OVER || currentMode == DebugMode::STEP_OUT);
 
         if (isStepping) {
             // Check for stepping (but skip internal code)
             if (!isInternalCode && shouldStopForStepping(location)) {
-                lastStopLocation = location;
+                {
+                    std::lock_guard<std::mutex> lock(stateMutex);
+                    lastStopLocation = location;
+                }
                 pause();
                 notifyEvent(DebugEvent(DebugEvent::Type::STEP_COMPLETE, location));
                 return true;
@@ -324,31 +355,32 @@ namespace debugger {
         bool hasBp = hasBreakpoint(location);
 
         if (hasBp) {
-            BreakpointInfo* bpInfo = getBreakpointInfo(location.getFilename(), location.getLine());
-            if (bpInfo) {
-                bpInfo->hitCount++;
-
+            BreakpointInfo bpInfo;
+            if (getBreakpointInfo(location.getFilename(), location.getLine(), bpInfo)) {
                 // Check if this is a log point
-                if (bpInfo->isLogPoint()) {
+                if (bpInfo.isLogPoint()) {
                     // Log points don't pause execution, just output
                     notifyEvent(DebugEvent(
                         DebugEvent::Type::SCRIPT_STARTED,  // Reuse this for log output
                         location,
-                        "LogPoint: " + bpInfo->logMessage
+                        "LogPoint: " + bpInfo.logMessage
                     ));
                     return false;  // Don't pause
                 }
 
                 // Check condition if present
-                if (bpInfo->hasCondition()) {
-                    bool conditionMet = evaluateCondition(bpInfo->condition);
+                if (bpInfo.hasCondition()) {
+                    bool conditionMet = evaluateCondition(bpInfo.condition);
                     if (!conditionMet) {
                         return false;  // Condition not met, don't pause
                     }
                 }
 
                 // Condition met or no condition, pause
-                lastStopLocation = location;
+                {
+                    std::lock_guard<std::mutex> lock(stateMutex);
+                    lastStopLocation = location;
+                }
                 pause();
                 notifyEvent(DebugEvent(DebugEvent::Type::BREAKPOINT_HIT, location));
                 return true;
@@ -360,19 +392,26 @@ namespace debugger {
 
     bool DebugContext::shouldStopForStepping(const SourceLocation& location) {
         int currentDepth = getCurrentDepth();
+        DebugMode currentMode;
+        int currentStepStartDepth;
+        {
+            std::lock_guard<std::mutex> lock(stateMutex);
+            currentMode = mode;
+            currentStepStartDepth = stepStartDepth;
+        }
 
-        switch (mode) {
+        switch (currentMode) {
             case DebugMode::STEP_INTO:
                 // Stop at every statement (caller already filters out internal code)
                 return true;
 
             case DebugMode::STEP_OVER:
                 // Stop when we return to the same or shallower depth
-                return currentDepth <= stepStartDepth;
+                return currentDepth <= currentStepStartDepth;
 
             case DebugMode::STEP_OUT:
                 // Stop when we return to a shallower depth
-                return currentDepth < stepStartDepth;
+                return currentDepth < currentStepStartDepth;
 
             case DebugMode::CONTINUE:
             case DebugMode::PAUSED:
@@ -421,7 +460,7 @@ namespace debugger {
     void DebugContext::waitForResume() {
         std::unique_lock<std::mutex> lock(pauseMutex);
         pauseCondition.wait(lock, [this] {
-            return !paused.load() || state == ExecutionState::STOPPED;
+            return !paused.load() || getState() == ExecutionState::STOPPED;
         });
     }
 

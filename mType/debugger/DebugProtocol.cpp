@@ -5,10 +5,49 @@
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../environment/manager/VariableManager.hpp"
 #include "../environment/manager/ScopeManager.hpp"
+#include <filesystem>
+#include <fstream>
 #include <sstream>
 #include <iostream>
+#include <chrono>
+#include <thread>
 
 namespace debugger {
+
+    namespace {
+        struct BreakpointValidation {
+            bool verified = false;
+            std::string message;
+        };
+
+        BreakpointValidation validateBreakpointLocation(const std::string& file, int line) {
+            if (file.empty() || line <= 0) {
+                return {false, "Invalid breakpoint location"};
+            }
+
+            std::error_code ec;
+            if (!std::filesystem::exists(file, ec) || ec) {
+                return {false, "Source file not found"};
+            }
+
+            std::ifstream in(file);
+            if (!in.is_open()) {
+                return {false, "Source file cannot be opened"};
+            }
+
+            int lineCount = 0;
+            std::string unused;
+            while (std::getline(in, unused)) {
+                ++lineCount;
+            }
+
+            if (line > lineCount) {
+                return {false, "Line is outside the source file"};
+            }
+
+            return {true, ""};
+        }
+    }
 
     std::atomic<std::ostream*> DebugProtocol::protocolOutputStream{nullptr};
 
@@ -67,7 +106,15 @@ namespace debugger {
                 while (pos < trimmedLine.length()) {
                     char c = trimmedLine[pos];
                     if (escaped) {
-                        value += c;
+                        if (c == 'n') {
+                            value += '\n';
+                        } else if (c == 'r') {
+                            value += '\r';
+                        } else if (c == 't') {
+                            value += '\t';
+                        } else {
+                            value += c;
+                        }
                         escaped = false;
                     } else if (c == '\\') {
                         escaped = true;
@@ -109,18 +156,31 @@ namespace debugger {
         send(msg);
     }
 
+    void DebugProtocol::sendOK(const std::map<std::string, std::string>& parameters) {
+        Message msg("OK");
+        for (const auto& [key, value] : parameters) {
+            msg.addParameter(key, value);
+        }
+        send(msg);
+    }
+
     void DebugProtocol::sendError(const std::string& errorMessage) {
         Message msg("ERROR");
         msg.addParameter("message", errorMessage);
         send(msg);
     }
 
-    void DebugProtocol::sendStoppedEvent(const std::string& reason, const SourceLocation& location) {
+    void DebugProtocol::sendStoppedEvent(const std::string& reason,
+                                         const SourceLocation& location,
+                                         const std::string& message) {
         Message msg("STOPPED");
         msg.addParameter("reason", reason);
         msg.addParameter("file", location.getFilename());
         msg.addParameter("line", location.getLine());
         msg.addParameter("column", location.getColumn());
+        if (!message.empty()) {
+            msg.addParameter("message", message);
+        }
         send(msg);
     }
 
@@ -147,10 +207,16 @@ namespace debugger {
         const std::vector<std::tuple<std::string, std::string, std::string, int64_t>>& vars) {
 
         Message msg("VARIABLES");
+        msg.addParameter("count", static_cast<int>(vars.size()));
         for (size_t i = 0; i < vars.size(); i++) {
             const auto& [name, value, type, refId] = vars[i];
             std::string varStr = name + "=" + value + ":" + type + ":" + std::to_string(refId);
             msg.addParameter("var" + std::to_string(i), varStr);
+            const std::string prefix = "var" + std::to_string(i) + "_";
+            msg.addParameter(prefix + "name", name);
+            msg.addParameter(prefix + "value", value);
+            msg.addParameter(prefix + "type", type);
+            msg.addParameter(prefix + "ref", refId);
         }
         send(msg);
     }
@@ -159,10 +225,16 @@ namespace debugger {
         const std::vector<std::tuple<std::string, std::string, std::string, int64_t>>& children) {
 
         Message msg("EXPANDEDVAR");
+        msg.addParameter("count", static_cast<int>(children.size()));
         for (size_t i = 0; i < children.size(); i++) {
             const auto& [name, value, type, refId] = children[i];
             std::string childStr = name + "=" + value + ":" + type + ":" + std::to_string(refId);
             msg.addParameter("child" + std::to_string(i), childStr);
+            const std::string prefix = "child" + std::to_string(i) + "_";
+            msg.addParameter(prefix + "name", name);
+            msg.addParameter(prefix + "value", value);
+            msg.addParameter(prefix + "type", type);
+            msg.addParameter(prefix + "ref", refId);
         }
         send(msg);
     }
@@ -210,7 +282,7 @@ namespace debugger {
                     DebugProtocol::sendStoppedEvent("step", event.location);
                     break;
                 case DebugEvent::Type::EXCEPTION_THROWN:
-                    DebugProtocol::sendStoppedEvent("exception", event.location);
+                    DebugProtocol::sendStoppedEvent("exception", event.location, event.message);
                     DebugProtocol::sendOutput(event.message, "stderr");
                     break;
                 case DebugEvent::Type::SCRIPT_STARTED:
@@ -225,9 +297,19 @@ namespace debugger {
             }
         });
 
-        // Read commands from stdin
+        // Read commands from stdin. Poll instead of blocking forever in getline()
+        // so stop() can shut the server down after script completion or process exit.
         std::string line;
-        while (running && std::getline(std::cin, line)) {
+        while (running) {
+            if (std::cin.rdbuf()->in_avail() <= 0) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                continue;
+            }
+
+            if (!std::getline(std::cin, line)) {
+                break;
+            }
+
             if (line.empty()) continue;
 
             DebugProtocol::Message msg = DebugProtocol::parse(line);
@@ -291,13 +373,21 @@ namespace debugger {
         std::string condition = message.getParameter("condition");      // Optional
         std::string logMessage = message.getParameter("logMessage");    // Optional
 
-        if (file.empty() || line < 0) {
+        if (file.empty() || line <= 0) {
             DebugProtocol::sendError("Invalid breakpoint parameters");
             return;
         }
 
-        debugContext->addBreakpoint(file, line, condition, logMessage);
-        DebugProtocol::sendOK();
+        auto validation = validateBreakpointLocation(file, line);
+        if (validation.verified) {
+            debugContext->addBreakpoint(file, line, condition, logMessage);
+        }
+
+        DebugProtocol::sendOK({
+            {"verified", validation.verified ? "true" : "false"},
+            {"line", std::to_string(line)},
+            {"message", validation.message}
+        });
     }
 
     void DebugServer::handleClearBreakpoint(const DebugProtocol::Message& message) {

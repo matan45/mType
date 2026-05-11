@@ -28,6 +28,7 @@
 #include "../tests/suites/StringInterpolationTestSuite.hpp"
 #include "../tests/suites/ScriptApiNativeTestSuite.hpp"
 #include "../tests/suites/DiagnosticsTestSuite.hpp"
+#include "../tests/suites/DebuggerTestSuite.hpp"
 #include "../tests/suites/CompletionLogicTestSuite.hpp"
 #include "../tests/suites/WorkspaceTestSuite.hpp"
 #include "../tests/suites/PackageManagerTestSuite.hpp"
@@ -167,6 +168,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<DiagnosticsTestSuite>();
     }
+    else if (suiteName == "debugger" || suiteName == "debug")
+    {
+        return std::make_unique<DebuggerTestSuite>();
+    }
     else if (suiteName == "completion" || suiteName == "completion-logic")
     {
         return std::make_unique<CompletionLogicTestSuite>();
@@ -233,6 +238,7 @@ void printAvailableTestSuites()
     std::cout << "  native       - Native C++ Integration Test Suite\n";
     std::cout << "  scriptapi    - ScriptAPI Native FFI Test Suite\n";
     std::cout << "  diagnostics  - Diagnostics Foundation Test Suite\n";
+    std::cout << "  debugger     - Debugger Protocol/State Test Suite\n";
     std::cout << "  completion   - Completion Logic Test Suite\n";
     std::cout << "  workspace    - Workspace Multi-Project Test Suite\n";
     std::cout << "  pkg          - Package Manager Test Suite\n";
@@ -318,6 +324,7 @@ int runAllTests(constants::ExecutionMode execMode, bool jitEnabled)
     suites.push_back(std::make_unique<StringInterpolationTestSuite>());
     suites.push_back(std::make_unique<ScriptApiNativeTestSuite>());
     suites.push_back(std::make_unique<DiagnosticsTestSuite>());
+    suites.push_back(std::make_unique<DebuggerTestSuite>());
     suites.push_back(std::make_unique<CompletionLogicTestSuite>());
     suites.push_back(std::make_unique<WorkspaceTestSuite>());
     suites.push_back(std::make_unique<PackageManagerTestSuite>());

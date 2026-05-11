@@ -109,14 +109,24 @@ namespace debugger {
             static std::string escapeValue(const std::string& value) {
                 if (value.find(' ') != std::string::npos ||
                     value.find('=') != std::string::npos ||
-                    value.find('\n') != std::string::npos) {
+                    value.find(':') != std::string::npos ||
+                    value.find('"') != std::string::npos ||
+                    value.find('\\') != std::string::npos ||
+                    value.find('\n') != std::string::npos ||
+                    value.find('\r') != std::string::npos ||
+                    value.find('\t') != std::string::npos) {
                     // Quote values containing special characters
                     std::string escaped = "\"";
                     for (char c : value) {
-                        if (c == '"' || c == '\\') {
-                            escaped += '\\';
+                        if (c == '\n') { escaped += "\\n"; }
+                        else if (c == '\r') { escaped += "\\r"; }
+                        else if (c == '\t') { escaped += "\\t"; }
+                        else {
+                            if (c == '"' || c == '\\') {
+                                escaped += '\\';
+                            }
+                            escaped += c;
                         }
-                        escaped += c;
                     }
                     escaped += "\"";
                     return escaped;
@@ -139,6 +149,7 @@ namespace debugger {
          * Send a simple OK response
          */
         static void sendOK();
+        static void sendOK(const std::map<std::string, std::string>& parameters);
 
         /**
          * Send an error response
@@ -148,7 +159,9 @@ namespace debugger {
         /**
          * Send a stopped event
          */
-        static void sendStoppedEvent(const std::string& reason, const SourceLocation& location);
+        static void sendStoppedEvent(const std::string& reason,
+                                     const SourceLocation& location,
+                                     const std::string& message = "");
 
         /**
          * Send a stack trace response
