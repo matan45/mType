@@ -698,5 +698,12 @@ namespace tests::testSuite
         // on SoA object array) and edge-pan guard with `(float)int` cast.
         addOutputVerificationTest("MYT-300 JIT chained float AND",
                         passPath + "myt300JitFloatAndChain.mt");
+
+        // MYT-302 regression: SoA bool alias-snapshot under JIT must not
+        // silently exit. Snapshot pattern `Unit u = arr[i]` (materializeInstance)
+        // followed by `if (u.bool_field)` in a hot OSR loop — distinct from
+        // MYT-300 which covered the fused `arr[i].field` direct path.
+        addOutputVerificationTest("MYT-302 JIT SoA bool alias snapshot",
+                        passPath + "myt302JitBoolAliasSnapshot.mt");
     }
 }
