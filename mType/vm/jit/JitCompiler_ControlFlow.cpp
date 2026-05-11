@@ -51,7 +51,30 @@ namespace vm::jit
         return &it->second;
     }
 
-    static void emitLoadLocal(JitEmissionState& s, size_t slot)
+    static bool typedLocalSlotType(OpCode opcode, SlotType& out)
+    {
+        switch (opcode)
+        {
+            case OpCode::LOAD_LOCAL_INT:
+            case OpCode::STORE_LOCAL_INT:
+                out = SlotType::INT;
+                return true;
+            case OpCode::LOAD_LOCAL_FLOAT:
+            case OpCode::STORE_LOCAL_FLOAT:
+                out = SlotType::FLOAT;
+                return true;
+            case OpCode::LOAD_LOCAL_BOOL:
+            case OpCode::STORE_LOCAL_BOOL:
+                out = SlotType::BOOL;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    static void emitLoadLocal(JitEmissionState& s, size_t slot,
+                              bool hasForcedType = false,
+                              SlotType forcedType = SlotType::INT)
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
@@ -59,7 +82,9 @@ namespace vm::jit
         // when emission is inside an inlined callee. inlineLocalsBase == 0 at
         // the top level — the computation is a no-op for non-inline paths.
         const size_t physSlot = slot + s.inlineLocalsBase;
-        SlotType lt = s.localTypes.count(physSlot) ? s.localTypes[physSlot] : SlotType::INT;
+        SlotType lt = hasForcedType
+            ? forcedType
+            : (s.localTypes.count(physSlot) ? s.localTypes[physSlot] : SlotType::INT);
 
         if (s.usesBoxedTypes && isBoxedSlotType(lt))
         {
@@ -138,15 +163,18 @@ namespace vm::jit
         s.stackDepth++;
     }
 
-    static void emitStoreLocal(JitEmissionState& s, size_t slot)
+    static void emitStoreLocal(JitEmissionState& s, size_t slot,
+                               bool hasForcedType = false,
+                               SlotType forcedType = SlotType::INT)
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
         SlotType tt = topType(s);
+        SlotType storedType = hasForcedType ? forcedType : tt;
         // MYT-163: see emitLoadLocal — remap through inlineLocalsBase.
         const size_t physSlot = slot + s.inlineLocalsBase;
 
-        if (s.usesBoxedTypes && isBoxedSlotType(tt))
+        if (s.usesBoxedTypes && isBoxedSlotType(tt) && !hasForcedType)
         {
             flushAllHints(s);
             Gp src = cc.new_gp64();
@@ -161,10 +189,12 @@ namespace vm::jit
         }
         else if (s.usesBoxedTypes)
         {
+            if (hasForcedType && isBoxedSlotType(tt))
+                emitEnsureUnboxed(s, s.stackDepth - 1, tt, storedType);
             flushAllHints(s);
             Gp destAddr = cc.new_gp64();
             cc.lea(destAddr, Mem(s.localsBase, static_cast<int32_t>(physSlot * s.localStride)));
-            if (tt == SlotType::FLOAT)
+            if (storedType == SlotType::FLOAT)
             {
                 Vec val = cc.new_xmm();
                 cc.movsd(val, Mem(s.stackBase, (s.stackDepth - 1) * 8));
@@ -178,7 +208,7 @@ namespace vm::jit
             {
                 Gp val = cc.new_gp64();
                 cc.mov(val, Mem(s.stackBase, (s.stackDepth - 1) * 8));
-                uint64_t fn = (tt == SlotType::BOOL)
+                uint64_t fn = (storedType == SlotType::BOOL)
                     ? reinterpret_cast<uint64_t>(jit_box_bool)
                     : reinterpret_cast<uint64_t>(jit_box_int);
                 InvokeNode* inv;
@@ -196,7 +226,7 @@ namespace vm::jit
             cc.mov(Mem(s.localsBase, static_cast<int32_t>(physSlot * 8)), val);
             publishGpHint(s, s.stackDepth - 1, val);
         }
-        s.localTypes[physSlot] = tt;
+        s.localTypes[physSlot] = storedType;
     }
 
     // MYT-152: JIT emitter for LOAD_VAR. Globals and unqualified field lookups
@@ -947,16 +977,24 @@ namespace vm::jit
             case OpCode::LOAD_LOCAL_FLOAT:
             case OpCode::LOAD_LOCAL_BOOL:
             case OpCode::LOAD_LOCAL_BOXED_INST:
-                emitLoadLocal(s, instr.operands[0]);
+            {
+                SlotType forcedType = SlotType::INT;
+                bool hasForcedType = typedLocalSlotType(instr.opcode, forcedType);
+                emitLoadLocal(s, instr.operands[0], hasForcedType, forcedType);
                 return true;
+            }
 
             case OpCode::STORE_LOCAL:
             case OpCode::STORE_LOCAL_INT:
             case OpCode::STORE_LOCAL_FLOAT:
             case OpCode::STORE_LOCAL_BOOL:
             case OpCode::STORE_LOCAL_BOXED_INST:
-                emitStoreLocal(s, instr.operands[0]);
+            {
+                SlotType forcedType = SlotType::INT;
+                bool hasForcedType = typedLocalSlotType(instr.opcode, forcedType);
+                emitStoreLocal(s, instr.operands[0], hasForcedType, forcedType);
                 return true;
+            }
 
             case OpCode::LOAD_STORE_LOCAL:
                 // MYT-202: compile-time fused LOAD_LOCAL src + STORE_LOCAL dst.

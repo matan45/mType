@@ -372,6 +372,16 @@ namespace vm::jit
         inv->set_arg(3, pPtr);
         inv->set_arg(4, fnIdx);
 
+        Gp unboxAddr = cc.new_gp64();
+        cc.lea(unboxAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 2) * valueSize)));
+        InvokeNode* unbox;
+        cc.invoke(Out(unbox), reinterpret_cast<uint64_t>(jit_unbox_int),
+                  FuncSignature::build<int64_t, const value::Value*>());
+        unbox->set_arg(0, unboxAddr);
+        Gp unboxed = cc.new_gp64();
+        unbox->set_ret(0, unboxed);
+        cc.mov(Mem(s.stackBase, (s.stackDepth - 2) * 8), unboxed);
+
         s.stackDepth -= 2;
         s.slotTypes.push_back(SlotType::BOXED);
         s.stackDepth++;
