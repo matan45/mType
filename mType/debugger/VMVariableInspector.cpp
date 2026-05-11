@@ -27,6 +27,167 @@ namespace debugger
         nextRefId = constants::INITIAL_REFERENCE_ID;
     }
 
+    std::optional<value::Value> VMVariableInspector::findVariableValue(
+        std::shared_ptr<vm::runtime::VirtualMachine> vm,
+        const std::string& name)
+    {
+        if (!vm || name.empty())
+        {
+            return std::nullopt;
+        }
+
+        const size_t staticSep = name.find("::");
+        if (staticSep != std::string::npos)
+        {
+            const std::string className = name.substr(0, staticSep);
+            const std::string fieldName = name.substr(staticSep + 2);
+            auto env = vm->getEnvironment();
+            if (!env)
+            {
+                return std::nullopt;
+            }
+            auto classRegistry = env->getClassRegistry();
+            if (!classRegistry)
+            {
+                return std::nullopt;
+            }
+            auto classDef = classRegistry->findClass(className);
+            if (!classDef)
+            {
+                return std::nullopt;
+            }
+            const auto& staticFields = classDef->getStaticFields();
+            auto it = staticFields.find(fieldName);
+            if (it == staticFields.end() || !it->second)
+            {
+                return std::nullopt;
+            }
+            return it->second->getValue();
+        }
+
+        const auto& callStack = vm->getCallStack();
+        if (!callStack.empty())
+        {
+            const auto& currentFrame = callStack.back();
+
+            if (name == "this")
+            {
+                if (currentFrame.thisInstance)
+                {
+                    return value::Value(currentFrame.thisInstance);
+                }
+                if (currentFrame.thisInstanceRaw)
+                {
+                    return value::makeStackObjectValue(currentFrame.thisInstanceRaw);
+                }
+                if (currentFrame.originatingLambda && currentFrame.originatingLambda->capturedThis)
+                {
+                    return value::Value(currentFrame.originatingLambda->capturedThis);
+                }
+            }
+
+            auto stackManager = vm->getStackManager();
+            const auto* program = vm->getProgram();
+            if (stackManager && program && currentFrame.localBase <= constants::MAX_REASONABLE_LOCAL_BASE)
+            {
+                const auto& stack = stackManager->getStack();
+                if (currentFrame.localBase < stack.size())
+                {
+                    if (currentFrame.originatingLambda)
+                    {
+                        const auto& lambda = currentFrame.originatingLambda;
+                        for (size_t i = 0; i < lambda->parameterNames.size(); ++i)
+                        {
+                            if (lambda->parameterNames[i] == name)
+                            {
+                                size_t stackIndex = currentFrame.localBase + i;
+                                if (stackIndex < stack.size())
+                                {
+                                    return stack[stackIndex];
+                                }
+                            }
+                        }
+
+                        for (size_t i = 0; i < lambda->capturedNames.size(); ++i)
+                        {
+                            if (lambda->capturedNames[i] == name)
+                            {
+                                size_t stackIndex = currentFrame.localBase + lambda->parameterCount + i;
+                                if (stackIndex < stack.size())
+                                {
+                                    return stack[stackIndex];
+                                }
+                            }
+                        }
+
+                        const auto* lambdaMetadata = program->getFunctionMeta(lambda->functionName);
+                        if (lambdaMetadata)
+                        {
+                            for (size_t i = 0; i < lambdaMetadata->localVariableNames.size(); ++i)
+                            {
+                                if (lambdaMetadata->localVariableNames[i] == name)
+                                {
+                                    size_t stackIndex = currentFrame.localBase + i;
+                                    if (stackIndex < stack.size() && !value::isVoid(stack[stackIndex]))
+                                    {
+                                        return stack[stackIndex];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        const auto* funcMetadata = program->getFunctionMeta(currentFrame.functionName);
+                        if (funcMetadata)
+                        {
+                            for (size_t i = 0; i < funcMetadata->parameterNames.size(); ++i)
+                            {
+                                if (funcMetadata->parameterNames[i] == name)
+                                {
+                                    size_t stackIndex = currentFrame.localBase + i;
+                                    if (stackIndex < stack.size())
+                                    {
+                                        return stack[stackIndex];
+                                    }
+                                }
+                            }
+
+                            for (size_t i = 0; i < funcMetadata->localVariableNames.size(); ++i)
+                            {
+                                if (funcMetadata->localVariableNames[i] == name)
+                                {
+                                    size_t stackIndex = currentFrame.localBase + i;
+                                    if (stackIndex < stack.size() && !value::isVoid(stack[stackIndex]))
+                                    {
+                                        return stack[stackIndex];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        auto env = vm->getEnvironment();
+        if (env)
+        {
+            auto varDef = env->findVariable(name);
+            if (varDef)
+            {
+                return varDef->getValue();
+            }
+        }
+
+        return std::nullopt;
+    }
+
+    DebugVariable VMVariableInspector::formatValue(const std::string& name, const value::Value& val)
+    {
+        return valueToDebugVariable(name, val);
+    }
+
     std::vector<DebugVariable> VMVariableInspector::getLocalVariables(std::shared_ptr<vm::runtime::VirtualMachine> vm)
     {
         std::vector<DebugVariable> variables;
@@ -603,9 +764,9 @@ namespace debugger
                 }
             }
             // Handle objects
-            else if (value::isObject(val))
+            else if (value::isAnyObject(val))
             {
-                auto obj = value::asObject(val);
+                auto* obj = value::asObjectInstanceRaw(val);
                 if (obj)
                 {
                     try
@@ -651,7 +812,7 @@ namespace debugger
     {
         // Check if this is an expandable type
         bool expandable = value::isNativeArray(val) ||
-                         value::isObject(val);
+                         value::isAnyObject(val);
 
         int64_t refId = 0;
         if (expandable)
@@ -718,9 +879,9 @@ namespace debugger
                 }
                 return "Array[null]";
             }
-            else if (value::isObject(val))
+            else if (value::isAnyObject(val))
             {
-                auto obj = value::asObject(val);
+                auto* obj = value::asObjectInstanceRaw(val);
                 if (obj)
                 {
                     try
@@ -810,9 +971,9 @@ namespace debugger
             {
                 return "Array";
             }
-            else if (value::isObject(val))
+            else if (value::isAnyObject(val))
             {
-                auto obj = value::asObject(val);
+                auto* obj = value::asObjectInstanceRaw(val);
                 if (obj)
                 {
                     try

@@ -3,6 +3,7 @@
 #include "../vm/runtime/VirtualMachine.hpp"
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace debugger
@@ -51,6 +52,18 @@ namespace debugger
          * @return Vector of child debug variables
          */
         std::vector<DebugVariable> getVariableChildren(std::shared_ptr<vm::runtime::VirtualMachine> vm, int64_t refId);
+
+        /**
+         * Resolve a raw VM value by debugger-visible name.
+         * Searches the current frame, globals, and ClassName::staticField.
+         */
+        std::optional<value::Value> findVariableValue(std::shared_ptr<vm::runtime::VirtualMachine> vm,
+                                                      const std::string& name);
+
+        /**
+         * Format a raw VM value using the same cache/reference IDs as variables.
+         */
+        DebugVariable formatValue(const std::string& name, const value::Value& val);
 
         /**
          * Clear cached variable references

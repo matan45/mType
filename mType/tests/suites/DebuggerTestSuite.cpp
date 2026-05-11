@@ -1,13 +1,17 @@
 #include "DebuggerTestSuite.hpp"
 
 #include "../../debugger/DebugContext.hpp"
+#include "../../debugger/DebugExpressionEvaluator.hpp"
 #include "../../debugger/DebugProtocol.hpp"
 #include "../../errors/SourceLocation.hpp"
+#include "../../value/ValueType.hpp"
 
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 namespace tests::testSuite
@@ -44,6 +48,19 @@ namespace tests::testSuite
             ctx.setEventCallback(nullptr);
             ctx.setConditionEvaluator(nullptr);
             ctx.continueExecution();
+        }
+
+        debugger::DebugExpressionEvaluator::Resolver mapResolver(
+            const std::unordered_map<std::string, value::Value>& values)
+        {
+            return [&values](const std::string& name) -> std::optional<value::Value> {
+                auto it = values.find(name);
+                if (it == values.end())
+                {
+                    return std::nullopt;
+                }
+                return it->second;
+            };
         }
     }
 
@@ -107,6 +124,57 @@ namespace tests::testSuite
                     "expected exception reason");
                 require(parsed.getParameter("message") == "MyError: bad\nmessage",
                     "exception message did not round-trip");
+            });
+
+        addCallbackTest("debug expression: evaluates read-only operators", "",
+            [](ScriptAPI&) {
+                std::unordered_map<std::string, value::Value> values;
+                values.emplace("x", value::Value(7));
+                values.emplace("y", value::Value(2));
+                values.emplace("flag", value::Value(true));
+
+                auto result = debugger::DebugExpressionEvaluator::evaluateWithResolver(
+                    "x * 3 + y == 23 && flag",
+                    mapResolver(values));
+
+                require(result.success, "expression should evaluate successfully: " + result.error);
+                require(value::isBool(result.value), "expression result should be Bool");
+                require(value::asBool(result.value), "expression result should be true");
+            });
+
+        addCallbackTest("debug expression: resolves static-style names", "",
+            [](ScriptAPI&) {
+                std::unordered_map<std::string, value::Value> values;
+                values.emplace("Thing::count", value::Value(5));
+                values.emplace("offset", value::Value(4));
+
+                auto result = debugger::DebugExpressionEvaluator::evaluateWithResolver(
+                    "Thing::count + offset",
+                    mapResolver(values));
+
+                require(result.success, "static expression should evaluate successfully: " + result.error);
+                require(value::isInt(result.value), "static expression result should be Int");
+                require(value::asInt(result.value) == 9, "static expression result mismatch");
+            });
+
+        addCallbackTest("debug expression: rejects calls and assignments", "",
+            [](ScriptAPI&) {
+                std::unordered_map<std::string, value::Value> values;
+                values.emplace("x", value::Value(1));
+
+                auto assignment = debugger::DebugExpressionEvaluator::evaluateWithResolver(
+                    "x = 2",
+                    mapResolver(values));
+                require(!assignment.success, "assignment should be rejected");
+                require(assignment.error.find("Assignments") != std::string::npos,
+                    "assignment rejection should be clear");
+
+                auto call = debugger::DebugExpressionEvaluator::evaluateWithResolver(
+                    "x.toString()",
+                    mapResolver(values));
+                require(!call.success, "method call should be rejected");
+                require(call.error.find("calls are not supported") != std::string::npos,
+                    "call rejection should be clear");
             });
 
         addCallbackTest("context: breakpoint pauses and emits event", "",
