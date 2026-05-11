@@ -86,6 +86,11 @@ namespace services
         value::Value getVariable(const std::string& variableName);
         void setVariable(const std::string& variableName, const value::Value& value);
 
+        // Test/extension hook: hand back the bound environment so callers can
+        // register native helpers against the same registry the bootstrap
+        // program uses. Intended for C++ tests and FFI extensions.
+        const std::shared_ptr<environment::Environment>& getEnvironment() const { return environment; }
+
         // Object creation and manipulation
         value::Value createObject(const std::string& className,
                                  const std::vector<value::Value>& constructorArgs = {});

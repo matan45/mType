@@ -27,6 +27,10 @@ void NativeRegistry::registerNativeFunction(const std::string& name, NativeFunct
     nativeFunctions[name] = function;
 }
 
+bool NativeRegistry::unregisterNativeFunction(const std::string& name) {
+    return nativeFunctions.erase(name) > 0;
+}
+
 NativeFunction NativeRegistry::findNativeFunction(const std::string& name) const {
     auto it = nativeFunctions.find(name);
     if (it != nativeFunctions.end()) {

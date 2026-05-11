@@ -33,6 +33,7 @@ namespace environment::registry
         std::string getComponentName() const;
 
         void registerNativeFunction(const std::string& name, NativeFunction function);
+        bool unregisterNativeFunction(const std::string& name);
         NativeFunction findNativeFunction(const std::string& name) const;
         bool hasNativeFunction(const std::string& name) const;
         std::vector<std::string> getAllNativeFunctionNames() const;

@@ -4,6 +4,7 @@
 #include "../json/JsonNatives.hpp"
 #include "../net/NetNatives.hpp"
 #include "../project/mtclib/LibraryNatives.hpp"
+#include "../plugin/PluginNatives.hpp"
 #include "registry/builtin/ObjectClassBootstrap.hpp"
 
 namespace environment
@@ -93,6 +94,9 @@ namespace environment
         // Register library loading native functions
         auto libraryLoader = std::make_shared<project::mtclib::TransitiveDependencyLoader>();
         project::mtclib::LibraryNatives::registerAll(environment, libraryLoader);
+
+        // Register native plugin loader (MYT-289): __plugin_load / __plugin_unload
+        plugin::PluginNatives::registerAll(environment);
 
         return environment;
     }

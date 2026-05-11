@@ -64,6 +64,23 @@ namespace vm::compiler::validation
             }
         }
 
+        // MYT-289 follow-up: explicit opt-out for runtime-resolved natives.
+        // Names with the `__native__` prefix bypass the compile-time
+        // existence check — they're registered at runtime by a plugin
+        // (`__plugin_load`) so the check would otherwise reject every
+        // plugin call site. Built-in natives keep the regular `__name`
+        // convention and remain compile-time validated, so typos like
+        // `__json_serialze` still fail at compile time. The bypass costs
+        // typo detection for plugin-bound names — accepted trade for
+        // unblocking dynamic FFI.
+        constexpr const char* kRuntimeNativePrefix = "__native__";
+        constexpr size_t kRuntimeNativePrefixLen = 10;
+        if (functionName.size() >= kRuntimeNativePrefixLen
+            && functionName.compare(0, kRuntimeNativePrefixLen, kRuntimeNativePrefix) == 0)
+        {
+            return; // Treat as runtime-resolved plugin native
+        }
+
         throw errors::TypeException(
             "Function '" + functionName + "' not found. Did you forget to declare it?",
             location

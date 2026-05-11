@@ -285,6 +285,9 @@ project "mtype-extensions"
       "mType/project/**.cpp",
       "mType/services/**.hpp",
       "mType/services/**.cpp",
+      "mType/plugin/**.h",
+      "mType/plugin/**.hpp",
+      "mType/plugin/**.cpp",
       "packagemanager/src/**.hpp",
       "packagemanager/src/**.cpp",
    }
@@ -297,9 +300,10 @@ project "mtype-extensions"
    -- instead linked by the consuming ConsoleApp projects (mType,
    -- mtype-launcher), where /IGNORE:4006 on the final link step is honored.
 
-   -- On Linux/macOS use libcurl for HTTP and exclude Win-only net files.
+   -- On Linux/macOS use libcurl for HTTP, libdl for plugin loading, and
+   -- exclude Win-only files.
    filter "system:linux or system:macosx"
-      links { "curl" }
+      links { "curl", "dl" }
       removefiles {
          "mType/net/WinHttpClient.hpp",
          "mType/net/WinHttpClient.cpp",
@@ -307,15 +311,17 @@ project "mtype-extensions"
          "mType/net/WinSocket.cpp",
          "mType/net/WinSockInit.hpp",
          "mType/net/WinSockInit.cpp",
+         "mType/plugin/WinPluginLoader.cpp",
       }
 
-   -- On Windows exclude POSIX-only net files.
+   -- On Windows exclude POSIX-only files.
    filter "system:windows"
       removefiles {
          "mType/net/CurlHttpClient.hpp",
          "mType/net/CurlHttpClient.cpp",
          "mType/net/PosixSocket.hpp",
          "mType/net/PosixSocket.cpp",
+         "mType/plugin/PosixPluginLoader.cpp",
       }
    filter {}
 
@@ -392,6 +398,11 @@ project "mType"
       "mtype-errors",
       "mtype-common",
    }
+
+   -- Build the plugin-test-fixture shared lib whenever mType.exe is built so
+   -- PluginTestSuite's integration test (MYT-289) can dlopen it. Build-only
+   -- dep — the fixture is loaded at runtime, never linked.
+   dependson { "plugin-test-fixture" }
 
 
 --------------------------------------------------------------------------------
@@ -640,3 +651,44 @@ project "mtype-language-server-tests"
    }
 
    links { "mtype-language-server-lib" }
+
+
+--------------------------------------------------------------------------------
+-- Shared library: plugin-test-fixture (MYT-289)
+-- Built independently of the engine to validate the C-ABI plugin boundary
+-- in CI. Outputs plugin_test_fixture.dll/.so/.dylib at a stable path so
+-- PluginTestSuite's integration test can dlopen it via the real loader.
+--
+-- IMPORTANT: this project links NOTHING from the engine. Its only build
+-- dependency is mType/plugin/PluginHostApi.h — the same surface a third
+-- party would consume. If you find yourself adding `links { "mtype-..." }`
+-- here, stop: it would defeat the point of the fixture.
+--------------------------------------------------------------------------------
+project "plugin-test-fixture"
+   kind "SharedLib"
+   location "mType"
+   commonConfig()
+
+   -- Override commonConfig's targetdir so the binary lands at a stable,
+   -- config-independent location PluginTestSuite can find with a single
+   -- relative path (CWD = project root when running `mType.exe --tests`).
+   targetdir   "mType/tests/testFiles/plugin"
+   targetname  "plugin_test_fixture"
+   targetprefix ""  -- no "lib" prefix on POSIX
+
+   includedirs { "mType/plugin" }
+
+   files {
+      "mType/tests/pluginFixture/fixture.cpp",
+   }
+
+   filter "system:linux or system:macosx"
+      buildoptions { "-fvisibility=hidden" }
+   filter {}
+
+
+-- The SDL3 + ImGui plugin previously lived here. It moved to its own
+-- standalone repo at C:\matan\mtype-imgui-sdl (CMake build, not premake)
+-- so third-party plugins follow the recommended out-of-tree pattern.
+-- See https://github.com/matan45/mType — wiki / native-interop docs for
+-- where to find it.

@@ -268,6 +268,12 @@ namespace tests::testSuite
         addOutputVerificationTest("Lazy Reboxing Mixed Operands",
                                   passPath + "lazyReboxingMixedOperands.mt");
 
+        // MYT-292: emitLoadLocal must mirror the unboxed primitive payload
+        // to stackBase for boxed-slot locals so JUMP_IF_FALSE sees the
+        // right value after a call return is round-tripped through a local.
+        addOutputVerificationTest("JIT bool after call",
+                                  passPath + "myt292JitBoolAfterCall.mt");
+
         // MYT-163 Phase F-a: speculative JIT inlining tests.
         addOutputVerificationTest("Inline Basic MONO",
                                   passPath + "inlining/inline_basic.mt");
@@ -684,5 +690,7 @@ namespace tests::testSuite
         // test continues passing as a real JIT-compiled regression check.
         addOutputVerificationTest("MYT-291 JIT OR-chain in loop",
                         passPath + "jitOrChainInLoop_pass.mt");
+        addOutputVerificationTest("MYT-291 code-editor JSON LSP startup",
+                        passPath + "jitJsonLspStartup_pass.mt");
     }
 }
