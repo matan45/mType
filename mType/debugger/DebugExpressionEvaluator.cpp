@@ -582,6 +582,10 @@ namespace debugger
                 {
                     return isNullish(left) && isNullish(right);
                 }
+                if (value::isInt(left) && value::isInt(right))
+                {
+                    return value::asInt(left) == value::asInt(right);
+                }
                 if (isNumeric(left) && isNumeric(right))
                 {
                     return asDouble(left) == asDouble(right);
@@ -601,6 +605,21 @@ namespace debugger
                 if (!isNumeric(left) || !isNumeric(right))
                 {
                     throw std::runtime_error("Comparison requires numeric operands");
+                }
+
+                if (value::isInt(left) && value::isInt(right))
+                {
+                    int64_t l = value::asInt(left);
+                    int64_t r = value::asInt(right);
+                    switch (op)
+                    {
+                    case TokenType::Less: return l < r;
+                    case TokenType::LessEqual: return l <= r;
+                    case TokenType::Greater: return l > r;
+                    case TokenType::GreaterEqual: return l >= r;
+                    default: break;
+                    }
+                    throw std::runtime_error("Invalid comparison operator");
                 }
 
                 double l = asDouble(left);
@@ -679,7 +698,10 @@ namespace debugger
                         return vm::runtime::utils::wrappingMul64(l, r);
                     }
                     if (r == 0) throw std::runtime_error("Division by zero");
-                    if (l == INT64_MIN && r == -1) return INT64_MIN;
+                    if (l == INT64_MIN && r == -1)
+                    {
+                        throw std::runtime_error("Integer overflow in division");
+                    }
                     return l / r;
                 }
 

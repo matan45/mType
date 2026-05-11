@@ -14,6 +14,10 @@
 #include <thread>
 #ifdef _WIN32
 #include <windows.h>
+#else
+#include <cerrno>
+#include <sys/select.h>
+#include <unistd.h>
 #endif
 
 namespace debugger {
@@ -51,9 +55,7 @@ namespace debugger {
 
             return {true, ""};
         }
-    }
 
-    namespace {
         bool waitForProtocolInput(bool& running) {
 #ifdef _WIN32
             HANDLE stdinHandle = GetStdHandle(STD_INPUT_HANDLE);
@@ -73,10 +75,20 @@ namespace debugger {
             running = false;
             return false;
 #else
-            if (std::cin.rdbuf()->in_avail() > 0) {
+            fd_set readSet;
+            FD_ZERO(&readSet);
+            FD_SET(STDIN_FILENO, &readSet);
+
+            timeval timeout{};
+            timeout.tv_usec = 10'000;
+
+            int result = select(STDIN_FILENO + 1, &readSet, nullptr, nullptr, &timeout);
+            if (result > 0 && FD_ISSET(STDIN_FILENO, &readSet)) {
                 return true;
             }
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            if (result < 0 && errno != EINTR) {
+                running = false;
+            }
             return false;
 #endif
         }

@@ -7,6 +7,7 @@
 #include "../../value/ValueType.hpp"
 
 #include <optional>
+#include <cstdint>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -155,6 +156,41 @@ namespace tests::testSuite
                 require(result.success, "static expression should evaluate successfully: " + result.error);
                 require(value::isInt(result.value), "static expression result should be Int");
                 require(value::asInt(result.value) == 9, "static expression result mismatch");
+            });
+
+        addCallbackTest("debug expression: compares large integers exactly", "",
+            [](ScriptAPI&) {
+                std::unordered_map<std::string, value::Value> values;
+                values.emplace("a", value::Value(INT64_C(9007199254740993)));
+                values.emplace("b", value::Value(INT64_C(9007199254740994)));
+
+                auto equal = debugger::DebugExpressionEvaluator::evaluateWithResolver(
+                    "a == b",
+                    mapResolver(values));
+                require(equal.success, "large int equality should evaluate: " + equal.error);
+                require(value::isBool(equal.value), "large int equality should produce Bool");
+                require(!value::asBool(equal.value), "distinct large ints should not compare equal");
+
+                auto less = debugger::DebugExpressionEvaluator::evaluateWithResolver(
+                    "a < b",
+                    mapResolver(values));
+                require(less.success, "large int comparison should evaluate: " + less.error);
+                require(value::isBool(less.value), "large int comparison should produce Bool");
+                require(value::asBool(less.value), "large int comparison should preserve ordering");
+            });
+
+        addCallbackTest("debug expression: rejects integer division overflow", "",
+            [](ScriptAPI&) {
+                std::unordered_map<std::string, value::Value> values;
+                values.emplace("min", value::Value(INT64_MIN));
+                values.emplace("minusOne", value::Value(INT64_C(-1)));
+
+                auto result = debugger::DebugExpressionEvaluator::evaluateWithResolver(
+                    "min / minusOne",
+                    mapResolver(values));
+                require(!result.success, "INT64_MIN / -1 should be rejected");
+                require(result.error.find("Integer overflow in division") != std::string::npos,
+                    "division overflow rejection should be clear");
             });
 
         addCallbackTest("debug expression: rejects calls and assignments", "",
