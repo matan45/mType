@@ -33,7 +33,14 @@ function registerCommonCommands(context: vscode.ExtensionContext): void {
 
             const filePath = editor.document.uri.fsPath;
             const terminal = vscode.window.createTerminal('mType');
-            terminal.sendText(`"${interpreterPath}" "${filePath}"`);
+            // PowerShell parses a leading quoted string as an expression,
+            // not a command, so `"exe" "file"` fails with "Unexpected token".
+            // Detect PowerShell variants and prepend the call operator (&).
+            // cmd.exe / bash / zsh accept the bare-quoted form fine.
+            const shellPath = vscode.env.shell || '';
+            const isPowerShell = /\b(pwsh|powershell)(\.exe)?$/i.test(shellPath);
+            const prefix = isPowerShell ? '& ' : '';
+            terminal.sendText(`${prefix}"${interpreterPath}" "${filePath}"`);
             terminal.show();
         })
     );
