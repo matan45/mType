@@ -43,7 +43,22 @@ namespace plugin
     void* PluginLoader::osLoad(const std::string& path, std::string& outErr)
     {
         std::wstring wpath = utf8ToWide(path);
-        HMODULE h = LoadLibraryW(wpath.c_str());
+
+        // LOAD_WITH_ALTERED_SEARCH_PATH adds the plugin DLL's own directory
+        // to the search path used to resolve its dependencies, so a plugin
+        // can ship its private deps (e.g. SFML's sfml-graphics-3.dll) in
+        // the same folder as the plugin itself. Without this flag, Windows
+        // only searches the directory of mType.exe + the standard locations,
+        // and plugins that pull in non-system DLLs fail with ERROR_MOD_NOT_FOUND.
+        //
+        // The flag is only honoured when the path is FULLY QUALIFIED, so
+        // resolve relative paths (e.g. "mt/mtype_sfml.dll" from __plugin_load)
+        // via GetFullPathNameW before handing it to LoadLibraryExW.
+        constexpr DWORD kFullPathCap = MAX_PATH * 2;
+        wchar_t fullPath[kFullPathCap];
+        DWORD n = GetFullPathNameW(wpath.c_str(), kFullPathCap, fullPath, nullptr);
+        const wchar_t* loadPath = (n > 0 && n < kFullPathCap) ? fullPath : wpath.c_str();
+        HMODULE h = LoadLibraryExW(loadPath, nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
         if (!h)
         {
             DWORD err = GetLastError();
