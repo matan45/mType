@@ -407,4 +407,35 @@ struct CodeLens {
     }
 };
 
+enum class InlayHintKind {
+    Type = 1,
+    Parameter = 2
+};
+
+// MYT-295 — Inlay hints attach short annotations (parameter names at
+// call sites, inferred lambda parameter types) inline in the editor.
+// v1 emits Position+label+kind only; padding flags are populated when
+// the editor benefits from visual separation. `tooltip` is reserved
+// for future resolveProvider support and unused in v1.
+struct InlayHint {
+    Position position;
+    std::string label;
+    std::optional<InlayHintKind> kind;
+    bool paddingLeft = false;
+    bool paddingRight = false;
+    std::optional<std::string> tooltip;
+
+    json toJson() const {
+        json j = {
+            {"position", position},
+            {"label", label}
+        };
+        if (kind) j["kind"] = static_cast<int>(*kind);
+        if (paddingLeft) j["paddingLeft"] = true;
+        if (paddingRight) j["paddingRight"] = true;
+        if (tooltip) j["tooltip"] = *tooltip;
+        return j;
+    }
+};
+
 } // namespace mtype::lsp

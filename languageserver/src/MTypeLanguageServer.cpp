@@ -48,6 +48,7 @@ namespace mtype::lsp
             documentManager_.get(), workspaceIndex_);
         signatureHelpHandler_ = std::make_unique<SignatureHelpHandler>(documentManager_.get());
         semanticTokensHandler_ = std::make_unique<SemanticTokensHandler>(documentManager_.get());
+        inlayHintHandler_ = std::make_unique<InlayHintHandler>(documentManager_.get());
 
         // Set up diagnostics publisher
         diagnosticsHandler_->setPublisher(
@@ -187,6 +188,10 @@ namespace mtype::lsp
         {
             handleSemanticTokensFull(id, params);
         }
+        else if (method == "textDocument/inlayHint")
+        {
+            handleInlayHint(id, params);
+        }
         else
         {
             sendError(id, -32601, "Method not found: " + method);
@@ -304,7 +309,11 @@ namespace mtype::lsp
                     },
                     {"full", true}
                 }
-            }
+            },
+            // MYT-295 — inlay hints (parameter-name + lambda-param type).
+            // v1 does not implement `inlayHint/resolve`, so we advertise
+            // the boolean form rather than `{resolveProvider: true}`.
+            {"inlayHintProvider", true}
         };
 
         json result = {
@@ -678,6 +687,31 @@ namespace mtype::lsp
 
         auto tokens = semanticTokensHandler_->handleSemanticTokensFull(uri);
         sendResponse(id, tokens.toJson());
+    }
+
+    void MTypeLanguageServer::handleInlayHint(const json& id, const json& params)
+    {
+        // MYT-295 — `textDocument/inlayHint` returns InlayHint[] for the
+        // given Range. The handler returns an empty vector on any
+        // partial/unparsed state, so a malformed `range` param is the
+        // only failure mode here. On any exception we still reply with
+        // an empty array rather than -32603, since the LSP spec allows
+        // it and an error reply would clear the editor's existing
+        // hints mid-edit.
+        try {
+            std::string uri = params["textDocument"]["uri"];
+            Range range = params["range"].get<Range>();
+
+            auto hints = inlayHintHandler_->handleInlayHint(uri, range);
+
+            json result = json::array();
+            for (const auto& h : hints) {
+                result.push_back(h.toJson());
+            }
+            sendResponse(id, result);
+        } catch (const std::exception&) {
+            sendResponse(id, json::array());
+        }
     }
 
     void MTypeLanguageServer::sendResponse(const json& id, const json& result)

@@ -22,6 +22,7 @@
 #include "RenameHandlerTestSuite.hpp"
 #include "SignatureHelpHandlerTestSuite.hpp"
 #include "SemanticTokensHandlerTestSuite.hpp"
+#include "InlayHintHandlerTestSuite.hpp"
 
 // Phase 4: Analysis suites
 #include "SymbolRegistrationVisitorTestSuite.hpp"
@@ -84,6 +85,7 @@ int main(int argc, char* argv[]) {
     RUN_SUITE("rename", "RenameHandler Tests", RenameHandlerTestSuite)
     RUN_SUITE("signaturehelp", "SignatureHelpHandler Tests", SignatureHelpHandlerTestSuite)
     RUN_SUITE("semantictokens", "SemanticTokensHandler Tests", SemanticTokensHandlerTestSuite)
+    RUN_SUITE("inlayhint", "InlayHintHandler Tests", InlayHintHandlerTestSuite)
 
     // Phase 4: Analysis
     RUN_SUITE("symbolregistration", "SymbolRegistrationVisitor Tests", SymbolRegistrationVisitorTestSuite)
