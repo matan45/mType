@@ -691,8 +691,9 @@ namespace lexer
         advance(); // skip '{'
         interpolationState.active = true;
         interpolationState.braceDepth = 0;
+        auto sv = storeProcessed(std::move(text));
         return Token{TokenType::INTERP_STRING_BEGIN, 0.0, 0,
-                     storeProcessed(std::move(text)), location};
+                     sv, static_cast<uint32_t>(sv.size()), location};
     }
 
     Token Lexer::scanInterpolatedSegment()
@@ -723,15 +724,17 @@ namespace lexer
             // More expressions to come
             advance(); // skip '{'
             interpolationState.braceDepth = 0;
+            auto svMid = storeProcessed(std::move(text));
             return Token{TokenType::INTERP_STRING_MIDDLE, 0.0, 0,
-                         storeProcessed(std::move(text)), location};
+                         svMid, static_cast<uint32_t>(svMid.size()), location};
         }
 
         // Found closing '"'
         advance(); // skip '"'
         interpolationState.active = false;
+        auto svEnd = storeProcessed(std::move(text));
         return Token{TokenType::INTERP_STRING_END, 0.0, 0,
-                     storeProcessed(std::move(text)), location};
+                     svEnd, static_cast<uint32_t>(svEnd.size()), location};
     }
 
     void Lexer::advanceMultiple(size_t count)

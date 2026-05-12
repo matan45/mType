@@ -41,11 +41,12 @@ namespace mtype::lsp
         formattingHandler_ = std::make_unique<FormattingHandler>();
         referencesHandler_ = std::make_unique<ReferencesHandler>(
             documentManager_.get(), workspaceIndex_);
-        // MYT-294 — rename shares the workspace index with completion and
-        // references so cross-file rewrites see the same symbol pool that
-        // drives Find References.
+        // MYT-294 — rename walks every open document via documentManager_;
+        // it does not consult the workspace index because the index only
+        // tracks files that *declare* top-level symbols, missing files
+        // that only *use* the symbol being renamed.
         renameHandler_ = std::make_unique<RenameHandler>(
-            documentManager_.get(), workspaceIndex_);
+            documentManager_.get());
         signatureHelpHandler_ = std::make_unique<SignatureHelpHandler>(documentManager_.get());
         semanticTokensHandler_ = std::make_unique<SemanticTokensHandler>(documentManager_.get());
         inlayHintHandler_ = std::make_unique<InlayHintHandler>(documentManager_.get());
@@ -652,19 +653,28 @@ namespace mtype::lsp
         // we additionally send a -32602 with a message so editors that
         // surface server-side errors can show "why not". Returning a
         // Range tells the client the exact identifier span to highlight.
-        std::string uri = params["textDocument"]["uri"];
-        Position position = params["position"];
+        //
+        // Malformed `params` (missing `textDocument.uri` or `position`)
+        // would otherwise throw an nlohmann exception that the run()
+        // loop catches without replying, leaving the editor hanging.
+        // Reply -32602 so the client can fail fast.
+        try {
+            std::string uri = params["textDocument"]["uri"];
+            Position position = params["position"];
 
-        auto result = renameHandler_->prepareRename(uri, position);
-        if (!result.ok)
-        {
-            sendError(id, -32602, result.error);
-            return;
+            auto result = renameHandler_->prepareRename(uri, position);
+            if (!result.ok)
+            {
+                sendError(id, -32602, result.error);
+                return;
+            }
+            sendResponse(id, json{
+                {"start", result.range.start},
+                {"end", result.range.end}
+            });
+        } catch (const std::exception&) {
+            sendError(id, -32602, "invalid prepareRename request");
         }
-        sendResponse(id, json{
-            {"start", result.range.start},
-            {"end", result.range.end}
-        });
     }
 
     void MTypeLanguageServer::handleRename(const json& id, const json& params)
@@ -674,17 +684,24 @@ namespace mtype::lsp
         // the lexer's token stream so we never touch comments, string
         // literals, import paths, or any other non-identifier source
         // text.
-        std::string uri = params["textDocument"]["uri"];
-        Position position = params["position"];
-        std::string newName = params.value("newName", "");
+        //
+        // Same defensive shape as handlePrepareRename — reply -32602 on
+        // malformed `params` rather than leaving the request hanging.
+        try {
+            std::string uri = params["textDocument"]["uri"];
+            Position position = params["position"];
+            std::string newName = params.value("newName", "");
 
-        auto result = renameHandler_->rename(uri, position, newName);
-        if (!result.ok)
-        {
-            sendError(id, -32602, result.error);
-            return;
+            auto result = renameHandler_->rename(uri, position, newName);
+            if (!result.ok)
+            {
+                sendError(id, -32602, result.error);
+                return;
+            }
+            sendResponse(id, result.edit.toJson());
+        } catch (const std::exception&) {
+            sendError(id, -32602, "invalid rename request");
         }
-        sendResponse(id, result.edit.toJson());
     }
 
     void MTypeLanguageServer::handleSignatureHelp(const json& id, const json& params)

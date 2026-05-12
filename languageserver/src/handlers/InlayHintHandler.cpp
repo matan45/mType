@@ -13,36 +13,14 @@
 #include "../../../mType/runtimeTypes/klass/MethodDefinition.hpp"
 #include "../../../mType/token/TokenType.hpp"
 #include "../../../mType/types/UnifiedType.hpp"
+#include "../utils/LSPUtils.hpp"
 
 namespace mtype::lsp {
 
 namespace {
 
 using TT = token::TokenType;
-
-// Token::stringValue is a string_view into the lexer's source buffer,
-// which DocumentManager destroys after parseDocument. Read the lexeme
-// out of doc->content using (line, column, size) instead — the same
-// dance RenameHandler does.
-std::string tokenText(const Document* doc, const token::Token& tok) {
-    if (!doc) return {};
-    int line = tok.location.getLine() - 1;
-    int col = tok.location.getColumn() - 1;
-    std::size_t len = tok.stringValue.size();
-    if (line < 0 || col < 0 || len == 0) return {};
-
-    const std::string& content = doc->content;
-    std::size_t pos = 0;
-    int currentLine = 0;
-    while (currentLine < line && pos < content.size()) {
-        if (content[pos] == '\n') currentLine++;
-        pos++;
-    }
-    if (currentLine != line) return {};
-    std::size_t start = pos + static_cast<std::size_t>(col);
-    if (start + len > content.size()) return {};
-    return content.substr(start, len);
-}
+using utils::tokenText;
 
 // Walk-back boundary tokens. When walking backwards from a lambda's
 // param-list start to find its enclosing `= <Interface> <var>`, hitting
@@ -87,7 +65,7 @@ Position InlayHintHandler::tokenStart(const token::Token& tok) {
 
 Position InlayHintHandler::tokenEnd(const token::Token& tok) {
     Position p = tokenStart(tok);
-    p.character += static_cast<int>(tok.stringValue.size());
+    p.character += static_cast<int>(tok.length);
     return p;
 }
 
@@ -112,8 +90,9 @@ std::vector<InlayHint> InlayHintHandler::handleInlayHint(
     try {
         std::vector<CallSite> calls;
         std::vector<LambdaSite> lambdas;
-        collectSites(doc, range, calls, lambdas);
-        emitParameterHints(doc, calls, out);
+        ReceiverTypeMap receiverTypes;
+        collectSites(doc, range, calls, lambdas, receiverTypes);
+        emitParameterHints(doc, calls, receiverTypes, out);
         emitLambdaTypeHints(doc, lambdas, out);
     } catch (...) {
         // Any per-document failure → empty hint list. Better no hints
@@ -127,9 +106,23 @@ void InlayHintHandler::collectSites(
     const Document* doc,
     const Range& range,
     std::vector<CallSite>& calls,
-    std::vector<LambdaSite>& lambdas) const
+    std::vector<LambdaSite>& lambdas,
+    ReceiverTypeMap& receiverTypes) const
 {
     const auto& toks = doc->tokens;
+
+    // Build the variable-name → declared-class-name map in this same
+    // pass. Rule mirrors the old resolveReceiverClassName: take the
+    // FIRST `IDENTIFIER IDENTIFIER` pair we see for a given var name.
+    // try_emplace keeps the first binding so subsequent shadowing
+    // (later in the file) does not overwrite earlier visible scopes.
+    for (std::size_t i = 1; i < toks.size(); ++i) {
+        if (toks[i].type != TT::IDENTIFIER) continue;
+        if (toks[i - 1].type != TT::IDENTIFIER) continue;
+        std::string varName = tokenText(doc, toks[i]);
+        if (varName.empty()) continue;
+        receiverTypes.try_emplace(std::move(varName), tokenText(doc, toks[i - 1]));
+    }
 
     // Stack frame for one open '('. Tracks the in-flight argument so
     // we can emit one CallArg per top-level comma and one at RPAREN.
@@ -512,41 +505,12 @@ std::vector<std::string> lookupConstructorParams(
     return out;
 }
 
-// Resolve a variable's declared class from the token stream by finding
-// `<ClassName> <varName>` near the call. The full Environment lookup
-// would respect scope but v1 prefers the simpler textual rule that
-// SignatureHelpHandler already uses for the same purpose.
-std::string resolveReceiverClassName(
-    const Document* doc, const std::string& receiverName, int /*callLine*/)
-{
-    if (!doc) return {};
-    // `this` is a special receiver — resolve to the enclosing class via
-    // any method declaration above the call. For simplicity, v1 only
-    // handles plain object receivers; `this.method(...)` falls through.
-    if (receiverName == "this") return {};
-
-    // Walk tokens and look for a declaration `IDENTIFIER receiverName`
-    // pattern. Take the FIRST one we find — matches the visible scope
-    // in straight-line code.
-    const auto& toks = doc->tokens;
-    for (std::size_t i = 1; i < toks.size(); ++i) {
-        const auto& cur = toks[i];
-        if (cur.type != TT::IDENTIFIER) continue;
-        if (cur.stringValue.size() != receiverName.size()) continue;
-        if (tokenText(doc, cur) != receiverName) continue;
-        const auto& prev = toks[i - 1];
-        if (prev.type == TT::IDENTIFIER) {
-            return tokenText(doc, prev);
-        }
-    }
-    return {};
-}
-
 } // namespace
 
 void InlayHintHandler::emitParameterHints(
     const Document* doc,
     const std::vector<CallSite>& calls,
+    const ReceiverTypeMap& receiverTypes,
     std::vector<InlayHint>& out) const
 {
     for (const auto& call : calls) {
@@ -562,9 +526,12 @@ void InlayHintHandler::emitParameterHints(
                 paramNames = lookupConstructorParams(doc, call.calleeName, call.args.size());
                 break;
             case CalleeKind::Method: {
-                std::string cls = resolveReceiverClassName(doc, call.receiverName, call.callLine);
-                if (cls.empty()) continue;
-                paramNames = lookupMethodParams(doc, cls, call.calleeName);
+                // `this` falls through to "no hint" — the precomputed
+                // map doesn't include it, and v1 doesn't resolve
+                // `this.method(...)` to the enclosing class.
+                auto it = receiverTypes.find(call.receiverName);
+                if (it == receiverTypes.end() || it->second.empty()) continue;
+                paramNames = lookupMethodParams(doc, it->second, call.calleeName);
                 break;
             }
         }

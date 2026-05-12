@@ -20,12 +20,20 @@ namespace token
     // Consumers that need to retain the lexeme past the Lexer's lifetime
     // (e.g., AST nodes) must copy into an owned std::string before the Lexer
     // goes out of scope. See MYT-130.
+    //
+    // `length` mirrors `stringValue.size()` at construction and remains valid
+    // after the Lexer's source buffer is destroyed. Prefer it over
+    // `stringValue.size()` whenever the lexer is gone — `string_view::size()`
+    // on a view with a dangling data pointer is technically UB on the
+    // implementation level even though every mainstream stdlib stores the
+    // size as a plain integer field.
     struct Token
     {
         TokenType type;
         double floatValue;
         int64_t intValue;
         std::string_view stringValue;
+        uint32_t length;
         errors::SourceLocation location;
     };
 }

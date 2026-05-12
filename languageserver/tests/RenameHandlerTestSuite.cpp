@@ -5,7 +5,6 @@
 #include <string>
 
 #include "../src/DocumentManager.hpp"
-#include "../src/analysis/WorkspaceSymbolIndex.hpp"
 #include "../src/handlers/RenameHandler.hpp"
 #include "TestFixtures.hpp"
 
@@ -13,11 +12,11 @@ namespace mtype::lsp::test {
 
 namespace {
 
-// Helper: open two documents in one manager and feed them to the
-// workspace index so cross-file rename tests can find the second file.
+// Helper: open two documents in one DocumentManager. Rename only
+// consults documentManager_ (it walks getAllOpenUris) so a workspace
+// index isn't needed for cross-file tests.
 struct TwoFileFixture {
     std::unique_ptr<DocumentManager> docMgr;
-    std::shared_ptr<analysis::WorkspaceSymbolIndex> index;
 };
 
 TwoFileFixture makeTwoFileFixture(const std::string& uriA, const std::string& srcA,
@@ -28,9 +27,6 @@ TwoFileFixture makeTwoFileFixture(const std::string& uriA, const std::string& sr
     f.docMgr->openDocument(uriB, srcB, 1);
     f.docMgr->parseDocument(uriA);
     f.docMgr->parseDocument(uriB);
-    f.index = std::make_shared<analysis::WorkspaceSymbolIndex>();
-    f.index->reindexFile(uriA, srcA);
-    f.index->reindexFile(uriB, srcB);
     return f;
 }
 
@@ -102,7 +98,7 @@ void RenameHandlerTestSuite::registerTests(LspTestHarness& harness) {
             "Foo x;\n"
             "Foo y = new Foo();\n";
         auto f = makeTwoFileFixture("file:///a.mt", srcA, "file:///b.mt", srcB);
-        RenameHandler handler(f.docMgr.get(), f.index);
+        RenameHandler handler(f.docMgr.get());
 
         auto res = handler.rename("file:///a.mt", {0, 6}, "Bar");
         require(res.ok, "rename should succeed: " + res.error);
@@ -228,10 +224,37 @@ void RenameHandlerTestSuite::registerTests(LspTestHarness& harness) {
             "    public function foo(): int { return 2; }\n"
             "}\n";
         auto f = makeTwoFileFixture("file:///t.mt", src, "file:///dummy.mt", "");
-        RenameHandler handler(f.docMgr.get(), f.index);
+        RenameHandler handler(f.docMgr.get());
 
         auto res = handler.rename("file:///t.mt", {1, 21}, "bar");
         require(!res.ok, "rename should reject ambiguous member name");
+    });
+
+    harness.addTest("rejects cross-kind rename: top-level name shared with a class member", []() {
+        // Reviewer scenario for MYT-297 follow-up: a top-level
+        // function `size` plus an unrelated class method `Box.size`.
+        // The token-only rename in collectOccurrencesInDoc would
+        // rewrite both declarations without scope awareness, so the
+        // ambiguity gate must catch the cross-kind collision.
+        const std::string src =
+            "class Box {\n"
+            "    public function size(): int { return 1; }\n"
+            "}\n"
+            "function size(): int { return 2; }\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        RenameHandler handler(docMgr.get());
+
+        // Cursor on the top-level `function size` (line 3, col 9 — the
+        // `s` of `size`).
+        auto resTop = handler.rename("file:///t.mt", {3, 9}, "length");
+        require(!resTop.ok,
+            "top-level rename should reject when a class member shares the name");
+
+        // Cursor on the class method `size` (line 1, col 21 — the `s`
+        // of `size` after `public function `).
+        auto resMember = handler.rename("file:///t.mt", {1, 21}, "length");
+        require(!resMember.ok,
+            "member rename should reject when a top-level symbol shares the name");
     });
 
     // ---- No-false-positive (canary) cases ----
@@ -324,7 +347,7 @@ void RenameHandlerTestSuite::registerTests(LspTestHarness& harness) {
             "    public constructor() {}\n"
             "}\n";
         auto f = makeTwoFileFixture("file:///a.mt", srcA, "file:///b.mt", srcB);
-        RenameHandler handler(f.docMgr.get(), f.index);
+        RenameHandler handler(f.docMgr.get());
 
         auto res = handler.rename("file:///a.mt", {0, 6}, "Bar");
         require(!res.ok, "rename should reject duplicate top-level name across files");

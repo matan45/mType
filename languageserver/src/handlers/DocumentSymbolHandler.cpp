@@ -14,12 +14,14 @@
 #include "../../../mType/errors/SourceLocation.hpp"
 #include "../../../mType/token/Token.hpp"
 #include "../../../mType/token/TokenType.hpp"
+#include "../utils/LSPUtils.hpp"
 
 namespace mtype::lsp {
 
 namespace {
 
 using TT = token::TokenType;
+using utils::tokenText;
 
 // LSP positions are 0-based; SourceLocation is 1-based. Centralize so
 // drift between handlers never bites us.
@@ -81,27 +83,45 @@ std::size_t findTokenIndexAt(const std::vector<token::Token>& toks,
     return toks.size();
 }
 
-// `selectionRange` for a named declaration: scan doc->content forward
-// from the node's start location to find the first occurrence of
-// `name`. Falls back to a zero-width range at the start position if
-// the name can't be located (e.g., stale AST after a destructive edit).
-Range nameRange(const std::string& content,
+// `selectionRange` for a named declaration: walk the token list from
+// the node's start location and pick the first IDENTIFIER token
+// whose lexeme equals `name`. The lexer drops comments entirely and
+// emits string literals as STRING_LITERAL (not IDENTIFIER), so
+// neither can produce a false positive — a substring scan of the raw
+// source could.
+//
+// Special case: when `name == "constructor"`, the declaration starts
+// at the `constructor` keyword which is a CONSTRUCTOR token, not an
+// IDENTIFIER. Match the keyword token instead.
+//
+// Falls back to a zero-width range at the start position if the
+// token can't be located (e.g., stale AST after a destructive edit).
+Range nameRange(const Document* doc,
+                const std::vector<token::Token>& toks,
                 const errors::SourceLocation& loc,
                 const std::string& name) {
     Range r;
     r.start = fromLoc(loc);
     r.end = r.start;
-    if (name.empty()) return r;
+    if (name.empty() || toks.empty()) return r;
 
-    std::size_t off = offsetOf(content, r.start.line, r.start.character);
-    if (off == std::string::npos) return r;
-
-    auto found = content.find(name, off);
-    if (found == std::string::npos) return r;
-
-    r.start = positionFromOffset(content, found);
-    r.end = r.start;
-    r.end.character += static_cast<int>(name.size());
+    const bool wantConstructor = (name == "constructor");
+    std::size_t idx = findTokenIndexAt(toks, loc);
+    for (std::size_t i = idx; i < toks.size(); ++i) {
+        const auto& tok = toks[i];
+        if (wantConstructor) {
+            if (tok.type != TT::CONSTRUCTOR) continue;
+        } else {
+            if (tok.type != TT::IDENTIFIER) continue;
+            if (tok.length != name.size()) continue;
+            if (tokenText(doc, tok) != name) continue;
+        }
+        r.start.line = tok.location.getLine() - 1;
+        r.start.character = tok.location.getColumn() - 1;
+        r.end.line = r.start.line;
+        r.end.character = r.start.character + static_cast<int>(tok.length);
+        return r;
+    }
     return r;
 }
 
@@ -176,7 +196,7 @@ Range declRange(const std::string& content,
     // token's end position. Better than collapsing to selectionRange.
     const auto& last = toks.back();
     Position end = fromLoc(last.location);
-    end.character += static_cast<int>(last.stringValue.size());
+    end.character += static_cast<int>(last.length);
     r.end = end;
     return r;
 }
@@ -212,7 +232,7 @@ DocumentSymbol buildField(const ast::nodes::classes::FieldNode* node,
     DocumentSymbol sym;
     sym.name = node->getName();
     sym.kind = SymbolKind::Field;
-    sym.selectionRange = nameRange(doc->content, node->getLocation(), sym.name);
+    sym.selectionRange = nameRange(doc, doc->tokens, node->getLocation(), sym.name);
     Range fallback = singleLineFallback(doc->content, sym.selectionRange);
     sym.range = declRange(doc->content, doc->tokens, node->getLocation(), fallback);
 
@@ -229,7 +249,7 @@ DocumentSymbol buildMethod(const ast::nodes::classes::MethodNode* node,
     DocumentSymbol sym;
     sym.name = node->getName();
     sym.kind = SymbolKind::Method;
-    sym.selectionRange = nameRange(doc->content, node->getLocation(), sym.name);
+    sym.selectionRange = nameRange(doc, doc->tokens, node->getLocation(), sym.name);
     Range fallback = singleLineFallback(doc->content, sym.selectionRange);
     sym.range = declRange(doc->content, doc->tokens, node->getLocation(), fallback);
 
@@ -250,7 +270,7 @@ DocumentSymbol buildConstructor(const ast::nodes::classes::ConstructorNode* node
     DocumentSymbol sym;
     sym.name = className;
     sym.kind = SymbolKind::Constructor;
-    sym.selectionRange = nameRange(doc->content, node->getLocation(), "constructor");
+    sym.selectionRange = nameRange(doc, doc->tokens, node->getLocation(), "constructor");
     Range fallback = singleLineFallback(doc->content, sym.selectionRange);
     sym.range = declRange(doc->content, doc->tokens, node->getLocation(), fallback);
     sym.detail = "(" + std::to_string(node->getParameterCount()) + ")";
@@ -262,7 +282,7 @@ DocumentSymbol buildClass(const ast::nodes::classes::ClassNode* node,
     DocumentSymbol sym;
     sym.name = node->getClassName();
     sym.kind = SymbolKind::Class;
-    sym.selectionRange = nameRange(doc->content, node->getLocation(), sym.name);
+    sym.selectionRange = nameRange(doc, doc->tokens, node->getLocation(), sym.name);
     Range fallback = singleLineFallback(doc->content, sym.selectionRange);
     sym.range = declRange(doc->content, doc->tokens, node->getLocation(), fallback);
 
@@ -300,7 +320,7 @@ DocumentSymbol buildInterface(const ast::nodes::classes::InterfaceNode* node,
     DocumentSymbol sym;
     sym.name = node->getName();
     sym.kind = SymbolKind::Interface;
-    sym.selectionRange = nameRange(doc->content, node->getLocation(), sym.name);
+    sym.selectionRange = nameRange(doc, doc->tokens, node->getLocation(), sym.name);
     Range fallback = singleLineFallback(doc->content, sym.selectionRange);
     sym.range = declRange(doc->content, doc->tokens, node->getLocation(), fallback);
 
@@ -315,7 +335,7 @@ DocumentSymbol buildInterface(const ast::nodes::classes::InterfaceNode* node,
             DocumentSymbol child;
             child.name = fn->getName();
             child.kind = SymbolKind::Method;
-            child.selectionRange = nameRange(doc->content, fn->getLocation(), child.name);
+            child.selectionRange = nameRange(doc, doc->tokens, fn->getLocation(), child.name);
             Range childFallback = singleLineFallback(doc->content, child.selectionRange);
             child.range = declRange(doc->content, doc->tokens, fn->getLocation(), childFallback);
             std::string arity = "(" + std::to_string(fn->getParameterCount()) + ")";
@@ -334,7 +354,7 @@ DocumentSymbol buildFunction(const ast::nodes::functions::FunctionNode* node,
     DocumentSymbol sym;
     sym.name = node->getName();
     sym.kind = SymbolKind::Function;
-    sym.selectionRange = nameRange(doc->content, node->getLocation(), sym.name);
+    sym.selectionRange = nameRange(doc, doc->tokens, node->getLocation(), sym.name);
     Range fallback = singleLineFallback(doc->content, sym.selectionRange);
     sym.range = declRange(doc->content, doc->tokens, node->getLocation(), fallback);
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "../DocumentManager.hpp"
@@ -66,17 +67,25 @@ private:
         std::string targetInterface;      // resolved from the lexical context, may be empty
     };
 
+    // Map of variable name → declared class name, populated in pass 1.
+    // Replaces an earlier O(N×M) per-call token scan: the rule "first
+    // `IDENTIFIER IDENTIFIER` pair where the second is the var name"
+    // can be answered once by sweeping the token list, so we do.
+    using ReceiverTypeMap = std::unordered_map<std::string, std::string>;
+
     // Pass 1 — extract call sites and lambda sites from the token stream.
     void collectSites(
         const Document* doc,
         const Range& range,
         std::vector<CallSite>& calls,
-        std::vector<LambdaSite>& lambdas) const;
+        std::vector<LambdaSite>& lambdas,
+        ReceiverTypeMap& receiverTypes) const;
 
     // Pass 2a — for each call site, resolve parameter names and emit hints.
     void emitParameterHints(
         const Document* doc,
         const std::vector<CallSite>& calls,
+        const ReceiverTypeMap& receiverTypes,
         std::vector<InlayHint>& out) const;
 
     // Pass 2b — for each lambda, resolve target interface SAM types and emit hints.

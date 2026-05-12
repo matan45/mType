@@ -37,6 +37,17 @@ std::vector<SymbolInformation> WorkspaceSymbolHandler::handleWorkspaceSymbol(
     // Short-block early requests against the initial workspace scan,
     // then query whatever the index has — partial results are better
     // than blocking the editor.
+    //
+    // The LSP dispatch loop (MTypeLanguageServer::run) is single-threaded
+    // by design, so this 50 ms wait stalls every other pending request.
+    // We accept that trade-off because:
+    //   (a) Returning an empty list during boot makes the editor's
+    //       symbol search look broken; sub-frame latency does not.
+    //   (b) The 50 ms ceiling is enforced regardless of scan size, so
+    //       a large workspace degrades to "partial results" rather than
+    //       to "frozen editor".
+    //   (c) Cross-reference: WorkspaceSymbolIndex.hpp:82-92 — the
+    //       ceiling and rationale live with the index itself.
     workspaceIndex_->waitForReady(kReadyWait);
 
     auto matches = workspaceIndex_->findByPrefix(query, kMaxResults);

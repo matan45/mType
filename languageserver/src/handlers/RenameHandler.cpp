@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <chrono>
 #include <set>
 #include <sstream>
 #include <unordered_map>
@@ -11,14 +10,12 @@
 #include "../../../mType/environment/registry/ClassRegistry.hpp"
 #include "../../../mType/runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../mType/token/TokenType.hpp"
+#include "../utils/LSPUtils.hpp"
 
 namespace mtype::lsp {
 
-RenameHandler::RenameHandler(
-    DocumentManager* docMgr,
-    std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex)
+RenameHandler::RenameHandler(DocumentManager* docMgr)
     : documentManager_(docMgr)
-    , workspaceIndex_(std::move(workspaceIndex))
 {}
 
 bool RenameHandler::isValidIdentifier(const std::string& s) {
@@ -71,39 +68,12 @@ Range RenameHandler::tokenRange(const token::Token& tok) {
     r.start.line = tok.location.getLine() - 1;
     r.start.character = tok.location.getColumn() - 1;
     r.end.line = r.start.line;
-    r.end.character = r.start.character + static_cast<int>(tok.stringValue.size());
+    r.end.character = r.start.character + static_cast<int>(tok.length);
     return r;
 }
 
 namespace {
-// Token::stringValue is a std::string_view into the Lexer's source
-// buffer. DocumentManager::parseDocument creates a *temporary* lexer
-// just for the token list and lets it go out of scope before the
-// function returns — by the time rename runs, every token's .data()
-// pointer is dangling. The .size() is stored alongside the pointer in
-// the view (just an integer) and stays valid, so we can still trust
-// it for lengths, but reading the lexeme text requires going back to
-// doc->content with (line, column, size). This helper does the
-// arithmetic safely.
-std::string tokenText(const Document* doc, const token::Token& tok) {
-    if (!doc) return {};
-    int line = tok.location.getLine() - 1;
-    int col = tok.location.getColumn() - 1;
-    size_t len = tok.stringValue.size();
-    if (line < 0 || col < 0 || len == 0) return {};
-
-    const std::string& content = doc->content;
-    size_t pos = 0;
-    int currentLine = 0;
-    while (currentLine < line && pos < content.size()) {
-        if (content[pos] == '\n') currentLine++;
-        pos++;
-    }
-    if (currentLine != line) return {};
-    size_t start = pos + static_cast<size_t>(col);
-    if (start + len > content.size()) return {};
-    return content.substr(start, len);
-}
+using utils::tokenText;
 } // namespace
 
 const token::Token* RenameHandler::findIdentifierTokenAt(
@@ -116,7 +86,7 @@ const token::Token* RenameHandler::findIdentifierTokenAt(
         int tokLine = tok.location.getLine() - 1;
         int tokCol = tok.location.getColumn() - 1;
         if (tokLine != line) continue;
-        int tokEnd = tokCol + static_cast<int>(tok.stringValue.size());
+        int tokEnd = tokCol + static_cast<int>(tok.length);
         if (character >= tokCol && character <= tokEnd) {
             return &tok;
         }
@@ -152,7 +122,7 @@ bool RenameHandler::classifyTarget(const std::string& uri,
 
     // Extract the lexeme from doc->content — tok->stringValue.data()
     // is a dangling pointer after parseDocument's temporary lexer is
-    // destroyed. See tokenText() for the rationale.
+    // destroyed. See utils::tokenText (LSPUtils.hpp) for the rationale.
     std::string name = tokenText(doc, *tok);
     if (name.empty()) {
         error = "cursor is not on a renameable identifier";
@@ -189,7 +159,6 @@ bool RenameHandler::classifyTarget(const std::string& uri,
     // SymbolRegistrationVisitor stores positions as 0-based; tokens
     // carry 1-based locations.
     int tokLine = tok->location.getLine() - 1;
-    int tokCol = tok->location.getColumn() - 1;
 
     auto applyEntry = [&](const std::string& key, const SymbolLocationInfo& info) {
         auto dotPos = key.find('.');
@@ -200,8 +169,6 @@ bool RenameHandler::classifyTarget(const std::string& uri,
             out.declaringClass = key.substr(0, dotPos);
         }
         out.defUri = info.uri;
-        out.defLine = info.line;
-        out.defColumn = info.column;
     };
 
     // Match by (same line, key name == cursor identifier). The visitor
@@ -262,8 +229,6 @@ bool RenameHandler::classifyTarget(const std::string& uri,
     // safety before any edits are produced.
     out.kind = SymbolKind::Local;
     out.defUri = uri;
-    out.defLine = tokLine;
-    out.defColumn = tokCol;
     return true;
 }
 
@@ -348,14 +313,23 @@ bool RenameHandler::memberIsUnambiguous(const std::string& memberName,
     std::unordered_set<std::string> okClasses(overrideSet.begin(), overrideSet.end());
     if (okClasses.empty()) okClasses.insert(declaringClass);
 
-    // Scan every open document's symbolLocations for keys of the form
-    // "OtherClass.memberName". Any match whose OtherClass is outside
-    // the override set fails the ambiguity check.
+    // Scan every open document's symbolLocations. Two rejections:
+    //   (a) A "OtherClass.memberName" key whose OtherClass is outside
+    //       the override set — cross-class collision within Member kind.
+    //   (b) A top-level key == memberName — cross-kind collision with a
+    //       top-level function/class. The token-only rename would
+    //       rewrite both, which is almost never what the user wants.
     std::string suffix = "." + memberName;
     for (const auto& fileUri : documentManager_->getAllOpenUris()) {
         const Document* doc = documentManager_->getDocument(fileUri);
         if (!doc) continue;
         for (const auto& [key, _] : doc->symbolLocations) {
+            if (key == memberName) {
+                error = "cannot rename '" + memberName +
+                        "': also declared as a top-level symbol "
+                        "(rename manually to avoid ambiguous edits)";
+                return false;
+            }
             if (key.size() <= suffix.size()) continue;
             if (key.compare(key.size() - suffix.size(), suffix.size(), suffix) != 0) {
                 continue;
@@ -380,9 +354,14 @@ bool RenameHandler::topLevelIsUnambiguous(const std::string& name,
                    // between the visitor's stored URI and findDefinition's
                    // return value is not guaranteed to match exactly).
 
-    // Walk every open document's symbolLocations and count the number
-    // of files that declare a top-level symbol with this name. If more
-    // than one file does, the rename is ambiguous and we reject.
+    // Walk every open document's symbolLocations. Two rejections:
+    //   (a) More than one file declares a top-level symbol with this
+    //       name — cross-file collision within TopLevel kind.
+    //   (b) Any class declares a member with this same name — cross-kind
+    //       collision. The token-only rename would rewrite both the
+    //       top-level decl and the unrelated method declaration in the
+    //       class, which is almost never what the user wants.
+    std::string memberSuffix = "." + name;
     int filesWithDecl = 0;
     for (const auto& fileUri : documentManager_->getAllOpenUris()) {
         const Document* doc = documentManager_->getDocument(fileUri);
@@ -390,7 +369,15 @@ bool RenameHandler::topLevelIsUnambiguous(const std::string& name,
         for (const auto& [key, _] : doc->symbolLocations) {
             if (key == name) {
                 filesWithDecl++;
-                break;
+                continue;
+            }
+            if (key.size() > memberSuffix.size()
+                && key.compare(key.size() - memberSuffix.size(),
+                               memberSuffix.size(), memberSuffix) == 0) {
+                error = "cannot rename '" + name +
+                        "': also declared as a class member "
+                        "(rename manually to avoid ambiguous edits)";
+                return false;
             }
         }
         if (filesWithDecl > 1) {
@@ -415,7 +402,7 @@ bool RenameHandler::localIsUnambiguous(const Document* doc,
     for (size_t i = 1; i < toks.size(); ++i) {
         const auto& cur = toks[i];
         if (cur.type != token::TokenType::IDENTIFIER) continue;
-        if (cur.stringValue.size() != name.size()) continue;
+        if (cur.length != name.size()) continue;
         if (tokenText(doc, cur) != name) continue;
         const auto& prev = toks[i - 1];
         using TT = token::TokenType;
@@ -449,9 +436,9 @@ std::vector<Range> RenameHandler::collectOccurrencesInDoc(
     if (!doc) return out;
     for (const auto& tok : doc->tokens) {
         if (tok.type != token::TokenType::IDENTIFIER) continue;
-        // Cheap length-prefilter before the substring extract; the
-        // string_view's .size() is valid even though .data() dangles.
-        if (tok.stringValue.size() != name.size()) continue;
+        // Cheap length-prefilter via Token::length (formally safe;
+        // stringValue.size() reads a view whose data is dangling here).
+        if (tok.length != name.size()) continue;
         if (tokenText(doc, tok) != name) continue;
         out.push_back(tokenRange(tok));
     }

@@ -1,12 +1,10 @@
 #pragma once
 
-#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
 #include "../DocumentManager.hpp"
-#include "../analysis/WorkspaceSymbolIndex.hpp"
 #include "../utils/LSPTypes.hpp"
 
 namespace mtype::lsp {
@@ -25,8 +23,7 @@ namespace mtype::lsp {
 //      (e.g., a member name shared by two unrelated classes).
 class RenameHandler {
 public:
-    RenameHandler(DocumentManager* docMgr,
-                  std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex = nullptr);
+    explicit RenameHandler(DocumentManager* docMgr);
 
     struct PrepareResult {
         bool ok = false;
@@ -54,8 +51,6 @@ private:
         SymbolKind kind = SymbolKind::Local;
         std::string declaringClass;   // for Member
         std::string defUri;            // file URI where the symbol is declared
-        int defLine = 0;               // 0-based
-        int defColumn = 0;             // 0-based
         bool isBuiltin = false;
         Range cursorRange{};           // identifier span at the cursor
     };
@@ -126,7 +121,6 @@ private:
     static Range tokenRange(const token::Token& tok);
 
     DocumentManager* documentManager_;
-    std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex_;
 };
 
 } // namespace mtype::lsp
