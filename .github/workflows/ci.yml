@@ -124,6 +124,10 @@ jobs:
   vscode-extension:
     name: VS Code extension
     runs-on: ubuntu-24.04
+    # Opt actions/upload-artifact into Node 24 ahead of the 2026-06-02 default
+    # flip (suppresses the deprecation warning until upstream ships v6).
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
     steps:
       - name: Checkout
