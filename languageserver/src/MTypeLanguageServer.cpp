@@ -41,8 +41,20 @@ namespace mtype::lsp
         formattingHandler_ = std::make_unique<FormattingHandler>();
         referencesHandler_ = std::make_unique<ReferencesHandler>(
             documentManager_.get(), workspaceIndex_);
+        // MYT-294 — rename walks every open document via documentManager_;
+        // it does not consult the workspace index because the index only
+        // tracks files that *declare* top-level symbols, missing files
+        // that only *use* the symbol being renamed.
+        renameHandler_ = std::make_unique<RenameHandler>(
+            documentManager_.get());
         signatureHelpHandler_ = std::make_unique<SignatureHelpHandler>(documentManager_.get());
         semanticTokensHandler_ = std::make_unique<SemanticTokensHandler>(documentManager_.get());
+        inlayHintHandler_ = std::make_unique<InlayHintHandler>(documentManager_.get());
+        documentSymbolHandler_ = std::make_unique<DocumentSymbolHandler>(documentManager_.get());
+        // MYT-297 — workspace/symbol shares the same workspace index
+        // populated at initialise so cross-file symbol search sees the
+        // same pool as completion, references, and rename.
+        workspaceSymbolHandler_ = std::make_unique<WorkspaceSymbolHandler>(workspaceIndex_);
 
         // Set up diagnostics publisher
         diagnosticsHandler_->setPublisher(
@@ -166,6 +178,14 @@ namespace mtype::lsp
         {
             handleReferences(id, params);
         }
+        else if (method == "textDocument/prepareRename")
+        {
+            handlePrepareRename(id, params);
+        }
+        else if (method == "textDocument/rename")
+        {
+            handleRename(id, params);
+        }
         else if (method == "textDocument/signatureHelp")
         {
             handleSignatureHelp(id, params);
@@ -173,6 +193,18 @@ namespace mtype::lsp
         else if (method == "textDocument/semanticTokens/full")
         {
             handleSemanticTokensFull(id, params);
+        }
+        else if (method == "textDocument/inlayHint")
+        {
+            handleInlayHint(id, params);
+        }
+        else if (method == "textDocument/documentSymbol")
+        {
+            handleDocumentSymbol(id, params);
+        }
+        else if (method == "workspace/symbol")
+        {
+            handleWorkspaceSymbol(id, params);
         }
         else
         {
@@ -267,6 +299,15 @@ namespace mtype::lsp
             {"documentFormattingProvider", true},
             {"documentRangeFormattingProvider", false}, // TODO: Implement
             {"referencesProvider", true},
+            // MYT-294 — `prepareProvider` lets clients call
+            // `textDocument/prepareRename` to validate the cursor before
+            // popping the rename UI; we return null when the symbol is
+            // not renameable so the editor can show a localized error.
+            {
+                "renameProvider", {
+                    {"prepareProvider", true}
+                }
+            },
             {
                 "signatureHelpProvider", {
                     {"triggerCharacters", json::array({"(", ","})}
@@ -282,7 +323,21 @@ namespace mtype::lsp
                     },
                     {"full", true}
                 }
-            }
+            },
+            // MYT-295 — inlay hints (parameter-name + lambda-param type).
+            // v1 does not implement `inlayHint/resolve`, so we advertise
+            // the boolean form rather than `{resolveProvider: true}`.
+            {"inlayHintProvider", true},
+            // MYT-296 — document symbols / outline. Hierarchical
+            // DocumentSymbol[] is preferred over the flat
+            // SymbolInformation[] response, which is what modern clients
+            // (VS Code Outline view, breadcrumbs) consume.
+            {"documentSymbolProvider", true},
+            // MYT-297 — workspace-wide symbol search served by the
+            // existing MYT-47 workspace symbol index. Boolean form (no
+            // workspaceSymbol/resolve) — responses already carry full
+            // locations.
+            {"workspaceSymbolProvider", true}
         };
 
         json result = {
@@ -590,6 +645,65 @@ namespace mtype::lsp
         sendResponse(id, result);
     }
 
+    void MTypeLanguageServer::handlePrepareRename(const json& id, const json& params)
+    {
+        // MYT-294 — `textDocument/prepareRename` validates whether the
+        // cursor is on a renameable symbol. When it isn't, the LSP spec
+        // accepts a null result (the client suppresses its rename UI);
+        // we additionally send a -32602 with a message so editors that
+        // surface server-side errors can show "why not". Returning a
+        // Range tells the client the exact identifier span to highlight.
+        //
+        // Malformed `params` (missing `textDocument.uri` or `position`)
+        // would otherwise throw an nlohmann exception that the run()
+        // loop catches without replying, leaving the editor hanging.
+        // Reply -32602 so the client can fail fast.
+        try {
+            std::string uri = params["textDocument"]["uri"];
+            Position position = params["position"];
+
+            auto result = renameHandler_->prepareRename(uri, position);
+            if (!result.ok)
+            {
+                sendError(id, -32602, result.error);
+                return;
+            }
+            sendResponse(id, json{
+                {"start", result.range.start},
+                {"end", result.range.end}
+            });
+        } catch (const std::exception&) {
+            sendError(id, -32602, "invalid prepareRename request");
+        }
+    }
+
+    void MTypeLanguageServer::handleRename(const json& id, const json& params)
+    {
+        // MYT-294 — `textDocument/rename` returns a WorkspaceEdit whose
+        // `changes` map is grouped by URI. Each edit's range comes from
+        // the lexer's token stream so we never touch comments, string
+        // literals, import paths, or any other non-identifier source
+        // text.
+        //
+        // Same defensive shape as handlePrepareRename — reply -32602 on
+        // malformed `params` rather than leaving the request hanging.
+        try {
+            std::string uri = params["textDocument"]["uri"];
+            Position position = params["position"];
+            std::string newName = params.value("newName", "");
+
+            auto result = renameHandler_->rename(uri, position, newName);
+            if (!result.ok)
+            {
+                sendError(id, -32602, result.error);
+                return;
+            }
+            sendResponse(id, result.edit.toJson());
+        } catch (const std::exception&) {
+            sendError(id, -32602, "invalid rename request");
+        }
+    }
+
     void MTypeLanguageServer::handleSignatureHelp(const json& id, const json& params)
     {
         std::string uri = params["textDocument"]["uri"];
@@ -613,6 +727,81 @@ namespace mtype::lsp
 
         auto tokens = semanticTokensHandler_->handleSemanticTokensFull(uri);
         sendResponse(id, tokens.toJson());
+    }
+
+    void MTypeLanguageServer::handleInlayHint(const json& id, const json& params)
+    {
+        // MYT-295 — `textDocument/inlayHint` returns InlayHint[] for the
+        // given Range. The handler returns an empty vector on any
+        // partial/unparsed state, so a malformed `range` param is the
+        // only failure mode here. On any exception we still reply with
+        // an empty array rather than -32603, since the LSP spec allows
+        // it and an error reply would clear the editor's existing
+        // hints mid-edit.
+        try {
+            std::string uri = params["textDocument"]["uri"];
+            Range range = params["range"].get<Range>();
+
+            auto hints = inlayHintHandler_->handleInlayHint(uri, range);
+
+            json result = json::array();
+            for (const auto& h : hints) {
+                result.push_back(h.toJson());
+            }
+            sendResponse(id, result);
+        } catch (const std::exception&) {
+            sendResponse(id, json::array());
+        }
+    }
+
+    void MTypeLanguageServer::handleDocumentSymbol(const json& id, const json& params)
+    {
+        // MYT-296 — `textDocument/documentSymbol` returns a
+        // DocumentSymbol[] tree describing the open document's outline.
+        // The handler already guards against unparsed / partial state
+        // and never throws, but a malformed `params` (e.g., missing
+        // textDocument.uri) still has to be caught here so a junk
+        // request can't bring down the LSP loop. Empty array on any
+        // failure — same defensive shape as handleInlayHint.
+        try {
+            std::string uri = params["textDocument"]["uri"];
+            auto symbols = documentSymbolHandler_->handleDocumentSymbol(uri);
+
+            json result = json::array();
+            for (const auto& sym : symbols) {
+                result.push_back(sym.toJson());
+            }
+            sendResponse(id, result);
+        } catch (const std::exception&) {
+            sendResponse(id, json::array());
+        }
+    }
+
+    void MTypeLanguageServer::handleWorkspaceSymbol(const json& id, const json& params)
+    {
+        // MYT-297 — `workspace/symbol` returns a flat SymbolInformation[]
+        // of top-level declarations matching `query`. Empty query is
+        // legal per spec and returns the full (capped) symbol set.
+        // Same defensive shape as handleDocumentSymbol: extract `query`
+        // tolerantly (missing or non-string → empty) and serialise an
+        // empty array on any exception so a malformed request can't
+        // bring down the LSP loop.
+        try {
+            std::string query;
+            if (params.contains("query") && params["query"].is_string()) {
+                query = params["query"].get<std::string>();
+            }
+
+            auto symbols = workspaceSymbolHandler_->handleWorkspaceSymbol(query);
+
+            json result = json::array();
+            for (const auto& sym : symbols) {
+                result.push_back(sym.toJson());
+            }
+            sendResponse(id, result);
+        } catch (const std::exception&) {
+            sendResponse(id, json::array());
+        }
     }
 
     void MTypeLanguageServer::sendResponse(const json& id, const json& result)

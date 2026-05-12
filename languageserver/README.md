@@ -209,7 +209,11 @@ Then send LSP messages via stdin. For debugging, check your editor's LSP client 
 | `textDocument/formatting` | 🚧 Planned | Code formatting |
 | `textDocument/semanticTokens` | 🚧 Planned | Semantic highlighting |
 | `textDocument/codeAction` | 🚧 Planned | Quick fixes |
-| `textDocument/rename` | 🚧 Planned | Symbol rename |
+| `textDocument/prepareRename` | ✅ Implemented | Validate rename target (MYT-294) |
+| `textDocument/rename` | ✅ Implemented | Symbol rename — boundary-safe token-driven edits; rejects keywords, builtins, literals, import paths, ambiguous symbols (MYT-294) |
+| `textDocument/inlayHint` | ✅ Implemented | Parameter-name hints for user-defined calls (function/method/constructor) and inferred-type hints for untyped lambda parameters (MYT-295) |
+| `textDocument/documentSymbol` | ✅ Implemented | Hierarchical outline of classes, interfaces, functions, constructors, methods, and fields. Powers the editor outline view and breadcrumbs (MYT-296) |
+| `workspace/symbol` | ✅ Implemented | Workspace-wide symbol search over top-level classes, interfaces, and functions; case-insensitive prefix matching shared with completion and auto-import (empty query returns no results, same as the prefix matcher). Powers VS Code's "Go to Symbol in Workspace" (Ctrl+T) (MYT-297) |
 
 ## Architecture
 

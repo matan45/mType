@@ -19,8 +19,12 @@
 #include "DiagnosticsHandlerTestSuite.hpp"
 #include "CodeLensHandlerTestSuite.hpp"
 #include "ReferencesHandlerTestSuite.hpp"
+#include "RenameHandlerTestSuite.hpp"
 #include "SignatureHelpHandlerTestSuite.hpp"
 #include "SemanticTokensHandlerTestSuite.hpp"
+#include "InlayHintHandlerTestSuite.hpp"
+#include "DocumentSymbolHandlerTestSuite.hpp"
+#include "WorkspaceSymbolHandlerTestSuite.hpp"
 
 // Phase 4: Analysis suites
 #include "SymbolRegistrationVisitorTestSuite.hpp"
@@ -80,8 +84,12 @@ int main(int argc, char* argv[]) {
     RUN_SUITE("diagnostics", "DiagnosticsHandler Tests", DiagnosticsHandlerTestSuite)
     RUN_SUITE("codelens", "CodeLensHandler Tests", CodeLensHandlerTestSuite)
     RUN_SUITE("references", "ReferencesHandler Tests", ReferencesHandlerTestSuite)
+    RUN_SUITE("rename", "RenameHandler Tests", RenameHandlerTestSuite)
     RUN_SUITE("signaturehelp", "SignatureHelpHandler Tests", SignatureHelpHandlerTestSuite)
     RUN_SUITE("semantictokens", "SemanticTokensHandler Tests", SemanticTokensHandlerTestSuite)
+    RUN_SUITE("inlayhint", "InlayHintHandler Tests", InlayHintHandlerTestSuite)
+    RUN_SUITE("documentsymbol", "DocumentSymbolHandler Tests", DocumentSymbolHandlerTestSuite)
+    RUN_SUITE("workspacesymbol", "WorkspaceSymbolHandler Tests", WorkspaceSymbolHandlerTestSuite)
 
     // Phase 4: Analysis
     RUN_SUITE("symbolregistration", "SymbolRegistrationVisitor Tests", SymbolRegistrationVisitorTestSuite)

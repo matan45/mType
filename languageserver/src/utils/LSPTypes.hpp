@@ -407,4 +407,97 @@ struct CodeLens {
     }
 };
 
+enum class InlayHintKind {
+    Type = 1,
+    Parameter = 2
+};
+
+// MYT-295 — Inlay hints attach short annotations (parameter names at
+// call sites, inferred lambda parameter types) inline in the editor.
+// v1 emits Position+label+kind only; padding flags are populated when
+// the editor benefits from visual separation. `tooltip` is reserved
+// for future resolveProvider support and unused in v1.
+struct InlayHint {
+    Position position;
+    std::string label;
+    std::optional<InlayHintKind> kind;
+    bool paddingLeft = false;
+    bool paddingRight = false;
+    std::optional<std::string> tooltip;
+
+    json toJson() const {
+        json j = {
+            {"position", position},
+            {"label", label}
+        };
+        if (kind) j["kind"] = static_cast<int>(*kind);
+        if (paddingLeft) j["paddingLeft"] = true;
+        if (paddingRight) j["paddingRight"] = true;
+        if (tooltip) j["tooltip"] = *tooltip;
+        return j;
+    }
+};
+
+// MYT-296 — LSP SymbolKind subset used for textDocument/documentSymbol.
+// Integer values track the LSP 3.17 spec — do not renumber.
+enum class SymbolKind {
+    Class = 5,
+    Method = 6,
+    Property = 7,
+    Field = 8,
+    Constructor = 9,
+    Interface = 11,
+    Function = 12,
+    Variable = 13
+};
+
+// MYT-296 — Hierarchical document symbol. `range` covers the whole
+// declaration (including body); `selectionRange` covers just the name
+// token so editors can highlight the identifier on click. `children`
+// is recursive: class members live under their owning class.
+struct DocumentSymbol {
+    std::string name;
+    std::optional<std::string> detail;
+    SymbolKind kind;
+    Range range;
+    Range selectionRange;
+    std::vector<DocumentSymbol> children;
+
+    json toJson() const {
+        json j = {
+            {"name", name},
+            {"kind", static_cast<int>(kind)},
+            {"range", range},
+            {"selectionRange", selectionRange}
+        };
+        if (detail) j["detail"] = *detail;
+        if (!children.empty()) {
+            json arr = json::array();
+            for (const auto& c : children) arr.push_back(c.toJson());
+            j["children"] = arr;
+        }
+        return j;
+    }
+};
+
+// MYT-297 — Flat workspace/symbol response entry (LSP SymbolInformation).
+// We stay on the legacy SymbolInformation[] shape rather than the 3.17
+// WorkspaceSymbol[] form so the response is self-contained — no
+// workspaceSymbol/resolve round-trip needed — and works in every client.
+// `containerName` is omitted: the workspace index only stores top-level
+// declarations, so there is nothing to contain.
+struct SymbolInformation {
+    std::string name;
+    SymbolKind kind;
+    Location location;
+
+    json toJson() const {
+        return json{
+            {"name", name},
+            {"kind", static_cast<int>(kind)},
+            {"location", location.toJson()}
+        };
+    }
+};
+
 } // namespace mtype::lsp

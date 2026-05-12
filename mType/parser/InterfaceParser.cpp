@@ -63,9 +63,13 @@ namespace parser
 
         parseInterfaceHeader(interfaceName, location, visibility, isFinal, genericParams);
 
-        // Step 3: Create interface node and register it
+        // Step 3: Create interface node and register it. Use the
+        // captured `location` (the interface-name token, filled by
+        // parseInterfaceHeader) rather than the current token, which by
+        // this point points past the header (typically at the extends
+        // clause or the opening LBRACE).
         auto interfaceNode = std::make_unique<InterfaceNode>(
-            interfaceName, genericParams, tokenStream.current().location
+            interfaceName, genericParams, location
         );
 
         // Check for duplicate class/interface name

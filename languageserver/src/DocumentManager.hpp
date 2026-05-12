@@ -69,6 +69,13 @@ public:
     Document* getDocument(const std::string& uri);
     const Document* getDocument(const std::string& uri) const;
 
+    // MYT-294 — enumerate every open document URI. Rename uses this to
+    // walk all live editor buffers when computing cross-file edits;
+    // the workspace symbol index alone is not enough because it only
+    // tracks files that *declare* top-level symbols, missing files
+    // that only *use* the symbol being renamed.
+    std::vector<std::string> getAllOpenUris() const;
+
     // Parse document with full semantic analysis
     void parseDocument(const std::string& uri);
 

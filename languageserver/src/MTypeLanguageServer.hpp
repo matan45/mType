@@ -15,6 +15,10 @@
 #include "handlers/CodeLensHandler.hpp"
 #include "handlers/FormattingHandler.hpp"
 #include "handlers/ReferencesHandler.hpp"
+#include "handlers/InlayHintHandler.hpp"
+#include "handlers/DocumentSymbolHandler.hpp"
+#include "handlers/WorkspaceSymbolHandler.hpp"
+#include "handlers/RenameHandler.hpp"
 #include "handlers/SignatureHelpHandler.hpp"
 #include "handlers/SemanticTokensHandler.hpp"
 #include "analysis/WorkspaceSymbolIndex.hpp"
@@ -50,8 +54,13 @@ private:
     void handleCodeLens(const json& id, const json& params);
     void handleFormatting(const json& id, const json& params);
     void handleReferences(const json& id, const json& params);
+    void handlePrepareRename(const json& id, const json& params);
+    void handleRename(const json& id, const json& params);
     void handleSignatureHelp(const json& id, const json& params);
     void handleSemanticTokensFull(const json& id, const json& params);
+    void handleInlayHint(const json& id, const json& params);
+    void handleDocumentSymbol(const json& id, const json& params);
+    void handleWorkspaceSymbol(const json& id, const json& params);
 
     // Utility methods
     void sendResponse(const json& id, const json& result);
@@ -69,8 +78,12 @@ private:
     std::unique_ptr<CodeLensHandler> codeLensHandler_;
     std::unique_ptr<FormattingHandler> formattingHandler_;
     std::unique_ptr<ReferencesHandler> referencesHandler_;
+    std::unique_ptr<RenameHandler> renameHandler_;
     std::unique_ptr<SignatureHelpHandler> signatureHelpHandler_;
     std::unique_ptr<SemanticTokensHandler> semanticTokensHandler_;
+    std::unique_ptr<InlayHintHandler> inlayHintHandler_;
+    std::unique_ptr<DocumentSymbolHandler> documentSymbolHandler_;
+    std::unique_ptr<WorkspaceSymbolHandler> workspaceSymbolHandler_;
     std::shared_ptr<ProjectConfigProvider> projectConfig_;
 
     // MYT-47 — workspace-wide symbol index used by the missing-import

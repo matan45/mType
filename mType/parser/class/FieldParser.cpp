@@ -101,7 +101,7 @@ namespace parser
         tokenStream.expect(TokenType::SEMICOLON);
 
         return std::make_unique<FieldNode>(fieldName, fieldGenericType, std::move(initialValue),
-                                           isStatic, isFinal, accessModifier);
+                                           isStatic, isFinal, accessModifier, fieldLocation);
     }
 
     std::unique_ptr<ASTNode> FieldParser::parseInitialValue()
