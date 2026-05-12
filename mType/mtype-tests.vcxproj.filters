@@ -9145,6 +9145,12 @@
     <None Include="tests\testFiles\integration\pass\myt302JitBoolAliasTicketRepro.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\myt302JitBoolAliasVoidCall.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt302JitBoolAliasVoidCall.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\namespaceClassNameCollisions.expected">
       <Filter>testFiles\integration\pass</Filter>
     </None>

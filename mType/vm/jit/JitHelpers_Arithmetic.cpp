@@ -15,6 +15,7 @@
 #include "../../value/StringPool.hpp"
 #include <vector>
 #include <sstream>
+#include <variant>
 
 namespace vm::jit
 {
@@ -288,6 +289,9 @@ namespace vm::jit
         if (ctx->pendingException)
             return;
 
+        ctx->hasReturnValue = false;
+        ctx->returnValue = std::monostate{};
+
         try
         {
             const std::string& funcName = ctx->program->getConstantPool().getString(nameIndex);
@@ -328,6 +332,9 @@ namespace vm::jit
     {
         if (ctx->pendingException)
             return;
+
+        ctx->hasReturnValue = false;
+        ctx->returnValue = std::monostate{};
 
         try
         {
@@ -439,6 +446,9 @@ namespace vm::jit
     {
         if (ctx->pendingException)
             return;
+
+        ctx->hasReturnValue = false;
+        ctx->returnValue = std::monostate{};
 
         try
         {

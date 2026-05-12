@@ -711,5 +711,7 @@ namespace tests::testSuite
         // sparsely-populated / large-array shape also gets caught.
         addOutputVerificationTest("MYT-302 JIT bool alias ticket repro",
                         passPath + "myt302JitBoolAliasTicketRepro.mt");
+        addOutputVerificationTest("MYT-302 JIT bool alias void call",
+                        passPath + "myt302JitBoolAliasVoidCall.mt");
     }
 }
