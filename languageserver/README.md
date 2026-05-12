@@ -209,7 +209,8 @@ Then send LSP messages via stdin. For debugging, check your editor's LSP client 
 | `textDocument/formatting` | 🚧 Planned | Code formatting |
 | `textDocument/semanticTokens` | 🚧 Planned | Semantic highlighting |
 | `textDocument/codeAction` | 🚧 Planned | Quick fixes |
-| `textDocument/rename` | 🚧 Planned | Symbol rename |
+| `textDocument/prepareRename` | ✅ Implemented | Validate rename target (MYT-294) |
+| `textDocument/rename` | ✅ Implemented | Symbol rename — boundary-safe token-driven edits; rejects keywords, builtins, literals, import paths, ambiguous symbols (MYT-294) |
 
 ## Architecture
 

@@ -41,6 +41,11 @@ namespace mtype::lsp
         formattingHandler_ = std::make_unique<FormattingHandler>();
         referencesHandler_ = std::make_unique<ReferencesHandler>(
             documentManager_.get(), workspaceIndex_);
+        // MYT-294 — rename shares the workspace index with completion and
+        // references so cross-file rewrites see the same symbol pool that
+        // drives Find References.
+        renameHandler_ = std::make_unique<RenameHandler>(
+            documentManager_.get(), workspaceIndex_);
         signatureHelpHandler_ = std::make_unique<SignatureHelpHandler>(documentManager_.get());
         semanticTokensHandler_ = std::make_unique<SemanticTokensHandler>(documentManager_.get());
 
@@ -166,6 +171,14 @@ namespace mtype::lsp
         {
             handleReferences(id, params);
         }
+        else if (method == "textDocument/prepareRename")
+        {
+            handlePrepareRename(id, params);
+        }
+        else if (method == "textDocument/rename")
+        {
+            handleRename(id, params);
+        }
         else if (method == "textDocument/signatureHelp")
         {
             handleSignatureHelp(id, params);
@@ -267,6 +280,15 @@ namespace mtype::lsp
             {"documentFormattingProvider", true},
             {"documentRangeFormattingProvider", false}, // TODO: Implement
             {"referencesProvider", true},
+            // MYT-294 — `prepareProvider` lets clients call
+            // `textDocument/prepareRename` to validate the cursor before
+            // popping the rename UI; we return null when the symbol is
+            // not renameable so the editor can show a localized error.
+            {
+                "renameProvider", {
+                    {"prepareProvider", true}
+                }
+            },
             {
                 "signatureHelpProvider", {
                     {"triggerCharacters", json::array({"(", ","})}
@@ -588,6 +610,49 @@ namespace mtype::lsp
         }
 
         sendResponse(id, result);
+    }
+
+    void MTypeLanguageServer::handlePrepareRename(const json& id, const json& params)
+    {
+        // MYT-294 — `textDocument/prepareRename` validates whether the
+        // cursor is on a renameable symbol. When it isn't, the LSP spec
+        // accepts a null result (the client suppresses its rename UI);
+        // we additionally send a -32602 with a message so editors that
+        // surface server-side errors can show "why not". Returning a
+        // Range tells the client the exact identifier span to highlight.
+        std::string uri = params["textDocument"]["uri"];
+        Position position = params["position"];
+
+        auto result = renameHandler_->prepareRename(uri, position);
+        if (!result.ok)
+        {
+            sendError(id, -32602, result.error);
+            return;
+        }
+        sendResponse(id, json{
+            {"start", result.range.start},
+            {"end", result.range.end}
+        });
+    }
+
+    void MTypeLanguageServer::handleRename(const json& id, const json& params)
+    {
+        // MYT-294 — `textDocument/rename` returns a WorkspaceEdit whose
+        // `changes` map is grouped by URI. Each edit's range comes from
+        // the lexer's token stream so we never touch comments, string
+        // literals, import paths, or any other non-identifier source
+        // text.
+        std::string uri = params["textDocument"]["uri"];
+        Position position = params["position"];
+        std::string newName = params.value("newName", "");
+
+        auto result = renameHandler_->rename(uri, position, newName);
+        if (!result.ok)
+        {
+            sendError(id, -32602, result.error);
+            return;
+        }
+        sendResponse(id, result.edit.toJson());
     }
 
     void MTypeLanguageServer::handleSignatureHelp(const json& id, const json& params)

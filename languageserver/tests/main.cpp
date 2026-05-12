@@ -19,6 +19,7 @@
 #include "DiagnosticsHandlerTestSuite.hpp"
 #include "CodeLensHandlerTestSuite.hpp"
 #include "ReferencesHandlerTestSuite.hpp"
+#include "RenameHandlerTestSuite.hpp"
 #include "SignatureHelpHandlerTestSuite.hpp"
 #include "SemanticTokensHandlerTestSuite.hpp"
 
@@ -80,6 +81,7 @@ int main(int argc, char* argv[]) {
     RUN_SUITE("diagnostics", "DiagnosticsHandler Tests", DiagnosticsHandlerTestSuite)
     RUN_SUITE("codelens", "CodeLensHandler Tests", CodeLensHandlerTestSuite)
     RUN_SUITE("references", "ReferencesHandler Tests", ReferencesHandlerTestSuite)
+    RUN_SUITE("rename", "RenameHandler Tests", RenameHandlerTestSuite)
     RUN_SUITE("signaturehelp", "SignatureHelpHandler Tests", SignatureHelpHandlerTestSuite)
     RUN_SUITE("semantictokens", "SemanticTokensHandler Tests", SemanticTokensHandlerTestSuite)
 

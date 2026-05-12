@@ -72,6 +72,15 @@ const Document* DocumentManager::getDocument(const std::string& uri) const {
     return it != documents_.end() ? it->second.get() : nullptr;
 }
 
+std::vector<std::string> DocumentManager::getAllOpenUris() const {
+    std::vector<std::string> uris;
+    uris.reserve(documents_.size());
+    for (const auto& [uri, _] : documents_) {
+        uris.push_back(uri);
+    }
+    return uris;
+}
+
 void DocumentManager::parseDocument(const std::string& uri) {
     auto doc = getDocument(uri);
     if (!doc) {
