@@ -1,0 +1,7 @@
+Testing object array element alias writes
+Direct write before alias: 77
+Big alias write: 99
+Multiple aliases: 2
+Direct write after alias: 88
+Small alias write: 77
+Object array element alias write test completed

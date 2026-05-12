@@ -1378,6 +1378,12 @@
     <None Include="tests\testFiles\arrays\pass\arrayEarlyTermination.mt">
       <Filter>testFiles\arrays\pass</Filter>
     </None>
+    <None Include="tests\testFiles\arrays\pass\arrayElementAliasWrite.expected">
+      <Filter>testFiles\arrays\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\arrayElementAliasWrite.mt">
+      <Filter>testFiles\arrays\pass</Filter>
+    </None>
     <None Include="tests\testFiles\arrays\pass\arrayEquality.expected">
       <Filter>testFiles\arrays\pass</Filter>
     </None>
@@ -9119,6 +9125,30 @@
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\myt292JitBoolAfterCall.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt300JitFloatAndChain.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt300JitFloatAndChain.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt302JitBoolAliasSnapshot.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt302JitBoolAliasSnapshot.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt302JitBoolAliasTicketRepro.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt302JitBoolAliasTicketRepro.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt302JitBoolAliasVoidCall.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt302JitBoolAliasVoidCall.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\namespaceClassNameCollisions.expected">

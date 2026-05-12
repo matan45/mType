@@ -27,7 +27,7 @@
     "syntax highlighting",
     "code completion"
   ],
-  "main": "./out/extension.js",
+  "main": "./dist/extension.js",
   "activationEvents": [
     "onLanguage:mtype",
     "onLanguage:mtype-compiled",
@@ -83,7 +83,9 @@
       {
         "type": "mtype",
         "label": "mType Debug",
-        "languages": ["mtype"],
+        "languages": [
+          "mtype"
+        ],
         "exceptionBreakpointFilters": [
           {
             "filter": "all",
@@ -100,7 +102,9 @@
         ],
         "configurationAttributes": {
           "launch": {
-            "required": ["program"],
+            "required": [
+              "program"
+            ],
             "properties": {
               "program": {
                 "type": "string",
@@ -255,12 +259,15 @@
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "compile": "npm run check-types && npm run bundle",
+    "check-types": "tsc -p ./ --noEmit",
+    "bundle": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify",
+    "watch": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch"
   },
   "devDependencies": {
     "@types/node": "^16.x",
     "@types/vscode": "^1.60.0",
+    "esbuild": "^0.28.0",
     "typescript": "^4.4.4"
   },
   "dependencies": {

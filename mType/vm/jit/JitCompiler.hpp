@@ -110,12 +110,21 @@ namespace vm::jit
                         const bytecode::BytecodeProgram& program) const;
 
         // Returns true if every opcode in [start, end] is JIT-supported. On
-        // failure, *outOpcode (if non-null) gets the offending opcode byte.
+        // failure, *outOpcode (if non-null) gets the offending opcode.
         bool canCompileLoopOSR(size_t loopStartOffset, size_t loopEndOffset,
                                const bytecode::BytecodeProgram& program,
-                               uint8_t* outOpcode = nullptr) const;
+                               bytecode::OpCode* outOpcode = nullptr) const;
 
         static const std::unordered_set<uint8_t>& getSupportedOpcodes();
+
+        // MYT-302 follow-up: counts how many times the for-loop-condition
+        // safety guard in hasForwardConditionalCallRegion fired during
+        // canCompileLoopOSR scans. The guard pattern-matches the bytecode
+        // compiler's lowering of `for` condition exits (JUMP_IF_FALSE+JUMP);
+        // if the compiler ever changes that lowering the guard silently
+        // becomes a no-op. Tests / --jit-stats can read this counter to
+        // detect regressions where the guard stops firing.
+        static uint64_t getLoopConditionGuardHits();
 
         size_t compileCount = 0;
         size_t bailoutCount = 0;

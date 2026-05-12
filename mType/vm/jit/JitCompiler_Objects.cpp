@@ -309,15 +309,37 @@ namespace vm::jit
         cc.movdqu(tmp, xmmword_ptr(srcAddr, 0));
         cc.movdqu(xmmword_ptr(destAddr, 0), tmp);
 
-        // MYT-252: mirror primitive variant payload (byte 8 onwards) to
+        // MYT-252 / MYT-302: mirror primitive variant payload to
         // stackBase[receiverIdx] so primitive consumers see the unboxed
         // value. Match the slow path's mirror via jit_unbox_int. The
-        // tag-check at step 4 already restricted to INT/FLOAT/BOOL, so
-        // the variant payload is a raw int64 / double at offset 8.
-        // Skip jit_unbox_int's helper-call cost — we know the layout:
-        // qword_ptr(srcAddr, 8) is the primitive payload.
+        // tag-check at step 4 already restricted to INT/FLOAT/BOOL.
+        //   - INT/FLOAT (tags 0/1): payload is a raw int64 / double at
+        //     offset 8 — read 8 bytes.
+        //   - BOOL (tag 2): payload is a 1-byte bool at offset 8; bytes
+        //     9-15 are uninitialized union memory that may carry garbage
+        //     from a previous variant occupant of the same slot (common
+        //     for SoA snapshots whose backing ObjectInstance came from
+        //     ObjectInstancePool and last held a different alternative).
+        //     Pre-MYT-302 this site read 8 bytes unconditionally; the
+        //     high 7 bytes of garbage made stackBase non-zero, so
+        //     JUMP_IF_FALSE consistently took the `true` branch after
+        //     OSR tier-up promoted the IC and this inline path engaged.
+        // Branch on the tag and zero-extend the byte for BOOL; the 8-byte
+        // read is correct for INT and FLOAT.
+        Label readBool = cc.new_label();
+        Label payloadDone = cc.new_label();
         Gp primPayload = cc.new_gp64();
+        Gp tagCheck = cc.new_gp32();
+        cc.movzx(tagCheck, byte_ptr(srcAddr, 0));
+        cc.cmp(tagCheck, static_cast<int32_t>(value::ValueType::BOOL));
+        cc.je(readBool);
         cc.mov(primPayload, qword_ptr(srcAddr, 8));
+        cc.jmp(payloadDone);
+        cc.bind(readBool);
+        // movzx r32, byte: the mov-to-r32 implicitly zeros the upper 32
+        // bits of the underlying 64-bit register, giving a clean 0 or 1.
+        cc.movzx(primPayload.r32(), byte_ptr(srcAddr, 8));
+        cc.bind(payloadDone);
         cc.mov(Mem(s.stackBase, receiverIdx * 8), primPayload);
 
         // 7. Bump the inline-hit counter (address baked at compile time).

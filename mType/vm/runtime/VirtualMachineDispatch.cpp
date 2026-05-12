@@ -659,6 +659,8 @@ namespace vm::runtime
             break;
         case OpCode::ARRAY_GET: arrayExecutor->handleArrayGet();
             break;
+        case OpCode::ARRAY_GET_ALIAS: arrayExecutor->handleArrayGetAlias();
+            break;
         case OpCode::ARRAY_SET: arrayExecutor->handleArraySet();
             break;
         case OpCode::ARRAY_LENGTH: arrayExecutor->handleArrayLength();

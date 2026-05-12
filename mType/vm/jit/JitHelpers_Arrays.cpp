@@ -106,6 +106,27 @@ namespace vm::jit
         throw errors::RuntimeException("ARRAY_GET on non-array value");
     }
 
+    // MYT-303: alias-creating variant of jit_array_get. The element is about
+    // to be stored into a local (peephole rewrites ARRAY_GET → ARRAY_GET_ALIAS
+    // before STORE_LOCAL), so SoA-object arrays must demote to heterogeneous
+    // storage to give the local shared reference identity with the array slot.
+    // For non-SoA arrays this is a single null-check on getObjectArrayData(),
+    // matching the interpreter's handleArrayGetAlias path.
+    void jit_array_get_alias(value::Value* dest, const value::Value* array,
+                              int64_t index)
+    {
+        if (value::isNativeArray(*array))
+        {
+            const auto& arr = value::asNativeArray(*array);
+            if (arr->getObjectArrayData())
+                arr->materializeObjectStorageForAlias();
+            *dest = arr->getUnchecked(index);
+            return;
+        }
+        // Multi-arrays have no SoA path; delegate to the non-alias helper.
+        jit_array_get(dest, array, index);
+    }
+
     void jit_array_set(const value::Value* array, int64_t index,
                         const value::Value* newValue)
     {

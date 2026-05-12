@@ -201,7 +201,11 @@ namespace vm::bytecode
         // === Array Operations (85-94) ===
         NEW_ARRAY,          // Create new array (operand: size on stack)
         NEW_ARRAY_MULTI,    // Create multi-dimensional array
-        ARRAY_GET,          // Get array element at index
+        ARRAY_GET,          // Get array element at index (non-materializing; transient consumer)
+        ARRAY_GET_ALIAS,    // MYT-303: Get arr[i] and convert SoA→heterogeneous so the
+                            // returned Value can be aliased into a local (handles
+                            // `Box a = arr[i]; arr[i].x = N` correctly). Peephole-
+                            // rewritten from ARRAY_GET when followed by STORE_LOCAL.
         ARRAY_SET,          // Set array element at index
         ARRAY_GET_INT,      // Type-specialized array get (int elements)
         ARRAY_SET_INT,      // Type-specialized array set (int elements)
@@ -556,6 +560,7 @@ namespace vm::bytecode
             case OpCode::NEW_ARRAY: return "NEW_ARRAY";
             case OpCode::NEW_ARRAY_MULTI: return "NEW_ARRAY_MULTI";
             case OpCode::ARRAY_GET: return "ARRAY_GET";
+            case OpCode::ARRAY_GET_ALIAS: return "ARRAY_GET_ALIAS";
             case OpCode::ARRAY_SET: return "ARRAY_SET";
             case OpCode::ARRAY_GET_INT: return "ARRAY_GET_INT";
             case OpCode::ARRAY_SET_INT: return "ARRAY_SET_INT";

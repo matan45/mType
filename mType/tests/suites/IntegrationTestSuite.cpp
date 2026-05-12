@@ -692,5 +692,26 @@ namespace tests::testSuite
                         passPath + "jitOrChainInLoop_pass.mt");
         addOutputVerificationTest("MYT-291 code-editor JSON LSP startup",
                         passPath + "jitJsonLspStartup_pass.mt");
+
+        // MYT-300 regression: chained float `&&` misbehaves under JIT.
+        // Pins two patterns from rts_step2.mt — selection-store (bool field
+        // on SoA object array) and edge-pan guard with `(float)int` cast.
+        addOutputVerificationTest("MYT-300 JIT chained float AND",
+                        passPath + "myt300JitFloatAndChain.mt");
+
+        // MYT-302 regression: SoA bool alias-snapshot under JIT must not
+        // silently exit. Snapshot pattern `Unit u = arr[i]` (materializeInstance)
+        // followed by `if (u.bool_field)` in a hot OSR loop — distinct from
+        // MYT-300 which covered the fused `arr[i].field` direct path.
+        addOutputVerificationTest("MYT-302 JIT SoA bool alias snapshot",
+                        passPath + "myt302JitBoolAliasSnapshot.mt");
+        // MYT-302 ticket-repro variant: verbatim script from the bug report
+        // (512-element array, 20 initialized units all selected=false). Pins
+        // the exact pattern users hit so a regression that breaks only the
+        // sparsely-populated / large-array shape also gets caught.
+        addOutputVerificationTest("MYT-302 JIT bool alias ticket repro",
+                        passPath + "myt302JitBoolAliasTicketRepro.mt");
+        addOutputVerificationTest("MYT-302 JIT bool alias void call",
+                        passPath + "myt302JitBoolAliasVoidCall.mt");
     }
 }

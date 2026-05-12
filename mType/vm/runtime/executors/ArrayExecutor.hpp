@@ -29,6 +29,11 @@ namespace vm::runtime
         void handleNewArray(const bytecode::BytecodeProgram::Instruction& instr);
         void handleNewArrayMulti(const bytecode::BytecodeProgram::Instruction& instr);
         void handleArrayGet();
+        // MYT-303: arr[i] result is about to be stored into a local (aliased).
+        // Demotes SoA→heterogeneous so the local's reference identity is
+        // shared with the array slot. Emitted by the peephole pass when an
+        // ARRAY_GET is followed by STORE_LOCAL.
+        void handleArrayGetAlias();
         void handleArraySet();
         void handleArrayLength();
 
@@ -75,7 +80,9 @@ namespace vm::runtime
 
         // Helper methods for handleArrayGet
         // Take shared_ptr by const-ref to avoid per-call refcount ops (MYT-200 trap).
-        void getNativeArrayElement(const std::shared_ptr<value::NativeArray>& array, int64_t index);
+        // alias=true triggers the SoA→heterogeneous demote so the returned
+        // Value can be safely aliased into a local (MYT-303).
+        void getNativeArrayElement(const std::shared_ptr<value::NativeArray>& array, int64_t index, bool alias);
         void getFlatMultiArrayElement(const std::shared_ptr<value::FlatMultiArray>& flatArray, int64_t index);
         void getSparseMultiArrayElement(const std::shared_ptr<value::SparseMultiArray>& sparseArray, int64_t index);
 

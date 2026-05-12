@@ -12,6 +12,18 @@ namespace vm::jit
     using namespace asmjit::x86;
     using OpCode = bytecode::OpCode;
 
+    namespace
+    {
+        // MYT-302 follow-up telemetry: see JitCompiler::getLoopConditionGuardHits.
+        // Plain uint64_t — JIT is single-threaded.
+        uint64_t g_loopConditionGuardHits = 0;
+    }
+
+    uint64_t JitCompiler::getLoopConditionGuardHits()
+    {
+        return g_loopConditionGuardHits;
+    }
+
     JitCompiler::JitCompiler() {}
 
     static bool hasUnsafeOrPopLoopShape(
@@ -68,6 +80,99 @@ namespace vm::jit
         return hasLoopStart && hasJumpBack && returnValueCount >= 3;
     }
 
+    static bool isCallLikeOpcode(OpCode opcode)
+    {
+        switch (opcode)
+        {
+            case OpCode::CALL:
+            case OpCode::CALL_FAST:
+            case OpCode::CALL_STATIC:
+            case OpCode::CALL_METHOD:
+            case OpCode::CALL_METHOD_CACHED:
+            case OpCode::CALL_METHOD_POLY_CACHED:
+            case OpCode::LOAD_LOCAL_CALL_CACHED:
+            case OpCode::LOAD_LOCAL_CALL_POLY_CACHED:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    static bool isFieldReadOpcode(OpCode opcode)
+    {
+        switch (opcode)
+        {
+            case OpCode::GET_FIELD:
+            case OpCode::GET_FIELD_CACHED:
+            case OpCode::GET_FIELD_TYPED:
+            case OpCode::INLINE_GET_FIELD:
+            case OpCode::LOAD_GET_FIELD:
+            case OpCode::LOAD_LOCAL_GET_FIELD_CACHED:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    static bool hasForwardConditionalCallRegion(
+        const bytecode::BytecodeProgram& program,
+        size_t startOffset,
+        size_t endOffsetInclusive,
+        OpCode* outOpcode)
+    {
+        for (size_t ip = startOffset; ip <= endOffsetInclusive; ++ip)
+        {
+            const auto& instr = program.getInstruction(ip);
+            switch (instr.opcode)
+            {
+                case OpCode::JUMP_IF_FALSE:
+                case OpCode::JUMP_IF_TRUE:
+                {
+                    if (instr.operands.empty()) break;
+                    const size_t target = static_cast<size_t>(instr.operands[0]);
+                    if (target <= ip + 1 || target > endOffsetInclusive + 1)
+                        break;
+                    // `for` lowers its loop condition as:
+                    //   JUMP_IF_FALSE exit; JUMP body; increment; JUMP_BACK;
+                    // Scanning that false-edge would classify the whole loop
+                    // body as a conditional region and block every hot loop
+                    // with a call in it. The unsafe MYT-302 shape is a normal
+                    // in-body branch, not the synthetic loop-condition jump.
+                    if (ip + 1 <= endOffsetInclusive &&
+                        program.getInstruction(ip + 1).opcode == OpCode::JUMP)
+                    {
+                        // Counter so a future refactor of for-loop lowering
+                        // that breaks this pattern-match surfaces in tests
+                        // (the guard would silently become a no-op otherwise).
+                        ++g_loopConditionGuardHits;
+                        break;
+                    }
+                    if (ip == startOffset ||
+                        !isFieldReadOpcode(program.getInstruction(ip - 1).opcode))
+                        break;
+
+                    for (size_t bodyIp = ip + 1;
+                         bodyIp < target && bodyIp <= endOffsetInclusive;
+                         ++bodyIp)
+                    {
+                        const auto& bodyInstr = program.getInstruction(bodyIp);
+                        if (isCallLikeOpcode(bodyInstr.opcode))
+                        {
+                            if (outOpcode)
+                                *outOpcode = bodyInstr.opcode;
+                            return true;
+                        }
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+
+        return false;
+    }
+
     bool JitCompiler::canCompile(const bytecode::BytecodeProgram::FunctionMetadata& meta,
                                   const bytecode::BytecodeProgram& program) const
     {
@@ -116,13 +221,12 @@ namespace vm::jit
 
     bool JitCompiler::canCompileLoopOSR(size_t loopStartOffset, size_t loopEndOffset,
                                          const bytecode::BytecodeProgram& program,
-                                         uint8_t* outOpcode) const
+                                         OpCode* outOpcode) const
     {
         const auto& supported = getSupportedOpcodes();
         for (size_t ip = loopStartOffset; ip <= loopEndOffset; ++ip)
         {
             const auto& instr = program.getInstruction(ip);
-            uint8_t op = static_cast<uint8_t>(instr.opcode);
             // MYT-259: OSR-emitted RETURN/RETURN_VALUE now push the return
             // value onto the interpreter's operand stack and resume at the
             // RETURN_VALUE opcode itself (see emitReturnValueOp), so loops
@@ -136,15 +240,25 @@ namespace vm::jit
             // opcodes the interpreter dispatches on resume).
             if (instr.opcode == OpCode::CREATE_PROMISE_RETURN_VALUE)
             {
-                if (outOpcode) *outOpcode = op;
+                if (outOpcode) *outOpcode = instr.opcode;
                 return false;
             }
-            if (supported.find(op) == supported.end())
+            if (supported.find(static_cast<uint8_t>(instr.opcode)) == supported.end())
             {
-                if (outOpcode) *outOpcode = op;
+                if (outOpcode) *outOpcode = instr.opcode;
                 return false;
             }
         }
+        // MYT-302: OSR's linear stack/boxed-slot model is unsafe for a bool
+        // field-read condition whose forward branch contains a helper call.
+        // The ticket repro has `if (u.selected) { consume(u.x); ... }`;
+        // selected is always false, but emitting the skipped call region still
+        // corrupts OSR state on Windows and exits silently. Keep only this
+        // field-condition shape in the VM until OSR grows label-local stack-
+        // state merge support.
+        if (hasForwardConditionalCallRegion(program, loopStartOffset, loopEndOffset,
+                                            outOpcode))
+            return false;
         return true;
     }
 

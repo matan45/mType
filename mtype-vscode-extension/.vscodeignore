@@ -9,5 +9,17 @@ vsc-extension-quickstart.md
 test-files/**
 .git/**
 mtype-language-support-1.0.0.vsix
+
+# Source — runtime uses the esbuild bundle in dist/
 src/**
+out/**
 tsconfig.json
+
+# Dependencies are bundled into dist/extension.js by esbuild
+node_modules/**
+package-lock.json
+
+# Build / lint configs not needed in the VSIX
+.eslintrc*
+.prettierrc*
+*.tsbuildinfo
