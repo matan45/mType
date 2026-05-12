@@ -123,7 +123,7 @@ jobs:
           Copy-Item bin/mtype-language-server/Release/x64/mtype-language-server.exe $stage/
           Copy-Item mType/tests/testFiles/lib "$stage/lib" -Recurse
           Copy-Item docs "$stage/docs" -Recurse
-          Copy-Item README.md,LICENSE,CHANGELOG.md,RELEASE.md $stage/
+          Copy-Item README.md,LICENSE,CHANGELOG.md $stage/
           Compress-Archive -Path "$stage/*" -DestinationPath "dist/${{ matrix.archive }}" -Force
 
       - name: Stage package on Unix
@@ -137,7 +137,7 @@ jobs:
           cp bin/mtype-language-server/Release/x64/mtype-language-server "$stage/"
           cp -R mType/tests/testFiles/lib "$stage/lib"
           cp -R docs "$stage/docs"
-          cp README.md LICENSE CHANGELOG.md RELEASE.md "$stage/"
+          cp README.md LICENSE CHANGELOG.md "$stage/"
           tar -czf "dist/${{ matrix.archive }}" -C dist "mType-${{ github.ref_name }}-${{ matrix.name }}"
 
       - name: Upload native package
@@ -209,5 +209,5 @@ jobs:
           body: |
             mType ${{ github.ref_name }} release.
 
-            See CHANGELOG.md and RELEASE.md for release notes and validation steps.
+            See CHANGELOG.md for release notes.
           files: release-assets/*
