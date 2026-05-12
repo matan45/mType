@@ -50,6 +50,10 @@ namespace mtype::lsp
         semanticTokensHandler_ = std::make_unique<SemanticTokensHandler>(documentManager_.get());
         inlayHintHandler_ = std::make_unique<InlayHintHandler>(documentManager_.get());
         documentSymbolHandler_ = std::make_unique<DocumentSymbolHandler>(documentManager_.get());
+        // MYT-297 — workspace/symbol shares the same workspace index
+        // populated at initialise so cross-file symbol search sees the
+        // same pool as completion, references, and rename.
+        workspaceSymbolHandler_ = std::make_unique<WorkspaceSymbolHandler>(workspaceIndex_);
 
         // Set up diagnostics publisher
         diagnosticsHandler_->setPublisher(
@@ -197,6 +201,10 @@ namespace mtype::lsp
         {
             handleDocumentSymbol(id, params);
         }
+        else if (method == "workspace/symbol")
+        {
+            handleWorkspaceSymbol(id, params);
+        }
         else
         {
             sendError(id, -32601, "Method not found: " + method);
@@ -323,7 +331,12 @@ namespace mtype::lsp
             // DocumentSymbol[] is preferred over the flat
             // SymbolInformation[] response, which is what modern clients
             // (VS Code Outline view, breadcrumbs) consume.
-            {"documentSymbolProvider", true}
+            {"documentSymbolProvider", true},
+            // MYT-297 — workspace-wide symbol search served by the
+            // existing MYT-47 workspace symbol index. Boolean form (no
+            // workspaceSymbol/resolve) — responses already carry full
+            // locations.
+            {"workspaceSymbolProvider", true}
         };
 
         json result = {
@@ -736,6 +749,33 @@ namespace mtype::lsp
         try {
             std::string uri = params["textDocument"]["uri"];
             auto symbols = documentSymbolHandler_->handleDocumentSymbol(uri);
+
+            json result = json::array();
+            for (const auto& sym : symbols) {
+                result.push_back(sym.toJson());
+            }
+            sendResponse(id, result);
+        } catch (const std::exception&) {
+            sendResponse(id, json::array());
+        }
+    }
+
+    void MTypeLanguageServer::handleWorkspaceSymbol(const json& id, const json& params)
+    {
+        // MYT-297 — `workspace/symbol` returns a flat SymbolInformation[]
+        // of top-level declarations matching `query`. Empty query is
+        // legal per spec and returns the full (capped) symbol set.
+        // Same defensive shape as handleDocumentSymbol: extract `query`
+        // tolerantly (missing or non-string → empty) and serialise an
+        // empty array on any exception so a malformed request can't
+        // bring down the LSP loop.
+        try {
+            std::string query;
+            if (params.contains("query") && params["query"].is_string()) {
+                query = params["query"].get<std::string>();
+            }
+
+            auto symbols = workspaceSymbolHandler_->handleWorkspaceSymbol(query);
 
             json result = json::array();
             for (const auto& sym : symbols) {

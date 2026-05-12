@@ -480,4 +480,24 @@ struct DocumentSymbol {
     }
 };
 
+// MYT-297 — Flat workspace/symbol response entry (LSP SymbolInformation).
+// We stay on the legacy SymbolInformation[] shape rather than the 3.17
+// WorkspaceSymbol[] form so the response is self-contained — no
+// workspaceSymbol/resolve round-trip needed — and works in every client.
+// `containerName` is omitted: the workspace index only stores top-level
+// declarations, so there is nothing to contain.
+struct SymbolInformation {
+    std::string name;
+    SymbolKind kind;
+    Location location;
+
+    json toJson() const {
+        return json{
+            {"name", name},
+            {"kind", static_cast<int>(kind)},
+            {"location", location.toJson()}
+        };
+    }
+};
+
 } // namespace mtype::lsp

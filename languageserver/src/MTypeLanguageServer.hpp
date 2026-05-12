@@ -17,6 +17,7 @@
 #include "handlers/ReferencesHandler.hpp"
 #include "handlers/InlayHintHandler.hpp"
 #include "handlers/DocumentSymbolHandler.hpp"
+#include "handlers/WorkspaceSymbolHandler.hpp"
 #include "handlers/RenameHandler.hpp"
 #include "handlers/SignatureHelpHandler.hpp"
 #include "handlers/SemanticTokensHandler.hpp"
@@ -59,6 +60,7 @@ private:
     void handleSemanticTokensFull(const json& id, const json& params);
     void handleInlayHint(const json& id, const json& params);
     void handleDocumentSymbol(const json& id, const json& params);
+    void handleWorkspaceSymbol(const json& id, const json& params);
 
     // Utility methods
     void sendResponse(const json& id, const json& result);
@@ -81,6 +83,7 @@ private:
     std::unique_ptr<SemanticTokensHandler> semanticTokensHandler_;
     std::unique_ptr<InlayHintHandler> inlayHintHandler_;
     std::unique_ptr<DocumentSymbolHandler> documentSymbolHandler_;
+    std::unique_ptr<WorkspaceSymbolHandler> workspaceSymbolHandler_;
     std::shared_ptr<ProjectConfigProvider> projectConfig_;
 
     // MYT-47 — workspace-wide symbol index used by the missing-import
