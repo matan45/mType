@@ -43,6 +43,8 @@ project "mtpm"
     filter "system:linux or system:macosx"
         links { "pthread" }
 
+    filter {}
+
     files
     {
         "src/**.hpp",
