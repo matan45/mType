@@ -488,11 +488,12 @@ namespace vm::jit
         if (codeCache.contains(osrKey))
             return true;
 
-        uint8_t offendingOpcode = 0;
+        OpCode offendingOpcode{};
         if (!canCompileLoopOSR(loopStartOffset, loopEndOffset, program, &offendingOpcode))
         {
             bailoutCount++;
-            reportBailout(OSRBailoutReason::UNSUPPORTED_OPCODE, offendingOpcode);
+            reportBailout(OSRBailoutReason::UNSUPPORTED_OPCODE,
+                          static_cast<uint8_t>(offendingOpcode));
             return false;
         }
 
