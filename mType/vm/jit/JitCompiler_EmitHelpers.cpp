@@ -141,6 +141,7 @@ namespace vm::jit
                 case OpCode::LOAD_LOCAL_GET_FIELD_CACHED:
                 case OpCode::NEW_ARRAY:   case OpCode::NEW_ARRAY_MULTI:
                 case OpCode::ARRAY_GET:
+                case OpCode::ARRAY_GET_ALIAS:
                 case OpCode::ARRAY_SET:   case OpCode::ARRAY_LENGTH:
                 case OpCode::ARRAY_GET_INT_LOCAL: case OpCode::ARRAY_SET_INT_LOCAL:
                 case OpCode::ARRAY_LENGTH_LOCAL:

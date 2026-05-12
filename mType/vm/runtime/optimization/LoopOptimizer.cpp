@@ -208,6 +208,7 @@ namespace vm::runtime::optimization
             // Conservative: don't hoist array access, field access, or calls
             // (they may have side effects or depend on mutable state)
             case bytecode::OpCode::ARRAY_GET:
+            case bytecode::OpCode::ARRAY_GET_ALIAS:
             case bytecode::OpCode::ARRAY_LENGTH:
             case bytecode::OpCode::GET_FIELD:
             case bytecode::OpCode::CALL:

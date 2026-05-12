@@ -377,6 +377,24 @@ namespace
                         continue;
                     }
                 }
+
+                // Pattern 4 (MYT-303): ARRAY_GET, STORE_LOCAL → ARRAY_GET_ALIAS, STORE_LOCAL
+                // The element is being aliased into a named local. Tell the
+                // executor to demote SoA→heterogeneous so the local shares
+                // reference identity with the array slot. Other ARRAY_GET
+                // consumers (function-arg push, expression intermediates)
+                // keep SoA storage and pay only the per-element snapshot cost.
+                if (instr.opcode == OpCode::ARRAY_GET && ip + 1 < end)
+                {
+                    const auto& next = program.getInstruction(ip + 1);
+                    if (next.opcode == OpCode::STORE_LOCAL)
+                    {
+                        auto& mGet = program.getMutableInstruction(ip);
+                        mGet.opcode = OpCode::ARRAY_GET_ALIAS;
+                        ip++;
+                        continue;
+                    }
+                }
             }
         }
     }

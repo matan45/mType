@@ -136,14 +136,16 @@ namespace vm::runtime
         return makeJagged(0);
     }
 
-    void ArrayExecutor::getNativeArrayElement(const std::shared_ptr<value::NativeArray>& array, int64_t index) {
+    void ArrayExecutor::getNativeArrayElement(const std::shared_ptr<value::NativeArray>& array, int64_t index, bool alias) {
         // Bounds check (VM does bounds check once)
         utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), array->size(), "Array");
 
-        // A full object element load can escape into a local alias. SoA object
-        // storage materializes snapshots, so convert to normal object-reference
-        // storage before returning arr[i] as a value.
-        if (array->getObjectArrayData()) {
+        // MYT-303: a full object element load only escapes into a named local
+        // when the consumer stores it (peephole rewrites ARRAY_GET → ARRAY_GET_ALIAS
+        // for the STORE_LOCAL case, which sets alias=true here). For transient
+        // consumers (function args, return values, expression intermediates)
+        // we keep SoA storage and let materializeInstance hand out a snapshot.
+        if (alias && array->getObjectArrayData()) {
             array->materializeObjectStorageForAlias();
         }
 
@@ -201,7 +203,7 @@ namespace vm::runtime
         // Bind by const-ref: asNativeArray() returns `const shared_ptr<>&` so we
         // skip the retain/release pair an `auto` (copy) would impose per call.
         if (value::isNativeArray(arrayVal)) {
-            getNativeArrayElement(value::asNativeArray(arrayVal), index);
+            getNativeArrayElement(value::asNativeArray(arrayVal), index, /*alias=*/false);
             return;
         }
 
@@ -220,6 +222,37 @@ namespace vm::runtime
         utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
             context,
             "ARRAY_GET: Invalid array type"
+        );
+    }
+
+    void ArrayExecutor::handleArrayGetAlias() {
+        // MYT-303: same as handleArrayGet but with alias=true for the NativeArray
+        // path so SoA-object arrays demote before the value is captured by a local.
+        // FlatMultiArray / SparseMultiArray have no SoA path, so they reuse the
+        // shared helpers unchanged.
+        value::Value indexVal = context.stackManager->pop();
+        int64_t index = value::asInt(indexVal);
+
+        value::Value arrayVal = context.stackManager->pop();
+
+        if (value::isNativeArray(arrayVal)) {
+            getNativeArrayElement(value::asNativeArray(arrayVal), index, /*alias=*/true);
+            return;
+        }
+
+        if (value::isFlatMultiArray(arrayVal)) {
+            getFlatMultiArrayElement(value::asFlatMultiArray(arrayVal), index);
+            return;
+        }
+
+        if (value::isSparseMultiArray(arrayVal)) {
+            getSparseMultiArrayElement(value::asSparseMultiArray(arrayVal), index);
+            return;
+        }
+
+        utils::ErrorLocationHelper::throwError<errors::RuntimeException>(
+            context,
+            "ARRAY_GET_ALIAS: Invalid array type"
         );
     }
 

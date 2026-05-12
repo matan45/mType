@@ -113,6 +113,7 @@ namespace vm::optimization::analysis
 
             // Array operations
             case OpCode::ARRAY_GET:
+            case OpCode::ARRAY_GET_ALIAS:
             case OpCode::ARRAY_GET_INT:
                 return StackEffect(2, 1);  // array + index -> value
 

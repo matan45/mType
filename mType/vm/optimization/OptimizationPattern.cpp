@@ -135,6 +135,7 @@ namespace vm::optimization
             case OpCode::LT_INT:
             case OpCode::GT_INT:
             case OpCode::ARRAY_GET:
+            case OpCode::ARRAY_GET_ALIAS:
             case OpCode::ARRAY_GET_INT:
             case OpCode::SWAP:
                 return 2;
@@ -214,6 +215,7 @@ namespace vm::optimization
             case OpCode::LT_INT:
             case OpCode::GT_INT:
             case OpCode::ARRAY_GET:
+            case OpCode::ARRAY_GET_ALIAS:
             case OpCode::ARRAY_GET_INT:
             case OpCode::NEG:
             case OpCode::NOT:

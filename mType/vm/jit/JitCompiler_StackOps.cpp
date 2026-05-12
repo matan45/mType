@@ -146,6 +146,7 @@ namespace vm::jit
             static_cast<uint8_t>(OpCode::NEW_ARRAY),
             static_cast<uint8_t>(OpCode::NEW_ARRAY_MULTI),
             static_cast<uint8_t>(OpCode::ARRAY_GET),
+            static_cast<uint8_t>(OpCode::ARRAY_GET_ALIAS),  // MYT-303
             static_cast<uint8_t>(OpCode::ARRAY_SET),
             static_cast<uint8_t>(OpCode::ARRAY_LENGTH),
             static_cast<uint8_t>(OpCode::ARRAY_GET_INT),

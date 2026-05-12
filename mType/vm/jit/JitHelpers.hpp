@@ -119,6 +119,9 @@ namespace vm::jit
                               uint32_t specifiedDims);
     void jit_array_get(value::Value* dest, const value::Value* array,
                         int64_t index);
+    // MYT-303: alias-creating variant; demotes SoA→heterogeneous before read.
+    void jit_array_get_alias(value::Value* dest, const value::Value* array,
+                              int64_t index);
     void jit_array_set(const value::Value* array, int64_t index,
                         const value::Value* newValue);
     int64_t jit_array_length(const value::Value* array);

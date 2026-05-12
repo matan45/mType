@@ -90,7 +90,7 @@ namespace vm::jit
         return true;
     }
 
-    static bool emitArrayGet(JitEmissionState& s)
+    static bool emitArrayGet(JitEmissionState& s, bool alias = false)
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
@@ -104,8 +104,13 @@ namespace vm::jit
         Gp dest = cc.new_gp64();
         cc.lea(dest, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 2) * valueSize)));
 
+        // MYT-303: ARRAY_GET_ALIAS routes to jit_array_get_alias so SoA-object
+        // arrays demote before the result is captured by a local; the cheap
+        // non-SoA case is a single null-check inside the helper.
+        const auto helper = alias ? reinterpret_cast<uint64_t>(jit_array_get_alias)
+                                  : reinterpret_cast<uint64_t>(jit_array_get);
         InvokeNode* inv;
-        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_array_get),
+        cc.invoke(Out(inv), helper,
                   FuncSignature::build<void, value::Value*, const value::Value*,
                       int64_t>());
         inv->set_arg(0, dest);
@@ -587,6 +592,7 @@ namespace vm::jit
             case OpCode::NEW_ARRAY:         return emitNewArray(s, instr);
             case OpCode::NEW_ARRAY_MULTI:   return emitNewArrayMulti(s, instr);
             case OpCode::ARRAY_GET:         return emitArrayGet(s);
+            case OpCode::ARRAY_GET_ALIAS:   return emitArrayGet(s, /*alias=*/true);
             case OpCode::ARRAY_SET:         return emitArraySet(s);
             case OpCode::ARRAY_LENGTH:      return emitArrayLength(s);
             default:                        return false;
