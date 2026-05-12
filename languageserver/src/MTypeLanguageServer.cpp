@@ -49,6 +49,7 @@ namespace mtype::lsp
         signatureHelpHandler_ = std::make_unique<SignatureHelpHandler>(documentManager_.get());
         semanticTokensHandler_ = std::make_unique<SemanticTokensHandler>(documentManager_.get());
         inlayHintHandler_ = std::make_unique<InlayHintHandler>(documentManager_.get());
+        documentSymbolHandler_ = std::make_unique<DocumentSymbolHandler>(documentManager_.get());
 
         // Set up diagnostics publisher
         diagnosticsHandler_->setPublisher(
@@ -192,6 +193,10 @@ namespace mtype::lsp
         {
             handleInlayHint(id, params);
         }
+        else if (method == "textDocument/documentSymbol")
+        {
+            handleDocumentSymbol(id, params);
+        }
         else
         {
             sendError(id, -32601, "Method not found: " + method);
@@ -313,7 +318,12 @@ namespace mtype::lsp
             // MYT-295 — inlay hints (parameter-name + lambda-param type).
             // v1 does not implement `inlayHint/resolve`, so we advertise
             // the boolean form rather than `{resolveProvider: true}`.
-            {"inlayHintProvider", true}
+            {"inlayHintProvider", true},
+            // MYT-296 — document symbols / outline. Hierarchical
+            // DocumentSymbol[] is preferred over the flat
+            // SymbolInformation[] response, which is what modern clients
+            // (VS Code Outline view, breadcrumbs) consume.
+            {"documentSymbolProvider", true}
         };
 
         json result = {
@@ -707,6 +717,29 @@ namespace mtype::lsp
             json result = json::array();
             for (const auto& h : hints) {
                 result.push_back(h.toJson());
+            }
+            sendResponse(id, result);
+        } catch (const std::exception&) {
+            sendResponse(id, json::array());
+        }
+    }
+
+    void MTypeLanguageServer::handleDocumentSymbol(const json& id, const json& params)
+    {
+        // MYT-296 — `textDocument/documentSymbol` returns a
+        // DocumentSymbol[] tree describing the open document's outline.
+        // The handler already guards against unparsed / partial state
+        // and never throws, but a malformed `params` (e.g., missing
+        // textDocument.uri) still has to be caught here so a junk
+        // request can't bring down the LSP loop. Empty array on any
+        // failure — same defensive shape as handleInlayHint.
+        try {
+            std::string uri = params["textDocument"]["uri"];
+            auto symbols = documentSymbolHandler_->handleDocumentSymbol(uri);
+
+            json result = json::array();
+            for (const auto& sym : symbols) {
+                result.push_back(sym.toJson());
             }
             sendResponse(id, result);
         } catch (const std::exception&) {

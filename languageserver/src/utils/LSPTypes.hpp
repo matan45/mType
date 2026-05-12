@@ -438,4 +438,46 @@ struct InlayHint {
     }
 };
 
+// MYT-296 — LSP SymbolKind subset used for textDocument/documentSymbol.
+// Integer values track the LSP 3.17 spec — do not renumber.
+enum class SymbolKind {
+    Class = 5,
+    Method = 6,
+    Property = 7,
+    Field = 8,
+    Constructor = 9,
+    Interface = 11,
+    Function = 12,
+    Variable = 13
+};
+
+// MYT-296 — Hierarchical document symbol. `range` covers the whole
+// declaration (including body); `selectionRange` covers just the name
+// token so editors can highlight the identifier on click. `children`
+// is recursive: class members live under their owning class.
+struct DocumentSymbol {
+    std::string name;
+    std::optional<std::string> detail;
+    SymbolKind kind;
+    Range range;
+    Range selectionRange;
+    std::vector<DocumentSymbol> children;
+
+    json toJson() const {
+        json j = {
+            {"name", name},
+            {"kind", static_cast<int>(kind)},
+            {"range", range},
+            {"selectionRange", selectionRange}
+        };
+        if (detail) j["detail"] = *detail;
+        if (!children.empty()) {
+            json arr = json::array();
+            for (const auto& c : children) arr.push_back(c.toJson());
+            j["children"] = arr;
+        }
+        return j;
+    }
+};
+
 } // namespace mtype::lsp

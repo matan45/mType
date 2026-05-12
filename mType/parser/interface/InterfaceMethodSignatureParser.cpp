@@ -77,6 +77,7 @@ namespace parser
         }
 
         std::string methodName = std::string(tokenStream.current().stringValue);
+        SourceLocation methodLocation = tokenStream.current().location;
         tokenStream.advance();
 
         // Parse parameter list using ParameterParser
@@ -108,9 +109,15 @@ namespace parser
         // Create a dummy empty body for the method signature (interfaces don't have implementations)
         auto dummyBody = std::make_shared<BlockNode>(tokenStream.current().location);
 
-        // Create a method signature node using FunctionNode
+        // Create a method signature node using FunctionNode. The
+        // captured methodLocation points at the method-name identifier
+        // so LSP features (documentSymbol, definition, references)
+        // anchor to the right token; without it the node would carry
+        // the default SourceLocation("<unknown>", 1, 1) and every
+        // interface method-signature would land at line 1.
         auto methodNode = std::make_unique<FunctionNode>(
-            methodName, returnType, parameters, dummyBody
+            methodName, returnType, parameters, dummyBody,
+            std::vector<ast::GenericTypeParameter>{}, false, methodLocation
         );
 
         // Set generic type parameters for the method (e.g., <T>, <K, V>)
