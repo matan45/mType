@@ -6,6 +6,7 @@
 #include "DependencyResolver.hpp"
 #include "PackageInstaller.hpp"
 #include "MtModulesManager.hpp"
+#include "Publish.hpp"
 #include "Sha256.hpp"
 #include "../../project/ProjectConfigParser.hpp"
 #include <filesystem>
@@ -589,6 +590,308 @@ namespace tests::testSuite
 
             if (!config->dependencies.packages.empty())
                 throw std::runtime_error("Expected 0 dependencies for project without Dependencies section");
+        });
+
+        // =============================================
+        // Publish Tests
+        // =============================================
+
+        addCallbackTest("Publish: round-trip stages package and prints integrity", "", [](services::ScriptAPI&) {
+            fs::path tempProject = fs::temp_directory_path() / "_mtype_pkg_test_publish_rt";
+            fs::path tempRegistry = fs::temp_directory_path() / "_mtype_pkg_test_publish_rt_reg";
+            if (fs::exists(tempProject)) fs::remove_all(tempProject);
+            if (fs::exists(tempRegistry)) fs::remove_all(tempRegistry);
+            fs::create_directories(tempProject / "src");
+            fs::create_directories(tempRegistry);
+
+            { std::ofstream f(tempProject / "mtpkg.json");
+              f << "{\"name\":\"pubtest\",\"version\":\"1.0.0\"}"; }
+            { std::ofstream f(tempProject / "src" / "Main.mt");
+              f << "// hello\n"; }
+
+            packagemanager::PublishOptions opts;
+            opts.projectDir = tempProject.string();
+            auto result = packagemanager::publish(tempRegistry.string(), opts, nullptr);
+
+            auto cleanup = [&] {
+                fs::remove_all(tempProject);
+                fs::remove_all(tempRegistry);
+            };
+
+            if (!result.success)
+            {
+                std::string errors;
+                for (const auto& e : result.errors) errors += e + "; ";
+                cleanup();
+                throw std::runtime_error("Publish failed: " + errors);
+            }
+
+            fs::path expected = tempRegistry / "pubtest" / "1.0.0";
+            if (!fs::exists(expected / "mtpkg.json"))
+            {
+                cleanup();
+                throw std::runtime_error("Expected mtpkg.json at registry destination");
+            }
+            if (!fs::exists(expected / "src" / "Main.mt"))
+            {
+                cleanup();
+                throw std::runtime_error("Expected src/Main.mt at registry destination");
+            }
+            if (result.integrity.rfind("sha256-", 0) != 0)
+            {
+                cleanup();
+                throw std::runtime_error("Integrity hash missing sha256- prefix: " + result.integrity);
+            }
+            std::string recomputed = "sha256-" + packagemanager::Sha256::hashDirectory(expected.string());
+            if (recomputed != result.integrity)
+            {
+                cleanup();
+                throw std::runtime_error("Reported integrity does not match recomputed hash");
+            }
+
+            cleanup();
+        });
+
+        addCallbackTest("Publish: skips .git, mt_modules, mtproj.lock", "", [](services::ScriptAPI&) {
+            fs::path tempProject = fs::temp_directory_path() / "_mtype_pkg_test_publish_skip";
+            fs::path tempRegistry = fs::temp_directory_path() / "_mtype_pkg_test_publish_skip_reg";
+            if (fs::exists(tempProject)) fs::remove_all(tempProject);
+            if (fs::exists(tempRegistry)) fs::remove_all(tempRegistry);
+            fs::create_directories(tempProject / "src");
+            fs::create_directories(tempProject / ".git");
+            fs::create_directories(tempProject / "mt_modules" / "@x");
+            fs::create_directories(tempRegistry);
+
+            { std::ofstream f(tempProject / "mtpkg.json");
+              f << "{\"name\":\"skiptest\",\"version\":\"1.0.0\"}"; }
+            { std::ofstream f(tempProject / "src" / "Main.mt"); f << "x\n"; }
+            { std::ofstream f(tempProject / ".git" / "HEAD"); f << "ref:foo\n"; }
+            { std::ofstream f(tempProject / "mt_modules" / "@x" / "x.mt"); f << "y\n"; }
+            { std::ofstream f(tempProject / "mtproj.lock"); f << "{}\n"; }
+
+            packagemanager::PublishOptions opts;
+            opts.projectDir = tempProject.string();
+            auto result = packagemanager::publish(tempRegistry.string(), opts, nullptr);
+
+            auto cleanup = [&] {
+                fs::remove_all(tempProject);
+                fs::remove_all(tempRegistry);
+            };
+
+            if (!result.success)
+            {
+                cleanup();
+                throw std::runtime_error("Publish failed unexpectedly");
+            }
+
+            fs::path dest = tempRegistry / "skiptest" / "1.0.0";
+            if (fs::exists(dest / ".git"))
+            {
+                cleanup();
+                throw std::runtime_error(".git directory was not skipped");
+            }
+            if (fs::exists(dest / "mt_modules"))
+            {
+                cleanup();
+                throw std::runtime_error("mt_modules directory was not skipped");
+            }
+            if (fs::exists(dest / "mtproj.lock"))
+            {
+                cleanup();
+                throw std::runtime_error("mtproj.lock was not skipped");
+            }
+            if (!fs::exists(dest / "src" / "Main.mt"))
+            {
+                cleanup();
+                throw std::runtime_error("src/Main.mt should still be present");
+            }
+
+            cleanup();
+        });
+
+        addCallbackTest("Publish: refuses to overwrite without --force", "", [](services::ScriptAPI&) {
+            fs::path tempProject = fs::temp_directory_path() / "_mtype_pkg_test_publish_overwrite";
+            fs::path tempRegistry = fs::temp_directory_path() / "_mtype_pkg_test_publish_overwrite_reg";
+            if (fs::exists(tempProject)) fs::remove_all(tempProject);
+            if (fs::exists(tempRegistry)) fs::remove_all(tempRegistry);
+            fs::create_directories(tempProject);
+            fs::create_directories(tempRegistry);
+
+            { std::ofstream f(tempProject / "mtpkg.json");
+              f << "{\"name\":\"owtest\",\"version\":\"1.0.0\"}"; }
+
+            packagemanager::PublishOptions opts;
+            opts.projectDir = tempProject.string();
+            auto first = packagemanager::publish(tempRegistry.string(), opts, nullptr);
+
+            auto cleanup = [&] {
+                fs::remove_all(tempProject);
+                fs::remove_all(tempRegistry);
+            };
+
+            if (!first.success)
+            {
+                cleanup();
+                throw std::runtime_error("First publish should have succeeded");
+            }
+
+            auto second = packagemanager::publish(tempRegistry.string(), opts, nullptr);
+            if (second.success)
+            {
+                cleanup();
+                throw std::runtime_error("Second publish should have failed without --force");
+            }
+            bool mentionsForce = false;
+            for (const auto& e : second.errors)
+            {
+                if (e.find("--force") != std::string::npos) { mentionsForce = true; break; }
+            }
+            if (!mentionsForce)
+            {
+                cleanup();
+                throw std::runtime_error("Error message should mention --force");
+            }
+
+            opts.force = true;
+            auto third = packagemanager::publish(tempRegistry.string(), opts, nullptr);
+            if (!third.success)
+            {
+                cleanup();
+                throw std::runtime_error("Publish with --force should have succeeded");
+            }
+
+            cleanup();
+        });
+
+        // =============================================
+        // Install Integrity Verification Tests
+        // =============================================
+
+        addCallbackTest("Install: integrity mismatch fails", "", [](services::ScriptAPI&) {
+            fs::path tempDir = fs::temp_directory_path() / "_mtype_pkg_test_integrity_fail";
+            fs::path tempRegistry = fs::temp_directory_path() / "_mtype_pkg_test_integrity_fail_reg";
+            if (fs::exists(tempDir)) fs::remove_all(tempDir);
+            if (fs::exists(tempRegistry)) fs::remove_all(tempRegistry);
+            fs::create_directories(tempDir);
+            fs::create_directories(tempRegistry);
+
+            // Clone the shared mathlib@1.0.0 into our temp registry so we can mutate it.
+            fs::path sharedRegistry = fs::canonical("mType/tests/testFiles/packagemanager/registry");
+            fs::create_directories(tempRegistry / "mathlib" / "1.0.0");
+            fs::copy(sharedRegistry / "mathlib" / "1.0.0",
+                     tempRegistry / "mathlib" / "1.0.0",
+                     fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+
+            auto cleanup = [&] {
+                fs::remove_all(tempDir);
+                fs::remove_all(tempRegistry);
+            };
+
+            // First install — produces lockfile with current integrity hash
+            packagemanager::PackageInstaller installer(tempDir.string(), tempRegistry.string());
+            std::vector<packagemanager::PackageDependency> deps = {{"mathlib", "1.0.0"}};
+            auto firstResult = installer.install(deps);
+            if (!firstResult.success)
+            {
+                std::string errors;
+                for (const auto& e : firstResult.errors) errors += e + "; ";
+                cleanup();
+                throw std::runtime_error("Initial install failed: " + errors);
+            }
+
+            // Tamper with the registry copy. We avoid touching mtpkg.json so
+            // that a subsequent cold resolution can still parse it.
+            fs::path victim = tempRegistry / "mathlib" / "1.0.0" / "src" / "Vector.mt";
+            { std::ofstream f(victim, std::ios::app); f << "\n// tampered\n"; }
+
+            // Second install — must fail with integrity mismatch
+            packagemanager::PackageInstaller installer2(tempDir.string(), tempRegistry.string());
+            auto secondResult = installer2.install(deps);
+            if (secondResult.success)
+            {
+                cleanup();
+                throw std::runtime_error("Second install should have failed (integrity mismatch)");
+            }
+            bool mentionsMismatch = false;
+            bool mentionsMathlib = false;
+            for (const auto& e : secondResult.errors)
+            {
+                if (e.find("Integrity mismatch") != std::string::npos) mentionsMismatch = true;
+                if (e.find("mathlib") != std::string::npos) mentionsMathlib = true;
+            }
+            if (!mentionsMismatch || !mentionsMathlib)
+            {
+                cleanup();
+                throw std::runtime_error("Error should name 'Integrity mismatch' and 'mathlib'");
+            }
+
+            cleanup();
+        });
+
+        addCallbackTest("Install: --force-resolve bypasses mismatch and rewrites lockfile", "", [](services::ScriptAPI&) {
+            fs::path tempDir = fs::temp_directory_path() / "_mtype_pkg_test_force_resolve";
+            fs::path tempRegistry = fs::temp_directory_path() / "_mtype_pkg_test_force_resolve_reg";
+            if (fs::exists(tempDir)) fs::remove_all(tempDir);
+            if (fs::exists(tempRegistry)) fs::remove_all(tempRegistry);
+            fs::create_directories(tempDir);
+            fs::create_directories(tempRegistry);
+
+            fs::path sharedRegistry = fs::canonical("mType/tests/testFiles/packagemanager/registry");
+            fs::create_directories(tempRegistry / "mathlib" / "1.0.0");
+            fs::copy(sharedRegistry / "mathlib" / "1.0.0",
+                     tempRegistry / "mathlib" / "1.0.0",
+                     fs::copy_options::recursive | fs::copy_options::overwrite_existing);
+
+            auto cleanup = [&] {
+                fs::remove_all(tempDir);
+                fs::remove_all(tempRegistry);
+            };
+
+            packagemanager::PackageInstaller installer(tempDir.string(), tempRegistry.string());
+            std::vector<packagemanager::PackageDependency> deps = {{"mathlib", "1.0.0"}};
+            auto firstResult = installer.install(deps);
+            if (!firstResult.success)
+            {
+                cleanup();
+                throw std::runtime_error("Initial install failed");
+            }
+
+            // Tamper with the registry copy. We avoid touching mtpkg.json so
+            // that a subsequent cold resolution can still parse it.
+            fs::path victim = tempRegistry / "mathlib" / "1.0.0" / "src" / "Vector.mt";
+            { std::ofstream f(victim, std::ios::app); f << "\n// tampered\n"; }
+
+            std::string newHash = "sha256-" +
+                packagemanager::Sha256::hashDirectory((tempRegistry / "mathlib" / "1.0.0").string());
+
+            // Re-install with --force-resolve — should succeed and rewrite the lockfile
+            packagemanager::PackageInstaller installer2(tempDir.string(), tempRegistry.string());
+            installer2.setForceResolve(true);
+            auto secondResult = installer2.install(deps);
+            if (!secondResult.success)
+            {
+                std::string errors;
+                for (const auto& e : secondResult.errors) errors += e + "; ";
+                cleanup();
+                throw std::runtime_error("--force-resolve install failed: " + errors);
+            }
+
+            auto lockfile = packagemanager::Lockfile::loadFromFile((tempDir / "mtproj.lock").string());
+            auto it = lockfile.packages.find("mathlib");
+            if (it == lockfile.packages.end())
+            {
+                cleanup();
+                throw std::runtime_error("Lockfile missing mathlib entry after --force-resolve");
+            }
+            if (it->second.integrity != newHash)
+            {
+                cleanup();
+                throw std::runtime_error(
+                    "Lockfile integrity not rewritten: expected " + newHash +
+                    ", got " + it->second.integrity);
+            }
+
+            cleanup();
         });
     }
 }

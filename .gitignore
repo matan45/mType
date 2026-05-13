@@ -201,6 +201,9 @@ PublishScripts/
 **/[Pp]ackages/*
 # except build/, which is used as an MSBuild target.
 !**/[Pp]ackages/build/
+# except the VS Code extension's TypeScript source folder.
+!mtype-vscode-extension/src/packages/
+!mtype-vscode-extension/src/packages/**
 # Uncomment if necessary however generally it will be regenerated when needed
 #!**/[Pp]ackages/repositories.config
 # NuGet v3's project.json files produces more ignorable files
@@ -372,3 +375,7 @@ FodyWeavers.xsd
 # mType package manager
 mt_modules/
 mtproj.lock
+# except test fixtures, which need committed mt_modules/lockfiles
+!mType/tests/testFiles/**/mt_modules/
+!mType/tests/testFiles/**/mt_modules/**
+!mType/tests/testFiles/**/mtproj.lock

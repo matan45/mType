@@ -163,6 +163,42 @@
     <Filter Include="testFiles\exe\imports">
       <UniqueIdentifier>{A69FF479-120C-B074-DBFF-47D2472BD2DC}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\exe\imports\mtmodules-basic">
+      <UniqueIdentifier>{FE43E75F-6A08-E64F-336E-161A9FF18185}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\imports\mtmodules-basic\mt_modules">
+      <UniqueIdentifier>{C65E90FE-B207-F82D-DB9D-13ADC7A5126F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\imports\mtmodules-basic\mt_modules\@greetlib">
+      <UniqueIdentifier>{C3CFC8C8-AF8F-596D-18AD-4178048C6C7F}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\imports\mtmodules-basic\mt_modules\@greetlib\src">
+      <UniqueIdentifier>{5AB77C9C-468D-039A-2F37-1EED1BAC363B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\imports\mtmodules-basic\src">
+      <UniqueIdentifier>{15D1E0C9-81EB-436B-CA0D-54FF36676B72}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\imports\mtmodules-precedence">
+      <UniqueIdentifier>{CAF9BC49-B661-8317-1FCD-972D0B549A03}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\imports\mtmodules-precedence\local">
+      <UniqueIdentifier>{6405CB3E-50AE-326E-7944-4EED654C4DAF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\imports\mtmodules-precedence\local\foo">
+      <UniqueIdentifier>{D79DF20D-C3DC-9C89-6C5F-79BB587D52F4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\imports\mtmodules-precedence\mt_modules">
+      <UniqueIdentifier>{125D390C-7E79-2BFD-4751-986AB32C95BE}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\imports\mtmodules-precedence\mt_modules\@foo">
+      <UniqueIdentifier>{E5B00FB5-D170-A059-3A8E-8864266DB36B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\imports\mtmodules-precedence\mt_modules\@foo\src">
+      <UniqueIdentifier>{7C59B325-682F-3A23-51D9-54763D4E6DC4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\imports\mtmodules-precedence\src">
+      <UniqueIdentifier>{E18CF46F-CD0A-4509-B602-03A1A21F8731}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\exe\imports\src">
       <UniqueIdentifier>{BDC0039D-2983-3727-7233-C6B3DE341005}</UniqueIdentifier>
     </Filter>
@@ -6738,6 +6774,27 @@
     </None>
     <None Include="tests\testFiles\exe\imports\ImportExe.expected">
       <Filter>testFiles\exe\imports</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\imports\mtmodules-basic\MtModulesBasic.expected">
+      <Filter>testFiles\exe\imports\mtmodules-basic</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\imports\mtmodules-basic\mt_modules\@greetlib\src\Greet.mt">
+      <Filter>testFiles\exe\imports\mtmodules-basic\mt_modules\@greetlib\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\imports\mtmodules-basic\src\Main.mt">
+      <Filter>testFiles\exe\imports\mtmodules-basic\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\imports\mtmodules-precedence\MtModulesPrecedence.expected">
+      <Filter>testFiles\exe\imports\mtmodules-precedence</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\imports\mtmodules-precedence\local\foo\Thing.mt">
+      <Filter>testFiles\exe\imports\mtmodules-precedence\local\foo</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\imports\mtmodules-precedence\mt_modules\@foo\src\Thing.mt">
+      <Filter>testFiles\exe\imports\mtmodules-precedence\mt_modules\@foo\src</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\imports\mtmodules-precedence\src\Main.mt">
+      <Filter>testFiles\exe\imports\mtmodules-precedence\src</Filter>
     </None>
     <None Include="tests\testFiles\exe\imports\src\Main.mt">
       <Filter>testFiles\exe\imports\src</Filter>

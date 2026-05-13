@@ -1,0 +1,7 @@
+{
+  "name": "greetlib",
+  "version": "1.0.0",
+  "description": "Synthetic test package for mt_modules alias resolution",
+  "source": "src",
+  "dependencies": {}
+}

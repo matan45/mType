@@ -7,6 +7,7 @@
 #include "mtclib/LibrarySymbolProvider.hpp"
 #include "../services/ScriptInterpreter.hpp"
 #include "../services/ImportManager.hpp"
+#include "MtModulesManager.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../parser/Parser.hpp"
 #include "../vm/compiler/BytecodeCompiler.hpp"
@@ -384,7 +385,26 @@ namespace project
     std::unordered_map<std::string, std::string> ProjectBuilder::buildMergedAliases(
         const ProjectConfig& config) const
     {
+        // Precedence (lowest -> highest; later writes win via operator[]):
+        //   1. workspace aliases
+        //   2. mt_modules/ aliases (populated by `mtpm install`)
+        //   3. project <Alias> entries
         auto merged = workspaceAliases;
+
+        try
+        {
+            packagemanager::MtModulesManager modulesMgr(config.projectRoot);
+            for (const auto& [name, path] : modulesMgr.getAliases())
+            {
+                merged[name] = path;
+            }
+        }
+        catch (const std::exception&)
+        {
+            // A broken mt_modules/ (permission denied, symlink loop) must not
+            // kill builds that don't depend on installed packages.
+        }
+
         for (const auto& [name, path] : config.imports.aliases)
         {
             merged[name] = path;

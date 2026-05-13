@@ -66,6 +66,9 @@
     <ClInclude Include="..\packagemanager\src\PackageRegistry.hpp">
       <Filter>packagemanager\src</Filter>
     </ClInclude>
+    <ClInclude Include="..\packagemanager\src\Publish.hpp">
+      <Filter>packagemanager\src</Filter>
+    </ClInclude>
     <ClInclude Include="..\packagemanager\src\SemVer.hpp">
       <Filter>packagemanager\src</Filter>
     </ClInclude>
@@ -324,6 +327,9 @@
       <Filter>packagemanager\src</Filter>
     </ClCompile>
     <ClCompile Include="..\packagemanager\src\PackageRegistry.cpp">
+      <Filter>packagemanager\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\packagemanager\src\Publish.cpp">
       <Filter>packagemanager\src</Filter>
     </ClCompile>
     <ClCompile Include="..\packagemanager\src\SemVer.cpp">

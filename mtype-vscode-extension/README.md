@@ -43,6 +43,12 @@ Comprehensive language support for the mType programming language in Visual Stud
 - **Context Menu Integration**: Right-click to run files
 - **Terminal Integration**: Output shown in integrated terminal
 
+### Package Manager
+- **Command Palette Integration**: Install, add, remove, and list packages without leaving the editor
+- **mType Modules Tree View**: Browse installed packages and their `.mt` files in the Explorer sidebar
+- **Dedicated Output Channel**: Stream `mtpm` stdout/stderr to the `mType Package Manager` channel
+- **Auto-Refresh**: Tree view updates after every install/add/remove and on external `mt_modules/` changes
+
 ## Installation
 
 ### From VSIX (Development)
@@ -79,7 +85,8 @@ Example: `C:\\path\\to\\mType\\bin\\mType\\Debug\\x64\\mType.exe`
 ```json
 {
   "mType.languageServer.path": "/path/to/mtype-language-server",
-  "mTypeLanguageServer.interpreterPath": "/path/to/mType.exe"
+  "mTypeLanguageServer.interpreterPath": "/path/to/mType.exe",
+  "mType.packageManager.path": "/path/to/mtpm"
 }
 ```
 
@@ -89,6 +96,7 @@ Example: `C:\\path\\to\\mType\\bin\\mType\\Debug\\x64\\mType.exe`
 |---------|------|---------|-------------|
 | `mType.languageServer.path` | string | "" | Path to the C++ language server executable (auto-detected if empty) |
 | `mTypeLanguageServer.interpreterPath` | string | "" | Path to mType interpreter executable (used by the Run command) |
+| `mType.packageManager.path` | string | "" | Path to `mtpm` executable (auto-detected if empty) |
 
 Formatting options (tab size, spaces vs tabs) are sent by VS Code via standard LSP `FormattingOptions` — configure them in your VS Code editor settings.
 
@@ -267,6 +275,23 @@ Execute mType files from VS Code:
 
 Output appears in the integrated terminal.
 
+### Package Manager
+
+Manage mType packages from the command palette (all commands live under the `mType` category):
+
+| Command | What it does |
+|---------|--------------|
+| `mType: Install Packages` | Runs `mtpm install` in the workspace root |
+| `mType: Add Package...` | Prompts for `name@version` plus an optional `--source github:user/repo`, then runs `mtpm add` |
+| `mType: Remove Package...` | Shows installed packages in a quick-pick, then runs `mtpm remove` |
+| `mType: List Packages` | Runs `mtpm list` and shows the output |
+
+Installed packages appear in the **mType Modules** view in the Explorer sidebar. Each package shows its name and version; expand a package to browse its `.mt` source files and click any file to open it.
+
+All `mtpm` output streams to the `mType Package Manager` output channel (`View → Output`, then pick the channel from the dropdown). The extension uses `child_process.spawn` with an argument array, so commands work identically under PowerShell, cmd, and bash without any quoting concerns.
+
+The `mtpm` binary is located using this precedence: `mType.packageManager.path` setting → bundled paths (`bin/{platform}-{arch}/`, `bin/`, `server/`, extension root) → `PATH`. If it is not found, an error toast offers an **Open Settings** button that jumps directly to the setting.
+
 ## Themes
 
 ### mType Dark Theme
@@ -392,7 +417,9 @@ npm run watch        # Watch for changes and auto-compile
 mtype-vscode-extension/
 ├── src/
 │   ├── extension.ts              # Extension entry point (thin LSP client)
-│   └── languageClient.ts         # LSP client configuration
+│   ├── languageClient.ts         # LSP client configuration
+│   ├── debug/                    # Debug adapter
+│   └── packages/                 # Package manager UI (mtpm integration)
 ├── syntaxes/
 │   └── mtype.tmGrammar.json      # TextMate grammar
 ├── themes/
@@ -552,6 +579,12 @@ In LSP settings:
 - Verify import paths are correct
 - Check that workspace contains the referenced files
 
+### Package manager commands fail
+- Set `mType.packageManager.path` to your `mtpm` executable, or place `mtpm` on `PATH`
+- The error toast offers an **Open Settings** shortcut that jumps to the setting
+- Inspect the `mType Package Manager` output channel for the spawn command, cwd, and exit code
+- If a command appears to do nothing, an earlier `mtpm` invocation may still be running — only one operation runs at a time, and the second invocation surfaces a warning
+
 ## License
 
 This extension is licensed under the MIT License.
@@ -593,6 +626,13 @@ This extension is licensed under the MIT License.
 - Run mType files from editor (F5)
 - Context menu integration
 - Terminal output integration
+
+#### Package Manager
+- Command-palette entries for `mtpm install`, `add`, `remove`, and `list`
+- `mType Modules` tree view in the Explorer with per-package `.mt` file children
+- Dedicated `mType Package Manager` output channel
+- `mType.packageManager.path` setting with the same auto-discovery hierarchy as the language server
+- Concurrency guard preventing overlapping `mtpm` invocations
 
 #### Developer Experience
 - Command palette integration

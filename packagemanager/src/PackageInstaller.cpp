@@ -20,6 +20,11 @@ namespace packagemanager
         progressCallback = std::move(callback);
     }
 
+    void PackageInstaller::setForceResolve(bool value)
+    {
+        forceResolve = value;
+    }
+
     void PackageInstaller::reportProgress(const std::string& message)
     {
         if (progressCallback)
@@ -50,7 +55,7 @@ namespace packagemanager
             bool useLockfile = false;
             Lockfile lockfile;
 
-            if (fs::exists(lockfilePath))
+            if (fs::exists(lockfilePath) && !forceResolve)
             {
                 try
                 {
@@ -70,6 +75,10 @@ namespace packagemanager
                 {
                     useLockfile = false;
                 }
+            }
+            else if (forceResolve && fs::exists(lockfilePath))
+            {
+                reportProgress("Ignoring lockfile (--force-resolve)");
             }
 
             // Resolve dependencies
@@ -98,6 +107,26 @@ namespace packagemanager
                     pkg.registryPath = registry.getPackagePath(name, locked.version);
                     pkg.dependencies = locked.dependencies;
                     resolved[name] = pkg;
+                }
+
+                // Verify the on-disk registry contents still match the
+                // integrity hashes recorded in the lockfile.
+                for (const auto& [name, pkg] : resolved)
+                {
+                    const auto& locked = lockfile.packages.at(name);
+                    if (locked.integrity.empty())
+                    {
+                        continue;  // Older lockfiles may pre-date integrity recording.
+                    }
+                    std::string actual = "sha256-" + Sha256::hashDirectory(pkg.registryPath);
+                    if (actual != locked.integrity)
+                    {
+                        throw std::runtime_error(
+                            "Integrity mismatch for " + name + "@" + pkg.version + "\n"
+                            "  expected: " + locked.integrity + "\n"
+                            "  actual:   " + actual + "\n"
+                            "Pass --force-resolve to re-resolve and rewrite the lockfile.");
+                    }
                 }
             }
             else
