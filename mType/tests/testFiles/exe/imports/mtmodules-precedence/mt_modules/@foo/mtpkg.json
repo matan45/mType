@@ -1,0 +1,7 @@
+{
+  "name": "foo",
+  "version": "1.0.0",
+  "description": "Synthetic test package — should be shadowed by project <Alias>",
+  "source": "src",
+  "dependencies": {}
+}
