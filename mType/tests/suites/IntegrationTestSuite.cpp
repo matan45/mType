@@ -713,5 +713,10 @@ namespace tests::testSuite
                         passPath + "myt302JitBoolAliasTicketRepro.mt");
         addOutputVerificationTest("MYT-302 JIT bool alias void call",
                         passPath + "myt302JitBoolAliasVoidCall.mt");
+
+        // MYT-308 regression: hot heap loop with int-array accesses plus a
+        // dead-store + sentinel break pattern must not crash under JIT.
+        addOutputVerificationTest("MYT-308 JIT heap dead-store sentinel",
+                        passPath + "myt308JitHeapDeadStoreSentinel.mt");
     }
 }

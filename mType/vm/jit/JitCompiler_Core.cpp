@@ -80,6 +80,46 @@ namespace vm::jit
         return hasLoopStart && hasJumpBack && returnValueCount >= 3;
     }
 
+    static bool hasArrayLoopShape(
+        const bytecode::BytecodeProgram& program,
+        size_t startOffset,
+        size_t endOffsetInclusive)
+    {
+        bool hasLoopStart = false;
+        bool hasJumpBack = false;
+        bool hasArrayAccess = false;
+
+        for (size_t ip = startOffset; ip <= endOffsetInclusive; ++ip)
+        {
+            const auto& instr = program.getInstruction(ip);
+            switch (instr.opcode)
+            {
+                case OpCode::LOOP_START:
+                    hasLoopStart = true;
+                    break;
+                case OpCode::JUMP_BACK:
+                    hasJumpBack = true;
+                    break;
+                case OpCode::ARRAY_GET:
+                case OpCode::ARRAY_SET:
+                case OpCode::ARRAY_LENGTH:
+                case OpCode::ARRAY_GET_INT:
+                case OpCode::ARRAY_SET_INT:
+                case OpCode::ARRAY_GET_FIELD:
+                case OpCode::ARRAY_SET_FIELD:
+                case OpCode::ARRAY_LENGTH_LOCAL:
+                case OpCode::ARRAY_GET_INT_LOCAL:
+                case OpCode::ARRAY_SET_INT_LOCAL:
+                    hasArrayAccess = true;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        return hasLoopStart && hasJumpBack && hasArrayAccess;
+    }
+
     static bool isCallLikeOpcode(OpCode opcode)
     {
         switch (opcode)
@@ -215,6 +255,13 @@ namespace vm::jit
             endOffset > meta.startOffset &&
             hasUnsafeEarlyBoxedReturnLoopShape(program, meta.startOffset, endOffset - 1))
             return false;
+        // MYT-308: heap-style hot loops that mix array accesses, local-slot
+        // churn, and sentinel exits can crash in emitted function JIT code on
+        // Windows. Keep looped array bodies in the bytecode VM until native
+        // stack/local merge is fixed; straight-line array code can still JIT.
+        if (endOffset > meta.startOffset &&
+            hasArrayLoopShape(program, meta.startOffset, endOffset - 1))
+            return false;
 
         return true;
     }
@@ -259,6 +306,11 @@ namespace vm::jit
         if (hasForwardConditionalCallRegion(program, loopStartOffset, loopEndOffset,
                                             outOpcode))
             return false;
+        if (hasArrayLoopShape(program, loopStartOffset, loopEndOffset))
+        {
+            if (outOpcode) *outOpcode = OpCode::ARRAY_GET;
+            return false;
+        }
         return true;
     }
 

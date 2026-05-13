@@ -227,6 +227,7 @@ namespace vm::jit
             publishGpHint(s, s.stackDepth - 1, val);
         }
         s.localTypes[physSlot] = storedType;
+        s.arrayInfoCache.erase(static_cast<int>(physSlot + 10000));
     }
 
     // MYT-152: JIT emitter for LOAD_VAR. Globals and unqualified field lookups
