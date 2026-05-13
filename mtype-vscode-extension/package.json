@@ -34,6 +34,11 @@
     "onCommand:mtype.run",
     "onCommand:mtype.restartLanguageServer",
     "onCommand:mtype.formatDocument",
+    "onCommand:mtype.packages.install",
+    "onCommand:mtype.packages.add",
+    "onCommand:mtype.packages.remove",
+    "onCommand:mtype.packages.list",
+    "onView:mtypeModules",
     "onDebugResolve:mtype",
     "onDebugDynamicConfigurations:mtype"
   ],
@@ -200,6 +205,26 @@
         "command": "mtype.formatDocument",
         "title": "Format Document",
         "category": "mType"
+      },
+      {
+        "command": "mtype.packages.install",
+        "title": "Install Packages",
+        "category": "mType"
+      },
+      {
+        "command": "mtype.packages.add",
+        "title": "Add Package...",
+        "category": "mType"
+      },
+      {
+        "command": "mtype.packages.remove",
+        "title": "Remove Package...",
+        "category": "mType"
+      },
+      {
+        "command": "mtype.packages.list",
+        "title": "List Packages",
+        "category": "mType"
       }
     ],
     "keybindings": [
@@ -240,6 +265,15 @@
         }
       ]
     },
+    "views": {
+      "explorer": [
+        {
+          "id": "mtypeModules",
+          "name": "mType Modules",
+          "when": "workspaceFolderCount != 0"
+        }
+      ]
+    },
     "configuration": {
       "type": "object",
       "title": "mType Configuration",
@@ -253,6 +287,11 @@
           "type": "string",
           "default": "",
           "description": "Path to mType interpreter executable (used by the Run command)"
+        },
+        "mType.packageManager.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to mtpm executable. Leave empty to use the default location next to the extension."
         }
       }
     }

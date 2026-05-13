@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { activateLanguageServer, deactivateLanguageServer } from './languageClient';
 import { MTypeDebugAdapterFactory, MTypeDebugConfigurationProvider } from './debug/MTypeDebugAdapterFactory';
+import { ModulesTreeProvider } from './packages/ModulesTreeProvider';
+import { registerPackageCommands } from './packages/packageCommands';
 
 function registerCommonCommands(context: vscode.ExtensionContext): void {
     // Command to run mType file
@@ -89,9 +91,33 @@ function registerCommonCommands(context: vscode.ExtensionContext): void {
     );
 }
 
+function registerPackageManager(context: vscode.ExtensionContext): void {
+    const pmChannel = vscode.window.createOutputChannel('mType Package Manager');
+    context.subscriptions.push(pmChannel);
+
+    const treeProvider = new ModulesTreeProvider();
+    context.subscriptions.push(
+        vscode.window.registerTreeDataProvider('mtypeModules', treeProvider)
+    );
+
+    let pending: NodeJS.Timeout | undefined;
+    const scheduleRefresh = () => {
+        if (pending) clearTimeout(pending);
+        pending = setTimeout(() => treeProvider.refresh(), 150);
+    };
+    const watcher = vscode.workspace.createFileSystemWatcher('**/mt_modules/**/mtpkg.json');
+    watcher.onDidCreate(scheduleRefresh);
+    watcher.onDidChange(scheduleRefresh);
+    watcher.onDidDelete(scheduleRefresh);
+    context.subscriptions.push(watcher);
+
+    registerPackageCommands(context, pmChannel, treeProvider);
+}
+
 export async function activate(context: vscode.ExtensionContext) {
     registerCommonCommands(context);
     activateLanguageServer(context);
+    registerPackageManager(context);
 
     // Register debug adapter
     context.subscriptions.push(
