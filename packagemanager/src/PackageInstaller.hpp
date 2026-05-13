@@ -27,6 +27,11 @@ namespace packagemanager
 
         void setProgressCallback(InstallProgressCallback callback);
 
+        // When set, install() ignores any existing lockfile (bypassing
+        // integrity verification) and re-resolves dependencies from scratch,
+        // rewriting the lockfile with fresh hashes.
+        void setForceResolve(bool value);
+
         // Install all dependencies declared in the given list
         InstallResult install(const std::vector<PackageDependency>& dependencies);
 
@@ -44,6 +49,7 @@ namespace packagemanager
         PackageRegistry registry;
         MtModulesManager modulesManager;
         InstallProgressCallback progressCallback;
+        bool forceResolve = false;
 
         void reportProgress(const std::string& message);
 

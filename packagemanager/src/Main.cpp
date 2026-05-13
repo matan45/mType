@@ -1,6 +1,7 @@
 #include "PackageInstaller.hpp"
 #include "PackageManifest.hpp"
 #include "PackageRegistry.hpp"
+#include "Publish.hpp"
 #include "SemVer.hpp"
 #include "../../mType/version/Version.hpp"
 #include "../../mType/project/ProjectConfigParser.hpp"
@@ -15,11 +16,12 @@ static void printUsage(const char* argv0)
 {
     std::cout << "mtpm - mType Package Manager\n\n";
     std::cout << "Usage:\n";
-    std::cout << "  " << argv0 << " install [project.mtproj]                          - Install all dependencies\n";
+    std::cout << "  " << argv0 << " install [project.mtproj] [--force-resolve]        - Install all dependencies\n";
     std::cout << "  " << argv0 << " add <pkg>@<ver> [--source github:user/repo]      - Add a package\n";
     std::cout << "  " << argv0 << " remove <pkg> [.mtproj]                            - Remove a package\n";
     std::cout << "  " << argv0 << " list [.mtproj]                                    - List installed packages\n";
     std::cout << "  " << argv0 << " init <name> <version>                             - Create mtpkg.json\n";
+    std::cout << "  " << argv0 << " publish [--force] [--git-tag] [dir]               - Publish package to local registry\n";
     std::cout << "  " << argv0 << " --help                                            - Show this help\n";
     std::cout << "  " << argv0 << " --version                                         - Print version\n";
     std::cout << "\nSource formats:\n";
@@ -211,10 +213,19 @@ int main(int argc, char* argv[])
 
     std::string registryRoot = packagemanager::PackageRegistry::getDefaultRegistryRoot();
 
-    // Handle: install [.mtproj]
+    // Handle: install [.mtproj] [--force-resolve]
     if (command == "install")
     {
-        std::string mtprojPath = findMtproj(argc >= 3 ? argv[2] : "");
+        std::string mtprojArg;
+        bool forceResolve = false;
+        for (int i = 2; i < argc; ++i)
+        {
+            std::string a = argv[i];
+            if (a == "--force-resolve") forceResolve = true;
+            else if (a[0] != '-') mtprojArg = a;
+        }
+
+        std::string mtprojPath = findMtproj(mtprojArg);
         std::string projectRoot = std::filesystem::path(mtprojPath).parent_path().string();
 
         std::cout << "Loading project: " << mtprojPath << "\n";
@@ -232,6 +243,7 @@ int main(int argc, char* argv[])
         installer.setProgressCallback([](const std::string& msg) {
             std::cout << msg << "\n";
         });
+        installer.setForceResolve(forceResolve);
 
         auto result = installer.install(deps);
 
@@ -402,6 +414,29 @@ int main(int argc, char* argv[])
 
         std::cout << "Created mtpkg.json for " << name << "@" << version << "\n";
         return 0;
+    }
+
+    // Handle: publish [--force] [--git-tag] [dir]
+    if (command == "publish")
+    {
+        packagemanager::PublishOptions opts;
+        opts.projectDir = ".";
+        for (int i = 2; i < argc; ++i)
+        {
+            std::string a = argv[i];
+            if (a == "--force") opts.force = true;
+            else if (a == "--git-tag") opts.gitTag = true;
+            else if (a[0] != '-') opts.projectDir = a;
+        }
+
+        auto result = packagemanager::publish(registryRoot, opts,
+            [](const std::string& msg) { std::cout << msg << "\n"; });
+
+        for (const auto& e : result.errors)
+        {
+            std::cerr << "Error: " << e << "\n";
+        }
+        return result.success ? 0 : 1;
     }
 
     std::cerr << "Unknown command: " << command << "\n";

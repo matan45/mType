@@ -60,6 +60,9 @@
     <ClInclude Include="src\PackageRegistry.hpp">
       <Filter>src</Filter>
     </ClInclude>
+    <ClInclude Include="src\Publish.hpp">
+      <Filter>src</Filter>
+    </ClInclude>
     <ClInclude Include="src\SemVer.hpp">
       <Filter>src</Filter>
     </ClInclude>
@@ -108,6 +111,9 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\PackageRegistry.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Publish.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\SemVer.cpp">

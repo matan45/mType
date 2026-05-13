@@ -25,11 +25,16 @@ namespace packagemanager
                                               const std::string& version,
                                               const std::string& registryRoot);
 
-    private:
         // Validate a URL/string contains only safe characters for git operations.
         // Rejects shell metacharacters: & | ; $ ` ( ) { } ! # etc.
+        // Throws std::runtime_error on bad input.
         static void validateSafeString(const std::string& str, const std::string& context);
 
+        // Create a local git tag `v<version>` in the current working directory.
+        // Validates `version` first; throws std::runtime_error if git tag fails.
+        static void createTag(const std::string& version);
+
+    private:
         // Run git with an argument list (no shell interpolation).
         // Returns stdout. Throws on non-zero exit.
         static std::string runGit(const std::vector<std::string>& args);

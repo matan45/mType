@@ -415,4 +415,16 @@ namespace packagemanager
 
         return destPath.string();
     }
+
+    void GitSource::createTag(const std::string& version)
+    {
+        validateSafeString(version, "version");
+        int rc = runGitStatus({"tag", "v" + version});
+        if (rc != 0)
+        {
+            throw std::runtime_error(
+                "git tag v" + version + " failed (exit " + std::to_string(rc) +
+                "). Ensure the current directory is a git repository and the tag does not already exist.");
+        }
+    }
 }
