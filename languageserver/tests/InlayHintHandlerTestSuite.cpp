@@ -115,6 +115,49 @@ void InlayHintHandlerTestSuite::registerTests(LspTestHarness& harness) {
             "expected 0 Parameter hints on the call (both args duplicate names)");
     });
 
+    harness.addTest("hint positions are correct after string-literal args (MYT-307)", []() {
+        // MYT-307: a fast path in Lexer::parseStringLiteral previously
+        // skipped past the literal body via `pos = end + 1` without
+        // updating SourceLocationTracker, so every token AFTER a string
+        // literal on the same line had a column short by (len - 1). The
+        // visible symptom in VS Code was inlay hints rendering INSIDE
+        // adjacent string literals. Guard that hint columns now land
+        // before each argument, not somewhere mid-string.
+        const std::string src =
+            "function f(string a, string b, int c): void { }\n"
+            "f(\"xx\", \"yy\", 1);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+
+        // Call line (0-based): `f("xx", "yy", 1);`
+        //  col: 0123456789...
+        // expected hint positions: a -> 2, b -> 8, c -> 14
+        auto findHintChar = [&](const std::string& label) -> int {
+            for (const auto& h : hints) {
+                if (h.label == label && h.kind
+                    && *h.kind == InlayHintKind::Parameter
+                    && h.position.line == 1) {
+                    return h.position.character;
+                }
+            }
+            return -1;
+        };
+
+        int aCh = findHintChar("a:");
+        int bCh = findHintChar("b:");
+        int cCh = findHintChar("c:");
+        require(aCh == 2,
+            "expected 'a:' hint at character 2, got " + std::to_string(aCh));
+        require(bCh == 8,
+            "expected 'b:' hint at character 8 (start of second string), got "
+            + std::to_string(bCh));
+        require(cCh == 14,
+            "expected 'c:' hint at character 14 (start of `1`), got "
+            + std::to_string(cCh));
+    });
+
     harness.addTest("hint kept when arg is a non-bare expression", []() {
         // `width` and `height` are bare-identifier args; `outer.width`
         // is an expression composed of multiple tokens. The latter MUST
