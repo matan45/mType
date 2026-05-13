@@ -476,7 +476,12 @@ namespace lexer
             // Fast path: view directly into the source buffer (stable for
             // Lexer lifetime). No allocation.
             std::string_view literalView(input.data() + start, end - start);
-            pos = end + 1; // Skip closing quote
+            // Sync locationTracker across the literal body and closing
+            // quote. Skipping advance() here freezes currentColumn after
+            // the opening quote and silently corrupts the column of every
+            // subsequent token on this line (MYT-307).
+            while (pos < end) advance();
+            advance(); // Skip closing quote
             return literalView;
         }
 
