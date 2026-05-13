@@ -48,6 +48,12 @@ namespace tests::testSuite
         addExeTest("Exe - Imports",
                    basePath + "imports/ImportExe.mtproj");
 
+        // ===== MYT-304: mt_modules alias resolution =====
+        addExeTest("Exe - mt_modules Basic Resolution",
+                   basePath + "imports/mtmodules-basic/MtModulesBasic.mtproj");
+        addExeTest("Exe - mt_modules Project Alias Beats Module",
+                   basePath + "imports/mtmodules-precedence/MtModulesPrecedence.mtproj");
+
         // ===== COLLECTIONS =====
         addExeTest("Exe - Collections",
                    basePath + "collections/CollectionExe.mtproj");

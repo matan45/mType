@@ -1,0 +1,9 @@
+<Project Name="MtModulesPrecedence" Version="1.0.0">
+  <Source>
+    <Include>src/**/*.mt</Include>
+  </Source>
+  <Output Directory="build" />
+  <Imports>
+    <Alias Name="@foo" Path="local/foo" />
+  </Imports>
+</Project>
