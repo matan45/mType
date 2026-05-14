@@ -527,6 +527,8 @@ namespace tests::testSuite
                                   benchmarkPath + "field_read_hot.mt");
         addOutputVerificationTest("Benchmark: field_write_hot",
                                   benchmarkPath + "field_write_hot.mt");
+        addOutputVerificationTest("Benchmark: polymorphic_field_hot",
+                                  benchmarkPath + "polymorphic_field_hot.mt");
         addOutputVerificationTest("Benchmark: for_each_loop",
                                   benchmarkPath + "for_each_loop.mt");
         addOutputVerificationTest("Benchmark: function_call_hot",
@@ -549,6 +551,8 @@ namespace tests::testSuite
         // needs separate investigation before it can be a regression test.
         addOutputVerificationTest("Benchmark: linked_list_nested_hot",
                                   benchmarkPath + "linked_list_nested_hot.mt");
+        addOutputVerificationTest("Benchmark: method_chain_hot",
+                                  benchmarkPath + "method_chain_hot.mt");
         addOutputVerificationTest("Benchmark: method_dispatch",
                                   benchmarkPath + "method_dispatch.mt");
         addOutputVerificationTest("Benchmark: object_alloc",
@@ -573,6 +577,8 @@ namespace tests::testSuite
                                   benchmarkPath + "stream_pipeline_hot.mt");
         addOutputVerificationTest("Benchmark: string_interpolation_hot",
                                   benchmarkPath + "string_interpolation_hot.mt");
+        addOutputVerificationTest("Benchmark: string_build_call_hot",
+                                  benchmarkPath + "string_build_call_hot.mt");
         addOutputVerificationTest("Benchmark: string_ops",
                                   benchmarkPath + "string_ops.mt");
         addOutputVerificationTest("Benchmark: switch_dispatch_hot",

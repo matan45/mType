@@ -56,6 +56,8 @@ namespace vm::jit
 
         size_t getCompileCount() const { return compileCount; }
         size_t getBailoutCount() const { return bailoutCount; }
+        const std::array<uint64_t, 256>& getFunctionBailoutOpcodes() const { return functionBailoutOpcodes; }
+        const std::array<uint64_t, 256>& getOSRBailoutOpcodes() const { return osrBailoutOpcodes; }
 
         // MYT-172 AC #3: inline field-IC hit/miss counters bumped from JIT
         // emitted code. Pointers are baked as immediates at emit time, so
@@ -107,7 +109,8 @@ namespace vm::jit
 
     private:
         bool canCompile(const bytecode::BytecodeProgram::FunctionMetadata& meta,
-                        const bytecode::BytecodeProgram& program) const;
+                        const bytecode::BytecodeProgram& program,
+                        bytecode::OpCode* outOpcode = nullptr) const;
 
         // Returns true if every opcode in [start, end] is JIT-supported. On
         // failure, *outOpcode (if non-null) gets the offending opcode.
@@ -128,6 +131,8 @@ namespace vm::jit
 
         size_t compileCount = 0;
         size_t bailoutCount = 0;
+        std::array<uint64_t, 256> functionBailoutOpcodes = {};
+        std::array<uint64_t, 256> osrBailoutOpcodes = {};
         uint64_t inlineFieldICHits = 0;
         uint64_t inlineFieldICMisses = 0;
         uint64_t inlineFieldSetICHits = 0;

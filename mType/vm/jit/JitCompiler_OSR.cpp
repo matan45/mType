@@ -492,6 +492,7 @@ namespace vm::jit
         if (!canCompileLoopOSR(loopStartOffset, loopEndOffset, program, &offendingOpcode))
         {
             bailoutCount++;
+            osrBailoutOpcodes[static_cast<uint8_t>(offendingOpcode)]++;
             reportBailout(OSRBailoutReason::UNSUPPORTED_OPCODE,
                           static_cast<uint8_t>(offendingOpcode));
             return false;
@@ -528,6 +529,8 @@ namespace vm::jit
                          bodyReason, bodyOpcode))
         {
             bailoutCount++;
+            if (bodyOpcode != 0)
+                osrBailoutOpcodes[bodyOpcode]++;
             reportBailout(bodyReason, bodyOpcode);
             return false;
         }

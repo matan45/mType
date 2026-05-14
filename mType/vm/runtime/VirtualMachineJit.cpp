@@ -901,6 +901,29 @@ namespace vm::runtime
         {
             std::cout << "  Successful compiles:    " << jitCompiler->getCompileCount() << "\n";
             std::cout << "  Bailouts:               " << jitCompiler->getBailoutCount() << "\n";
+            auto printOpcodeBailouts = [](const char* label,
+                                          const std::array<uint64_t, 256>& counts)
+            {
+                bool any = false;
+                for (uint64_t count : counts)
+                {
+                    if (count != 0) { any = true; break; }
+                }
+                if (!any) return;
+
+                std::cout << label << "\n";
+                for (size_t i = 0; i < counts.size(); ++i)
+                {
+                    if (counts[i] == 0) continue;
+                    std::cout << "    - "
+                              << bytecode::getOpCodeName(static_cast<bytecode::OpCode>(i))
+                              << ": " << counts[i] << "\n";
+                }
+            };
+            printOpcodeBailouts("  Function bailout opcodes:",
+                                jitCompiler->getFunctionBailoutOpcodes());
+            printOpcodeBailouts("  OSR bailout opcodes:",
+                                jitCompiler->getOSRBailoutOpcodes());
             // MYT-207: self-recursion call-dispatch telemetry.
             //   Tail calls optimized — `return self(args...)` sites lowered to
             //     arg-overwrite + jmp (loop). Counts CALL SITES, not dynamic

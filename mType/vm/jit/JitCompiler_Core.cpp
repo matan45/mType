@@ -379,7 +379,8 @@ namespace vm::jit
     }
 
     bool JitCompiler::canCompile(const bytecode::BytecodeProgram::FunctionMetadata& meta,
-                                  const bytecode::BytecodeProgram& program) const
+                                  const bytecode::BytecodeProgram& program,
+                                  OpCode* outOpcode) const
     {
         if (meta.isNative)
             return false;
@@ -406,7 +407,10 @@ namespace vm::jit
         {
             const auto& instr = program.getInstruction(ip);
             if (supported.find(static_cast<uint8_t>(instr.opcode)) == supported.end())
+            {
+                if (outOpcode) *outOpcode = instr.opcode;
                 return false;
+            }
         }
         if (endOffset > meta.startOffset &&
             hasUnsafeOrPopLoopShape(program, meta.startOffset, endOffset - 1))
@@ -1137,9 +1141,12 @@ namespace vm::jit
             bailoutCount++;
             return false;
         }
-        if (!canCompile(*funcMeta, program))
+        OpCode offendingOpcode = OpCode::OPCODE_SENTINEL_;
+        if (!canCompile(*funcMeta, program, &offendingOpcode))
         {
             bailoutCount++;
+            if (offendingOpcode != OpCode::OPCODE_SENTINEL_)
+                functionBailoutOpcodes[static_cast<uint8_t>(offendingOpcode)]++;
             return false;
         }
 
