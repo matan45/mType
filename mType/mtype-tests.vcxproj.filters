@@ -9208,6 +9208,18 @@
     <None Include="tests\testFiles\integration\pass\myt302JitBoolAliasVoidCall.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\myt308JitHeapDeadStoreSentinel.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt308JitHeapDeadStoreSentinel.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt308JitHeapGlobalArrayOsr.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt308JitHeapGlobalArrayOsr.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\namespaceClassNameCollisions.expected">
       <Filter>testFiles\integration\pass</Filter>
     </None>

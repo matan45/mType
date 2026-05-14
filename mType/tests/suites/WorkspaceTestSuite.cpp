@@ -389,6 +389,35 @@ namespace tests::testSuite
                 throw std::runtime_error("Expected resolved source files, got none");
         });
 
+        addCallbackTest("ProjectConfigParser resolves bare relative .mtproj from cwd", "", [](services::ScriptAPI&) {
+            struct CurrentPathGuard
+            {
+                std::filesystem::path originalPath;
+
+                CurrentPathGuard() : originalPath(std::filesystem::current_path()) {}
+
+                ~CurrentPathGuard()
+                {
+                    std::error_code ec;
+                    std::filesystem::current_path(originalPath, ec);
+                }
+            } guard;
+
+            auto fixtureRoot = std::filesystem::canonical("mType/tests/testFiles/projectManifest");
+            std::filesystem::current_path(fixtureRoot);
+
+            project::ProjectConfigParser parser;
+            auto config = parser.parse("TestProject.mtproj");
+
+            if (std::filesystem::path(config->projectRoot) != fixtureRoot)
+            {
+                throw std::runtime_error("Expected projectRoot '" + fixtureRoot.string() +
+                                         "', got '" + config->projectRoot + "'");
+            }
+            if (config->resolvedSourceFiles.empty())
+                throw std::runtime_error("Expected resolved source files for bare relative .mtproj, got none");
+        });
+
         addCallbackTest("ProjectConfigParser parses .mtproj with comments", "", [](services::ScriptAPI&) {
             project::ProjectConfigParser parser;
             auto config = parser.parse("mType/tests/testFiles/projectManifest/TestProjectWithComments.mtproj");
