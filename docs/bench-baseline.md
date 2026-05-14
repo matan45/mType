@@ -2817,3 +2817,52 @@ This is the third entry today. Read order:
   static_call_hot.mt                  169.48        170.92           32517      2000
   linked_list_nested_hot.mt           341.37        341.58          124920     81001
 ```
+
+## 2026-05-13
+
+### Summary (jit=on)
+
+```
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt            109.98        117.17           20017         0
+  method_dispatch.mt                   99.22         99.37           14042       506
+  object_alloc.mt                     629.18        629.47           12511         0
+  object_alloc_nested.mt             1509.25       1522.17           16811       500
+  field_write_hot.mt                   76.96         77.10            8018         1
+  field_read_hot.mt                    75.70         75.91            9020         1
+  string_ops.mt                       128.71        129.34           19019         0
+  recursive.mt                        727.58        728.25           17260   2545487
+  bitwise_tight_loop.mt                80.41         83.56           23019         0
+  short_circuit_chain.mt               65.08         65.27           24909         0
+  primitive_method_dispatch.mt        232.62        233.75           32038         0
+  array_multi_alloc.mt                 76.36         77.07            9911       500
+  array_multi_get.mt                  333.77        337.97           49787       500
+  for_each_loop.mt                    332.67        336.62           75653      5604
+  inline_monomorphic.mt                74.74         76.14           13016       501
+  inline_branching.mt                  79.84         80.36           15016       501
+  inline_polymorphic.mt               100.58        101.39           14051       508
+  inline_value_object_hot.mt          137.65        138.98           12517       500
+  function_call_hot.mt                185.84        186.46           15011       500
+  async_await_tight_loop.mt           656.99        660.26           12422       501
+  async_await_chain.mt               1305.46       1312.01           23322      2001
+  lambda_call_hot.mt                  860.20        860.63           12521   1999501
+  lambda_closure_hot.mt               884.27        884.52           12526   1999502
+  generic_dispatch_hot.mt             641.45        645.46           20074      1012
+  try_catch_finally_hot.mt            415.27        416.84           50019      2000
+  switch_dispatch_hot.mt              446.22        447.79           14634       500
+  overload_dispatch_hot.mt            548.94        549.00           34026      2001
+  abstract_dispatch_hot.mt             98.82         99.57           14042       506
+  cast_hot.mt                         245.74        250.00           19560       505
+  collections_hash_hot.mt             630.66        633.43           32761       502
+  collections_hash_user_class_hot.mt        691.91        702.65           35773       502
+  collections_hashset_hot.mt          176.25        178.34           18653         1
+  stream_pipeline_hot.mt              411.46        415.72         2090491    306881
+  reflection_lookup_hot.mt           2133.59       2155.42           81549   1203003
+  pattern_match_hot.mt                442.09        444.94           12861       500
+  string_interpolation_hot.mt         252.31        254.94         7400025         0
+  boxed_primitive_dispatch_hot.mt        655.30        657.71           32802         0
+  boxed_bool_dispatch_hot.mt          550.64        551.88           29276         0
+  boxed_string_dispatch_hot.mt        402.74        406.87           24261         0
+  static_call_hot.mt                  148.85        150.51           32516      2000
+  linked_list_nested_hot.mt           324.93        325.01          124919     81001
+```

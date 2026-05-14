@@ -167,16 +167,19 @@ namespace vm::jit
 
     // Extract array info (dataPtr + length) for a given boxed stack slot.
     // Uses the cache if available, otherwise calls jit_array_extract_info once.
-    static void emitExtractArrayInfo(JitEmissionState& s, int arrSlot,
+    static void emitExtractArrayInfo(JitEmissionState& s, int cacheKey,
                                       Gp arrAddr, Gp& dataPtr, Gp& arrLen)
     {
         auto& cc = s.cc;
-        auto cacheIt = s.arrayInfoCache.find(arrSlot);
-        if (cacheIt != s.arrayInfoCache.end())
+        if (cacheKey >= 0)
         {
-            dataPtr = cacheIt->second.dataPtr;
-            arrLen = cacheIt->second.length;
-            return;
+            auto cacheIt = s.arrayInfoCache.find(cacheKey);
+            if (cacheIt != s.arrayInfoCache.end())
+            {
+                dataPtr = cacheIt->second.dataPtr;
+                arrLen = cacheIt->second.length;
+                return;
+            }
         }
 
         Mem infoMem = cc.new_stack(16, 8);
@@ -194,7 +197,8 @@ namespace vm::jit
         arrLen = cc.new_gp64();
         cc.mov(arrLen, Mem(infoAddr, 8));    // JitArrayInfo::length
 
-        s.arrayInfoCache[arrSlot] = {dataPtr, arrLen};
+        if (cacheKey >= 0)
+            s.arrayInfoCache[cacheKey] = {dataPtr, arrLen};
     }
 
     static bool emitArrayLength(JitEmissionState& s)
@@ -207,9 +211,10 @@ namespace vm::jit
         Gp arrAddr = cc.new_gp64();
         cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>(arrSlot * valueSize)));
 
-        // Use emitExtractArrayInfo to share cache with ARRAY_GET_INT/ARRAY_SET_INT
+        // Operand-stack slots are reused for different arrays inside hot loops,
+        // so do not cache by stack position here.
         Gp dataPtr, arrLen;
-        emitExtractArrayInfo(s, arrSlot, arrAddr, dataPtr, arrLen);
+        emitExtractArrayInfo(s, -1, arrAddr, dataPtr, arrLen);
 
         emitValueDestroy(s, s.stackDepth - 1);
 
@@ -231,9 +236,10 @@ namespace vm::jit
         Gp arrAddr = cc.new_gp64();
         cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>(arrSlot * valueSize)));
 
-        // Extract array info (cached or single combined call)
+        // Operand-stack slots are reused for different arrays inside hot loops,
+        // so do not cache by stack position here.
         Gp dataPtr, arrLen;
-        emitExtractArrayInfo(s, arrSlot, arrAddr, dataPtr, arrLen);
+        emitExtractArrayInfo(s, -1, arrAddr, dataPtr, arrLen);
 
         // Bounds check: unsigned compare catches negative + overflow
         Label boundsOk = cc.new_label();
@@ -299,9 +305,10 @@ namespace vm::jit
         Gp arrAddr = cc.new_gp64();
         cc.lea(arrAddr, Mem(s.boxedBase, static_cast<int32_t>(arrSlot * valueSize)));
 
-        // Extract array info (cached or single combined call)
+        // Operand-stack slots are reused for different arrays inside hot loops,
+        // so do not cache by stack position here.
         Gp dataPtr, arrLen;
-        emitExtractArrayInfo(s, arrSlot, arrAddr, dataPtr, arrLen);
+        emitExtractArrayInfo(s, -1, arrAddr, dataPtr, arrLen);
 
         // Bounds check: unsigned compare catches negative + overflow
         Label boundsOk = cc.new_label();

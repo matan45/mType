@@ -80,6 +80,211 @@ namespace vm::jit
         return hasLoopStart && hasJumpBack && returnValueCount >= 3;
     }
 
+    static bool isArrayAccessOpcode(OpCode opcode)
+    {
+        switch (opcode)
+        {
+            case OpCode::ARRAY_GET:
+            case OpCode::ARRAY_GET_ALIAS:
+            case OpCode::ARRAY_SET:
+            case OpCode::ARRAY_LENGTH:
+            case OpCode::ARRAY_GET_INT:
+            case OpCode::ARRAY_SET_INT:
+            case OpCode::ARRAY_GET_FIELD:
+            case OpCode::ARRAY_SET_FIELD:
+            case OpCode::ARRAY_LENGTH_LOCAL:
+            case OpCode::ARRAY_GET_INT_LOCAL:
+            case OpCode::ARRAY_SET_INT_LOCAL:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    static bool localSlotOpcode(OpCode opcode,
+                                const bytecode::BytecodeProgram::Instruction& instr,
+                                size_t& outSlot)
+    {
+        switch (opcode)
+        {
+            case OpCode::LOAD_LOCAL:
+            case OpCode::STORE_LOCAL:
+            case OpCode::LOAD_LOCAL_INT:
+            case OpCode::LOAD_LOCAL_FLOAT:
+            case OpCode::LOAD_LOCAL_BOOL:
+            case OpCode::LOAD_LOCAL_BOXED_INST:
+            case OpCode::STORE_LOCAL_INT:
+            case OpCode::STORE_LOCAL_FLOAT:
+            case OpCode::STORE_LOCAL_BOOL:
+            case OpCode::STORE_LOCAL_BOXED_INST:
+                if (instr.operands.empty())
+                    return false;
+                outSlot = instr.operands[0];
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    static bool isVariableAccessOpcode(OpCode opcode)
+    {
+        switch (opcode)
+        {
+            case OpCode::LOAD_VAR:
+            case OpCode::STORE_VAR:
+            case OpCode::LOAD_VAR_CACHED:
+            case OpCode::STORE_VAR_CACHED:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    static bool isPushIntValue(const bytecode::BytecodeProgram& program,
+                               const bytecode::BytecodeProgram::Instruction& instr,
+                               int64_t expected)
+    {
+        if (instr.opcode != OpCode::PUSH_INT || instr.operands.empty())
+            return false;
+        const auto index = static_cast<size_t>(instr.operands[0]);
+        const auto& integers = program.getConstantPool().integers;
+        return index < integers.size() && integers[index] == expected;
+    }
+
+    static bool isIgnorableSentinelStoreSeparator(OpCode opcode)
+    {
+        switch (opcode)
+        {
+            case OpCode::POP:
+            case OpCode::LINE:
+            case OpCode::SOURCE_FILE:
+            case OpCode::NOP:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    static bool findConstLocalWrite(const bytecode::BytecodeProgram& program,
+                                    size_t pushOffset,
+                                    size_t endOffsetInclusive,
+                                    int64_t expectedValue,
+                                    size_t* outSlot,
+                                    size_t* outNextOffset)
+    {
+        if (!isPushIntValue(program, program.getInstruction(pushOffset), expectedValue))
+            return false;
+
+        for (size_t ip = pushOffset + 1;
+             ip <= endOffsetInclusive && ip <= pushOffset + 4;
+             ++ip)
+        {
+            const auto& instr = program.getInstruction(ip);
+            if (isIgnorableSentinelStoreSeparator(instr.opcode))
+                continue;
+
+            size_t slot = 0;
+            if (!localSlotOpcode(instr.opcode, instr, slot))
+                return false;
+
+            if (outSlot)
+                *outSlot = slot;
+
+            size_t next = ip + 1;
+            while (next <= endOffsetInclusive &&
+                   isIgnorableSentinelStoreSeparator(program.getInstruction(next).opcode))
+            {
+                ++next;
+            }
+            if (outNextOffset)
+                *outNextOffset = next;
+            return true;
+        }
+        return false;
+    }
+
+    static bool hasArrayDeadStoreSentinelLoopShape(
+        const bytecode::BytecodeProgram& program,
+        size_t startOffset,
+        size_t endOffsetInclusive)
+    {
+        bool hasLoopStart = false;
+        bool hasJumpBack = false;
+        bool hasArrayAccess = false;
+        bool hasDeadStoreSentinel = false;
+
+        for (size_t ip = startOffset; ip <= endOffsetInclusive; ++ip)
+        {
+            const auto& instr = program.getInstruction(ip);
+            switch (instr.opcode)
+            {
+                case OpCode::LOOP_START:
+                    hasLoopStart = true;
+                    break;
+                case OpCode::JUMP_BACK:
+                    hasJumpBack = true;
+                    break;
+                default:
+                    break;
+            }
+
+            if (isArrayAccessOpcode(instr.opcode))
+                hasArrayAccess = true;
+
+            size_t slot = 0;
+            size_t nextOffset = 0;
+            if (findConstLocalWrite(program, ip, endOffsetInclusive,
+                                    0, &slot, &nextOffset))
+            {
+                size_t secondSlot = 0;
+                size_t ignoredNext = 0;
+                if (nextOffset <= endOffsetInclusive &&
+                    findConstLocalWrite(program, nextOffset, endOffsetInclusive,
+                                        -1, &secondSlot, &ignoredNext) &&
+                    secondSlot == slot)
+                {
+                    hasDeadStoreSentinel = true;
+                }
+            }
+        }
+
+        return hasLoopStart && hasJumpBack && hasArrayAccess && hasDeadStoreSentinel;
+    }
+
+    static bool hasGlobalArrayLoopShape(
+        const bytecode::BytecodeProgram& program,
+        size_t startOffset,
+        size_t endOffsetInclusive)
+    {
+        bool hasLoopStart = false;
+        bool hasJumpBack = false;
+        bool hasArrayAccess = false;
+        bool hasVariableAccess = false;
+
+        for (size_t ip = startOffset; ip <= endOffsetInclusive; ++ip)
+        {
+            const auto& instr = program.getInstruction(ip);
+            switch (instr.opcode)
+            {
+                case OpCode::LOOP_START:
+                    hasLoopStart = true;
+                    break;
+                case OpCode::JUMP_BACK:
+                    hasJumpBack = true;
+                    break;
+                default:
+                    break;
+            }
+
+            if (isArrayAccessOpcode(instr.opcode))
+                hasArrayAccess = true;
+            if (isVariableAccessOpcode(instr.opcode))
+                hasVariableAccess = true;
+        }
+
+        return hasLoopStart && hasJumpBack && hasArrayAccess && hasVariableAccess;
+    }
+
     static bool isCallLikeOpcode(OpCode opcode)
     {
         switch (opcode)
@@ -215,6 +420,16 @@ namespace vm::jit
             endOffset > meta.startOffset &&
             hasUnsafeEarlyBoxedReturnLoopShape(program, meta.startOffset, endOffset - 1))
             return false;
+        // MYT-308: heap helpers over global arrays can crash in emitted
+        // function JIT code on Windows. The original heapPush trigger also
+        // has a dead-store sentinel (`i = 0; i = -1`), while heapPop has the
+        // same global-array loop shape without that sentinel. Keep these
+        // function bodies in the bytecode VM while allowing ordinary local /
+        // parameter array loops to compile and OSR.
+        if (endOffset > meta.startOffset &&
+            (hasArrayDeadStoreSentinelLoopShape(program, meta.startOffset, endOffset - 1) ||
+             hasGlobalArrayLoopShape(program, meta.startOffset, endOffset - 1)))
+            return false;
 
         return true;
     }
@@ -259,6 +474,12 @@ namespace vm::jit
         if (hasForwardConditionalCallRegion(program, loopStartOffset, loopEndOffset,
                                             outOpcode))
             return false;
+        if (hasArrayDeadStoreSentinelLoopShape(program, loopStartOffset, loopEndOffset) ||
+            hasGlobalArrayLoopShape(program, loopStartOffset, loopEndOffset))
+        {
+            if (outOpcode) *outOpcode = OpCode::STORE_LOCAL;
+            return false;
+        }
         return true;
     }
 

@@ -713,5 +713,18 @@ namespace tests::testSuite
                         passPath + "myt302JitBoolAliasTicketRepro.mt");
         addOutputVerificationTest("MYT-302 JIT bool alias void call",
                         passPath + "myt302JitBoolAliasVoidCall.mt");
+
+        // MYT-308 regression: hot heap loop with int-array accesses plus a
+        // dead-store + sentinel break pattern must not crash under JIT.
+        addOutputVerificationTest("MYT-308 JIT heap dead-store sentinel",
+                        passPath + "myt308JitHeapDeadStoreSentinel.mt");
+        // MYT-308 follow-up: same heap-over-global-arrays shape *without*
+        // the dead-store sentinel (the variant rts_step13.mt actually uses).
+        // shouldCompileFunction() rejects it via hasGlobalArrayLoopShape, but
+        // OSR's shouldCompileLoopForOSR previously did not — so back-edge
+        // tier-up still compiled the inner while and crashed after ~3s of
+        // demo runtime. Pins the OSR gate so it cannot silently regress.
+        addOutputVerificationTest("MYT-308 JIT heap global-array OSR",
+                        passPath + "myt308JitHeapGlobalArrayOsr.mt");
     }
 }
