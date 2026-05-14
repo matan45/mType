@@ -32,6 +32,9 @@
     "onLanguage:mtype",
     "onLanguage:mtype-compiled",
     "onCommand:mtype.run",
+    "onCommand:mtype.build",
+    "onCommand:mtype.buildLib",
+    "onCommand:mtype.buildExe",
     "onCommand:mtype.restartLanguageServer",
     "onCommand:mtype.formatDocument",
     "onCommand:mtype.packages.install",
@@ -197,6 +200,21 @@
         "category": "mType"
       },
       {
+        "command": "mtype.build",
+        "title": "Build Project",
+        "category": "mType"
+      },
+      {
+        "command": "mtype.buildLib",
+        "title": "Build as Library (.mtcLib)",
+        "category": "mType"
+      },
+      {
+        "command": "mtype.buildExe",
+        "title": "Build as Executable",
+        "category": "mType"
+      },
+      {
         "command": "mtype.restartLanguageServer",
         "title": "Restart Language Server",
         "category": "mType"
@@ -234,6 +252,11 @@
         "when": "editorTextFocus && resourceExtname == '.mt'"
       },
       {
+        "command": "mtype.build",
+        "key": "shift+f5",
+        "when": "resourceExtname == '.mtproj'"
+      },
+      {
         "command": "editor.action.copyLinesDownAction",
         "key": "ctrl+d",
         "when": "editorTextFocus && resourceExtname == '.mt'"
@@ -246,6 +269,23 @@
       }
     ],
     "menus": {
+      "explorer/context": [
+        {
+          "when": "resourceExtname == '.mtproj'",
+          "command": "mtype.build",
+          "group": "mtype@1"
+        },
+        {
+          "when": "resourceExtname == '.mtproj'",
+          "command": "mtype.buildLib",
+          "group": "mtype@2"
+        },
+        {
+          "when": "resourceExtname == '.mtproj'",
+          "command": "mtype.buildExe",
+          "group": "mtype@3"
+        }
+      ],
       "editor/context": [
         {
           "when": "resourceExtname == '.mt'",
@@ -256,12 +296,39 @@
           "when": "resourceExtname == '.mt'",
           "command": "mtype.formatDocument",
           "group": "mtype"
+        },
+        {
+          "when": "resourceExtname == '.mtproj'",
+          "command": "mtype.build",
+          "group": "mtype@1"
+        },
+        {
+          "when": "resourceExtname == '.mtproj'",
+          "command": "mtype.buildLib",
+          "group": "mtype@2"
+        },
+        {
+          "when": "resourceExtname == '.mtproj'",
+          "command": "mtype.buildExe",
+          "group": "mtype@3"
         }
       ],
       "commandPalette": [
         {
           "command": "mtype.run",
           "when": "resourceExtname == '.mt'"
+        },
+        {
+          "command": "mtype.build",
+          "when": "resourceExtname == '.mtproj'"
+        },
+        {
+          "command": "mtype.buildLib",
+          "when": "resourceExtname == '.mtproj'"
+        },
+        {
+          "command": "mtype.buildExe",
+          "when": "resourceExtname == '.mtproj'"
         }
       ]
     },

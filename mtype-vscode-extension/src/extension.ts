@@ -4,6 +4,49 @@ import { MTypeDebugAdapterFactory, MTypeDebugConfigurationProvider } from './deb
 import { ModulesTreeProvider } from './packages/ModulesTreeProvider';
 import { registerPackageCommands } from './packages/packageCommands';
 
+function registerBuildCommand(
+    context: vscode.ExtensionContext,
+    commandId: string,
+    extraFlags: string
+): void {
+    context.subscriptions.push(
+        vscode.commands.registerCommand(commandId, async (resource?: vscode.Uri) => {
+            const uri = resource ?? vscode.window.activeTextEditor?.document.uri;
+            if (!uri) {
+                vscode.window.showErrorMessage('No .mtproj selected');
+                return;
+            }
+            if (!uri.fsPath.endsWith('.mtproj')) {
+                vscode.window.showErrorMessage('Selected file is not an .mtproj file');
+                return;
+            }
+
+            const config = vscode.workspace.getConfiguration('mTypeLanguageServer');
+            const interpreterPath = config.get<string>('interpreterPath');
+            if (!interpreterPath) {
+                const result = await vscode.window.showErrorMessage(
+                    'mType interpreter path not configured. Would you like to set it now?',
+                    'Set Path'
+                );
+                if (result === 'Set Path') {
+                    vscode.commands.executeCommand('workbench.action.openSettings', 'mTypeLanguageServer.interpreterPath');
+                }
+                return;
+            }
+
+            const projectPath = uri.fsPath;
+            const terminal = vscode.window.terminals.find(t => t.name === 'mType Build')
+                ?? vscode.window.createTerminal('mType Build');
+            const shellPath = vscode.env.shell || '';
+            const isPowerShell = /\b(pwsh|powershell)(\.exe)?$/i.test(shellPath);
+            const prefix = isPowerShell ? '& ' : '';
+            const flagPart = extraFlags ? ` ${extraFlags}` : '';
+            terminal.sendText(`${prefix}"${interpreterPath}" --build${flagPart} "${projectPath}"`);
+            terminal.show();
+        })
+    );
+}
+
 function registerCommonCommands(context: vscode.ExtensionContext): void {
     // Command to run mType file
     context.subscriptions.push(
@@ -46,6 +89,11 @@ function registerCommonCommands(context: vscode.ExtensionContext): void {
             terminal.show();
         })
     );
+
+    // Project build commands (.mtproj)
+    registerBuildCommand(context, 'mtype.build', '');
+    registerBuildCommand(context, 'mtype.buildLib', '--lib');
+    registerBuildCommand(context, 'mtype.buildExe', '--exe');
 
     // Command to find all references
     context.subscriptions.push(
