@@ -72,7 +72,11 @@ std::string ProjectConfigProvider::findMtproj(const std::string& startDir) const
             if (!entry.is_regular_file()) continue;
 
             const auto& path = entry.path();
-            if (path.extension() == ".mtproj")
+            // libstdc++/libc++ correctly return "" for path(".mtproj").extension()
+            // (single leading dot = hidden file, no extension per C++17), while
+            // MSVC's <filesystem> non-conformingly returns ".mtproj". Match both
+            // the dotfile and the `Name.mtproj` form so all platforms agree.
+            if (path.extension() == ".mtproj" || path.filename() == ".mtproj")
             {
                 std::string candidate = path.string();
                 if (bestPath.empty() || candidate.length() < bestPath.length())
