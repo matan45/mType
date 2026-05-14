@@ -1,0 +1,26 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Purple gradient for the "M" -->
+    <linearGradient id="purpleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#AB47BC;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6A1B9A;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Purple capital "M" letter -->
+  <text x="16" y="22"
+        font-family="Arial Black, Arial, sans-serif"
+        font-size="22"
+        font-weight="900"
+        text-anchor="middle"
+        fill="url(#purpleGradient)"
+        style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);">M</text>
+
+  <!-- "WS" tag underneath to distinguish from .mtproj and .mt files -->
+  <text x="16" y="30"
+        font-family="Arial, sans-serif"
+        font-size="6"
+        font-weight="700"
+        text-anchor="middle"
+        fill="#6A1B9A">WS</text>
+</svg>
