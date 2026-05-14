@@ -2866,3 +2866,82 @@ This is the third entry today. Read order:
   static_call_hot.mt                  148.85        150.51           32516      2000
   linked_list_nested_hot.mt           324.93        325.01          124919     81001
 ```
+
+## 2026-05-14 — MYT-173 follow-up (per-entry POLY inlining + megamorphic/mixed benchmarks)
+
+New benchmarks landed: `inline_polymorphic_mixed.mt` (primary regression target for
+per-entry POLY eligibility — 3 small + 1 oversized callee) and `megamorphic_dispatch.mt`
+(6 shapes, MEGA cliff baseline). POLY emitter now routes each shape independently —
+inlineable shapes paste in-place, non-inlineable shapes route through
+`emitCallMethodOpGeneric` per-shape instead of forfeiting the whole site.
+
+### Summary (jit=on)
+
+```
+  Script                             min(ms)    median(ms)    instructions     calls
+  arithmetic_tight_loop.mt            108.30        108.93           20017         0
+  method_dispatch.mt                  106.12        106.48           14042       506
+  object_alloc.mt                     655.61        657.85           12511         0
+  object_alloc_nested.mt             1498.61       1521.04           16811       500
+  field_write_hot.mt                   81.10         82.02            8018         1
+  field_read_hot.mt                    82.59         83.56            9020         1
+  polymorphic_field_hot.mt            644.69        646.78        42000094         8
+  string_ops.mt                       131.57        132.21           19019         0
+  recursive.mt                        771.72        773.93           17260   2545487
+  bitwise_tight_loop.mt                80.36         80.62           23019         0
+  short_circuit_chain.mt               64.77         64.90           24909         0
+  primitive_method_dispatch.mt        240.68        243.70           32038         0
+  array_multi_alloc.mt                 70.25         70.33            9911       500
+  array_multi_get.mt                  347.18        347.77           60117       500
+  for_each_loop.mt                    336.77        339.29           75653      5604
+  inline_monomorphic.mt                81.79         82.44           13016       501
+  inline_branching.mt                  86.32         87.11           15016       501
+  inline_polymorphic.mt               107.41        108.56           14051       508
+  inline_polymorphic_mixed.mt        1560.58       1566.50           32926       508
+  megamorphic_dispatch.mt             860.04        884.89           14069       512
+  inline_value_object_hot.mt          144.34        148.22           12517       500
+  function_call_hot.mt                193.69        194.28           15011       500
+  async_await_tight_loop.mt           677.06        678.59           12422       501
+  async_await_chain.mt               1329.59       1336.57           23322      2001
+  lambda_call_hot.mt                  865.13        869.56           12521   1999501
+  lambda_closure_hot.mt               892.44        898.73           12526   1999502
+  generic_dispatch_hot.mt             655.58        670.75           20074      1012
+  try_catch_finally_hot.mt            441.82        445.66           50019      2000
+  switch_dispatch_hot.mt              459.16        461.31           14634       500
+  overload_dispatch_hot.mt            573.89        579.09           34026      2001
+  abstract_dispatch_hot.mt            107.11        108.08           14042       506
+  cast_hot.mt                         271.95        273.23           19560       505
+  collections_hash_hot.mt             622.39        629.36           32761       502
+  collections_hash_user_class_hot.mt        682.05        689.11           35773       502
+  collections_hashset_hot.mt          172.85        173.38           18653         1
+  stream_pipeline_hot.mt              397.85        405.69         2090491    306881
+  reflection_lookup_hot.mt           2080.95       2106.16           81549   1203003
+  pattern_match_hot.mt                448.30        452.21           12861       500
+  string_interpolation_hot.mt         247.28        247.47         7400025         0
+  boxed_primitive_dispatch_hot.mt        641.62        647.29           32802         0
+  boxed_bool_dispatch_hot.mt          539.22        541.76           29276         0
+  boxed_string_dispatch_hot.mt        399.08        400.50           24261         0
+  static_call_hot.mt                  154.87        155.91           32516      2000
+  linked_list_nested_hot.mt           321.55        325.04          124919     81001
+  method_chain_hot.mt                  21.73         21.92           36526      2389
+  string_build_call_hot.mt            103.62        104.28           21015       500
+```
+
+### Notes on the new entries
+
+- `inline_polymorphic_mixed.mt` at **1560.58 ms** is dominated by Big's
+  30-line body cost (executed via the per-shape helper branch on 500k of
+  the 2M iterations). A/B/C are inlined; pre-change every dispatch would
+  have routed through `jit_call_method_ic` for *all* four shapes.
+  Confirms correctness of the per-shape routing — output matches the
+  `--no-jit` reference (`acc=2000261500000`). The raw number is *not* a
+  speedup baseline; it's a sanity check that the path runs without
+  crashing or producing wrong output. A more sensitive benchmark for the
+  inlining win would shrink Big's body relative to call setup cost.
+- `megamorphic_dispatch.mt` at **860.04 ms** is the unmodified MEGA path
+  (every dispatch through `jit_call_method_ic` — 6 shapes overflow
+  `IC_MAX_POLYMORPHIC_ENTRIES = 4`). For context, the 3-shape POLY
+  `method_dispatch.mt` runs at 106.12 ms — the MEGA cliff is ~8x slower.
+- `inline_polymorphic.mt` (107.41 ms) is unchanged within noise vs.
+  2026-05-13 (100.58 ms) — its 4 inlineable entries take the same
+  code path before and after the per-entry eligibility relaxation.
