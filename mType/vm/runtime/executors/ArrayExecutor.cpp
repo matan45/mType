@@ -20,7 +20,7 @@ namespace vm::runtime
 
     void ArrayExecutor::handleNewArray(const bytecode::BytecodeProgram::Instruction& instr) {
         // Get element type name from constant pool
-        const std::string& elementTypeName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& elementTypeName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
 
         // Pop array size from stack
         value::Value sizeVal = context.stackManager->pop();
@@ -51,10 +51,10 @@ namespace vm::runtime
 
     void ArrayExecutor::handleNewArrayMulti(const bytecode::BytecodeProgram::Instruction& instr) {
         // Get element type name from constant pool
-        const std::string& elementTypeName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& elementTypeName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         // Compiler emits: [typeIndex, dimensionCount (total), specifiedDimensions]
-        size_t totalDimensions = instr.operands[1];  // Total number of dimensions
-        size_t specifiedDimensions = instr.operands.size() > 2 ? instr.operands[2] : totalDimensions;
+        size_t totalDimensions = instr.inlineOperands[1];  // Total number of dimensions
+        size_t specifiedDimensions = instr.numOperands() > 2 ? instr.inlineOperands[2] : totalDimensions;
 
         // Pop dimension sizes from stack (in reverse order - last dimension first)
         // Only pop the number of specified dimensions
@@ -617,7 +617,7 @@ namespace vm::runtime
 
     void ArrayExecutor::handleArrayGetField(const bytecode::BytecodeProgram::Instruction& instr) {
         // Get field name from constant pool
-        const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& fieldName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
 
         // Pop index from stack
         value::Value indexVal = context.stackManager->pop();
@@ -667,7 +667,7 @@ namespace vm::runtime
 
     void ArrayExecutor::handleArraySetField(const bytecode::BytecodeProgram::Instruction& instr) {
         // Get field name from constant pool
-        const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& fieldName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
 
         // Pop value to set from stack
         value::Value valueToSet = context.stackManager->pop();
@@ -754,7 +754,7 @@ namespace vm::runtime
     void ArrayExecutor::handleArrayGetIntLocal(
         const bytecode::BytecodeProgram::Instruction& instr)
     {
-        size_t localSlot = instr.operands[0];
+        size_t localSlot = instr.inlineOperands[0];
         size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
         const value::Value& arrayVal = (*context.stackManager)[frameBase + localSlot];
 
@@ -768,7 +768,7 @@ namespace vm::runtime
     void ArrayExecutor::handleArraySetIntLocal(
         const bytecode::BytecodeProgram::Instruction& instr)
     {
-        size_t localSlot = instr.operands[0];
+        size_t localSlot = instr.inlineOperands[0];
         size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
         const value::Value& arrayVal = (*context.stackManager)[frameBase + localSlot];
 
@@ -784,7 +784,7 @@ namespace vm::runtime
     void ArrayExecutor::handleArrayLengthLocal(
         const bytecode::BytecodeProgram::Instruction& instr)
     {
-        size_t localSlot = instr.operands[0];
+        size_t localSlot = instr.inlineOperands[0];
         size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
         const value::Value& arrayVal = (*context.stackManager)[frameBase + localSlot];
 

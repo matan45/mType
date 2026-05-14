@@ -60,7 +60,7 @@ namespace vm::runtime
             arithmeticExecutor->handleAdd();
             break;
         case OpCode::STRING_BUILD:
-            arithmeticExecutor->handleStringBuild(static_cast<size_t>(instr.operands[0]));
+            arithmeticExecutor->handleStringBuild(static_cast<size_t>(instr.inlineOperands[0]));
             break;
         case OpCode::SUB:
             trySpecializeArithmetic(instr, OpCode::SUB_INT, OpCode::SUB_FLOAT);
@@ -239,28 +239,28 @@ namespace vm::runtime
         // the original implementation paid per fused op. Semantics are bit-
         // identical to the unfused LOAD_LOCAL + arith + STORE_LOCAL path.
         case OpCode::LOAD_LOAD_ADD_INT:
-            variableExecutor->loadLocalSlot(instr.operands[0]);
-            variableExecutor->loadLocalSlot(instr.operands[1]);
+            variableExecutor->loadLocalSlot(instr.inlineOperands[0]);
+            variableExecutor->loadLocalSlot(instr.inlineOperands[1]);
             arithmeticExecutor->handleAddInt();
             break;
         case OpCode::LOAD_LOAD_SUB_INT:
-            variableExecutor->loadLocalSlot(instr.operands[0]);
-            variableExecutor->loadLocalSlot(instr.operands[1]);
+            variableExecutor->loadLocalSlot(instr.inlineOperands[0]);
+            variableExecutor->loadLocalSlot(instr.inlineOperands[1]);
             arithmeticExecutor->handleSubInt();
             break;
         case OpCode::LOAD_LOAD_MUL_INT:
-            variableExecutor->loadLocalSlot(instr.operands[0]);
-            variableExecutor->loadLocalSlot(instr.operands[1]);
+            variableExecutor->loadLocalSlot(instr.inlineOperands[0]);
+            variableExecutor->loadLocalSlot(instr.inlineOperands[1]);
             arithmeticExecutor->handleMulInt();
             break;
         case OpCode::LOAD_GET_FIELD:
         {
-            variableExecutor->loadLocalSlot(instr.operands[0]);
+            variableExecutor->loadLocalSlot(instr.inlineOperands[0]);
             // GET_FIELD still needs an Instruction shim — ObjectExecutor /
             // InlineCacheExecutor interfaces key off operands. Field fusion
             // fires far less often per iteration than LOAD_LOCAL pairs, so
             // the residual shim cost here is acceptable.
-            bytecode::BytecodeProgram::Instruction getField(OpCode::GET_FIELD, instr.operands[1]);
+            bytecode::BytecodeProgram::Instruction getField(OpCode::GET_FIELD, instr.inlineOperands[1]);
             if (icEnabled && inlineCacheExecutor)
                 inlineCacheExecutor->handleGetFieldIC(getField);
             else
@@ -268,12 +268,12 @@ namespace vm::runtime
             break;
         }
         case OpCode::LOAD_STORE_LOCAL:
-            variableExecutor->loadLocalSlot(instr.operands[0]);
-            variableExecutor->storeLocalSlot(instr.operands[1]);
+            variableExecutor->loadLocalSlot(instr.inlineOperands[0]);
+            variableExecutor->storeLocalSlot(instr.inlineOperands[1]);
             break;
         case OpCode::ADD_INT_STORE_LOCAL:
             arithmeticExecutor->handleAddInt();
-            variableExecutor->storeLocalSlot(instr.operands[0]);
+            variableExecutor->storeLocalSlot(instr.inlineOperands[0]);
             break;
         case OpCode::OBJECT_TO_VALUE_CREATE_PROMISE:
         {
@@ -801,17 +801,17 @@ namespace vm::runtime
 
         case OpCode::LINE:
             // Update current source line
-            if (!instr.operands.empty())
+            if (instr.hasOperands())
             {
-                currentSourceLine = static_cast<int>(instr.operands[0]);
+                currentSourceLine = static_cast<int>(instr.inlineOperands[0]);
             }
             break;
 
         case OpCode::SOURCE_FILE:
             // Update current source file from constant pool
-            if (!instr.operands.empty())
+            if (instr.hasOperands())
             {
-                size_t stringIndex = instr.operands[0];
+                size_t stringIndex = instr.inlineOperands[0];
                 const auto& constPool = program->getConstantPool();
                 if (stringIndex < constPool.strings.size())
                 {

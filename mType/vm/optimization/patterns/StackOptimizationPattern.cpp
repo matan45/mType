@@ -42,8 +42,8 @@ namespace vm::optimization::patterns
         // LOAD_LOCAL X, LOAD_LOCAL X → LOAD X, DUP
         if (i1.opcode == OpCode::LOAD_LOCAL && i2.opcode == OpCode::LOAD_LOCAL)
         {
-            if (!i1.operands.empty() && !i2.operands.empty() &&
-                i1.operands[0] == i2.operands[0])
+            if (i1.hasOperands() && i2.hasOperands() &&
+                i1.inlineOperands[0] == i2.inlineOperands[0])
             {
                 Replacement rep(2);
                 rep.instructions.push_back(i1);  // Keep first LOAD
@@ -55,8 +55,8 @@ namespace vm::optimization::patterns
         // LOAD_GLOBAL X, LOAD_GLOBAL X → LOAD X, DUP
         if (i1.opcode == OpCode::LOAD_GLOBAL && i2.opcode == OpCode::LOAD_GLOBAL)
         {
-            if (!i1.operands.empty() && !i2.operands.empty() &&
-                i1.operands[0] == i2.operands[0])
+            if (i1.hasOperands() && i2.hasOperands() &&
+                i1.inlineOperands[0] == i2.inlineOperands[0])
             {
                 Replacement rep(2);
                 rep.instructions.push_back(i1);  // Keep first LOAD
@@ -125,8 +125,8 @@ namespace vm::optimization::patterns
         // Match: LOAD_LOCAL X, LOAD_LOCAL X (same variable)
         if (i1.opcode == OpCode::LOAD_LOCAL && i2.opcode == OpCode::LOAD_LOCAL)
         {
-            if (!i1.operands.empty() && !i2.operands.empty() &&
-                i1.operands[0] == i2.operands[0])
+            if (i1.hasOperands() && i2.hasOperands() &&
+                i1.inlineOperands[0] == i2.inlineOperands[0])
             {
                 return cfg.canOptimizeRange(offset, offset + 2);
             }
@@ -135,8 +135,8 @@ namespace vm::optimization::patterns
         // Match: LOAD_GLOBAL X, LOAD_GLOBAL X (same variable)
         if (i1.opcode == OpCode::LOAD_GLOBAL && i2.opcode == OpCode::LOAD_GLOBAL)
         {
-            if (!i1.operands.empty() && !i2.operands.empty() &&
-                i1.operands[0] == i2.operands[0])
+            if (i1.hasOperands() && i2.hasOperands() &&
+                i1.inlineOperands[0] == i2.inlineOperands[0])
             {
                 return cfg.canOptimizeRange(offset, offset + 2);
             }

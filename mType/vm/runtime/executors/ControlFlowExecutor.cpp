@@ -16,41 +16,41 @@ namespace vm::runtime
     {}
 
     void ControlFlowExecutor::handleJump(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+        if (instr.numOperands() == 0) {
             throw errors::RuntimeException("JUMP requires operand");
         }
-        context.instructionPointer = instr.operands[0] - 1;  // -1 because loop increments
+        context.instructionPointer = instr.inlineOperands[0] - 1;  // -1 because loop increments
     }
 
     void ControlFlowExecutor::handleJumpIfFalse(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+        if (instr.numOperands() == 0) {
             throw errors::RuntimeException("JUMP_IF_FALSE requires operand");
         }
         value::Value condition = context.stackManager->pop();
         if (!isTruthy(condition)) {
-            context.instructionPointer = instr.operands[0] - 1;
+            context.instructionPointer = instr.inlineOperands[0] - 1;
         }
     }
 
     void ControlFlowExecutor::handleJumpIfTrue(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+        if (instr.numOperands() == 0) {
             throw errors::RuntimeException("JUMP_IF_TRUE requires operand");
         }
         value::Value condition = context.stackManager->pop();
         if (isTruthy(condition)) {
-            context.instructionPointer = instr.operands[0] - 1;
+            context.instructionPointer = instr.inlineOperands[0] - 1;
         }
     }
 
     void ControlFlowExecutor::handleJumpIfFalseOrPop(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+        if (instr.numOperands() == 0) {
             throw errors::RuntimeException("JUMP_IF_FALSE_OR_POP requires operand");
         }
         // Peek at the value without popping
         value::Value condition = context.stackManager->peek();
         if (!isTruthy(condition)) {
             // If false, jump (keeping the false value on stack as result)
-            context.instructionPointer = instr.operands[0] - 1;
+            context.instructionPointer = instr.inlineOperands[0] - 1;
         } else {
             // If true, pop it and continue to evaluate the right side
             context.stackManager->pop();
@@ -58,14 +58,14 @@ namespace vm::runtime
     }
 
     void ControlFlowExecutor::handleJumpIfTrueOrPop(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+        if (instr.numOperands() == 0) {
             throw errors::RuntimeException("JUMP_IF_TRUE_OR_POP requires operand");
         }
         // Peek at the value without popping
         value::Value condition = context.stackManager->peek();
         if (isTruthy(condition)) {
             // If true, jump (keeping the true value on stack as result)
-            context.instructionPointer = instr.operands[0] - 1;
+            context.instructionPointer = instr.inlineOperands[0] - 1;
         } else {
             // If false, pop it and continue to evaluate the right side
             context.stackManager->pop();
@@ -73,7 +73,7 @@ namespace vm::runtime
     }
 
     void ControlFlowExecutor::handleJumpBack(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+        if (instr.numOperands() == 0) {
             throw errors::RuntimeException("JUMP_BACK requires operand");
         }
 
@@ -98,16 +98,16 @@ namespace vm::runtime
         }
 
         // Normal interpreter path: jump back to loop start
-        context.instructionPointer = instr.operands[0] - 1;  // -1 because loop increments
+        context.instructionPointer = instr.inlineOperands[0] - 1;  // -1 because loop increments
     }
 
     void ControlFlowExecutor::handleJumpIfNull(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+        if (instr.numOperands() == 0) {
             throw errors::RuntimeException("JUMP_IF_NULL requires operand");
         }
         value::Value val = context.stackManager->pop();
         if (utils::isNullValue(val)) {
-            context.instructionPointer = instr.operands[0] - 1;
+            context.instructionPointer = instr.inlineOperands[0] - 1;
         }
     }
 

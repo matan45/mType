@@ -12,14 +12,14 @@ namespace vm::optimization::patterns
                                                      size_t operandIndex,
                                                      size_t instrOffset)
     {
-        if (operandIndex >= instr.operands.size())
+        if (operandIndex >= instr.numOperands())
         {
             std::ostringstream oss;
             oss << "Pattern safety error: Instruction operand access out of bounds. "
                 << "Opcode: " << getOpCodeName(instr.opcode)
                 << ", Instruction offset: " << instrOffset
                 << ", Requested operand index: " << operandIndex
-                << ", Available operands: " << instr.operands.size()
+                << ", Available operands: " << instr.numOperands()
                 << ". This indicates malformed bytecode or a bug in the optimizer.";
             throw std::runtime_error(oss.str());
         }
@@ -34,7 +34,7 @@ namespace vm::optimization::patterns
         validateOperandExists(instr, operandIndex, instrOffset);
 
         // Get the constant pool index
-        uint64_t poolIndex = instr.operands[operandIndex];
+        uint64_t poolIndex = instr.operandAt(operandIndex);
 
         // Access constant pool (throws std::out_of_range if invalid)
         try
@@ -62,7 +62,7 @@ namespace vm::optimization::patterns
         validateOperandExists(instr, operandIndex, instrOffset);
 
         // Get the constant pool index
-        uint64_t poolIndex = instr.operands[operandIndex];
+        uint64_t poolIndex = instr.operandAt(operandIndex);
 
         // Access constant pool (throws std::out_of_range if invalid)
         try
@@ -90,7 +90,7 @@ namespace vm::optimization::patterns
         validateOperandExists(instr, operandIndex, instrOffset);
 
         // Get the constant pool index
-        uint64_t poolIndex = instr.operands[operandIndex];
+        uint64_t poolIndex = instr.operandAt(operandIndex);
 
         // Access constant pool (throws std::out_of_range if invalid)
         try
@@ -114,7 +114,7 @@ namespace vm::optimization::patterns
                                                  size_t instrOffset)
     {
         validateOperandExists(instr, operandIndex, instrOffset);
-        return instr.operands[operandIndex];
+        return instr.operandAt(operandIndex);
     }
 
 } // namespace vm::optimization::patterns

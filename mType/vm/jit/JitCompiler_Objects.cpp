@@ -143,7 +143,7 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t constIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t constIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         Gp dest = cc.new_gp64();
         cc.lea(dest, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));
         Gp pPtr = cc.new_gp64();
@@ -172,7 +172,7 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t fieldNameIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t fieldNameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         Gp objAddr = cc.new_gp64();
         cc.lea(objAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
         Gp dest = cc.new_gp64();
@@ -393,7 +393,7 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t fieldNameIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t fieldNameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         Gp objAddr = cc.new_gp64();
         cc.lea(objAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 2) * valueSize)));
         Gp dest = cc.new_gp64();
@@ -553,8 +553,8 @@ namespace vm::jit
                                   const bytecode::BytecodeProgram::Instruction& instr)
     {
         auto& cc = s.cc;
-        uint32_t nameIndex = static_cast<uint32_t>(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        uint32_t nameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
+        size_t argCount = instr.inlineOperands[1];
         if (argCount > JitContext::MAX_CALL_ARGS)
         {
             s.compileFailed = true;
@@ -773,8 +773,8 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t methodNameIndex = static_cast<uint32_t>(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        uint32_t methodNameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
+        size_t argCount = instr.inlineOperands[1];
         {
             int objIdx = s.stackDepth - static_cast<int>(argCount) - 1;
             Gp destAddr = cc.new_gp64();
@@ -846,7 +846,7 @@ namespace vm::jit
         const bytecode::BytecodeProgram::Instruction& instr,
         const ic::MethodICEntry& entry)
     {
-        const size_t argCount = instr.operands[1];
+        const size_t argCount = instr.inlineOperands[1];
         const auto kind = entry.protocolFastKind;
         if (!protocolFastKindMatchesArity(kind, argCount)) return false;
         if (!entry.shape) return false;
@@ -952,7 +952,7 @@ namespace vm::jit
         const auto& entry = cache.entries[0];
         const auto* callee = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
             entry.funcMetadata);
-        const size_t argCount = instr.operands[1];
+        const size_t argCount = instr.inlineOperands[1];
 
         // Sanity: arg count must match the callee's parameter count (including
         // the implicit `this`). If not, fall through to the generic path —
@@ -1143,7 +1143,7 @@ namespace vm::jit
                                                             ic::IC_MAX_POLYMORPHIC_ENTRIES>&
                                                perEntryDecisions)
     {
-        const size_t argCount = instr.operands[1];
+        const size_t argCount = instr.inlineOperands[1];
         const uint8_t entryCount = cache.entryCount;
 
         // Per-entry argcount sanity + max-localCount computation. Only one
@@ -1368,8 +1368,8 @@ namespace vm::jit
         JitEmissionState& s,
         const bytecode::BytecodeProgram::Instruction& instr)
     {
-        const uint32_t nameIndex = static_cast<uint32_t>(instr.operands[0]);
-        const size_t argCount = instr.operands[1];
+        const uint32_t nameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
+        const size_t argCount = instr.inlineOperands[1];
         if (nameIndex >= s.program.getConstantPool().strings.size())
             return false;
 
@@ -1549,7 +1549,7 @@ namespace vm::jit
     static bool emitCallMethodOp(JitEmissionState& s,
                                   const bytecode::BytecodeProgram::Instruction& instr)
     {
-        size_t argCount = instr.operands[1];
+        size_t argCount = instr.inlineOperands[1];
         if (argCount + 1 > JitContext::MAX_CALL_ARGS)
         {
             s.compileFailed = true;
@@ -1731,7 +1731,7 @@ namespace vm::jit
                                   const bytecode::BytecodeProgram::Instruction& instr)
     {
         auto& cc = s.cc;
-        uint32_t typeIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t typeIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         SlotType vType = popType(s);
         Gp valAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, vType);
         Gp pPtr = cc.new_gp64();
@@ -1763,7 +1763,7 @@ namespace vm::jit
         // INSTANCEOF (concrete RHS) still uses the cheaper jit_instanceof
         // helper — different signatures, can't share emit code.
         auto& cc = s.cc;
-        uint32_t paramNameIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t paramNameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         SlotType vType = popType(s);
         Gp valAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, vType);
         Gp idx = cc.new_gp64();
@@ -1806,7 +1806,7 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t paramNameIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t paramNameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         SlotType srcType = popType(s);
         Gp srcAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, srcType);
         Gp dest = cc.new_gp64();
@@ -1830,7 +1830,7 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t typeIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t typeIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         SlotType srcType = popType(s);
         Gp srcAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, srcType);
         Gp dest = cc.new_gp64();
@@ -1856,8 +1856,8 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t classIndex = static_cast<uint32_t>(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        uint32_t classIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
+        size_t argCount = instr.inlineOperands[1];
         if (argCount > JitContext::MAX_CALL_ARGS)
         {
             s.compileFailed = true;
@@ -1900,8 +1900,8 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t classIndex = static_cast<uint32_t>(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        uint32_t classIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
+        size_t argCount = instr.inlineOperands[1];
         if (argCount > JitContext::MAX_CALL_ARGS)
         {
             s.compileFailed = true;
@@ -2119,14 +2119,14 @@ namespace vm::jit
                 // emit that resolves the owner's slot at compile time is a
                 // follow-up.
                 bytecode::BytecodeProgram::Instruction getField(
-                    OpCode::GET_FIELD, instr.operands[1]);
+                    OpCode::GET_FIELD, instr.inlineOperands[1]);
                 return emitGetFieldOp(s, getField);
             }
             case OpCode::SET_FIELD_TYPED:
             {
                 // Symmetric to GET_FIELD_TYPED above. Same shadowing caveat.
                 bytecode::BytecodeProgram::Instruction setField(
-                    OpCode::SET_FIELD, instr.operands[1]);
+                    OpCode::SET_FIELD, instr.inlineOperands[1]);
                 return emitSetFieldOp(s, setField);
             }
             case OpCode::INLINE_GET_FIELD: return emitGetFieldOp(s, instr);
@@ -2179,14 +2179,14 @@ namespace vm::jit
                 // the existing emitters — net machine code is equivalent to
                 // the unfused sequence, which is already well-optimised.
                 bytecode::BytecodeProgram::Instruction loadLocal(
-                    OpCode::LOAD_LOCAL, instr.operands[0]);
+                    OpCode::LOAD_LOCAL, instr.inlineOperands[0]);
                 if (!emitControlFlowOps(s, loadLocal, nullptr))
                 {
                     s.compileFailed = true;
                     return true;
                 }
                 bytecode::BytecodeProgram::Instruction getField(
-                    OpCode::GET_FIELD, instr.operands[1]);
+                    OpCode::GET_FIELD, instr.inlineOperands[1]);
                 return emitGetFieldOp(s, getField);
             }
             case OpCode::INSTANCEOF:     return emitInstanceofOp(s, instr);
@@ -2239,20 +2239,21 @@ namespace vm::jit
             // MYT-274 Phase 2 v2: structural-equality fused opcodes — emit
             // a direct call to the JIT helper that reads the raw int
             // fields and computes hash / equality without per-field
-            // operand-stack churn. The slot-indices array lives inside the
-            // Instruction's operand vector, which is stable for the
-            // program's lifetime (no realloc after compile), so we pass
-            // &operands[1] / &operands[2] as a raw pointer.
+            // operand-stack churn. The slot-indices array is passed as a
+            // raw pointer immediate; MYT-313 packed the inline operands into
+            // the Instruction itself (unstable across vector reallocation),
+            // so we materialize a program-owned stable copy.
             case OpCode::STRUCT_HASH_INT:
             {
-                if (instr.operands.empty()) { s.compileFailed = true; return true; }
-                const uint64_t fieldCount = instr.operands[0];
-                if (instr.operands.size() < 1 + fieldCount)
+                if (instr.numOperands() == 0) { s.compileFailed = true; return true; }
+                const uint64_t fieldCount = instr.inlineOperands[0];
+                if (instr.numOperands() < 1 + fieldCount)
                 {
                     s.compileFailed = true;
                     return true;
                 }
-                const uint64_t* slotsPtr = instr.operands.data() + 1;
+                const uint64_t* slotsPtr = s.program.materializeStableOperandSlice(
+                    instr, 1, static_cast<size_t>(fieldCount));
 
                 Gp receiverAddr = cc.new_gp64();
                 cc.lea(receiverAddr, Mem(s.boxedBase,
@@ -2278,15 +2279,16 @@ namespace vm::jit
             }
             case OpCode::STRUCT_EQ_INT:
             {
-                if (instr.operands.size() < 2) { s.compileFailed = true; return true; }
-                const uint64_t classNameIdx = instr.operands[0];
-                const uint64_t fieldCount = instr.operands[1];
-                if (instr.operands.size() < 2 + fieldCount)
+                if (instr.numOperands() < 2) { s.compileFailed = true; return true; }
+                const uint64_t classNameIdx = instr.inlineOperands[0];
+                const uint64_t fieldCount = instr.inlineOperands[1];
+                if (instr.numOperands() < 2 + fieldCount)
                 {
                     s.compileFailed = true;
                     return true;
                 }
-                const uint64_t* slotsPtr = instr.operands.data() + 2;
+                const uint64_t* slotsPtr = s.program.materializeStableOperandSlice(
+                    instr, 2, static_cast<size_t>(fieldCount));
 
                 // Class-name string lives in the ConstantPool; storage is
                 // stable for the program's lifetime, so a c_str() pointer

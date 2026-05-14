@@ -369,12 +369,12 @@ namespace vm::runtime
 
     void ObjectInstanceHelper::handleSuperConstructor(const bytecode::BytecodeProgram::Instruction& instr) {
         // Operand[0] is classNameIndex, Operand[1] is argCount
-        if (instr.operands.size() < 2) {
+        if (instr.numOperands() < 2) {
             throw errors::RuntimeException("SUPER_CONSTRUCTOR requires 2 operands (classNameIndex, argCount)");
         }
 
-        const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        const std::string& currentClassName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+        size_t argCount = instr.inlineOperands[1];
 
         // MYT-196: small-buffer-optimized args buffer.
         value::SmallArgsBuffer args(argCount);
@@ -517,12 +517,12 @@ namespace vm::runtime
 
     void ObjectInstanceHelper::handleThisConstructor(const bytecode::BytecodeProgram::Instruction& instr) {
         // Operand[0] is classNameIndex, Operand[1] is argCount
-        if (instr.operands.size() < 2) {
+        if (instr.numOperands() < 2) {
             throw errors::RuntimeException("THIS_CONSTRUCTOR requires 2 operands (classNameIndex, argCount)");
         }
 
-        const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        const std::string& currentClassName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+        size_t argCount = instr.inlineOperands[1];
 
         // MYT-196: small-buffer-optimized args buffer.
         value::SmallArgsBuffer args(argCount);
@@ -643,9 +643,9 @@ namespace vm::runtime
         // operand[0] = current class name (the class whose method we're executing)
         // operand[1] = method name
         // operand[2] = argument count
-        const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
-        const std::string& methodName = context.program->getConstantPool().getString(instr.operands[1]);
-        size_t argCount = instr.operands[2];
+        const std::string& currentClassName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+        const std::string& methodName = context.program->getConstantPool().getString(instr.inlineOperands[1]);
+        size_t argCount = instr.inlineOperands[2];
 
         // MYT-196: small-buffer-optimized args buffer.
         value::SmallArgsBuffer args(argCount);
@@ -785,8 +785,8 @@ namespace vm::runtime
         // Compiler emits: (classNameIndex, memberNameIndex)
         // operand[0] = current class name (the class whose method we're executing)
         // operand[1] = member/field name
-        const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
-        const std::string& memberName = context.program->getConstantPool().getString(instr.operands[1]);
+        const std::string& currentClassName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+        const std::string& memberName = context.program->getConstantPool().getString(instr.inlineOperands[1]);
 
         // MYT-208: accept stack-promoted `this`.
         if (context.callStack.empty() || !context.callStack.back().getThisInstanceRaw()) {
@@ -838,8 +838,8 @@ namespace vm::runtime
         // Compiler emits: (classNameIndex, memberNameIndex)
         // operand[0] = current class name (the class whose method we're executing)
         // operand[1] = member/field name
-        const std::string& currentClassName = context.program->getConstantPool().getString(instr.operands[0]);
-        const std::string& memberName = context.program->getConstantPool().getString(instr.operands[1]);
+        const std::string& currentClassName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+        const std::string& memberName = context.program->getConstantPool().getString(instr.inlineOperands[1]);
 
         // MYT-208: accept stack-promoted `this`.
         if (context.callStack.empty() || !context.callStack.back().getThisInstanceRaw()) {
@@ -1033,12 +1033,12 @@ namespace vm::runtime
     }
 
     void ObjectInstanceHelper::handleNewObject(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.size() < 2) {
+        if (instr.numOperands() < 2) {
             throw errors::RuntimeException("NEW_OBJECT requires 2 operands: class name index and arg count");
         }
 
-        const std::string& fullClassName = context.program->getConstantPool().getString(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        const std::string& fullClassName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+        size_t argCount = instr.inlineOperands[1];
 
 
         // Parse generic type arguments and extract base class name
@@ -1161,12 +1161,12 @@ namespace vm::runtime
     }
 
     void ObjectInstanceHelper::handleNewStack(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.size() < 2) {
+        if (instr.numOperands() < 2) {
             throw errors::RuntimeException("NEW_STACK requires 2 operands: class name index and arg count");
         }
 
-        const std::string& fullClassName = context.program->getConstantPool().getString(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        const std::string& fullClassName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+        size_t argCount = instr.inlineOperands[1];
 
         std::unordered_map<std::string, std::string> genericTypeBindings;
         std::string baseClassName = parseGenericTypeArguments(fullClassName, genericTypeBindings);

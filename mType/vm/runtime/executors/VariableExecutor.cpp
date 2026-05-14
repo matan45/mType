@@ -76,11 +76,11 @@ namespace vm::runtime
     }
 
     void VariableExecutor::handleLoadVar(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+        if (instr.numOperands() == 0) {
             throw errors::RuntimeException("LOAD_VAR requires operand");
         }
 
-        const std::string& varName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& varName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         auto varDef = context.environment->findVariable(varName);
 
         // Found in global environment
@@ -216,11 +216,11 @@ namespace vm::runtime
     }
 
     void VariableExecutor::handleStoreVar(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+        if (instr.numOperands() == 0) {
             throw errors::RuntimeException("STORE_VAR requires operand");
         }
 
-        const std::string& varName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& varName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         value::Value val = context.stackManager->pop();
         auto varDef = context.environment->findVariable(varName);
 
@@ -241,11 +241,11 @@ namespace vm::runtime
 
     void VariableExecutor::handleDeclareVar(const bytecode::BytecodeProgram::Instruction& instr)
     {
-        if (instr.operands.empty())
+        if (instr.numOperands() == 0)
         {
             throw errors::RuntimeException("DECLARE_VAR requires operand");
         }
-        const std::string& varName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& varName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         value::Value val = context.stackManager->pop();
 
         // Determine type from value
@@ -253,9 +253,9 @@ namespace vm::runtime
 
         // Check if variable is final (third operand)
         bool isFinal = false;
-        if (instr.operands.size() >= 3)
+        if (instr.numOperands() >= 3)
         {
-            isFinal = (instr.operands[2] != 0);
+            isFinal = (instr.inlineOperands[2] != 0);
         }
 
         // Create variable definition
@@ -270,11 +270,11 @@ namespace vm::runtime
 
     void VariableExecutor::handleLoadLocal(const bytecode::BytecodeProgram::Instruction& instr)
     {
-        if (instr.operands.empty())
+        if (instr.numOperands() == 0)
         {
             throw errors::RuntimeException("LOAD_LOCAL requires operand");
         }
-        loadLocalSlot(instr.operands[0]);
+        loadLocalSlot(instr.inlineOperands[0]);
     }
 
     void VariableExecutor::loadLocalSlot(size_t slot)
@@ -364,20 +364,20 @@ namespace vm::runtime
 
     void VariableExecutor::handleStoreLocal(const bytecode::BytecodeProgram::Instruction& instr)
     {
-        if (instr.operands.empty())
+        if (instr.numOperands() == 0)
         {
             throw errors::RuntimeException("STORE_LOCAL requires operand");
         }
 
         // Fast path: no varName (shared-frame late-binding) — delegate to the
         // slot-based entry so MYT-202 fused handlers share the same body.
-        if (instr.operands.size() == 1)
+        if (instr.numOperands() == 1)
         {
-            storeLocalSlot(instr.operands[0]);
+            storeLocalSlot(instr.inlineOperands[0]);
             return;
         }
 
-        size_t slot = instr.operands[0];
+        size_t slot = instr.inlineOperands[0];
 
         // SECURITY: cap the slot index directly. The attacker controls `slot`
         // via bytecode operands, so an unbounded value would otherwise drive
@@ -390,7 +390,7 @@ namespace vm::runtime
                 std::to_string(constants::security::MAX_LOCAL_STACK_PER_FRAME));
         }
 
-        std::string varName = context.program->getConstantPool().getString(instr.operands[1]);
+        std::string varName = context.program->getConstantPool().getString(instr.inlineOperands[1]);
 
         // Pop value from top of stack
         value::Value val = context.stackManager->pop();
@@ -684,12 +684,12 @@ namespace vm::runtime
         const bytecode::BytecodeProgram::Instruction& instr,
         value::ValueType expectedTag)
     {
-        if (instr.operands.empty())
+        if (instr.numOperands() == 0)
         {
             throw errors::RuntimeException("LOAD_LOCAL requires operand");
         }
 
-        size_t slot = instr.operands[0];
+        size_t slot = instr.inlineOperands[0];
         if (slot >= constants::security::MAX_LOCAL_STACK_PER_FRAME)
         {
             utils::ErrorLocationHelper::throwRuntimeError(context,
@@ -738,12 +738,12 @@ namespace vm::runtime
         const bytecode::BytecodeProgram::Instruction& instr,
         value::ValueType expectedTag)
     {
-        if (instr.operands.empty())
+        if (instr.numOperands() == 0)
         {
             throw errors::RuntimeException("STORE_LOCAL requires operand");
         }
 
-        size_t slot = instr.operands[0];
+        size_t slot = instr.inlineOperands[0];
         if (slot >= constants::security::MAX_LOCAL_STACK_PER_FRAME)
         {
             utils::ErrorLocationHelper::throwRuntimeError(context,
@@ -778,9 +778,9 @@ namespace vm::runtime
         // emits STORE_LOCAL with operand[1]=nameIndex precisely so that a
         // lambda defined later can capture the slot).
         std::string varName;
-        if (instr.operands.size() > 1)
+        if (instr.numOperands() > 1)
         {
-            varName = context.program->getConstantPool().getString(instr.operands[1]);
+            varName = context.program->getConstantPool().getString(instr.inlineOperands[1]);
         }
 
         value::Value val = context.stackManager->pop();
@@ -924,7 +924,7 @@ namespace vm::runtime
             handleStoreVar(instr);
             return;
         }
-        if (instr.operands.empty())
+        if (instr.numOperands() == 0)
         {
             throw errors::RuntimeException("STORE_VAR_CACHED requires operand");
         }
@@ -932,7 +932,7 @@ namespace vm::runtime
         if (slot->isFinal())
         {
             const std::string& varName =
-                context.program->getConstantPool().getString(instr.operands[0]);
+                context.program->getConstantPool().getString(instr.inlineOperands[0]);
             utils::ErrorLocationHelper::throwRuntimeError(context,
                 "Cannot assign to final variable '" + varName + "'");
         }

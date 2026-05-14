@@ -23,11 +23,11 @@ namespace vm::runtime
         //                   paramNameIdx1, ..., paramNameIdxN,
         //                   capturedNameIdx1, ..., capturedNameIdxN,
         //                   parentNameIdx1, parentSlot1, ...]
-        size_t lambdaStart = instr.operands[0];
-        size_t paramCount = instr.operands[1];
-        size_t captureCount = instr.operands[2];
-        size_t parentLocalCount = instr.operands.size() > 3 ? instr.operands[3] : 0;
-        size_t funcNameIdx = instr.operands[4];
+        size_t lambdaStart = instr.inlineOperands[0];
+        size_t paramCount = instr.inlineOperands[1];
+        size_t captureCount = instr.inlineOperands[2];
+        size_t parentLocalCount = instr.numOperands() > 3 ? instr.operandAt(3) : 0;
+        size_t funcNameIdx = instr.operandAt(4);
 
         // Create bytecode lambda
         auto lambda = std::make_shared<BytecodeLambda>();
@@ -43,7 +43,7 @@ namespace vm::runtime
         // Extract parameter names for debugging
         size_t paramNamesStart = 5 + captureCount;  // Now starts at 5 (was 4)
         for (size_t i = 0; i < paramCount; ++i) {
-            size_t nameIdx = instr.operands[paramNamesStart + i];
+            size_t nameIdx = instr.operandAt(paramNamesStart + i);
             std::string paramName = context.program->getConstantPool().getString(nameIdx);
             lambda->parameterNames.push_back(paramName);
         }
@@ -51,7 +51,7 @@ namespace vm::runtime
         // Extract captured variable names for debugging
         size_t capturedNamesStart = paramNamesStart + paramCount;
         for (size_t i = 0; i < captureCount; ++i) {
-            size_t nameIdx = instr.operands[capturedNamesStart + i];
+            size_t nameIdx = instr.operandAt(capturedNamesStart + i);
             std::string capturedName = context.program->getConstantPool().getString(nameIdx);
             lambda->capturedNames.push_back(capturedName);
         }
@@ -105,7 +105,7 @@ namespace vm::runtime
         // Variables from PARENT scopes should already be in their respective frames
         // Operands layout: [lambdaStart, paramCount, captureCount, parentLocalCount, functionNameIdx, captureSlot1, captureSlot2, ...]
         for (size_t i = 0; i < captureCount; ++i) {
-            size_t varSlot = instr.operands[5 + i];  // Capture slots start at index 5 (after functionNameIdx)
+            size_t varSlot = instr.operandAt(5 + i);  // Capture slots start at index 5 (after functionNameIdx)
 
             // Store the slot index for later access
             lambda->capturedSlots.push_back(varSlot);

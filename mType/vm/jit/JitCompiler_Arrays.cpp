@@ -18,7 +18,7 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t typeIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t typeIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         popType(s);
 
         Gp sizeVal = cc.new_gp64();
@@ -52,10 +52,10 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t typeIndex      = static_cast<uint32_t>(instr.operands[0]);
-        uint32_t totalDims      = static_cast<uint32_t>(instr.operands[1]);
-        uint32_t specifiedDims  = instr.operands.size() > 2
-                                   ? static_cast<uint32_t>(instr.operands[2])
+        uint32_t typeIndex      = static_cast<uint32_t>(instr.inlineOperands[0]);
+        uint32_t totalDims      = static_cast<uint32_t>(instr.inlineOperands[1]);
+        uint32_t specifiedDims  = instr.numOperands() > 2
+                                   ? static_cast<uint32_t>(instr.inlineOperands[2])
                                    : totalDims;
 
         // Box each dimension size from the JIT stack into ctx->callArgs[i].
@@ -359,7 +359,7 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t fieldNameIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t fieldNameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         popType(s);
         popType(s);
 
@@ -405,7 +405,7 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t fieldNameIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t fieldNameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         SlotType valType = popType(s);
         popType(s);
         popType(s);
@@ -446,7 +446,7 @@ namespace vm::jit
                                      const bytecode::BytecodeProgram::Instruction& instr)
     {
         auto& cc = s.cc;
-        size_t localSlot = instr.operands[0];
+        size_t localSlot = instr.inlineOperands[0];
 
         // Read array directly from locals — no jit_value_copy
         Gp arrAddr = cc.new_gp64();
@@ -466,7 +466,7 @@ namespace vm::jit
                                      const bytecode::BytecodeProgram::Instruction& instr)
     {
         auto& cc = s.cc;
-        size_t localSlot = instr.operands[0];
+        size_t localSlot = instr.inlineOperands[0];
         popType(s); // pop index type
 
         Gp idx = cc.new_gp64();
@@ -530,7 +530,7 @@ namespace vm::jit
                                      const bytecode::BytecodeProgram::Instruction& instr)
     {
         auto& cc = s.cc;
-        size_t localSlot = instr.operands[0];
+        size_t localSlot = instr.inlineOperands[0];
         popType(s); // pop value type
         popType(s); // pop index type
 

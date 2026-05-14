@@ -27,8 +27,8 @@ namespace vm::runtime
     void FunctionExecutor::handleCall(const bytecode::BytecodeProgram::Instruction& instr)
     {
         // Get function name from constant pool
-        std::string functionName = context.program->getConstantPool().getString(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        std::string functionName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+        size_t argCount = instr.inlineOperands[1];
 
         // Calculate frameBase BEFORE popping arguments
         size_t frameBase = context.stackManager->size() - argCount;
@@ -199,8 +199,8 @@ namespace vm::runtime
 
     void FunctionExecutor::handleCallFast(const bytecode::BytecodeProgram::Instruction& instr)
     {
-        size_t funcIndex = instr.operands[0];
-        size_t argCount = instr.operands[1];
+        size_t funcIndex = instr.inlineOperands[0];
+        size_t argCount = instr.inlineOperands[1];
 
         const auto* funcMetadata = context.program->getFunctionByIndex(funcIndex);
         if (!funcMetadata) {
@@ -280,7 +280,7 @@ namespace vm::runtime
 
     void FunctionExecutor::handleCallStatic(const bytecode::BytecodeProgram::Instruction& instr)
     {
-        size_t argCount = instr.operands[1];
+        size_t argCount = instr.inlineOperands[1];
 
         // Calculate frameBase BEFORE popping arguments
         size_t frameBase = context.stackManager->size() - argCount;
@@ -296,7 +296,7 @@ namespace vm::runtime
         // Needed by frame setup (functionName intern, profiler/debugger hooks)
         // on both cache hit and miss; the substring parsing into className /
         // simpleMethodName is only needed on miss and lives below.
-        const std::string& qualifiedName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& qualifiedName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
 
         // Try the per-IP IC FIRST — on hit we skip the qualified-name string
         // parsing, findClass, findStaticMethod, and validateStaticMethodAccess

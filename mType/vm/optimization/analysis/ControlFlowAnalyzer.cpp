@@ -366,9 +366,9 @@ namespace vm::optimization::analysis
             case OpCode::JUMP_IF_NULL:
             case OpCode::JUMP_IF_FALSE_OR_POP:
             case OpCode::JUMP_IF_TRUE_OR_POP:
-                if (!instr.operands.empty())
+                if (instr.hasOperands())
                 {
-                    targets.push_back(instr.operands[0]);
+                    targets.push_back(instr.inlineOperands[0]);
                 }
                 break;
 

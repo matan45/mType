@@ -704,7 +704,7 @@ namespace vm::runtime
         // at dispatch time — no eager resolution.
         const auto& prev = program->getInstruction(ip - 1);
         if (prev.opcode != bytecode::OpCode::PUSH_INT) return;
-        if (prev.operands.empty()) return;
+        if (prev.numOperands() == 0) return;
 
         // Same fusion-safety gates as the LOAD_LOCAL fusions: no control-flow
         // target may land directly on the fused op, and sticky un-fuse blocks
@@ -719,7 +719,7 @@ namespace vm::runtime
             if (existing->fusedDeoptCount >= 1) return;
         }
 
-        uint64_t constIdx = prev.operands[0];
+        uint64_t constIdx = prev.inlineOperands[0];
         // fusedSlot is uint32_t — assert before truncation so an oversized
         // constant-pool index surfaces as a clean failure rather than silent
         // data loss. Constant pools are bounded by the compiler, but the
@@ -729,7 +729,7 @@ namespace vm::runtime
         auto& prevMut = const_cast<bytecode::BytecodeProgram*>(program)
                             ->getMutableInstruction(ip - 1);
         prevMut.opcode = bytecode::OpCode::NOP;
-        prevMut.operands.clear();
+        prevMut.clearOperands();
 
         auto& state = program->getOrCreateCachedState(ip);
         state.fusedSlot = static_cast<uint32_t>(constIdx);
@@ -747,11 +747,11 @@ namespace vm::runtime
         if (jitEnabled && jitCodeCache && jitNativeDepth < MAX_JIT_NATIVE_DEPTH
             && !inJitFallbackInterpreter)
         {
-            std::string funcName = program->getConstantPool().getString(instr.operands[0]);
+            std::string funcName = program->getConstantPool().getString(instr.inlineOperands[0]);
             auto jitCode = jitCodeCache->lookup(funcName);
             if (jitCode)
             {
-                size_t argCount = instr.operands[1];
+                size_t argCount = instr.inlineOperands[1];
 
                 // MYT-196: small-buffer-optimized args for JIT entry.
                 value::SmallArgsBuffer args(argCount);
@@ -815,12 +815,12 @@ namespace vm::runtime
         if (jitEnabled && jitCodeCache && jitNativeDepth < MAX_JIT_NATIVE_DEPTH
             && !inJitFallbackInterpreter)
         {
-            const auto* funcMeta = program->getFunctionByIndex(instr.operands[0]);
+            const auto* funcMeta = program->getFunctionByIndex(instr.inlineOperands[0]);
             if (funcMeta) {
                 auto jitCode = jitCodeCache->lookup(funcMeta->mangledName);
                 if (jitCode)
                 {
-                    size_t argCount = instr.operands[1];
+                    size_t argCount = instr.inlineOperands[1];
 
                     // MYT-196: small-buffer-optimized args for JIT entry.
                     value::SmallArgsBuffer args(argCount);

@@ -894,10 +894,10 @@ namespace vm::jit
         }
 
         const auto& instr = ctx->program->getInstructions()[bindIp];
-        if (instr.operands.empty()) return;
+        if (instr.numOperands() == 0) return;
         const auto& constantPool = ctx->program->getConstantPool();
-        const size_t n = static_cast<size_t>(instr.operands[0]);
-        if (instr.operands.size() < 1 + 3 * n) return;
+        const size_t n = static_cast<size_t>(instr.inlineOperands[0]);
+        if (instr.numOperands() < 1 + 3 * n) return;
 
         auto& staged = ctx->vm->beginPendingTypeArgs();
         const auto& callStack = ctx->vm->getCallStack();
@@ -909,11 +909,11 @@ namespace vm::jit
         for (size_t i = 0; i < n; ++i) {
             const size_t base = 1 + 3 * i;
             const std::string& paramName = constantPool.getString(
-                static_cast<uint32_t>(instr.operands[base + 0]));
+                static_cast<uint32_t>(instr.operandAt(base + 0)));
             const auto kind = static_cast<vm::bytecode::TypeArgValueKind>(
-                static_cast<uint8_t>(instr.operands[base + 1]));
+                static_cast<uint8_t>(instr.operandAt(base + 1)));
             const std::string& rawValue = constantPool.getString(
-                static_cast<uint32_t>(instr.operands[base + 2]));
+                static_cast<uint32_t>(instr.operandAt(base + 2)));
 
             std::string resolved;
             if (kind == vm::bytecode::TypeArgValueKind::ForwardFromCaller) {

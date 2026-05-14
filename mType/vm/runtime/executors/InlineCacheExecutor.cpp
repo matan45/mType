@@ -190,7 +190,7 @@ namespace vm::runtime
     {
         using namespace vm::jit::ic;
 
-        if (instr.operands.empty())
+        if (instr.numOperands() == 0)
         {
             utils::ErrorLocationHelper::throwRuntimeError(context, "GET_FIELD requires operand");
         }
@@ -204,7 +204,7 @@ namespace vm::runtime
         {
             if (utils::isNullValue(objectValue))
             {
-                const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
+                const std::string& fieldName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
                 utils::ErrorLocationHelper::throwError<errors::NullPointerException>(context,
                     "Cannot access field '" + fieldName + "' on null object");
             }
@@ -243,7 +243,7 @@ namespace vm::runtime
         }
 
         // IC miss or uninitialized — validate access then cache
-        const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& fieldName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
 
         auto fieldDef = instance->getField(fieldName);
         if (!fieldDef)
@@ -292,14 +292,14 @@ namespace vm::runtime
     {
         using namespace vm::jit::ic;
 
-        if (instr.operands.empty())
+        if (instr.numOperands() == 0)
         {
             utils::ErrorLocationHelper::throwRuntimeError(context, "SET_FIELD requires operand");
         }
 
         FieldInlineCache& cache = icTable.getFieldIC(context.instructionPointer);
 
-        const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& fieldName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         value::Value newValue = context.stackManager->pop();
         value::Value objectValue = context.stackManager->pop();
 
@@ -386,7 +386,7 @@ namespace vm::runtime
 
         FieldInlineCache& cache = icTable.getFieldIC(context.instructionPointer);
 
-        const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& fieldName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         value::Value newValue = context.stackManager->pop();
         value::Value objectValue = context.stackManager->pop();
 
@@ -435,7 +435,7 @@ namespace vm::runtime
     {
         using namespace vm::jit::ic;
 
-        const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& fieldName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         value::Value objectValue = context.stackManager->pop();
 
         // ValueObject and primitive receivers can't use IC — handle directly.
@@ -504,7 +504,7 @@ namespace vm::runtime
             return;
         }
 
-        if (instr.operands.size() < 2)
+        if (instr.numOperands() < 2)
         {
             // Fall back to generic handler
             objectExecutor->handleCallMethod(instr);
@@ -514,7 +514,7 @@ namespace vm::runtime
         MethodInlineCache& cache = icTable.getMethodIC(context.instructionPointer);
 
         // For method IC, we need to peek at the object on the stack (below args)
-        size_t argCount = instr.operands[1];
+        size_t argCount = instr.inlineOperands[1];
 
         // The stack layout is: ... object arg0 arg1 ... argN-1
         // Object is at peek(argCount)
@@ -635,7 +635,7 @@ namespace vm::runtime
         if (cache.state != ICState::MEGAMORPHIC)
         {
             const std::string& rawMethodName =
-                context.program->getConstantPool().getString(instr.operands[0]);
+                context.program->getConstantPool().getString(instr.inlineOperands[0]);
             const std::string simpleMethodName =
                 runtimeTypes::klass::SignatureUtils::extractSimpleName(rawMethodName);
             auto lookupResult =
@@ -930,13 +930,13 @@ namespace vm::runtime
             return;
         }
 
-        if (instr.operands.size() < 2 || !state.cachedMethodFunc || !state.cachedMethodShape)
+        if (instr.numOperands() < 2 || !state.cachedMethodFunc || !state.cachedMethodShape)
         {
             deoptAndReprocess(instr);
             return;
         }
 
-        size_t argCount = instr.operands[1];
+        size_t argCount = instr.inlineOperands[1];
         if (context.stackManager->size() <= argCount)
         {
             deoptAndReprocess(instr);
@@ -1099,13 +1099,13 @@ namespace vm::runtime
             return;
         }
 
-        if (instr.operands.size() < 2 || state.polyEntryCount == 0)
+        if (instr.numOperands() < 2 || state.polyEntryCount == 0)
         {
             deoptPolyAndReprocess(instr);
             return;
         }
 
-        size_t argCount = instr.operands[1];
+        size_t argCount = instr.inlineOperands[1];
         if (context.stackManager->size() <= argCount)
         {
             deoptPolyAndReprocess(instr);
@@ -1254,7 +1254,7 @@ namespace vm::runtime
         const bytecode::BytecodeProgram::Instruction& instr,
         const bytecode::BytecodeProgram::CachedInstructionState& state)
     {
-        if (instr.operands.empty() || !state.cachedFieldShape
+        if (instr.numOperands() == 0 || !state.cachedFieldShape
             || state.cachedFieldIndex == SIZE_MAX)
         {
             deoptGetFieldAndReprocess(instr);
@@ -1279,7 +1279,7 @@ namespace vm::runtime
             if (utils::isNullValue(objectValue))
             {
                 const std::string& fieldName =
-                    context.program->getConstantPool().getString(instr.operands[0]);
+                    context.program->getConstantPool().getString(instr.inlineOperands[0]);
                 utils::ErrorLocationHelper::throwError<errors::NullPointerException>(
                     context,
                     "Cannot access field '" + fieldName + "' on null object");
@@ -1317,7 +1317,7 @@ namespace vm::runtime
         const bytecode::BytecodeProgram::Instruction& instr,
         const bytecode::BytecodeProgram::CachedInstructionState& state)
     {
-        if (instr.operands.empty() || !state.cachedFieldShape
+        if (instr.numOperands() == 0 || !state.cachedFieldShape
             || state.cachedFieldIndex == SIZE_MAX)
         {
             deoptSetFieldAndReprocess(instr);
@@ -1338,7 +1338,7 @@ namespace vm::runtime
             if (utils::isNullValue(objectValue))
             {
                 const std::string& fieldName =
-                    context.program->getConstantPool().getString(instr.operands[0]);
+                    context.program->getConstantPool().getString(instr.inlineOperands[0]);
                 utils::ErrorLocationHelper::throwError<errors::NullPointerException>(
                     context,
                     "Cannot set field '" + fieldName + "' on null object");
@@ -1382,7 +1382,7 @@ namespace vm::runtime
         // the currently-executing frame.
         const auto& prev = context.program->getInstruction(ip - 1);
         if (prev.opcode != bytecode::OpCode::LOAD_LOCAL) return;
-        if (prev.operands.empty()) return;
+        if (prev.numOperands() == 0) return;
 
         // Current IP must not be reachable via any control-flow path other
         // than falling through from IP-1. Otherwise a jump landing directly
@@ -1413,7 +1413,7 @@ namespace vm::runtime
         // fused) keeps the instruction vector length stable, so no jump
         // offsets need fixing up. fusedSlot captures what used to be the
         // LOAD_LOCAL's operand[0].
-        uint64_t slot = prev.operands[0];
+        uint64_t slot = prev.inlineOperands[0];
         // fusedSlot is uint32_t — assert before truncation. Slot indices are
         // capped by constants::security::MAX_LOCAL_STACK_PER_FRAME at every
         // LOAD_LOCAL / STORE_LOCAL entry, so this should never fire in a
@@ -1423,7 +1423,7 @@ namespace vm::runtime
                "LOAD_LOCAL fusion: slot index exceeds fusedSlot width");
         auto& prevMut = context.getMutableInstructionAt(ip - 1);
         prevMut.opcode = bytecode::OpCode::NOP;
-        prevMut.operands.clear();
+        prevMut.clearOperands();
 
         state.fusedSlot = static_cast<uint32_t>(slot);
         auto& mut = context.getMutableInstructionAt(ip);
@@ -1543,7 +1543,7 @@ namespace vm::runtime
         // Restore LOAD_LOCAL at IP-1 from the captured fusedSlot.
         auto& prevMut = context.getMutableInstructionAt(ip - 1);
         prevMut.opcode = bytecode::OpCode::LOAD_LOCAL;
-        prevMut.operands = { static_cast<uint64_t>(state.fusedSlot) };
+        prevMut.setSingleOperand(static_cast<uint64_t>(state.fusedSlot));
 
         // Demote current back to the underlying CACHED opcode and make the
         // un-fuse sticky so the next promotion here won't re-fuse.

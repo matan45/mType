@@ -159,7 +159,7 @@ namespace vm::runtime
             // MYT-201: fused state now lives on the side table. Same entry as
             // `state` above, but we need a mutable view to bump fusedDeoptCount.
             auto& mutState = context.getOrCreateCachedState(ip);
-            prevMut.operands = { static_cast<uint64_t>(mutState.fusedSlot) };
+            prevMut.setSingleOperand(static_cast<uint64_t>(mutState.fusedSlot));
             mut.opcode = bytecode::OpCode::ADD_INT;
             if (mutState.fusedDeoptCount < 255) ++mutState.fusedDeoptCount;
             handleAdd();

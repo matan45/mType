@@ -86,8 +86,8 @@ namespace vm::runtime::optimization
 
             if (instr.opcode == bytecode::OpCode::LOAD_LOCAL ||
                 instr.opcode == bytecode::OpCode::STORE_LOCAL) {
-                if (!instr.operands.empty()) {
-                    localVarOps[instr.operands[0]]++;
+                if (instr.hasOperands()) {
+                    localVarOps[instr.inlineOperands[0]]++;
                 }
             }
 
@@ -98,7 +98,7 @@ namespace vm::runtime::optimization
                 instructions[i + 1].opcode == bytecode::OpCode::STORE_LOCAL) {
 
                 loop.isCountedLoop = true;
-                loop.inductionVarSlot = instructions[i + 1].operands[0];
+                loop.inductionVarSlot = instructions[i + 1].inlineOperands[0];
                 loop.stepValue = (instr.opcode == bytecode::OpCode::ADD_INT) ? 1 : -1;
                 return true;
             }
@@ -116,17 +116,17 @@ namespace vm::runtime::optimization
 
             // Track local variable modifications
             if (instr.opcode == bytecode::OpCode::STORE_LOCAL) {
-                if (!instr.operands.empty()) {
-                    loop.modifiedLocals.insert(instr.operands[0]);
+                if (instr.hasOperands()) {
+                    loop.modifiedLocals.insert(instr.inlineOperands[0]);
                 }
             }
 
             // Track global variable modifications
             if (instr.opcode == bytecode::OpCode::STORE_VAR ||
                 instr.opcode == bytecode::OpCode::STORE_GLOBAL) {
-                if (!instr.operands.empty()) {
+                if (instr.hasOperands()) {
                     // Get variable name from constant pool
-                    const std::string& varName = program.getConstantPool().getString(instr.operands[0]);
+                    const std::string& varName = program.getConstantPool().getString(instr.inlineOperands[0]);
                     loop.modifiedGlobals.insert(varName);
                 }
             }
@@ -190,8 +190,8 @@ namespace vm::runtime::optimization
 
             // LOAD_LOCAL is invariant if the local is not modified in the loop
             case bytecode::OpCode::LOAD_LOCAL:
-                if (!instr.operands.empty()) {
-                    size_t localSlot = instr.operands[0];
+                if (instr.hasOperands()) {
+                    size_t localSlot = instr.inlineOperands[0];
                     return loop.modifiedLocals.find(localSlot) == loop.modifiedLocals.end();
                 }
                 return false;
@@ -199,8 +199,8 @@ namespace vm::runtime::optimization
             // LOAD_GLOBAL is invariant if the global is not modified in the loop
             case bytecode::OpCode::LOAD_GLOBAL:
             case bytecode::OpCode::LOAD_VAR:
-                if (!instr.operands.empty()) {
-                    const std::string& varName = program.getConstantPool().getString(instr.operands[0]);
+                if (instr.hasOperands()) {
+                    const std::string& varName = program.getConstantPool().getString(instr.inlineOperands[0]);
                     return loop.modifiedGlobals.find(varName) == loop.modifiedGlobals.end();
                 }
                 return false;

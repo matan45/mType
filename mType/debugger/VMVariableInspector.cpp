@@ -73,13 +73,13 @@ namespace debugger
             for (size_t ip = startIp; ip <= currentIp; ++ip)
             {
                 const auto& instr = program->getInstruction(ip);
-                if (!isLocalStoreOpcode(instr.opcode) || instr.operands.size() < 2)
+                if (!isLocalStoreOpcode(instr.opcode) || instr.numOperands() < 2)
                 {
                     continue;
                 }
 
-                const size_t slot = static_cast<size_t>(instr.operands[0]);
-                const size_t nameIndex = static_cast<size_t>(instr.operands[1]);
+                const size_t slot = static_cast<size_t>(instr.inlineOperands[0]);
+                const size_t nameIndex = static_cast<size_t>(instr.inlineOperands[1]);
                 if (slot >= program->getTopLevelLocalCount())
                 {
                     continue;

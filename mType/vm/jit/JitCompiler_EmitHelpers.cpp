@@ -187,9 +187,9 @@ namespace vm::jit
         for (size_t ip = startOffset; ip < endOffset; ++ip)
         {
             const auto& si = program.getInstruction(ip);
-            if (si.opcode == OpCode::CALL && si.operands.size() >= 2)
+            if (si.opcode == OpCode::CALL && si.numOperands() >= 2)
             {
-                uint32_t fnIdx = static_cast<uint32_t>(si.operands[0]);
+                uint32_t fnIdx = static_cast<uint32_t>(si.inlineOperands[0]);
                 if (fnIdx >= program.getConstantPool().strings.size())
                     continue;
                 const std::string& fn = program.getConstantPool().getString(fnIdx);
@@ -219,9 +219,9 @@ namespace vm::jit
                 instr.opcode == OpCode::JUMP_IF_TRUE_OR_POP ||
                 instr.opcode == OpCode::JUMP_BACK)
             {
-                if (!instr.operands.empty())
+                if (instr.hasOperands())
                 {
-                    size_t target = instr.operands[0];
+                    size_t target = instr.inlineOperands[0];
                     if (target >= rangeStart && target <= rangeEnd &&
                         labels.find(target) == labels.end())
                     {
@@ -241,9 +241,9 @@ namespace vm::jit
         for (size_t ip = startOffset; ip < endOffset; ++ip)
         {
             const auto& instr = program.getInstruction(ip);
-            if (instr.opcode == OpCode::JUMP_BACK && !instr.operands.empty())
+            if (instr.opcode == OpCode::JUMP_BACK && instr.hasOperands())
             {
-                targets.insert(instr.operands[0]);
+                targets.insert(instr.inlineOperands[0]);
             }
         }
         return targets;

@@ -55,7 +55,7 @@ namespace vm::optimization::analysis
         {
             const auto& instr = instructions[i];
 
-            if (isJumpOpCode(instr.opcode) && !instr.operands.empty())
+            if (isJumpOpCode(instr.opcode) && instr.hasOperands())
             {
                 size_t target = calculateJumpTarget(i, instr);
                 jumpTargets.insert(target);
@@ -92,9 +92,9 @@ namespace vm::optimization::analysis
                     // These mark exception handler boundaries
                     exceptionTargets.insert(i);
                     // If they have operands (jump to handler), mark those too
-                    if (!instr.operands.empty())
+                    if (instr.hasOperands())
                     {
-                        exceptionTargets.insert(instr.operands[0]);
+                        exceptionTargets.insert(instr.inlineOperands[0]);
                     }
                     break;
 
@@ -126,9 +126,9 @@ namespace vm::optimization::analysis
         // For most jump instructions, the operand is the absolute target offset
         // JUMP_BACK might be relative in some implementations, but based on the codebase,
         // it appears to use absolute offsets
-        if (!instr.operands.empty())
+        if (instr.hasOperands())
         {
-            return instr.operands[0];
+            return instr.inlineOperands[0];
         }
 
         return instructionOffset;  // Fallback, shouldn't happen

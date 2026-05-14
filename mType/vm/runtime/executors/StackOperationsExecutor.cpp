@@ -9,36 +9,36 @@ namespace vm::runtime
     {}
 
     void StackOperationsExecutor::handlePushInt(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+        if (instr.numOperands() == 0) {
             throw errors::RuntimeException("PUSH_INT requires operand");
         }
-        int64_t value = context.program->getConstantPool().getInteger(instr.operands[0]);
+        int64_t value = context.program->getConstantPool().getInteger(instr.inlineOperands[0]);
         context.stackManager->push(value);
     }
 
     void StackOperationsExecutor::handlePushFloat(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+        if (instr.numOperands() == 0) {
             throw errors::RuntimeException("PUSH_FLOAT requires operand");
         }
-        double value = context.program->getConstantPool().getFloat(instr.operands[0]);
+        double value = context.program->getConstantPool().getFloat(instr.inlineOperands[0]);
         context.stackManager->push(value);
     }
 
     void StackOperationsExecutor::handlePushString(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+        if (instr.numOperands() == 0) {
             throw errors::RuntimeException("PUSH_STRING requires operand");
         }
-        const std::string& value = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& value = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         // Use StringPool to intern the string
         auto& pool = value::StringPool::getInstance();
         context.stackManager->push(pool.intern(value));
     }
 
     void StackOperationsExecutor::handlePushBool(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+        if (instr.numOperands() == 0) {
             throw errors::RuntimeException("PUSH_BOOL requires operand");
         }
-        context.stackManager->push(instr.operands[0] != 0);
+        context.stackManager->push(instr.inlineOperands[0] != 0);
     }
 
     void StackOperationsExecutor::handlePushNull() {

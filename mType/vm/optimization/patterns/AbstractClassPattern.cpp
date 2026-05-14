@@ -46,11 +46,11 @@ namespace vm::optimization::patterns
         const auto& newInstr = instructions[newOffset];
 
         // Get argument count from NEW_OBJECT
-        if (newInstr.operands.empty()) {
+        if (!newInstr.hasOperands()) {
             return "";
         }
 
-        size_t argCount = newInstr.operands[0];
+        size_t argCount = newInstr.inlineOperands[0];
 
         // Trace back past the constructor arguments
         // Each argument is typically 1 instruction (PUSH_* or LOAD_*)
@@ -66,8 +66,8 @@ namespace vm::optimization::patterns
         // Check if it's a string constant load
         if (classNameInstr.opcode == bytecode::OpCode::PUSH_STRING) {
 
-            if (!classNameInstr.operands.empty()) {
-                size_t stringIndex = classNameInstr.operands[0];
+            if (classNameInstr.hasOperands()) {
+                size_t stringIndex = classNameInstr.inlineOperands[0];
                 const auto& constantPool = program.getConstantPool();
 
                 // Safely get string from constant pool

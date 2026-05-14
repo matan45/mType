@@ -80,13 +80,71 @@ namespace vm::bytecode
     BytecodeProgram::Instruction::Instruction(OpCode op) : opcode(op) {}
 
     BytecodeProgram::Instruction::Instruction(OpCode op, uint64_t operand1)
-        : opcode(op), operands{operand1} {}
+        : opcode(op), operandCount(1)
+    {
+        inlineOperands[0] = operand1;
+    }
 
     BytecodeProgram::Instruction::Instruction(OpCode op, uint64_t operand1, uint64_t operand2)
-        : opcode(op), operands{operand1, operand2} {}
+        : opcode(op), operandCount(2)
+    {
+        inlineOperands[0] = operand1;
+        inlineOperands[1] = operand2;
+    }
 
     BytecodeProgram::Instruction::Instruction(OpCode op, std::vector<uint64_t> ops)
-        : opcode(op), operands(std::move(ops)) {}
+        : opcode(op)
+    {
+        loadOperands(ops.data(), ops.size());
+    }
+
+    BytecodeProgram::Instruction::Instruction(const Instruction& other)
+        : opcode(other.opcode), flags(other.flags), operandCount(other.operandCount)
+    {
+        inlineOperands[0] = other.inlineOperands[0];
+        inlineOperands[1] = other.inlineOperands[1];
+        inlineOperands[2] = other.inlineOperands[2];
+        if (other.operandCount > 3) {
+            size_t n = static_cast<size_t>(other.operandCount) - 3;
+            overflow = std::make_unique<uint64_t[]>(n);
+            for (size_t i = 0; i < n; ++i) overflow[i] = other.overflow[i];
+        }
+    }
+
+    BytecodeProgram::Instruction& BytecodeProgram::Instruction::operator=(const Instruction& other)
+    {
+        if (this == &other) return *this;
+        opcode = other.opcode;
+        flags = other.flags;
+        operandCount = other.operandCount;
+        inlineOperands[0] = other.inlineOperands[0];
+        inlineOperands[1] = other.inlineOperands[1];
+        inlineOperands[2] = other.inlineOperands[2];
+        if (other.operandCount > 3) {
+            size_t n = static_cast<size_t>(other.operandCount) - 3;
+            overflow = std::make_unique<uint64_t[]>(n);
+            for (size_t i = 0; i < n; ++i) overflow[i] = other.overflow[i];
+        } else {
+            overflow.reset();
+        }
+        return *this;
+    }
+
+    void BytecodeProgram::Instruction::loadOperands(const uint64_t* src, size_t count)
+    {
+        operandCount = static_cast<uint8_t>(count);
+        size_t inline_n = count < 3 ? count : 3;
+        for (size_t i = 0; i < inline_n; ++i) inlineOperands[i] = src[i];
+        // Zero unused inline slots so disassembly / debug dumps don't show stale data.
+        for (size_t i = inline_n; i < 3; ++i) inlineOperands[i] = 0;
+        if (count > 3) {
+            size_t overflow_n = count - 3;
+            overflow = std::make_unique<uint64_t[]>(overflow_n);
+            for (size_t i = 0; i < overflow_n; ++i) overflow[i] = src[i + 3];
+        } else {
+            overflow.reset();
+        }
+    }
 
     // === ConstantPool Implementation ===
 
@@ -127,6 +185,21 @@ namespace vm::bytecode
 
     BytecodeProgram::BytecodeProgram() : entryPoint(0) {}
 
+    const uint64_t* BytecodeProgram::materializeStableOperandSlice(
+        const Instruction& instr, size_t start, size_t count) const
+    {
+        // Operands are split inline/overflow at index 3, so a slice may straddle
+        // the boundary. Always copy into a stable heap-owned buffer for the JIT
+        // immediate. std::list node addresses (and the inner vector's data()
+        // pointer, since we don't grow the vector after emplace_back) remain
+        // stable across subsequent slice materializations.
+        auto& buf = jitStableSlotPool.emplace_back(count);
+        for (size_t i = 0; i < count; ++i) {
+            buf[i] = instr.operandAt(start + i);
+        }
+        return buf.data();
+    }
+
     void BytecodeProgram::emit(OpCode opcode) {
         instructions.emplace_back(opcode);
         invalidateFusionUnsafeTargets();
@@ -152,8 +225,8 @@ namespace vm::bytecode
     }
 
     void BytecodeProgram::patchJump(size_t instructionIndex, uint64_t targetOffset) {
-        if (instructionIndex < instructions.size() && !instructions[instructionIndex].operands.empty()) {
-            instructions[instructionIndex].operands[0] = targetOffset;
+        if (instructionIndex < instructions.size() && instructions[instructionIndex].hasOperands()) {
+            instructions[instructionIndex].setOperand0(targetOffset);
         }
     }
 
@@ -197,8 +270,8 @@ namespace vm::bytecode
                 case OpCode::JUMP_BACK:
                 case OpCode::JUMP_IF_FALSE_OR_POP:
                 case OpCode::JUMP_IF_TRUE_OR_POP:
-                    if (!instr.operands.empty()) {
-                        fusionUnsafeTargets.insert(instr.operands[0]);
+                    if (instr.hasOperands()) {
+                        fusionUnsafeTargets.insert(instr.inlineOperands[0]);
                     }
                     break;
 
@@ -208,8 +281,8 @@ namespace vm::bytecode
                     // The handler offset itself is a control-flow target, as
                     // is the jump operand (handler address) if present.
                     fusionUnsafeTargets.insert(i);
-                    if (!instr.operands.empty()) {
-                        fusionUnsafeTargets.insert(instr.operands[0]);
+                    if (instr.hasOperands()) {
+                        fusionUnsafeTargets.insert(instr.inlineOperands[0]);
                     }
                     break;
 
@@ -335,8 +408,8 @@ namespace vm::bytecode
                 case OpCode::JUMP_IF_TRUE_OR_POP:
                     // Jump instructions have target offset as first operand
                     // Ensure the target is within bounds
-                    if (!instr.operands.empty()) {
-                        uint32_t target = static_cast<uint32_t>(instr.operands[0]);
+                    if (instr.hasOperands()) {
+                        uint32_t target = static_cast<uint32_t>(instr.inlineOperands[0]);
                         if (target >= instructions.size()) {
                             // CRITICAL: Invalid jump target detected - fail fast
                             throw std::runtime_error(
@@ -678,8 +751,8 @@ namespace vm::bytecode
                 << std::setw(20) << std::setfill(' ') << std::left
                 << getOpCodeName(instr.opcode);
 
-            for (size_t j = 0; j < instr.operands.size(); ++j) {
-                oss << " " << instr.operands[j];
+            for (size_t j = 0; j < instr.numOperands(); ++j) {
+                oss << " " << instr.operandAt(j);
             }
 
             // Show instruction flags
@@ -890,11 +963,18 @@ namespace vm::bytecode
         for (const auto& instr : instructions) {
             out.write(reinterpret_cast<const char*>(&instr.opcode), sizeof(instr.opcode));
             out.write(reinterpret_cast<const char*>(&instr.flags), sizeof(instr.flags));
-            size_t opCount = instr.operands.size();
+            size_t opCount = instr.numOperands();
             out.write(reinterpret_cast<const char*>(&opCount), sizeof(opCount));
-            if (opCount > 0) {
-                out.write(reinterpret_cast<const char*>(instr.operands.data()),
-                         opCount * sizeof(uint64_t));
+            // Inline portion (operands[0..min(2,count-1)])
+            size_t inline_n = opCount < 3 ? opCount : 3;
+            if (inline_n > 0) {
+                out.write(reinterpret_cast<const char*>(instr.inlineOperands),
+                         inline_n * sizeof(uint64_t));
+            }
+            // Overflow portion (operands[3..count-1])
+            if (opCount > 3) {
+                out.write(reinterpret_cast<const char*>(instr.overflow.get()),
+                         (opCount - 3) * sizeof(uint64_t));
             }
         }
     }
@@ -965,9 +1045,10 @@ namespace vm::bytecode
             in.read(reinterpret_cast<char*>(&opCount), sizeof(opCount));
             validateCount(opCount, constants::security::MAX_OPERANDS_PER_INSTR, "instruction operands");
             if (opCount > 0) {
-                instructions[i].operands.resize(opCount);
-                in.read(reinterpret_cast<char*>(instructions[i].operands.data()),
+                std::vector<uint64_t> buf(opCount);
+                in.read(reinterpret_cast<char*>(buf.data()),
                        opCount * sizeof(uint64_t));
+                instructions[i].loadOperands(buf.data(), opCount);
             }
         }
     }

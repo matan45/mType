@@ -117,9 +117,9 @@ namespace vm::jit
             case OpCode::STORE_LOCAL_FLOAT:
             case OpCode::STORE_LOCAL_BOOL:
             case OpCode::STORE_LOCAL_BOXED_INST:
-                if (instr.operands.empty())
+                if (instr.numOperands() == 0)
                     return false;
-                outSlot = instr.operands[0];
+                outSlot = instr.inlineOperands[0];
                 return true;
             default:
                 return false;
@@ -144,9 +144,9 @@ namespace vm::jit
                                const bytecode::BytecodeProgram::Instruction& instr,
                                int64_t expected)
     {
-        if (instr.opcode != OpCode::PUSH_INT || instr.operands.empty())
+        if (instr.opcode != OpCode::PUSH_INT || instr.numOperands() == 0)
             return false;
-        const auto index = static_cast<size_t>(instr.operands[0]);
+        const auto index = static_cast<size_t>(instr.inlineOperands[0]);
         const auto& integers = program.getConstantPool().integers;
         return index < integers.size() && integers[index] == expected;
     }
@@ -333,8 +333,8 @@ namespace vm::jit
                 case OpCode::JUMP_IF_FALSE:
                 case OpCode::JUMP_IF_TRUE:
                 {
-                    if (instr.operands.empty()) break;
-                    const size_t target = static_cast<size_t>(instr.operands[0]);
+                    if (instr.numOperands() == 0) break;
+                    const size_t target = static_cast<size_t>(instr.inlineOperands[0]);
                     if (target <= ip + 1 || target > endOffsetInclusive + 1)
                         break;
                     // `for` lowers its loop condition as:

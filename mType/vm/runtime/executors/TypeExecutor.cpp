@@ -241,7 +241,7 @@ namespace vm::runtime
 
     void TypeExecutor::handleInstanceof(const bytecode::BytecodeProgram::Instruction& instr) {
         // Get target type name from constant pool
-        const std::string& targetTypeName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& targetTypeName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
 
         // Pop value to check
         value::Value val = context.stackManager->pop();
@@ -258,7 +258,7 @@ namespace vm::runtime
         // parameter name (e.g. "T"). Resolve it against the current receiver's
         // generic bindings, then chain into the existing instanceof machinery
         // exactly as if the user had written `obj isClassOf <concrete>`.
-        const std::string& paramName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& paramName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         std::string resolved = resolveTypeParameter(paramName);
 
         value::Value val = context.stackManager->pop();
@@ -308,7 +308,7 @@ namespace vm::runtime
         // Forward-from-caller is resolved against the CURRENT top frame's
         // bindings (we haven't pushed the new frame yet). Storing concrete
         // names means the resolver doesn't need a fixpoint walk later.
-        if (instr.operands.empty()) {
+        if (instr.numOperands() == 0) {
             throw errors::RuntimeException("BIND_TYPE_ARGS: missing operand count");
         }
 
@@ -328,10 +328,10 @@ namespace vm::runtime
         }
 
         const auto& constantPool = context.program->getConstantPool();
-        const size_t n = static_cast<size_t>(instr.operands[0]);
+        const size_t n = static_cast<size_t>(instr.inlineOperands[0]);
         // Variable-arity guard — well-formed bytecode satisfies this; a
         // malformed .mtc would otherwise read past the operand vector.
-        if (instr.operands.size() < 1 + 3 * n) {
+        if (instr.numOperands() < 1 + 3 * n) {
             throw errors::RuntimeException("BIND_TYPE_ARGS: malformed operands");
         }
 
@@ -345,11 +345,11 @@ namespace vm::runtime
         for (size_t i = 0; i < n; ++i) {
             const size_t base = 1 + 3 * i;
             const std::string& paramName = constantPool.getString(
-                static_cast<uint32_t>(instr.operands[base + 0]));
+                static_cast<uint32_t>(instr.operandAt(base + 0)));
             const auto kind = static_cast<bytecode::TypeArgValueKind>(
-                static_cast<uint8_t>(instr.operands[base + 1]));
+                static_cast<uint8_t>(instr.operandAt(base + 1)));
             const std::string& rawValue = constantPool.getString(
-                static_cast<uint32_t>(instr.operands[base + 2]));
+                static_cast<uint32_t>(instr.operandAt(base + 2)));
 
             std::string resolved;
             if (kind == bytecode::TypeArgValueKind::ForwardFromCaller) {
@@ -384,7 +384,7 @@ namespace vm::runtime
     }
 
     void TypeExecutor::handleCastTypeParam(const bytecode::BytecodeProgram::Instruction& instr) {
-        const std::string& paramName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& paramName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
 
         try {
             std::string resolved = resolveTypeParameter(paramName);
@@ -411,7 +411,7 @@ namespace vm::runtime
 
     void TypeExecutor::handleCast(const bytecode::BytecodeProgram::Instruction& instr) {
         // Get target type name from constant pool
-        const std::string& targetTypeName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& targetTypeName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
 
         // Pop value to cast
         value::Value val = context.stackManager->pop();
