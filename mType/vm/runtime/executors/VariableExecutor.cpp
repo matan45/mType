@@ -76,10 +76,7 @@ namespace vm::runtime
     }
 
     void VariableExecutor::handleLoadVar(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.numOperands() == 0) {
-            throw errors::RuntimeException("LOAD_VAR requires operand");
-        }
-
+        // MYT-318: operand-count contract enforced by program-load validator.
         const std::string& varName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         auto varDef = context.environment->findVariable(varName);
 
@@ -216,10 +213,7 @@ namespace vm::runtime
     }
 
     void VariableExecutor::handleStoreVar(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.numOperands() == 0) {
-            throw errors::RuntimeException("STORE_VAR requires operand");
-        }
-
+        // MYT-318: operand-count contract enforced by program-load validator.
         const std::string& varName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         value::Value val = context.stackManager->pop();
         auto varDef = context.environment->findVariable(varName);
@@ -270,10 +264,7 @@ namespace vm::runtime
 
     void VariableExecutor::handleLoadLocal(const bytecode::BytecodeProgram::Instruction& instr)
     {
-        if (instr.numOperands() == 0)
-        {
-            throw errors::RuntimeException("LOAD_LOCAL requires operand");
-        }
+        // MYT-318: operand-count contract enforced by program-load validator.
         loadLocalSlot(instr.inlineOperands[0]);
     }
 
@@ -364,10 +355,7 @@ namespace vm::runtime
 
     void VariableExecutor::handleStoreLocal(const bytecode::BytecodeProgram::Instruction& instr)
     {
-        if (instr.numOperands() == 0)
-        {
-            throw errors::RuntimeException("STORE_LOCAL requires operand");
-        }
+        // MYT-318: operand-count contract (>= 1) enforced by program-load validator.
 
         // Fast path: no varName (shared-frame late-binding) — delegate to the
         // slot-based entry so MYT-202 fused handlers share the same body.
@@ -486,10 +474,45 @@ namespace vm::runtime
                 std::to_string(constants::security::MAX_LOCAL_STACK_PER_FRAME));
         }
 
+        // MYT-318 fast path: when the frame is non-lambda AND the target slot
+        // is *strictly below* TOS, copy TOS into the slot. The original TOS
+        // value stays in place to provide the chained-assignment semantic
+        // (`int x = expr` evaluates to expr's value for further use), so we
+        // skip both the pop and the push.
+        //
+        // The boundary case stackPos == curSize - 1 (local slot equals TOS)
+        // requires duplicating the value — pushing val onto TOS again to
+        // preserve the chained-val invariant. That case is handled by the
+        // slow path below to keep this fast path branch-free on the common
+        // function-body shape (locals are always below the operand work).
+        const bool inLambda = !context.callStack.empty()
+                              && context.callStack.back().originatingLambda;
+        if (!inLambda)
+        {
+            size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
+            size_t stackPos = frameBase + slot;
+            size_t curSize = context.stackManager->size();
+            if (curSize >= 2 && stackPos < curSize - 1)
+            {
+                const auto& tosRef = context.stackManager->peekRef(0);
+                (*context.stackManager)[stackPos] = tosRef;
+                if (!context.callStack.empty() && context.callStack.back().sharedFrame)
+                {
+                    context.callStack.back().sharedFrame->setLocal(slot, tosRef);
+                }
+                value::ValueType tag = tosRef.tag();
+                // val stays on TOS for the chained-assignment semantic.
+                tryPromoteStoreLocal(tag);
+                return;
+            }
+            // Fall through to slow path for the boundary (stackPos == TOS)
+            // and stack-extension cases.
+        }
+
         value::Value val = context.stackManager->pop();
 
         // Lambda-captured path.
-        if (!context.callStack.empty() && context.callStack.back().originatingLambda)
+        if (inLambda)
         {
             auto lambda = context.callStack.back().originatingLambda;
             size_t paramCount = lambda->parameterCount;

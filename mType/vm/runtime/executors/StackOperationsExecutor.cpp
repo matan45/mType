@@ -8,36 +8,27 @@ namespace vm::runtime
         : context(ctx)
     {}
 
+    // MYT-318: PUSH_* operand-count contract is enforced by
+    // BytecodeProgram::validateInstructionOperands at program load, so the
+    // runtime defensive `if (numOperands() == 0) throw` checks are gone here.
+
     void StackOperationsExecutor::handlePushInt(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.numOperands() == 0) {
-            throw errors::RuntimeException("PUSH_INT requires operand");
-        }
         int64_t value = context.program->getConstantPool().getInteger(instr.inlineOperands[0]);
         context.stackManager->push(value);
     }
 
     void StackOperationsExecutor::handlePushFloat(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.numOperands() == 0) {
-            throw errors::RuntimeException("PUSH_FLOAT requires operand");
-        }
         double value = context.program->getConstantPool().getFloat(instr.inlineOperands[0]);
         context.stackManager->push(value);
     }
 
     void StackOperationsExecutor::handlePushString(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.numOperands() == 0) {
-            throw errors::RuntimeException("PUSH_STRING requires operand");
-        }
         const std::string& value = context.program->getConstantPool().getString(instr.inlineOperands[0]);
-        // Use StringPool to intern the string
         auto& pool = value::StringPool::getInstance();
         context.stackManager->push(pool.intern(value));
     }
 
     void StackOperationsExecutor::handlePushBool(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.numOperands() == 0) {
-            throw errors::RuntimeException("PUSH_BOOL requires operand");
-        }
         context.stackManager->push(instr.inlineOperands[0] != 0);
     }
 
@@ -50,16 +41,24 @@ namespace vm::runtime
     }
 
     void StackOperationsExecutor::handleDup() {
-        context.stackManager->push(context.stackManager->peek());
+        // MYT-318: copy the top slot without an intermediate peek-by-value.
+        // The push may reallocate the underlying vector, which would
+        // invalidate any reference into it — so we copy through a local first.
+        if (context.stackManager->empty()) {
+            throw errors::RuntimeException("Stack underflow: DUP requires 1 value");
+        }
+        value::Value copy = context.stackManager->peekRef(0);
+        context.stackManager->push(std::move(copy));
     }
 
     void StackOperationsExecutor::handleSwap() {
+        // MYT-318: swap in place via std::swap on references — no pop/push,
+        // no size-field thrash, no temporaries beyond the swap itself.
         if (context.stackManager->size() < 2) {
             throw errors::RuntimeException("Stack underflow: SWAP requires 2 values");
         }
-        value::Value top = context.stackManager->pop();
-        value::Value second = context.stackManager->pop();
-        context.stackManager->push(top);
-        context.stackManager->push(second);
+        auto& top    = context.stackManager->peekRef(0);
+        auto& second = context.stackManager->peekRef(1);
+        std::swap(top, second);
     }
 }

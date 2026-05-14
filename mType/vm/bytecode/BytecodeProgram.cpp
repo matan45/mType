@@ -185,6 +185,134 @@ namespace vm::bytecode
 
     BytecodeProgram::BytecodeProgram() : entryPoint(0) {}
 
+    namespace
+    {
+        // MYT-318: per-opcode minimum operand count. Verified once at program
+        // load by validateInstructionOperands(); executors covered here may
+        // omit the runtime `if (numOperands() == 0) throw...` defensive check.
+        //
+        // Conservative — any opcode not listed defaults to 0 (no requirement,
+        // preserving the existing defensive-check semantics for unaudited
+        // opcodes). Runtime-only opcodes (CALL_METHOD_CACHED, LOAD_LOCAL_INT,
+        // etc.) inherit their generic form's operand contract via in-place
+        // rewrite (operands aren't mutated), so the same minimum applies.
+        constexpr uint8_t opcodeMinOperands(OpCode op) noexcept
+        {
+            switch (op)
+            {
+            // === Constant push: 1 operand (constant pool index or value) ===
+            case OpCode::PUSH_INT:
+            case OpCode::PUSH_FLOAT:
+            case OpCode::PUSH_STRING:
+            case OpCode::PUSH_BOOL:
+                return 1;
+
+            // === Locals/globals: 1 operand (slot or name index) ===
+            case OpCode::LOAD_LOCAL:
+            case OpCode::LOAD_LOCAL_INT:
+            case OpCode::LOAD_LOCAL_FLOAT:
+            case OpCode::LOAD_LOCAL_BOOL:
+            case OpCode::LOAD_LOCAL_BOXED_INST:
+            case OpCode::STORE_LOCAL_INT:
+            case OpCode::STORE_LOCAL_FLOAT:
+            case OpCode::STORE_LOCAL_BOOL:
+            case OpCode::STORE_LOCAL_BOXED_INST:
+            case OpCode::LOAD_GLOBAL:
+            case OpCode::STORE_GLOBAL:
+            case OpCode::LOAD_VAR:
+            case OpCode::LOAD_VAR_CACHED:
+            case OpCode::DECLARE_VAR:
+                return 1;
+
+            // STORE_LOCAL: 1 operand minimum (slot), optional 2nd (varName).
+            case OpCode::STORE_LOCAL:
+            case OpCode::STORE_VAR:
+            case OpCode::STORE_VAR_CACHED:
+                return 1;
+
+            // === Field ops: 1 operand (field name index) ===
+            case OpCode::GET_FIELD:
+            case OpCode::SET_FIELD:
+            case OpCode::GET_FIELD_FAST:
+            case OpCode::SET_FIELD_FAST:
+            case OpCode::INLINE_SET_FIELD:
+            case OpCode::INLINE_GET_FIELD:
+            case OpCode::GET_FIELD_CACHED:
+            case OpCode::SET_FIELD_CACHED:
+                return 1;
+
+            // === Control flow: 1 operand (target offset) ===
+            case OpCode::JUMP:
+            case OpCode::JUMP_IF_FALSE:
+            case OpCode::JUMP_IF_TRUE:
+            case OpCode::JUMP_IF_NULL:
+            case OpCode::JUMP_BACK:
+            case OpCode::JUMP_IF_FALSE_OR_POP:
+            case OpCode::JUMP_IF_TRUE_OR_POP:
+                return 1;
+
+            // === Fused superinstructions (MYT-202) ===
+            case OpCode::LOAD_STORE_LOCAL:
+            case OpCode::LOAD_GET_FIELD:
+            case OpCode::LOAD_LOAD_ADD_INT:
+            case OpCode::LOAD_LOAD_SUB_INT:
+            case OpCode::LOAD_LOAD_MUL_INT:
+                return 2;
+            case OpCode::ADD_INT_STORE_LOCAL:
+                return 1;
+
+            // === Fused local-array ops (compiler-emitted) ===
+            case OpCode::ARRAY_GET_INT_LOCAL:
+            case OpCode::ARRAY_SET_INT_LOCAL:
+            case OpCode::ARRAY_LENGTH_LOCAL:
+                return 1;
+
+            // === Calls: at least 2 operands (name index + arg count) ===
+            case OpCode::CALL:
+            case OpCode::CALL_FAST:
+            case OpCode::CALL_METHOD:
+            case OpCode::CALL_METHOD_CACHED:
+            case OpCode::CALL_METHOD_POLY_CACHED:
+            case OpCode::CALL_STATIC:
+            case OpCode::INVOKE:
+            case OpCode::SUPER_INVOKE:
+            case OpCode::TAIL_CALL:
+                return 2;
+
+            // === Type / cast ops ===
+            case OpCode::INSTANCEOF:
+            case OpCode::INSTANCEOF_TYPEPARAM:
+            case OpCode::CAST:
+            case OpCode::CAST_TYPEPARAM:
+            case OpCode::CHECK_TYPE:
+                return 1;
+
+            // === Default: no minimum (preserves existing defensive checks
+            // for opcodes not yet audited). ===
+            default:
+                return 0;
+            }
+        }
+    }
+
+    void BytecodeProgram::validateInstructionOperands() const
+    {
+        for (size_t ip = 0; ip < instructions.size(); ++ip)
+        {
+            const auto& instr = instructions[ip];
+            uint8_t required = opcodeMinOperands(instr.opcode);
+            if (instr.numOperands() < required)
+            {
+                throw std::runtime_error(
+                    std::string("Bytecode validation: opcode ") +
+                    getOpCodeName(instr.opcode) +
+                    " at instruction " + std::to_string(ip) +
+                    " requires at least " + std::to_string(static_cast<int>(required)) +
+                    " operand(s) but has " + std::to_string(instr.numOperands()));
+            }
+        }
+    }
+
     const uint64_t* BytecodeProgram::materializeStableOperandSlice(
         const Instruction& instr, size_t start, size_t count) const
     {
@@ -897,6 +1025,11 @@ namespace vm::bytecode
         std::string sourcePath(len, '\0');
         in.read(&sourcePath[0], len);
         program.sourceFilePath = sourcePath;
+
+        // MYT-318: validate the deserialized instruction stream so executors
+        // can drop defensive operand-count checks on the hot dispatch path.
+        // Throws std::runtime_error on a malformed .mtc.
+        program.validateInstructionOperands();
 
         return program;
     }

@@ -76,33 +76,44 @@ namespace vm::runtime
     }
 
     void ArithmeticExecutor::handleNeg() {
-        value::Value val = context.stackManager->pop();
+        // MYT-318: replaceTop avoids the pop+push round trip; we read through
+        // a reference to TOS and overwrite in place.
+        if (context.stackManager->empty()) {
+            throw errors::RuntimeException("Stack underflow: NEG requires 1 value");
+        }
+        const auto& val = context.stackManager->peekRef(0);
         if (value::isInt(val)) {
-            context.stackManager->push(utils::wrappingNeg64(value::asInt(val)));
+            context.stackManager->replaceTop(utils::wrappingNeg64(value::asInt(val)));
         } else if (value::isFloat(val)) {
-            context.stackManager->push(-value::asFloat(val));
+            context.stackManager->replaceTop(-value::asFloat(val));
         } else {
             throw errors::RuntimeException("NEG requires numeric value");
         }
     }
 
     void ArithmeticExecutor::handleInc() {
-        value::Value val = context.stackManager->pop();
+        if (context.stackManager->empty()) {
+            throw errors::RuntimeException("Stack underflow: INC requires 1 value");
+        }
+        const auto& val = context.stackManager->peekRef(0);
         if (value::isInt(val)) {
-            context.stackManager->push(utils::wrappingAdd64(value::asInt(val), 1));
+            context.stackManager->replaceTop(utils::wrappingAdd64(value::asInt(val), 1));
         } else if (value::isFloat(val)) {
-            context.stackManager->push(value::asFloat(val) + 1.0);
+            context.stackManager->replaceTop(value::asFloat(val) + 1.0);
         } else {
             throw errors::RuntimeException("INC requires numeric value");
         }
     }
 
     void ArithmeticExecutor::handleDec() {
-        value::Value val = context.stackManager->pop();
+        if (context.stackManager->empty()) {
+            throw errors::RuntimeException("Stack underflow: DEC requires 1 value");
+        }
+        const auto& val = context.stackManager->peekRef(0);
         if (value::isInt(val)) {
-            context.stackManager->push(utils::wrappingSub64(value::asInt(val), 1));
+            context.stackManager->replaceTop(utils::wrappingSub64(value::asInt(val), 1));
         } else if (value::isFloat(val)) {
-            context.stackManager->push(value::asFloat(val) - 1.0);
+            context.stackManager->replaceTop(value::asFloat(val) - 1.0);
         } else {
             throw errors::RuntimeException("DEC requires numeric value");
         }
@@ -113,15 +124,17 @@ namespace vm::runtime
             throw errors::RuntimeException("Stack underflow: ADD_INT requires 2 values");
         }
         // Phase 6: Type guard — deopt to generic ADD if types don't match
-        const auto& right = context.stackManager->peek(0);
-        const auto& left = context.stackManager->peek(1);
+        const auto& right = context.stackManager->peekRef(0);
+        const auto& left = context.stackManager->peekRef(1);
         if (!value::isInt(left) || !value::isInt(right)) {
             handleAdd(); // Fall back to generic
             return;
         }
-        int64_t r = value::asInt(context.stackManager->pop());
-        int64_t l = value::asInt(context.stackManager->pop());
-        context.stackManager->push(utils::wrappingAdd64(l, r));
+        // MYT-318: pop+pop+push collapses to a single size mutation via
+        // binaryReplaceTop — value extraction reads through the refs above.
+        int64_t r = value::asInt(right);
+        int64_t l = value::asInt(left);
+        context.stackManager->binaryReplaceTop(utils::wrappingAdd64(l, r));
     }
 
     void ArithmeticExecutor::handleAddIntConst(
@@ -166,119 +179,119 @@ namespace vm::runtime
             return;
         }
         int64_t literal = context.program->getConstantPool().getInteger(state.fusedSlot);
-        int64_t l = value::asInt(context.stackManager->pop());
-        context.stackManager->push(utils::wrappingAdd64(l, literal));
+        int64_t l = value::asInt(context.stackManager->peekRef(0));
+        context.stackManager->replaceTop(utils::wrappingAdd64(l, literal));
     }
 
     void ArithmeticExecutor::handleSubInt() {
         if (context.stackManager->size() < 2) {
             throw errors::RuntimeException("Stack underflow: SUB_INT requires 2 values");
         }
-        const auto& right = context.stackManager->peek(0);
-        const auto& left = context.stackManager->peek(1);
+        const auto& right = context.stackManager->peekRef(0);
+        const auto& left = context.stackManager->peekRef(1);
         if (!value::isInt(left) || !value::isInt(right)) {
             handleSub();
             return;
         }
-        int64_t r = value::asInt(context.stackManager->pop());
-        int64_t l = value::asInt(context.stackManager->pop());
-        context.stackManager->push(utils::wrappingSub64(l, r));
+        int64_t r = value::asInt(right);
+        int64_t l = value::asInt(left);
+        context.stackManager->binaryReplaceTop(utils::wrappingSub64(l, r));
     }
 
     void ArithmeticExecutor::handleMulInt() {
         if (context.stackManager->size() < 2) {
             throw errors::RuntimeException("Stack underflow: MUL_INT requires 2 values");
         }
-        const auto& right = context.stackManager->peek(0);
-        const auto& left = context.stackManager->peek(1);
+        const auto& right = context.stackManager->peekRef(0);
+        const auto& left = context.stackManager->peekRef(1);
         if (!value::isInt(left) || !value::isInt(right)) {
             handleMul();
             return;
         }
-        int64_t r = value::asInt(context.stackManager->pop());
-        int64_t l = value::asInt(context.stackManager->pop());
-        context.stackManager->push(utils::wrappingMul64(l, r));
+        int64_t r = value::asInt(right);
+        int64_t l = value::asInt(left);
+        context.stackManager->binaryReplaceTop(utils::wrappingMul64(l, r));
     }
 
     void ArithmeticExecutor::handleDivInt() {
         if (context.stackManager->size() < 2) {
             throw errors::RuntimeException("Stack underflow: DIV_INT requires 2 values");
         }
-        const auto& right = context.stackManager->peek(0);
-        const auto& left = context.stackManager->peek(1);
+        const auto& right = context.stackManager->peekRef(0);
+        const auto& left = context.stackManager->peekRef(1);
         if (!value::isInt(left) || !value::isInt(right)) {
             handleDiv();
             return;
         }
-        int64_t r = value::asInt(context.stackManager->pop());
-        int64_t l = value::asInt(context.stackManager->pop());
+        int64_t r = value::asInt(right);
+        int64_t l = value::asInt(left);
         if (r == 0) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "Division by zero");
         }
-        context.stackManager->push(l / r);
+        context.stackManager->binaryReplaceTop(l / r);
     }
 
     void ArithmeticExecutor::handleAddFloat() {
         if (context.stackManager->size() < 2) {
             throw errors::RuntimeException("Stack underflow: ADD_FLOAT requires 2 values");
         }
-        const auto& right = context.stackManager->peek(0);
-        const auto& left = context.stackManager->peek(1);
+        const auto& right = context.stackManager->peekRef(0);
+        const auto& left = context.stackManager->peekRef(1);
         if (!value::isFloat(left) || !value::isFloat(right)) {
             handleAdd();
             return;
         }
-        double r = value::asFloat(context.stackManager->pop());
-        double l = value::asFloat(context.stackManager->pop());
-        context.stackManager->push(l + r);
+        double r = value::asFloat(right);
+        double l = value::asFloat(left);
+        context.stackManager->binaryReplaceTop(l + r);
     }
 
     void ArithmeticExecutor::handleSubFloat() {
         if (context.stackManager->size() < 2) {
             throw errors::RuntimeException("Stack underflow: SUB_FLOAT requires 2 values");
         }
-        const auto& right = context.stackManager->peek(0);
-        const auto& left = context.stackManager->peek(1);
+        const auto& right = context.stackManager->peekRef(0);
+        const auto& left = context.stackManager->peekRef(1);
         if (!value::isFloat(left) || !value::isFloat(right)) {
             handleSub();
             return;
         }
-        double r = value::asFloat(context.stackManager->pop());
-        double l = value::asFloat(context.stackManager->pop());
-        context.stackManager->push(l - r);
+        double r = value::asFloat(right);
+        double l = value::asFloat(left);
+        context.stackManager->binaryReplaceTop(l - r);
     }
 
     void ArithmeticExecutor::handleMulFloat() {
         if (context.stackManager->size() < 2) {
             throw errors::RuntimeException("Stack underflow: MUL_FLOAT requires 2 values");
         }
-        const auto& right = context.stackManager->peek(0);
-        const auto& left = context.stackManager->peek(1);
+        const auto& right = context.stackManager->peekRef(0);
+        const auto& left = context.stackManager->peekRef(1);
         if (!value::isFloat(left) || !value::isFloat(right)) {
             handleMul();
             return;
         }
-        double r = value::asFloat(context.stackManager->pop());
-        double l = value::asFloat(context.stackManager->pop());
-        context.stackManager->push(l * r);
+        double r = value::asFloat(right);
+        double l = value::asFloat(left);
+        context.stackManager->binaryReplaceTop(l * r);
     }
 
     void ArithmeticExecutor::handleDivFloat() {
         if (context.stackManager->size() < 2) {
             throw errors::RuntimeException("Stack underflow: DIV_FLOAT requires 2 values");
         }
-        const auto& right = context.stackManager->peek(0);
-        const auto& left = context.stackManager->peek(1);
+        const auto& right = context.stackManager->peekRef(0);
+        const auto& left = context.stackManager->peekRef(1);
         if (!value::isFloat(left) || !value::isFloat(right)) {
             handleDiv();
             return;
         }
-        double r = value::asFloat(context.stackManager->pop());
-        double l = value::asFloat(context.stackManager->pop());
+        double r = value::asFloat(right);
+        double l = value::asFloat(left);
         if (r == 0.0) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "Division by zero");
         }
-        context.stackManager->push(l / r);
+        context.stackManager->binaryReplaceTop(l / r);
     }
 
     void ArithmeticExecutor::handleStringBuild(size_t count) {

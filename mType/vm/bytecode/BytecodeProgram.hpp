@@ -411,6 +411,15 @@ namespace vm::bytecode
         const uint64_t* materializeStableOperandSlice(
             const Instruction& instr, size_t start, size_t count) const;
 
+        // MYT-318: One-shot bytecode validator. Verifies that every
+        // instruction in the stream carries at least the minimum number of
+        // operands its opcode requires. Runs at program load (deserialize
+        // tail / explicit caller) so executors on the hot path can drop their
+        // defensive `if (numOperands() == 0) throw...` checks for any opcode
+        // covered by the validator's operand-count table. Throws
+        // std::runtime_error on violation; otherwise returns.
+        void validateInstructionOperands() const;
+
         void emit(OpCode opcode);
         void emit(OpCode opcode, uint64_t operand);
         void emit(OpCode opcode, uint64_t operand1, uint64_t operand2);

@@ -570,6 +570,11 @@ namespace vm::compiler
         // FUSED LOCAL-ARRAY OPERATIONS PASS
         fuseLocalArrayOps(program);
 
+        // MYT-318: validate operand-count contract before execution so the
+        // hot-path executors covered by the validator's table can drop their
+        // runtime defensive checks. Runs after every transformation pass.
+        program.validateInstructionOperands();
+
         return std::move(program);
     }
 

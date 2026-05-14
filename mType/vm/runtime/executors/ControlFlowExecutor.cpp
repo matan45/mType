@@ -15,17 +15,15 @@ namespace vm::runtime
         : context(ctx)
     {}
 
+    // MYT-318: JUMP* operand-count contract is enforced by
+    // BytecodeProgram::validateInstructionOperands at program load, so the
+    // runtime defensive `if (numOperands() == 0) throw` checks are gone here.
+
     void ControlFlowExecutor::handleJump(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.numOperands() == 0) {
-            throw errors::RuntimeException("JUMP requires operand");
-        }
         context.instructionPointer = instr.inlineOperands[0] - 1;  // -1 because loop increments
     }
 
     void ControlFlowExecutor::handleJumpIfFalse(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.numOperands() == 0) {
-            throw errors::RuntimeException("JUMP_IF_FALSE requires operand");
-        }
         value::Value condition = context.stackManager->pop();
         if (!isTruthy(condition)) {
             context.instructionPointer = instr.inlineOperands[0] - 1;
@@ -33,9 +31,6 @@ namespace vm::runtime
     }
 
     void ControlFlowExecutor::handleJumpIfTrue(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.numOperands() == 0) {
-            throw errors::RuntimeException("JUMP_IF_TRUE requires operand");
-        }
         value::Value condition = context.stackManager->pop();
         if (isTruthy(condition)) {
             context.instructionPointer = instr.inlineOperands[0] - 1;
@@ -43,9 +38,6 @@ namespace vm::runtime
     }
 
     void ControlFlowExecutor::handleJumpIfFalseOrPop(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.numOperands() == 0) {
-            throw errors::RuntimeException("JUMP_IF_FALSE_OR_POP requires operand");
-        }
         // Peek at the value without popping
         value::Value condition = context.stackManager->peek();
         if (!isTruthy(condition)) {
@@ -58,9 +50,6 @@ namespace vm::runtime
     }
 
     void ControlFlowExecutor::handleJumpIfTrueOrPop(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.numOperands() == 0) {
-            throw errors::RuntimeException("JUMP_IF_TRUE_OR_POP requires operand");
-        }
         // Peek at the value without popping
         value::Value condition = context.stackManager->peek();
         if (isTruthy(condition)) {
@@ -73,10 +62,6 @@ namespace vm::runtime
     }
 
     void ControlFlowExecutor::handleJumpBack(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.numOperands() == 0) {
-            throw errors::RuntimeException("JUMP_BACK requires operand");
-        }
-
         // Phase 5: OSR check at loop back-edge
         if (osrManager && context.vm && context.vm->isJitEnabled())
         {
@@ -102,9 +87,6 @@ namespace vm::runtime
     }
 
     void ControlFlowExecutor::handleJumpIfNull(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.numOperands() == 0) {
-            throw errors::RuntimeException("JUMP_IF_NULL requires operand");
-        }
         value::Value val = context.stackManager->pop();
         if (utils::isNullValue(val)) {
             context.instructionPointer = instr.inlineOperands[0] - 1;
