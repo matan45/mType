@@ -1,8 +1,10 @@
 #include "PathCompletionHandlerTestSuite.hpp"
 #include "../src/handlers/PathCompletionHandler.hpp"
+#include "../src/utils/ProjectConfigProvider.hpp"
 #include "../src/DocumentManager.hpp"
 #include "TempDir.hpp"
 #include "../src/utils/UriUtils.hpp"
+#include <memory>
 
 namespace mtype::lsp::test {
 
@@ -60,6 +62,40 @@ void PathCompletionHandlerTestSuite::registerTests(LspTestHarness& harness) {
             }
             require(foundMtFile, "expected Foo.mt in path completions");
         }
+    });
+
+    // MYT-309 — typing `@` inside an import string lists registered aliases.
+    harness.addTest("@ prefix lists installed mt_modules packages", []() {
+        TempDir tmpDir;
+        tmpDir.createFile(".mtproj", "<Project></Project>\n");
+        tmpDir.createFile("mt_modules/@somelib/mtpkg.json",
+            "{\"name\":\"somelib\",\"version\":\"0.0.1\",\"source\":\"src\"}\n");
+        tmpDir.createFile("mt_modules/@somelib/src/Foo.mt", "class Foo {}\n");
+        tmpDir.createFile("main.mt", "import { X } from \"@\";\n");
+
+        auto config = std::make_shared<ProjectConfigProvider>();
+        require(config->loadFromWorkspace(tmpDir.path()),
+            "loadFromWorkspace should succeed");
+
+        std::string mainPath = tmpDir.path() + "/main.mt";
+        std::string mainUri = UriUtils::filePathToUri(mainPath);
+
+        DocumentManager docMgr;
+        docMgr.openDocument(mainUri, "import { X } from \"@\";\n", 1);
+
+        PathCompletionHandler handler(&docMgr);
+        handler.setProjectConfig(config);
+
+        // Cursor right after the `@` inside the import string.
+        auto items = handler.getPathCompletions(mainUri, {0, 20});
+
+        bool foundAlias = false;
+        for (const auto& item : items) {
+            if (item.label.find("@somelib") != std::string::npos) {
+                foundAlias = true;
+            }
+        }
+        require(foundAlias, "expected @somelib in alias completions");
     });
 
     harness.addTest("subdirectories appear as Folder kind", []() {

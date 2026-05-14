@@ -174,6 +174,15 @@ namespace tests::testFramework
                         }
                     }
                 }
+                else if (type == TestType::DIRECT_SCRIPT_WITH_PROJECT)
+                {
+                    // MYT-310 — mirror what `mType.exe script.mt` does: walk
+                    // upward for an ambient .mtproj, build merged aliases,
+                    // then run the script. Used by the mtmodules-basic
+                    // direct-exec regression test.
+                    testInterpreter.tryLoadAmbientProject(filePath);
+                    testInterpreter.runScript(filePath);
+                }
                 else
                 {
                     testInterpreter.runScript(filePath);
@@ -190,7 +199,8 @@ namespace tests::testFramework
                     status = TestStatus::FAILED;
                     errorMessage = "Expected error but test passed";
                 }
-                else if (type == TestType::OUTPUT_EXPECTED || type == TestType::SCRIPT_INTEROP)
+                else if (type == TestType::OUTPUT_EXPECTED || type == TestType::SCRIPT_INTEROP
+                         || type == TestType::DIRECT_SCRIPT_WITH_PROJECT)
                 {
                     // Verify output against expected file
                     if (verifyOutputAgainstExpected())

@@ -136,7 +136,13 @@ export function activateLanguageServer(context: vscode.ExtensionContext): void {
             { scheme: 'file', language: 'mtype' }
         ],
         synchronize: {
-            fileEvents: vscode.workspace.createFileSystemWatcher('**/*.mt')
+            // MYT-309 — forward mtpkg.json events so the LSP can re-merge
+            // mt_modules aliases when `mtpm` installs/removes a package,
+            // without forcing a server restart.
+            fileEvents: [
+                vscode.workspace.createFileSystemWatcher('**/*.mt'),
+                vscode.workspace.createFileSystemWatcher('**/mt_modules/**/mtpkg.json')
+            ]
         },
         outputChannel
     };

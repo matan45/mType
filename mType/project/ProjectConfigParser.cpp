@@ -17,7 +17,12 @@ namespace project
         auto config = std::make_unique<ProjectConfig>();
 
         std::filesystem::path projPath(mtprojPath);
-        config->projectRoot = std::filesystem::canonical(projPath.parent_path()).string();
+        std::filesystem::path projectRoot = projPath.parent_path();
+        if (projectRoot.empty())
+        {
+            projectRoot = std::filesystem::current_path();
+        }
+        config->projectRoot = std::filesystem::canonical(projectRoot).string();
 
         auto root = xmlParser.parse(content);
 
@@ -184,6 +189,10 @@ namespace project
         std::set<std::string> excludedFiles;
 
         std::filesystem::path baseDir(config.projectRoot);
+        if (config.projectRoot.empty() || !std::filesystem::exists(baseDir))
+        {
+            throw std::runtime_error("Project root does not exist: " + config.projectRoot);
+        }
 
         for (const auto& pattern : config.source.include)
         {

@@ -492,6 +492,7 @@ function lspCommonConfig()
       "languageserver/src",
       "languageserver/vendor",
       "mType",
+      "packagemanager/src",
    }
 
    -- The LSP path parses and analyzes source but does not execute bytecode,
@@ -588,6 +589,18 @@ project "mtype-language-server-lib"
 
       "mType/services/FileReader.cpp",
       "mType/services/ImportManager.cpp",
+
+      -- MYT-309: pulled in so the LSP can resolve `@pkg/...` imports
+      -- via mt_modules/ — same scan the runtime uses through
+      -- ProjectBuilder::buildMergedAliases.
+      "packagemanager/src/MtModulesManager.hpp",
+      "packagemanager/src/MtModulesManager.cpp",
+      "packagemanager/src/PackageManifest.hpp",
+      "packagemanager/src/PackageManifest.cpp",
+      "mType/json/JsonParser.hpp",
+      "mType/json/JsonParser.cpp",
+      "mType/json/JsonValue.hpp",
+      "mType/json/JsonValue.cpp",
 
       "mType/types/TypeConversionUtils.cpp",
       "mType/types/TypeRegistry.cpp",

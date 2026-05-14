@@ -4,6 +4,7 @@
 #include <memory>
 #include <functional>
 #include <vector>
+#include <unordered_map>
 #include "../value/ValueType.hpp"
 #include "../environment/Environment.hpp"
 #include "../ast/ASTNode.hpp"
@@ -66,11 +67,33 @@ namespace services
         // Constructor helper
         void initializeServices();
 
+        // MYT-310 — cached so parseScriptFile() can configure the
+        // per-script ImportManager with the same search paths / aliases
+        // that --build / --compile already wire in.
+        std::vector<std::string> pendingSearchPaths_;
+        std::unordered_map<std::string, std::string> pendingAliases_;
+        std::string pendingProjectRoot_;
+
     public:
         ScriptInterpreter();
         explicit ScriptInterpreter(constants::ExecutionMode mode);
         ~ScriptInterpreter();
         void runScript(const std::string& filename);
+
+        // MYT-310 — apply alias / search-path / project-root configuration
+        // discovered from an ambient .mtproj so that `mType.exe script.mt`
+        // resolves `@pkg/...` imports identically to `mType.exe --build`.
+        void applyImportConfig(const std::vector<std::string>& searchPaths,
+                                const std::unordered_map<std::string, std::string>& aliases,
+                                const std::string& projectRoot);
+
+        // MYT-310 — walk upward from the script's directory looking for an
+        // ambient .mtproj; if found, merge workspace + mt_modules + <Alias>
+        // entries (via ProjectBuilder::buildMergedAliases) and call
+        // applyImportConfig. Returns true when a project was found and
+        // applied. Failures are swallowed (logged to stderr) so a broken
+        // .mtproj does not block scripts that don't depend on its aliases.
+        bool tryLoadAmbientProject(const std::string& scriptPath);
         void parseAndRegisterClasses(const std::string& filename);
 
         // Bytecode compilation and execution

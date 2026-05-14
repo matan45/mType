@@ -23,6 +23,16 @@ public:
     bool loadFromWorkspace(const std::string& workspaceRoot);
 
     /**
+     * MYT-309 — re-run loadFromWorkspace against the stored workspace root.
+     * Used by the workspace/didChangeWatchedFiles handler to refresh the
+     * alias map after a package install/remove without needing the caller
+     * to remember the workspace root.
+     * @return true if a .mtproj was found and parsed; false if no workspace
+     *         has ever been loaded.
+     */
+    bool reload();
+
+    /**
      * Get the absolute search paths resolved from the .mtproj
      */
     const std::vector<std::string>& getSearchPaths() const { return searchPaths_; }
@@ -65,6 +75,13 @@ private:
      * Parse the .mtproj file content
      */
     void parseMtproj(const std::string& filePath);
+
+    /**
+     * Walk mt_modules/ and populate aliases_ with @pkg -> abs/source mappings.
+     * Called before parseMtproj so explicit <Alias> entries override on collision —
+     * matches the precedence in ProjectBuilder::buildMergedAliases.
+     */
+    void mergeMtModulesAliases();
 
     std::string projectRoot_;
     std::string workspaceRoot_;

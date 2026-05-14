@@ -1,4 +1,8 @@
 #include "ProjectConfigProvider.hpp"
+// MYT-309 — relative include so the build works even if the `packagemanager/src`
+// includedir hasn't been re-emitted by premake yet. The header sits at
+// packagemanager/src/, three levels up from languageserver/src/utils/.
+#include "MtModulesManager.hpp"
 #include <fstream>
 #include <sstream>
 #include <regex>
@@ -22,8 +26,23 @@ bool ProjectConfigProvider::loadFromWorkspace(const std::string& workspaceRoot)
         return false;
     }
 
+    // MYT-309 — pin projectRoot_ before mt_modules scan so the merge step
+    // and parseMtproj agree on the project root.
+    projectRoot_ = fs::path(mtprojPath).parent_path().string();
+
+    // mt_modules aliases populate first; <Alias> entries from parseMtproj
+    // run last and override on collision via operator[] — same precedence
+    // as ProjectBuilder::buildMergedAliases.
+    mergeMtModulesAliases();
+
     parseMtproj(mtprojPath);
     return loaded_;
+}
+
+bool ProjectConfigProvider::reload()
+{
+    if (workspaceRoot_.empty()) return false;
+    return loadFromWorkspace(workspaceRoot_);
 }
 
 bool ProjectConfigProvider::isWithinWorkspace(const std::string& candidatePath, const std::string& workspaceRoot) const
@@ -53,7 +72,11 @@ std::string ProjectConfigProvider::findMtproj(const std::string& startDir) const
             if (!entry.is_regular_file()) continue;
 
             const auto& path = entry.path();
-            if (path.extension() == ".mtproj")
+            // libstdc++/libc++ correctly return "" for path(".mtproj").extension()
+            // (single leading dot = hidden file, no extension per C++17), while
+            // MSVC's <filesystem> non-conformingly returns ".mtproj". Match both
+            // the dotfile and the `Name.mtproj` form so all platforms agree.
+            if (path.extension() == ".mtproj" || path.filename() == ".mtproj")
             {
                 std::string candidate = path.string();
                 if (bestPath.empty() || candidate.length() < bestPath.length())
@@ -84,7 +107,8 @@ void ProjectConfigProvider::parseMtproj(const std::string& filePath)
         std::string content = buffer.str();
         file.close();
 
-        projectRoot_ = fs::path(filePath).parent_path().string();
+        // projectRoot_ is pinned upfront in loadFromWorkspace so the
+        // mt_modules merge and the XML pass share the same root.
 
         // Extract <SearchPath> entries
         std::regex searchPathRegex("<SearchPath>(.*?)</SearchPath>");
@@ -140,6 +164,39 @@ void ProjectConfigProvider::parseMtproj(const std::string& filePath)
     {
         std::cerr << "[mType LSP] Error parsing .mtproj: " << e.what() << std::endl;
         loaded_ = false;
+    }
+}
+
+void ProjectConfigProvider::mergeMtModulesAliases()
+{
+    if (projectRoot_.empty())
+    {
+        return;
+    }
+
+    try
+    {
+        packagemanager::MtModulesManager modulesMgr(projectRoot_);
+        for (const auto& [name, path] : modulesMgr.getAliases())
+        {
+            // SECURITY: mt_modules/ lives under projectRoot_/workspaceRoot_, but
+            // a symlinked source dir could escape — gate every entry through the
+            // same workspace-containment check used for <Alias> entries.
+            if (!isWithinWorkspace(path, workspaceRoot_))
+            {
+                std::cerr << "[mType LSP] Ignoring mt_modules alias outside workspace: "
+                          << name << " -> " << path << std::endl;
+                continue;
+            }
+            aliases_[name] = path;
+        }
+    }
+    catch (const std::exception& e)
+    {
+        // A corrupt mt_modules/ (permission denied, malformed mtpkg.json,
+        // symlink loop) must not kill the rest of the project config — log
+        // and continue without those aliases.
+        std::cerr << "[mType LSP] Failed to scan mt_modules/: " << e.what() << std::endl;
     }
 }
 

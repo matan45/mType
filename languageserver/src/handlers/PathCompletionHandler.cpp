@@ -1,4 +1,5 @@
 #include "PathCompletionHandler.hpp"
+#include "../utils/ProjectConfigProvider.hpp"
 #include "../utils/UriUtils.hpp"
 #include <sstream>
 #include <filesystem>
@@ -37,6 +38,38 @@ namespace mtype::lsp
         // Extract the current path being typed
         std::string currentPath = extractImportPath(doc->content, position);
 
+        // MYT-309 — `@`-prefix completions.
+        //   `@`         or `@partial`        → list registered aliases.
+        //   `@pkg/...`  (a slash is present) → resolve alias to its source dir,
+        //                                       then walk into the remaining path.
+        if (!currentPath.empty() && currentPath[0] == '@' && projectConfig_)
+        {
+            size_t slashPos = currentPath.find('/');
+            if (slashPos == std::string::npos) slashPos = currentPath.find('\\');
+
+            if (slashPos == std::string::npos)
+            {
+                return listAliasCompletions();
+            }
+
+            std::string aliasName = currentPath.substr(0, slashPos);
+            const auto& aliases = projectConfig_->getAliases();
+            auto it = aliases.find(aliasName);
+            if (it != aliases.end())
+            {
+                // Build the path the user has typed so far under the alias root
+                // and strip the trailing partial filename — we list the directory
+                // they are still inside, just like the relative-path branch.
+                std::string remainder = currentPath.substr(slashPos);
+                std::string expanded = it->second + remainder;
+                fs::path expandedPath = fs::path(expanded).lexically_normal();
+                fs::path dir = expandedPath.has_filename() && !fs::is_directory(expandedPath)
+                    ? expandedPath.parent_path()
+                    : expandedPath;
+                return listDirectoryContents(dir.string());
+            }
+        }
+
         // Resolve the path relative to the current file
         std::string resolvedPath = resolveRelativePath(uri, currentPath);
 
@@ -44,6 +77,31 @@ namespace mtype::lsp
         auto completions = listDirectoryContents(resolvedPath);
 
         return completions;
+    }
+
+    std::vector<CompletionItem> PathCompletionHandler::listAliasCompletions() const
+    {
+        std::vector<CompletionItem> items;
+        if (!projectConfig_) return items;
+
+        for (const auto& [name, path] : projectConfig_->getAliases())
+        {
+            CompletionItem item;
+            item.label = name + "/";
+            item.kind = static_cast<int>(CompletionItemKind::Module);
+            item.detail = path;
+            // Replace the typed `@partial` with `@pkg/` so the user can keep typing
+            // into the package's source tree without retyping the prefix.
+            item.insertText = name + "/";
+            items.push_back(item);
+        }
+
+        std::sort(items.begin(), items.end(), [](const CompletionItem& a, const CompletionItem& b)
+        {
+            return a.label < b.label;
+        });
+
+        return items;
     }
 
     bool PathCompletionHandler::isInsideImportString(const std::string& content, const Position& position)

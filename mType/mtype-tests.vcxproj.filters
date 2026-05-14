@@ -6781,6 +6781,9 @@
     <None Include="tests\testFiles\exe\imports\mtmodules-basic\mt_modules\@greetlib\src\Greet.mt">
       <Filter>testFiles\exe\imports\mtmodules-basic\mt_modules\@greetlib\src</Filter>
     </None>
+    <None Include="tests\testFiles\exe\imports\mtmodules-basic\src\Main.expected">
+      <Filter>testFiles\exe\imports\mtmodules-basic\src</Filter>
+    </None>
     <None Include="tests\testFiles\exe\imports\mtmodules-basic\src\Main.mt">
       <Filter>testFiles\exe\imports\mtmodules-basic\src</Filter>
     </None>
@@ -9206,6 +9209,18 @@
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\myt302JitBoolAliasVoidCall.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt308JitHeapDeadStoreSentinel.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt308JitHeapDeadStoreSentinel.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt308JitHeapGlobalArrayOsr.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt308JitHeapGlobalArrayOsr.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\namespaceClassNameCollisions.expected">

@@ -40,6 +40,7 @@ Comprehensive language support for the mType programming language in Visual Stud
 
 ### Execution
 - **Run Commands**: Execute mType files directly from VS Code
+- **Project Builds**: Right-click any `.mtproj` to build, build as library, or build as executable
 - **Context Menu Integration**: Right-click to run files
 - **Terminal Integration**: Output shown in integrated terminal
 
@@ -275,6 +276,25 @@ Execute mType files from VS Code:
 
 Output appears in the integrated terminal.
 
+### Project Builds
+
+Compile an `.mtproj` directly from VS Code — no need to drop to a terminal and remember the CLI flags. All three commands invoke `mType.exe` against the project path you right-click on, with the same `mTypeLanguageServer.interpreterPath` setting used by *Run mType File*.
+
+| Command | What it does | CLI equivalent |
+|---------|--------------|----------------|
+| `mType: Build Project` | Build bytecode for the project | `mType.exe --build <path.mtproj>` |
+| `mType: Build as Library (.mtcLib)` | Bundle the project as a reusable `.mtcLib` library | `mType.exe --build --lib <path.mtproj>` |
+| `mType: Build as Executable` | Produce a standalone executable | `mType.exe --build --exe <path.mtproj>` |
+
+How to invoke:
+
+- **Explorer right-click** on a `.mtproj` file — all three entries appear grouped together at the top.
+- **Editor right-click** when the active editor is a `.mtproj` — same three entries.
+- **Command Palette** (Ctrl+Shift+P) — entries are listed under `mType:` and only show when an `.mtproj` is selected/active.
+- **Shift+F5** with a `.mtproj` selected runs the default *Build Project*.
+
+All three commands stream output into a single reusable terminal named `mType Build` so consecutive builds reuse the same panel.
+
 ### Package Manager
 
 Manage mType packages from the command palette (all commands live under the `mType` category):
@@ -339,6 +359,7 @@ The extension provides custom icons for:
 | Command | Shortcut | Description |
 |---------|----------|-------------|
 | Run mType File | F5 | Execute current .mt file |
+| Build Project | Shift+F5 | Build the selected `.mtproj` |
 | Go to Definition | F12 | Jump to symbol definition |
 | Find All References | Shift+F12 | Find all references to symbol |
 | Trigger Suggest | Ctrl+Space | Open IntelliSense |

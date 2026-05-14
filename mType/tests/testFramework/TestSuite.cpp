@@ -87,6 +87,11 @@ namespace tests::testFramework
         testCases.emplace_back(name, filePath, TestType::OUTPUT_EXPECTED);
     }
 
+    void TestSuite::addDirectScriptWithProjectTest(const std::string& name, const std::string& filePath)
+    {
+        testCases.emplace_back(name, filePath, TestType::DIRECT_SCRIPT_WITH_PROJECT);
+    }
+
     void TestSuite::addSkippedTest(const std::string& name, const std::string& reason)
     {
         testCases.push_back(TestCase::skipped(name, reason));

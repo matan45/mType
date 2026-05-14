@@ -6,6 +6,12 @@
     "mtc-file": {
       "iconPath": "./mtc-file.svg"
     },
+    "mtproj-file": {
+      "iconPath": "./mtproj-file.svg"
+    },
+    "mtworkspace-file": {
+      "iconPath": "./mtworkspace-file.svg"
+    },
     "mtype-folder": {
       "iconPath": "./mtype-folder.svg"
     },
@@ -15,7 +21,9 @@
   },
   "fileExtensions": {
     "mt": "mtype-file",
-    "mtc": "mtc-file"
+    "mtc": "mtc-file",
+    "mtproj": "mtproj-file",
+    "mtworkspace": "mtworkspace-file"
   },
   "languageIds": {
     "mtype": "mtype-file",
