@@ -741,8 +741,48 @@ int main(int argc, char* argv[])
         outFile << "</Project>\n";
 
         outFile.close();
-
         std::cout << "Created " << filename << "\n";
+
+        // Scaffold a main.mt entry-point file derived from the include pattern.
+        // Wildcard pattern -> directory prefix + main.mt; non-glob -> verbatim.
+        std::filesystem::path mainPath;
+        auto firstWild = includePath.find_first_of("*?");
+        if (firstWild == std::string::npos)
+        {
+            mainPath = includePath;
+        }
+        else
+        {
+            std::string before = includePath.substr(0, firstWild);
+            while (!before.empty() && (before.back() == '/' || before.back() == '\\'))
+            {
+                before.pop_back();
+            }
+            mainPath = before.empty()
+                ? std::filesystem::path("main.mt")
+                : std::filesystem::path(before) / "main.mt";
+        }
+
+        if (mainPath.extension() == ".mt" && !std::filesystem::exists(mainPath))
+        {
+            auto parent = mainPath.parent_path();
+            if (!parent.empty())
+            {
+                std::filesystem::create_directories(parent);
+            }
+            std::ofstream mainFile(mainPath);
+            if (mainFile)
+            {
+                mainFile << "@EntryPoint\n";
+                mainFile << "class App {\n";
+                mainFile << "    public static function main(string[] args): void {\n";
+                mainFile << "    }\n";
+                mainFile << "}\n";
+                mainFile.close();
+                std::cout << "Created " << mainPath.string() << "\n";
+            }
+        }
+
         return 0;
     }
 
