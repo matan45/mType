@@ -541,6 +541,12 @@ namespace tests::testSuite
                                   benchmarkPath + "inline_monomorphic.mt");
         addOutputVerificationTest("Benchmark: inline_polymorphic",
                                   benchmarkPath + "inline_polymorphic.mt");
+        // MYT-173 follow-up: mixed-inlineability POLY-4 site (3 small + 1
+        // oversized callee). JIT-on output must match the --no-jit reference
+        // — the per-shape helper routing for Big must produce the same
+        // accumulator sum as full-helper dispatch.
+        addOutputVerificationTest("Benchmark: inline_polymorphic_mixed",
+                                  benchmarkPath + "inline_polymorphic_mixed.mt");
         addOutputVerificationTest("Benchmark: inline_value_object_hot",
                                   benchmarkPath + "inline_value_object_hot.mt");
         addOutputVerificationTest("Benchmark: lambda_call_hot",
@@ -551,6 +557,11 @@ namespace tests::testSuite
         // needs separate investigation before it can be a regression test.
         addOutputVerificationTest("Benchmark: linked_list_nested_hot",
                                   benchmarkPath + "linked_list_nested_hot.mt");
+        // MYT-173 follow-up: 6 subclasses overflow IC_MAX_POLYMORPHIC_ENTRIES.
+        // MEGA-path correctness check — every dispatch goes through
+        // jit_call_method_ic; output must match the --no-jit reference.
+        addOutputVerificationTest("Benchmark: megamorphic_dispatch",
+                                  benchmarkPath + "megamorphic_dispatch.mt");
         addOutputVerificationTest("Benchmark: method_chain_hot",
                                   benchmarkPath + "method_chain_hot.mt");
         addOutputVerificationTest("Benchmark: method_dispatch",

@@ -1138,7 +1138,10 @@ namespace vm::jit
     //   endLabel:
     static bool emitInlinedMethodCallPoly(JitEmissionState& s,
                                            const bytecode::BytecodeProgram::Instruction& instr,
-                                           const ic::MethodInlineCache& cache)
+                                           const ic::MethodInlineCache& cache,
+                                           const std::array<optimization::InlineDecision,
+                                                            ic::IC_MAX_POLYMORPHIC_ENTRIES>&
+                                               perEntryDecisions)
     {
         const size_t argCount = instr.operands[1];
         const uint8_t entryCount = cache.entryCount;
@@ -1148,6 +1151,11 @@ namespace vm::jit
         // to the largest callee (MAX, not SUM). MYT-251 step 3b: same
         // logic for the operand-stack peak — accumulate the worst case
         // across entries so the shared frame fits any shape that runs.
+        // MYT-173 follow-up: non-inlineable entries route through
+        // emitCallMethodOpGeneric per-shape and never paste their callee
+        // body into the caller's frame — skip their localCount /
+        // operand-stack-peak contribution so a single oversized helper-
+        // routed shape doesn't inflate the shared inline window.
         size_t maxLocalCount = 0;
         size_t maxCalleePeak = 0;
         for (uint8_t i = 0; i < entryCount; ++i)
@@ -1155,6 +1163,8 @@ namespace vm::jit
             const auto* callee = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
                 cache.entries[i].funcMetadata);
             if (callee->parameterCount != argCount + 1) return false;
+            if (perEntryDecisions[i] != optimization::InlineDecision::INLINE)
+                continue;
             if (callee->localCount > maxLocalCount)
                 maxLocalCount = callee->localCount;
             const size_t p = computeCalleePeakOperandStack(s.program, *callee);
@@ -1190,9 +1200,14 @@ namespace vm::jit
         // Pre-scan each callee's jump targets independently. F-b's
         // createJumpLabels already handles the per-entry range; we just
         // call it entryCount times.
+        // MYT-173 follow-up: skip non-inlineable entries — their dispatch
+        // goes through emitCallMethodOpGeneric which has its own label
+        // bookkeeping.
         std::vector<std::unordered_map<size_t, asmjit::Label>> perEntryJumpLabels(entryCount);
         for (uint8_t i = 0; i < entryCount; ++i)
         {
+            if (perEntryDecisions[i] != optimization::InlineDecision::INLINE)
+                continue;
             const auto* callee = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
                 cache.entries[i].funcMetadata);
             perEntryJumpLabels[i] = createJumpLabels(
@@ -1244,6 +1259,29 @@ namespace vm::jit
                 ? nextCheckLabels[i]
                 : slowLabel;
             emitInlineShapeGuardReusingClassDef(s, classDefReg, entry.shape, missLabel);
+
+            // MYT-173 follow-up: per-entry routing. Inlineable entries paste
+            // the callee body in-line as before. Non-inlineable entries (one
+            // is oversized, has TRY/CATCH, etc.) keep the same shape guard
+            // chain width but route this shape's matched-guard fallthrough
+            // through emitCallMethodOpGeneric — same helper the all-miss
+            // slow path uses. Pre-change a single ineligible entry forfeited
+            // the entire site to the helper; now the inlineable shapes pay
+            // no IC dispatch overhead.
+            if (perEntryDecisions[i] != optimization::InlineDecision::INLINE)
+            {
+                // Match the slow-path branch's expectations: restore the
+                // pre-call snapshot, run the generic helper (which pushes a
+                // BOXED return via emitReturnValueCopyBoxed — same shape
+                // each inline body leaves at endLabel), then jump past the
+                // remaining shape bodies. The next loop iter will restore
+                // from snap again so state stays consistent across branches.
+                restoreEmitStateForInline(s, snap);
+                emitCallMethodOpGeneric(s, instr);
+                if (s.compileFailed) return true;
+                cc.jmp(endLabel);
+                continue;
+            }
 
             // Fall-through is this shape's inlined body. Each body is a
             // fresh emission — restore the snapshot before emitting so
@@ -1474,11 +1512,24 @@ namespace vm::jit
         if (!icTable.hasMethodIC(s.currentIP)) return false;
 
         auto& cache = icTable.getMethodIC(s.currentIP);
+        // MYT-173 follow-up: per-entry decisions. Default-init to INLINE so
+        // unused slots (entryCount < IC_MAX_POLYMORPHIC_ENTRIES) and the MONO
+        // path (single entry, decision implicit in the top-level return)
+        // don't carry meaningful data. The POLY emitter only consults
+        // [0..cache.entryCount).
+        std::array<optimization::InlineDecision, ic::IC_MAX_POLYMORPHIC_ENTRIES>
+            perEntryDecisions{};
+        for (auto& d : perEntryDecisions)
+            d = optimization::InlineDecision::INLINE;
         auto decision = optimization::checkInlineEligibility(
             s.program, cache, s.currentCompilingFn, s.inlineStack.size(),
-            s.isOSRCompilation);
+            s.isOSRCompilation, &perEntryDecisions);
         // MYT-210: telemetry — every site decision (including INLINE) is
         // counted so --jit-stats can report the eligibility breakdown.
+        // MYT-173 follow-up: when a site mixes inlineable and helper-routed
+        // entries, `decision` is INLINE (the site is worth specializing).
+        // Per-entry detail is not surfaced here; consumers wanting per-shape
+        // attribution should add a `bumpMethodEntry` counter.
         if (s.inlineDecisions) s.inlineDecisions->bumpMethod(decision);
 
         if (decision != optimization::InlineDecision::INLINE) return false;
@@ -1491,7 +1542,7 @@ namespace vm::jit
         if (cache.state == ic::ICState::MONOMORPHIC)
             return emitInlinedMethodCallMono(s, instr, cache);
         if (cache.state == ic::ICState::POLYMORPHIC)
-            return emitInlinedMethodCallPoly(s, instr, cache);
+            return emitInlinedMethodCallPoly(s, instr, cache, perEntryDecisions);
         return false;
     }
 
@@ -2084,13 +2135,12 @@ namespace vm::jit
             case OpCode::CALL_METHOD:
             case OpCode::CALL_METHOD_CACHED:
             case OpCode::CALL_METHOD_POLY_CACHED:
-                // MYT-173 / MYT-203: CACHED + POLY_CACHED are treated
-                // identically to CALL_METHOD here — tryEmitInlinedMethodCall
-                // reads the IC (unaffected by opcode rewrite) and F-a/F-c
-                // inlining (MONO + POLY) wins when eligible. A dedicated JIT
-                // emit branch that exploits the side-table snapshot to skip
-                // jit_call_method_ic for non-inlineable POLY sites is a
-                // clean follow-up; MVP relies on the interpreter side.
+                // MYT-173 / MYT-203: CACHED + POLY_CACHED route through
+                // CALL_METHOD's emitter — tryEmitInlinedMethodCall reads the
+                // IC (unaffected by opcode rewrite). The MYT-173 follow-up
+                // (per-entry POLY eligibility) now lets mixed-inlineability
+                // POLY sites inline the eligible shapes and route the rest
+                // through jit_call_method_ic per-shape.
                 return emitCallMethodOp(s, instr);
             case OpCode::LOAD_LOCAL_CALL_CACHED:
             {

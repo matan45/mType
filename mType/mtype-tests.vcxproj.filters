@@ -2644,6 +2644,9 @@
     <None Include="tests\testFiles\benchmarks\inline_polymorphic.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\inline_polymorphic_mixed.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\inline_value_object_hot.expected">
       <Filter>testFiles\benchmarks</Filter>
     </None>
@@ -2669,6 +2672,15 @@
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\linked_list_nested_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\megamorphic_dispatch.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\method_chain_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\method_chain_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\method_dispatch.expected">
@@ -2699,6 +2711,12 @@
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\pattern_match_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\polymorphic_field_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\polymorphic_field_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\primitive_method_dispatch.expected">
@@ -2735,6 +2753,12 @@
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\stream_pipeline_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\string_build_call_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\string_build_call_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\string_interpolation_hot.expected">
@@ -6775,14 +6799,17 @@
     <None Include="tests\testFiles\exe\imports\ImportExe.expected">
       <Filter>testFiles\exe\imports</Filter>
     </None>
+    <None Include="tests\testFiles\exe\imports\mtmodules-basic\DirectMain.expected">
+      <Filter>testFiles\exe\imports\mtmodules-basic</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\imports\mtmodules-basic\DirectMain.mt">
+      <Filter>testFiles\exe\imports\mtmodules-basic</Filter>
+    </None>
     <None Include="tests\testFiles\exe\imports\mtmodules-basic\MtModulesBasic.expected">
       <Filter>testFiles\exe\imports\mtmodules-basic</Filter>
     </None>
     <None Include="tests\testFiles\exe\imports\mtmodules-basic\mt_modules\@greetlib\src\Greet.mt">
       <Filter>testFiles\exe\imports\mtmodules-basic\mt_modules\@greetlib\src</Filter>
-    </None>
-    <None Include="tests\testFiles\exe\imports\mtmodules-basic\src\Main.expected">
-      <Filter>testFiles\exe\imports\mtmodules-basic\src</Filter>
     </None>
     <None Include="tests\testFiles\exe\imports\mtmodules-basic\src\Main.mt">
       <Filter>testFiles\exe\imports\mtmodules-basic\src</Filter>

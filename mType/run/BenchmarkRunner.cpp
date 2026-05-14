@@ -32,7 +32,7 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 44> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 46> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -69,6 +69,17 @@ namespace
         // IC_MAX_POLYMORPHIC_ENTRIES = 4). Exercises the chained shape-guard
         // emission against the maximum IC-width case.
         "inline_polymorphic.mt",
+        // MYT-173 follow-up: mixed-inlineability POLY-4 site. Three small
+        // shapes inline, one oversized shape routes through the per-shape
+        // helper branch in emitInlinedMethodCallPoly. Pre-change every
+        // dispatch ran jit_call_method_ic because the all-or-nothing
+        // eligibility gate rejected the whole site; primary regression
+        // benchmark for the per-entry POLY eligibility relaxation.
+        "inline_polymorphic_mixed.mt",
+        // MYT-173 follow-up: 6 subclasses overflow IC_MAX_POLYMORPHIC_ENTRIES
+        // (= 4) and drive the IC to MEGAMORPHIC. Baseline for the MEGA cliff —
+        // every dispatch hits jit_call_method_ic with no inlined fast path.
+        "megamorphic_dispatch.mt",
         // MYT-167 F-e: value-class MONO hot loop. Pre-F-e the slow path was
         // jit_call_method's temp-ObjectInstance materialisation per call;
         // post-F-e the IC populates with receiverIsValueObject=true and the

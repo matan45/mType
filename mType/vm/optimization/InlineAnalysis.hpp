@@ -1,7 +1,9 @@
 #pragma once
 
 #include "../bytecode/BytecodeProgram.hpp"
+#include "../jit/ic/InlineCacheTypes.hpp"
 
+#include <array>
 #include <cstddef>
 #include <string>
 
@@ -106,12 +108,21 @@ namespace vm::optimization
     // no-op in OSR (there is no static caller name to compare against),
     // but the call site now communicates intent rather than relying on the
     // emptiness of an unrelated string.
+    // MYT-173 follow-up: `perEntryDecisions` out-param. When non-null, each
+    // slot [0..cache.entryCount) receives the per-entry eligibility result.
+    // The site-level return is INLINE if at least one entry was inlineable
+    // (the emitter routes each shape independently — inlineable entries
+    // emit inline bodies, the rest route through the per-shape helper
+    // branch in emitInlinedMethodCallPoly). Slots beyond entryCount are
+    // left at the caller's default-initialised value.
     InlineDecision checkInlineEligibility(
         const vm::bytecode::BytecodeProgram& program,
         const vm::jit::ic::MethodInlineCache& cache,
         const std::string& currentCompilingFn,
         size_t currentInlineDepth,
-        bool isOSRCompilation = false);
+        bool isOSRCompilation = false,
+        std::array<InlineDecision, vm::jit::ic::IC_MAX_POLYMORPHIC_ENTRIES>*
+            perEntryDecisions = nullptr);
 
     // MYT-210: plain-CALL / CALL_FAST inlining eligibility. Mirrors
     // checkInlineEligibility but the callee is statically known (no IC, no
