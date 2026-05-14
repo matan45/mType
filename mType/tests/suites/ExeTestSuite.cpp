@@ -54,6 +54,15 @@ namespace tests::testSuite
         addExeTest("Exe - mt_modules Project Alias Beats Module",
                    basePath + "imports/mtmodules-precedence/MtModulesPrecedence.mtproj");
 
+        // ===== MYT-310: direct `mType.exe script.mt` discovers ambient .mtproj =====
+        // Reuses the mtmodules-basic fixture but runs the .mt file directly
+        // (no --build) so the test exercises the discover+merge codepath in
+        // ScriptInterpreter::tryLoadAmbientProject. Output must match the
+        // sibling Main.expected (identical to MtModulesBasic.expected).
+        addDirectScriptWithProjectTest(
+            "Exe - mt_modules Direct Script Discovers .mtproj (MYT-310)",
+            basePath + "imports/mtmodules-basic/DirectMain.mt");
+
         // ===== COLLECTIONS =====
         addExeTest("Exe - Collections",
                    basePath + "collections/CollectionExe.mtproj");

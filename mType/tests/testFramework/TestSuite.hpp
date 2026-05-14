@@ -49,6 +49,12 @@ namespace tests::testFramework
         void addInteropTest(const std::string& name, const std::string& filePath);
         void addExeTest(const std::string& name, const std::string& mtprojPath);
 
+        // MYT-310 — like addOutputVerificationTest, but ScriptInterpreter
+        // walks upward from the script's directory to find an ambient
+        // .mtproj and merges its aliases (workspace + mt_modules + <Alias>)
+        // before running. Exercises the `mType.exe script.mt` code path.
+        void addDirectScriptWithProjectTest(const std::string& name, const std::string& filePath);
+
         // MYT-42 — register a C++-driven test that exercises ScriptAPI
         // directly. `bootstrapFilePath` is an optional mt file executed
         // before the callback runs (so the callback can reference

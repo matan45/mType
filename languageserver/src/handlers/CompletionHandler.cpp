@@ -1,4 +1,5 @@
 #include "CompletionHandler.hpp"
+#include "../utils/ProjectConfigProvider.hpp"
 
 #include "../analysis/WorkspaceSymbolIndex.hpp"
 #include "../utils/ImportUtils.hpp"
@@ -355,6 +356,11 @@ CompletionHandler::CompletionHandler(
     : documentManager_(docMgr),
       workspaceIndex_(std::move(workspaceIndex)),
       pathCompletionHandler_(std::make_unique<PathCompletionHandler>(docMgr)) {}
+
+void CompletionHandler::setProjectConfig(std::shared_ptr<ProjectConfigProvider> config)
+{
+    pathCompletionHandler_->setProjectConfig(std::move(config));
+}
 
 std::vector<CompletionItem> CompletionHandler::handleCompletion(
     const std::string& uri,

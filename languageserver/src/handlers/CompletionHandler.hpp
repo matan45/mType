@@ -16,6 +16,8 @@ namespace mtype::lsp::analysis
 
 namespace mtype::lsp {
 
+class ProjectConfigProvider;
+
 class CompletionHandler {
 public:
     // MYT-51 — `workspaceIndex` may be null (default arg keeps legacy
@@ -29,6 +31,10 @@ public:
         const std::string& uri,
         const Position& position
     );
+
+    // MYT-309 — forwarded to PathCompletionHandler so import-string
+    // completions can enumerate `@pkg` aliases.
+    void setProjectConfig(std::shared_ptr<ProjectConfigProvider> config);
 
     // Lazy enrichment for completionItem/resolve. The client echoes the
     // original CompletionItem (including the opaque `data` blob the

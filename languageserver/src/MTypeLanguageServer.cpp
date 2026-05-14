@@ -234,6 +234,10 @@ namespace mtype::lsp
         {
             handleDidCloseTextDocument(params);
         }
+        else if (method == "workspace/didChangeWatchedFiles")
+        {
+            handleDidChangeWatchedFiles(params);
+        }
     }
 
     void MTypeLanguageServer::handleInitialize(const json& id, const json& params)
@@ -272,6 +276,9 @@ namespace mtype::lsp
         // Share project config with handlers
         diagnosticsHandler_->setProjectConfig(projectConfig_);
         documentManager_->setProjectConfig(projectConfig_);
+        // MYT-309 — path-completion needs the alias map to surface `@pkg`
+        // suggestions when the user types `@` inside an import string.
+        completionHandler_->setProjectConfig(projectConfig_);
 
         json capabilities = {
             {"textDocumentSync", 1}, // Full sync
@@ -437,6 +444,29 @@ namespace mtype::lsp
         // MYT-47 — drop entries for closed documents so the index doesn't
         // accumulate stale data when the editor closes a file.
         if (workspaceIndex_) workspaceIndex_->invalidateFile(uri);
+    }
+
+    void MTypeLanguageServer::handleDidChangeWatchedFiles(const json& params)
+    {
+        // MYT-309 — the VS Code extension forwards FS events for
+        // `**/mt_modules/**/mtpkg.json`. When a package is added or
+        // removed via `mtpm`, re-merge the alias map and refresh
+        // diagnostics for any open document so the previously-unresolved
+        // `@pkg/...` import either turns green or surfaces a fresh error.
+        (void)params; // payload is only used to confirm an event fired
+        if (!projectConfig_) return;
+        if (!projectConfig_->reload()) return;
+
+        // doc->diagnostics is the cached parse output; without a reparse
+        // the previous import-not-found error survives even after the
+        // alias is added. publishDiagnostics re-runs path validation
+        // against the live alias map but won't clear the stale entries
+        // from the parse pass.
+        for (const auto& uri : documentManager_->getAllOpenUris())
+        {
+            documentManager_->parseDocument(uri);
+            diagnosticsHandler_->publishDiagnostics(uri);
+        }
     }
 
     void MTypeLanguageServer::handleCompletion(const json& id, const json& params)

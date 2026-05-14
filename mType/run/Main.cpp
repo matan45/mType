@@ -1214,6 +1214,12 @@ int main(int argc, char* argv[])
         // pipes, and the post-loop print() never reaches us in those cases.
         std::cout.flush();
 
+        // MYT-310 — walk upward from the script's directory looking for an
+        // ambient .mtproj so `mType.exe script.mt` resolves `@pkg/...`
+        // imports identically to `mType.exe --build`. Falls through silently
+        // when no project is found (one-off scripts keep working as before).
+        interpreter.tryLoadAmbientProject(filename);
+
         interpreter.runScript(filename);
 
         // MYT-35 follow-up — drain any non-fatal compile-time warnings

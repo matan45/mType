@@ -46,6 +46,9 @@ private:
     void handleDidOpenTextDocument(const json& params);
     void handleDidChangeTextDocument(const json& params);
     void handleDidCloseTextDocument(const json& params);
+    // MYT-309 — re-merge mt_modules aliases and refresh open-doc diagnostics
+    // when `mtpkg.json` files appear/disappear under mt_modules/.
+    void handleDidChangeWatchedFiles(const json& params);
     void handleCompletion(const json& id, const json& params);
     void handleCompletionItemResolve(const json& id, const json& params);
     void handleHover(const json& id, const json& params);

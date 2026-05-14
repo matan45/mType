@@ -18,6 +18,8 @@
 #include "../reflection/ReflectionNatives.hpp"
 #include "../net/NetNatives.hpp"
 #include "../project/mtclib/LibraryNatives.hpp"
+#include "../project/ProjectConfigParser.hpp"
+#include "MtModulesManager.hpp"
 #include "../parser/Parser.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../environment/EnvironmentBuilder.hpp"
@@ -102,6 +104,68 @@ namespace services
         cleanupRegistries();
     }
 
+    void ScriptInterpreter::applyImportConfig(
+        const std::vector<std::string>& searchPaths,
+        const std::unordered_map<std::string, std::string>& aliases,
+        const std::string& projectRoot)
+    {
+        pendingSearchPaths_ = searchPaths;
+        pendingAliases_ = aliases;
+        pendingProjectRoot_ = projectRoot;
+    }
+
+    bool ScriptInterpreter::tryLoadAmbientProject(const std::string& scriptPath)
+    {
+        try
+        {
+            std::filesystem::path path(scriptPath);
+            std::string scriptDir = path.has_parent_path()
+                ? path.parent_path().string()
+                : std::string(".");
+
+            project::ProjectConfigParser projParser;
+            auto mtprojPath = projParser.findProject(scriptDir);
+            if (!mtprojPath.has_value()) return false;
+
+            auto config = projParser.parse(*mtprojPath);
+
+            // Mirror ProjectBuilder::buildMergedAliases precedence
+            // (mt_modules first, <Alias> entries override on collision).
+            // Inlined because buildMergedAliases is a private member.
+            std::unordered_map<std::string, std::string> merged;
+            try
+            {
+                packagemanager::MtModulesManager modulesMgr(config->projectRoot);
+                for (const auto& [name, p] : modulesMgr.getAliases())
+                {
+                    merged[name] = p;
+                }
+            }
+            catch (const std::exception&)
+            {
+                // A broken mt_modules/ must not block scripts that don't
+                // actually depend on installed packages.
+            }
+            for (const auto& [name, p] : config->imports.aliases)
+            {
+                merged[name] = p;
+            }
+
+            applyImportConfig(config->imports.searchPaths,
+                              merged,
+                              config->projectRoot);
+            return true;
+        }
+        catch (const std::exception& e)
+        {
+            // A broken .mtproj must not break direct execution of files
+            // that don't actually depend on its aliases.
+            std::cerr << "[mType] Warning: failed to load ambient .mtproj: "
+                      << e.what() << "\n";
+            return false;
+        }
+    }
+
     void ScriptInterpreter::runScript(const std::string& filename)
     {
         try
@@ -151,6 +215,25 @@ namespace services
         // Set base directory to the directory of the script file
         std::filesystem::path scriptPath(filename);
         importManager->setBaseDirectory(scriptPath.parent_path().string());
+
+        // MYT-310 — if Main.cpp discovered an ambient .mtproj and called
+        // applyImportConfig, propagate its aliases / search paths / project
+        // root into the per-script ImportManager so `@pkg/...` resolves the
+        // same way it does under --build / --compile. Project root override
+        // also enforces security containment via ImportManager::setProjectRoot.
+        if (!pendingProjectRoot_.empty())
+        {
+            importManager->setBaseDirectory(pendingProjectRoot_);
+            importManager->setProjectRoot(pendingProjectRoot_);
+        }
+        if (!pendingSearchPaths_.empty())
+        {
+            importManager->setSearchPaths(pendingSearchPaths_);
+        }
+        if (!pendingAliases_.empty())
+        {
+            importManager->setPathAliases(pendingAliases_);
+        }
 
         // Set current file path to the main script file
         // This ensures imports in the main file resolve correctly
