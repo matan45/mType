@@ -15,7 +15,7 @@
 #include <cstdlib>  // MYT-252: getenv for MTYPE_DISABLE_INLINE_FIELD_GET/SET (still scoped)
 #include <deque>    // MYT-251: stable storage for interned class names
 #include <string>   // MYT-251
-#include <unordered_map>  // MYT-315: nested-call eligibility cache
+#include <unordered_map>
 
 namespace vm::jit
 {
@@ -1673,11 +1673,12 @@ namespace vm::jit
             s.codeCache->lookup(entry.qualifiedName));
     }
 
-    // MYT-315 helpers — extracted from tryEmitDirectMethodCall so the inliner's
-    // POLY-rejected branch (emitInlinedMethodCallPoly) can reuse them. The
+    // MYT-315/MYT-321 helpers, shared by tryEmitDirectMethodCall and the
+    // inliner's POLY-rejected branch. The
     // marshal+cleanup mirrors emitCallMethodOpGeneric lines 778-799; the
-    // invoke targets jit_call_method_direct with the cached JitFunction
-    // pointer as an immediate.
+    // invoke targets jit_call_method_direct with the cached JitFunction plus
+    // callee program/metadata so nested library callees run in the right
+    // runtime context.
     static void emitMethodCallMarshalAndCleanup(JitEmissionState& s, size_t argCount)
     {
         auto& cc = s.cc;

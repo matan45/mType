@@ -695,6 +695,9 @@ namespace vm::runtime
 
     void VirtualMachine::tryFuseAddIntConst()
     {
+        auto* activeProgram = executionCtx ? executionCtx->program : program;
+        if (!activeProgram) return;
+
         const size_t ip = instructionPointer;
         if (ip == 0) return;
 
@@ -702,19 +705,19 @@ namespace vm::runtime
         // (see StackOperationsExecutor::handlePushInt). ADD_INT_CONST stores
         // that same index in fusedSlot and reads the literal from the pool
         // at dispatch time — no eager resolution.
-        const auto& prev = program->getInstruction(ip - 1);
+        const auto& prev = activeProgram->getInstruction(ip - 1);
         if (prev.opcode != bytecode::OpCode::PUSH_INT) return;
         if (prev.numOperands() == 0) return;
 
         // Same fusion-safety gates as the LOAD_LOCAL fusions: no control-flow
         // target may land directly on the fused op, and sticky un-fuse blocks
         // re-fusion.
-        if (program->isFusionUnsafeTarget(ip)) return;
+        if (activeProgram->isFusionUnsafeTarget(ip)) return;
 
         // MYT-201: fused state lives in the per-IP side table. Sticky un-fuse
         // gate reads via findCachedState so a never-fused site doesn't
         // allocate an entry just to check the default 0.
-        if (auto* existing = program->findCachedState(ip))
+        if (auto* existing = activeProgram->findCachedState(ip))
         {
             if (existing->fusedDeoptCount >= 1) return;
         }
@@ -726,15 +729,15 @@ namespace vm::runtime
         // cast is attacker-reachable via a malformed .mtc operand.
         assert(constIdx <= UINT32_MAX &&
                "ADD_INT_CONST fusion: PUSH_INT operand exceeds fusedSlot width");
-        auto& prevMut = const_cast<bytecode::BytecodeProgram*>(program)
+        auto& prevMut = const_cast<bytecode::BytecodeProgram*>(activeProgram)
                             ->getMutableInstruction(ip - 1);
         prevMut.opcode = bytecode::OpCode::NOP;
         prevMut.clearOperands();
 
-        auto& state = program->getOrCreateCachedState(ip);
+        auto& state = activeProgram->getOrCreateCachedState(ip);
         state.fusedSlot = static_cast<uint32_t>(constIdx);
 
-        auto& mut = const_cast<bytecode::BytecodeProgram*>(program)
+        auto& mut = const_cast<bytecode::BytecodeProgram*>(activeProgram)
                         ->getMutableInstruction(ip);
         mut.opcode = bytecode::OpCode::ADD_INT_CONST;
     }
@@ -747,7 +750,8 @@ namespace vm::runtime
         if (jitEnabled && jitCodeCache && jitNativeDepth < MAX_JIT_NATIVE_DEPTH
             && !inJitFallbackInterpreter)
         {
-            std::string funcName = program->getConstantPool().getString(instr.inlineOperands[0]);
+            const auto* activeProgram = executionCtx ? executionCtx->program : program;
+            std::string funcName = activeProgram->getConstantPool().getString(instr.inlineOperands[0]);
             auto jitCode = jitCodeCache->lookup(funcName);
             if (jitCode)
             {
@@ -762,7 +766,7 @@ namespace vm::runtime
                 jitCtx.args = args.data();
                 jitCtx.argCount = args.size();
                 jitCtx.hasReturnValue = false;
-                jitCtx.program = program;
+                jitCtx.program = activeProgram;
                 jitCtx.stackManager = stackManager.get();
                 jitCtx.environment = environment.get();
                 jitCtx.vm = this;
@@ -815,7 +819,8 @@ namespace vm::runtime
         if (jitEnabled && jitCodeCache && jitNativeDepth < MAX_JIT_NATIVE_DEPTH
             && !inJitFallbackInterpreter)
         {
-            const auto* funcMeta = program->getFunctionByIndex(instr.inlineOperands[0]);
+            const auto* activeProgram = executionCtx ? executionCtx->program : program;
+            const auto* funcMeta = activeProgram->getFunctionByIndex(instr.inlineOperands[0]);
             if (funcMeta) {
                 auto jitCode = jitCodeCache->lookup(funcMeta->mangledName);
                 if (jitCode)
@@ -831,7 +836,7 @@ namespace vm::runtime
                     jitCtx.args = args.data();
                     jitCtx.argCount = args.size();
                     jitCtx.hasReturnValue = false;
-                    jitCtx.program = program;
+                    jitCtx.program = activeProgram;
                     jitCtx.stackManager = stackManager.get();
                     jitCtx.environment = environment.get();
                     jitCtx.vm = this;
@@ -1076,4 +1081,3 @@ namespace vm::runtime
         return ArrayExecutor::buildMultiArray(classRegistry, elementTypeName, dimensions, totalDimensions);
     }
 }
-

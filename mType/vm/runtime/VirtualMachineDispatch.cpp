@@ -33,6 +33,7 @@ namespace vm::runtime
     void VirtualMachine::executeInstruction(const bytecode::BytecodeProgram::Instruction& instr)
     {
         using OpCode = bytecode::OpCode;
+        const auto* activeProgram = executionCtx ? executionCtx->program : program;
 
         switch (instr.opcode)
         {
@@ -93,7 +94,7 @@ namespace vm::runtime
             // missing (deserialization corruption, edge in the deopt cycle),
             // throw rather than assert — in release assert is a no-op and
             // the following *state deref would segfault with no diagnostic.
-            const auto* state = program->findCachedState(instructionPointer);
+            const auto* state = activeProgram->findCachedState(instructionPointer);
             if (!state)
                 throw errors::RuntimeException("ADD_INT_CONST dispatched without side-table entry");
             arithmeticExecutor->handleAddIntConst(instr, *state);
@@ -185,7 +186,7 @@ namespace vm::runtime
             // path stabilised. Side-table entry must exist (set by
             // tryPromoteLoadVarCached). Fall back to the generic handler if
             // somehow reached without an entry (e.g., side table cleared).
-            const auto* state = program->findCachedState(instructionPointer);
+            const auto* state = activeProgram->findCachedState(instructionPointer);
             if (!state)
             {
                 variableExecutor->handleLoadVar(instr);
@@ -197,7 +198,7 @@ namespace vm::runtime
         case OpCode::STORE_VAR_CACHED:
         {
             // MYT-204: see LOAD_VAR_CACHED above.
-            const auto* state = program->findCachedState(instructionPointer);
+            const auto* state = activeProgram->findCachedState(instructionPointer);
             if (!state)
             {
                 variableExecutor->handleStoreVar(instr);
@@ -393,7 +394,7 @@ namespace vm::runtime
             // somehow reached with IC disabled.
             if (icEnabled && inlineCacheExecutor)
             {
-                const auto* state = program->findCachedState(instructionPointer);
+                const auto* state = activeProgram->findCachedState(instructionPointer);
                 if (!state)
                     throw errors::RuntimeException("GET_FIELD_CACHED dispatched without side-table entry");
                 inlineCacheExecutor->handleGetFieldCached(instr, *state);
@@ -409,13 +410,13 @@ namespace vm::runtime
             // the generic GET_FIELD. state.fusedSlot carries the receiver slot.
             if (icEnabled && inlineCacheExecutor)
             {
-                const auto* state = program->findCachedState(instructionPointer);
+                const auto* state = activeProgram->findCachedState(instructionPointer);
                 if (!state)
                     throw errors::RuntimeException("LOAD_LOCAL_GET_FIELD_CACHED dispatched without side-table entry");
                 inlineCacheExecutor->handleLoadLocalGetFieldCached(instr, *state);
             }
             else {
-                const auto* state = program->findCachedState(instructionPointer);
+                const auto* state = activeProgram->findCachedState(instructionPointer);
                 uint64_t slot = state ? static_cast<uint64_t>(state->fusedSlot) : 0;
                 variableExecutor->handleLoadLocal(
                     bytecode::BytecodeProgram::Instruction(
@@ -435,7 +436,7 @@ namespace vm::runtime
             // MYT-194: see GET_FIELD_CACHED above.
             if (icEnabled && inlineCacheExecutor)
             {
-                const auto* state = program->findCachedState(instructionPointer);
+                const auto* state = activeProgram->findCachedState(instructionPointer);
                 if (!state)
                     throw errors::RuntimeException("SET_FIELD_CACHED dispatched without side-table entry");
                 inlineCacheExecutor->handleSetFieldCached(instr, *state);
@@ -475,7 +476,7 @@ namespace vm::runtime
             // somehow reached with IC disabled.
             if (icEnabled && inlineCacheExecutor)
             {
-                const auto* state = program->findCachedState(instructionPointer);
+                const auto* state = activeProgram->findCachedState(instructionPointer);
                 if (!state)
                     throw errors::RuntimeException("CALL_METHOD_CACHED dispatched without side-table entry");
                 inlineCacheExecutor->handleCallMethodCached(instr, *state);
@@ -491,7 +492,7 @@ namespace vm::runtime
             // CALL_METHOD_CACHED.
             if (icEnabled && inlineCacheExecutor)
             {
-                const auto* state = program->findCachedState(instructionPointer);
+                const auto* state = activeProgram->findCachedState(instructionPointer);
                 if (!state)
                     throw errors::RuntimeException("CALL_METHOD_POLY_CACHED dispatched without side-table entry");
                 inlineCacheExecutor->handleCallMethodPolyCached(instr, *state);
@@ -507,13 +508,13 @@ namespace vm::runtime
             // receiver slot that the NOPed LOAD_LOCAL would have pushed.
             if (icEnabled && inlineCacheExecutor)
             {
-                const auto* state = program->findCachedState(instructionPointer);
+                const auto* state = activeProgram->findCachedState(instructionPointer);
                 if (!state)
                     throw errors::RuntimeException("LOAD_LOCAL_CALL_CACHED dispatched without side-table entry");
                 inlineCacheExecutor->handleLoadLocalCallCached(instr, *state);
             }
             else {
-                const auto* state = program->findCachedState(instructionPointer);
+                const auto* state = activeProgram->findCachedState(instructionPointer);
                 uint64_t slot = state ? static_cast<uint64_t>(state->fusedSlot) : 0;
                 variableExecutor->handleLoadLocal(
                     bytecode::BytecodeProgram::Instruction(
@@ -526,7 +527,7 @@ namespace vm::runtime
         {
             // MYT-203: fused LOAD_LOCAL + CALL_METHOD_POLY_CACHED. Symmetric
             // to LOAD_LOCAL_CALL_CACHED above.
-            const auto* state = program->findCachedState(instructionPointer);
+            const auto* state = activeProgram->findCachedState(instructionPointer);
             if (icEnabled && inlineCacheExecutor)
             {
                 if (!state)
