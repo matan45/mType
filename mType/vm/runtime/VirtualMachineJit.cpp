@@ -888,10 +888,21 @@ namespace vm::runtime
             // contract requires us to scrub every IC table that may hold
             // that pointer.
             jit::JitFunction removed = jitCodeCache->invalidate(callerName);
-            if (removed && icTable)
+            if (!removed) continue;
+            const void* removedPtr = reinterpret_cast<const void*>(removed);
+            if (icTable)
             {
-                icTable->clearCachedJitForFunction(
-                    reinterpret_cast<const void*>(removed));
+                icTable->clearCachedJitForFunction(removedPtr);
+            }
+            // MYT-322: also scrub free-function IC side-tables on every
+            // loaded program. A library callee invalidated here may have
+            // cachedJitFnPtr entries in caller programs' CachedInstructionState
+            // maps; those tables live per-BytecodeProgram, not in the
+            // global ICTable, so we must visit them all to avoid jumping
+            // into freed native code on the next warm dispatch.
+            for (const auto* prog : getLoadedPrograms())
+            {
+                if (prog) prog->clearCachedJitFnPtrFor(removedPtr);
             }
             // A caller F that inlined `callee` may itself have been inlined
             // into a third caller G. We don't have F's handle directly here

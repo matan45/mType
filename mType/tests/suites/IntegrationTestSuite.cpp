@@ -763,5 +763,16 @@ namespace tests::testSuite
         // recursive/leaf-call hotness silently stayed in the interpreter.
         addOutputVerificationTest("MYT-314 JIT function-entry tier",
                         passPath + "myt314JitFunctionEntryTier_pass.mt");
+
+        // MYT-322 regression: free-function direct JIT-to-JIT dispatch.
+        // Warms two function callees — one above MIN_DIRECT_CALL_INSTRUCTION_
+        // COUNT (routes through jit_call_function_direct's pre-cached IC
+        // fields), one below (stays on the cheaper callFunctionFromJitDirect
+        // mini-interpret path). Also exercises pendingException propagation
+        // across the direct-dispatch boundary by throwing from a large
+        // callee. Result correctness is the signal — perf is covered by the
+        // benchmark suite.
+        addOutputVerificationTest("MYT-322 JIT direct function dispatch",
+                        passPath + "jitDirectFunctionDispatch_pass.mt");
     }
 }

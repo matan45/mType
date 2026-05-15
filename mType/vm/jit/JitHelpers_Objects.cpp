@@ -625,6 +625,84 @@ namespace vm::jit
         ctx->hasReturnValue = nestedCtx.hasReturnValue;
     }
 
+    // MYT-322: function-side counterpart to jit_call_method_direct. Differs
+    // from the method-side helper in two ways:
+    //   1. frameName + calleeProgramIndex are passed in, pre-resolved by the
+    //      IC cold path in jit_call_function_ic. No per-call internFrameName
+    //      hashmap probe, no loadedPrograms scan.
+    //   2. No receiver / definingClassName handling — free functions have
+    //      neither. callingClassName is inherited unchanged from the caller.
+    // Together with the size gate enforced at the warm-path call site, this
+    // re-lands what MYT-321 reverted without re-introducing the
+    // generic_dispatch_hot.mt regression.
+    void jit_call_function_direct(JitContext* ctx,
+                                   const void* cachedJit,
+                                   const bytecode::BytecodeProgram* calleeProgram,
+                                   const void* funcMetadata,
+                                   bytecode::FunctionNameHandle frameName,
+                                   size_t calleeProgramIndex,
+                                   size_t argCount)
+    {
+        if (ctx->pendingException) return;
+        if (!cachedJit || !ctx->vm) return;
+        const auto* funcMeta =
+            static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(funcMetadata);
+        if (!calleeProgram || !funcMeta) return;
+
+        if (ctx->vm->getJitNativeDepth() >= vm::runtime::VirtualMachine::MAX_JIT_NATIVE_DEPTH)
+        {
+            try {
+                throw errors::RuntimeException(
+                    "JIT: native recursion depth exceeded in direct function dispatch");
+            } catch (...) {
+                ctx->pendingException = std::current_exception();
+            }
+            return;
+        }
+
+        auto fn = reinterpret_cast<void(*)(JitContext*)>(const_cast<void*>(cachedJit));
+
+        const size_t savedStackSize = ctx->stackManager ? ctx->stackManager->size() : 0;
+        vm::runtime::CallFrame frame;
+        frame.returnAddress = ctx->vm->getInstructionPointer();
+        frame.frameBase = savedStackSize;
+        frame.localBase = savedStackSize;
+        frame.functionName = frameName;
+        frame.programIndex = calleeProgramIndex;
+        frame.thisInstance = nullptr;
+        ctx->vm->pushCallFrame(std::move(frame));
+
+        JitContext nestedCtx{};
+        nestedCtx.args = ctx->callArgs;
+        nestedCtx.argCount = argCount;
+        nestedCtx.hasReturnValue = false;
+        nestedCtx.program = calleeProgram;
+        nestedCtx.stackManager = ctx->stackManager;
+        nestedCtx.environment = ctx->environment;
+        nestedCtx.vm = ctx->vm;
+        nestedCtx.jitCodeCache = ctx->jitCodeCache;
+        nestedCtx.icTable = ctx->icTable;
+        nestedCtx.callingClassName = ctx->callingClassName;
+
+        ctx->vm->incrementJitNativeDepth();
+        try {
+            fn(&nestedCtx);
+        } catch (...) {
+            ctx->pendingException = std::current_exception();
+        }
+        ctx->vm->decrementJitNativeDepth();
+        ctx->vm->popCallStack();
+
+        if (nestedCtx.pendingException && !ctx->pendingException) {
+            ctx->pendingException = nestedCtx.pendingException;
+            return;
+        }
+        if (ctx->pendingException) return;
+
+        ctx->returnValue = std::move(nestedCtx.returnValue);
+        ctx->hasReturnValue = nestedCtx.hasReturnValue;
+    }
+
     bool jit_try_primitive_protocol_hash(value::Value* out,
                                          const value::Value* receiver)
     {

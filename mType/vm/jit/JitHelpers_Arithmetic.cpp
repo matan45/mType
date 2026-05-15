@@ -362,6 +362,23 @@ namespace vm::jit
                 // hashmap probe.
                 if (cached->cachedFuncMetadata && ctx->vm)
                 {
+                    // MYT-322: take the direct JIT-to-JIT path only when
+                    // (a) the callee has been JIT-compiled (cachedJitFnPtr
+                    // non-null), and (b) the callee's instructionCount
+                    // crosses the per-call-overhead break-even point. Tiny
+                    // leaves keep the cheaper mini-interpret fast path.
+                    if (cached->cachedJitFnPtr &&
+                        cached->cachedFuncMetadata->instructionCount >= MIN_DIRECT_CALL_INSTRUCTION_COUNT)
+                    {
+                        jit_call_function_direct(ctx,
+                                                  cached->cachedJitFnPtr,
+                                                  cached->cachedProgram,
+                                                  cached->cachedFuncMetadata,
+                                                  cached->cachedFrameName,
+                                                  cached->cachedProgramIndex,
+                                                  argCount);
+                        return;
+                    }
                     ctx->returnValue = ctx->vm->callFunctionFromJitDirect(
                         funcName, cached->cachedFuncMetadata,
                         std::span<const value::Value>(ctx->callArgs, argCount));
@@ -373,14 +390,12 @@ namespace vm::jit
             }
 
             // Cold path: first call at this IP. Probe native + funcMeta and
-            // populate the IC. MYT-321 tried to also cache a JIT entry here
-            // and route warm hits through jit_call_function_direct; that
-            // regressed generic_dispatch_hot.mt by 56% because the JIT'd
-            // callee's cc.new_stack prologue overhead dominates for tiny
-            // static callees (single isClassOf body). Reverted; the existing
-            // mini-interpret fallback stays. A future direct-dispatch
-            // re-attempt needs pre-cached frame name + programIndex on the
-            // IC slot AND a callee-size gate.
+            // populate the IC. MYT-322 also probes JitCodeCache and pre-
+            // interns the frame name + resolves the callee's programIndex so
+            // the warm path's direct-dispatch branch can hand them straight
+            // to jit_call_function_direct without re-doing the work. The
+            // size gate at the warm-path call site keeps tiny callees off
+            // the direct path (the original MYT-321 regression cause).
             ::environment::registry::NativeDelegate nativeFn{};
             auto nativeRegistry = ctx->environment ? ctx->environment->getNativeRegistry() : nullptr;
             if (nativeRegistry && nativeRegistry->hasNativeFunction(funcName))
@@ -394,6 +409,38 @@ namespace vm::jit
                 funcMeta = ctx->program->getFunction(funcName);
             }
 
+            // MYT-322: resolve the callee's program index once. The old
+            // code unconditionally stored `0` here, which is wrong for
+            // library callees; no consumer reads the field for functions
+            // today so the bug was silent, but jit_call_function_direct
+            // relies on it being correct.
+            size_t calleeProgramIndex = 0;
+            if (funcMeta && ctx->vm)
+            {
+                const auto& loadedPrograms = ctx->vm->getLoadedPrograms();
+                for (size_t i = 0; i < loadedPrograms.size(); ++i)
+                {
+                    if (loadedPrograms[i] == ctx->program) { calleeProgramIndex = i; break; }
+                }
+            }
+
+            // MYT-322: probe JitCodeCache exactly once per IP. Native
+            // delegates are never JIT-dispatched; skip the lookup when
+            // nativeFn is set. The frame name is interned unconditionally
+            // when funcMeta resolved, maintaining the invariant "frameName
+            // valid iff funcMeta cached" — the cost is a single hashmap
+            // probe per IP per program lifetime.
+            void* jitFnPtr = nullptr;
+            bytecode::FunctionNameHandle frameName{ bytecode::INVALID_FN_HANDLE };
+            if (funcMeta && !nativeFn)
+            {
+                if (ctx->jitCodeCache)
+                {
+                    jitFnPtr = reinterpret_cast<void*>(ctx->jitCodeCache->lookup(funcName));
+                }
+                frameName = ctx->program->internFrameName(funcName);
+            }
+
             // Populate IC slot for warm path.
             {
                 auto& slot = ctx->program->getOrCreateCachedState(bytecodeOffset);
@@ -403,7 +450,9 @@ namespace vm::jit
                     slot.cachedFuncMetadata = funcMeta;
                     slot.cachedStartOffset = funcMeta->startOffset;
                     slot.cachedProgram = ctx->program;
-                    slot.cachedProgramIndex = 0;
+                    slot.cachedProgramIndex = calleeProgramIndex;
+                    slot.cachedJitFnPtr = jitFnPtr;
+                    slot.cachedFrameName = frameName;
                 }
                 slot.jitProbeDone = true;
             }
