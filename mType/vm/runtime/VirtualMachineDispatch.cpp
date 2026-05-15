@@ -836,7 +836,12 @@ namespace vm::runtime
                 bool justBecameHot = jitProfiler->recordEntry(funcName);
                 if (justBecameHot && jitCompiler && jitCodeCache)
                 {
-                    jitCompiler->compile(funcName, *program, *jitCodeCache, typeFeedbackCollector.get());
+                    // MYT-314: compile against framePrg (the program owning
+                    // this frame), not the top-level `program`. JitCompiler::
+                    // compile does program.getFunction(funcName), which would
+                    // silently bail out for imported functions if we passed
+                    // the top-level program.
+                    jitCompiler->compile(funcName, *framePrg, *jitCodeCache, typeFeedbackCollector.get());
                 }
             }
             break;

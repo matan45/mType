@@ -89,6 +89,13 @@ namespace
         // distanceSq in a tight 2 M-iter loop — measures the per-call
         // overhead removed by inlining versus the jit_call_function helper.
         "function_call_hot.mt",
+        // MYT-314: hot non-looping leaf-methods tier up via the function-
+        // entry path (PROFILE_ENTER -> JitCompiler::compile). Three small
+        // leaves with no internal loop; OSR cannot see them and the plain-
+        // function inliner is currently disabled, so the only path to
+        // native code is MYT-314's tier-up. Companion to function_call_hot
+        // (which measures the inliner once it returns).
+        "function_entry_tier_hot.mt",
         // Async/await suspend-resume cost in a tight await loop.
         "async_await_tight_loop.mt",
         // Sequential await chain — 4 awaits/iter, distinct continuation shapes.

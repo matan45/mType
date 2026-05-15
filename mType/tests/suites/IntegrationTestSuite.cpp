@@ -743,5 +743,12 @@ namespace tests::testSuite
         // demo runtime. Pins the OSR gate so it cannot silently regress.
         addOutputVerificationTest("MYT-308 JIT heap global-array OSR",
                         passPath + "myt308JitHeapGlobalArrayOsr.mt");
+
+        // MYT-314 regression: a hot non-looping leaf function must tier up
+        // via PROFILE_ENTER -> JitProfiler::recordEntry -> JitCompiler::
+        // compile. Pre-fix the only tier-up path was OSR (loop-only), so
+        // recursive/leaf-call hotness silently stayed in the interpreter.
+        addOutputVerificationTest("MYT-314 JIT function-entry tier",
+                        passPath + "myt314JitFunctionEntryTier_pass.mt");
     }
 }
