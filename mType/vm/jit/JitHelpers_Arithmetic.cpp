@@ -356,43 +356,12 @@ namespace vm::jit
                     ctx->hasReturnValue = true;
                     return;
                 }
+                // Interpreter-only callee (most common: small bodies that
+                // never crossed the JIT compilation threshold). Cached
+                // FunctionMetadata lets us skip the program->getFunction
+                // hashmap probe.
                 if (cached->cachedFuncMetadata && ctx->vm)
                 {
-                    // MYT-321: direct JIT-to-JIT dispatch when the callee is
-                    // already compiled. cachedJitFnPtr is filled at IC-probe
-                    // time below; if the callee tiered up after that probe,
-                    // refresh lazily on first observation so the win is
-                    // captured on the very next iteration without waiting
-                    // for IC eviction. The historical "do not cache" choice
-                    // was a MYT-184 workaround for the boxed-slot INC bug
-                    // fixed in MYT-321; the nested-frame framing was wrong.
-                    void* directTarget = cached->cachedJitFnPtr;
-                    if (!directTarget && ctx->vm->getJitCodeCache())
-                    {
-                        directTarget = reinterpret_cast<void*>(
-                            ctx->vm->getJitCodeCache()->lookup(funcName));
-                        if (directTarget)
-                        {
-                            // Write back to the mutable side-table entry so
-                            // subsequent hits skip the probe. cachedStates
-                            // is mutable on BytecodeProgram, but findCachedState
-                            // returns const* — getOrCreateCachedState gives
-                            // the non-const reference cleanly.
-                            ctx->program->getOrCreateCachedState(bytecodeOffset)
-                                .cachedJitFnPtr = directTarget;
-                        }
-                    }
-                    if (directTarget)
-                    {
-                        jit_call_function_direct(ctx, directTarget,
-                                                  cached->cachedProgram,
-                                                  cached->cachedFuncMetadata,
-                                                  argCount);
-                        return;
-                    }
-                    // Interpreter-only callee (small body that never crossed
-                    // the JIT compilation threshold). Cached FunctionMetadata
-                    // skips the program->getFunction probe.
                     ctx->returnValue = ctx->vm->callFunctionFromJitDirect(
                         funcName, cached->cachedFuncMetadata,
                         std::span<const value::Value>(ctx->callArgs, argCount));
@@ -403,11 +372,15 @@ namespace vm::jit
                 // time. Fall through to the throw at the end with a fresh lookup.
             }
 
-            // Cold path: first call at this IP. Probe native + funcMeta + JIT
-            // and populate the IC. MYT-321 enabled caching the JIT entry too;
-            // the historical MYT-184 "deliberately do not cache" decision was
-            // a workaround for the boxed-slot INC bug fixed in MYT-321 and is
-            // no longer load-bearing.
+            // Cold path: first call at this IP. Probe native + funcMeta and
+            // populate the IC. MYT-321 tried to also cache a JIT entry here
+            // and route warm hits through jit_call_function_direct; that
+            // regressed generic_dispatch_hot.mt by 56% because the JIT'd
+            // callee's cc.new_stack prologue overhead dominates for tiny
+            // static callees (single isClassOf body). Reverted; the existing
+            // mini-interpret fallback stays. A future direct-dispatch
+            // re-attempt needs pre-cached frame name + programIndex on the
+            // IC slot AND a callee-size gate.
             ::environment::registry::NativeDelegate nativeFn{};
             auto nativeRegistry = ctx->environment ? ctx->environment->getNativeRegistry() : nullptr;
             if (nativeRegistry && nativeRegistry->hasNativeFunction(funcName))
@@ -416,15 +389,9 @@ namespace vm::jit
             }
 
             const bytecode::BytecodeProgram::FunctionMetadata* funcMeta = nullptr;
-            void* jitFnPtr = nullptr;
             if (!nativeFn)
             {
                 funcMeta = ctx->program->getFunction(funcName);
-                if (funcMeta && ctx->vm && ctx->vm->getJitCodeCache())
-                {
-                    jitFnPtr = reinterpret_cast<void*>(
-                        ctx->vm->getJitCodeCache()->lookup(funcName));
-                }
             }
 
             // Populate IC slot for warm path.
@@ -437,7 +404,6 @@ namespace vm::jit
                     slot.cachedStartOffset = funcMeta->startOffset;
                     slot.cachedProgram = ctx->program;
                     slot.cachedProgramIndex = 0;
-                    slot.cachedJitFnPtr = jitFnPtr;
                 }
                 slot.jitProbeDone = true;
             }
@@ -448,12 +414,6 @@ namespace vm::jit
                 ctx->returnValue = nativeFn(
                     nativeCtx, std::span<const value::Value>(ctx->callArgs, argCount));
                 ctx->hasReturnValue = true;
-                return;
-            }
-            if (jitFnPtr && funcMeta && ctx->vm)
-            {
-                jit_call_function_direct(ctx, jitFnPtr,
-                                          ctx->program, funcMeta, argCount);
                 return;
             }
             if (funcMeta && ctx->vm)

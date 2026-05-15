@@ -43,58 +43,83 @@ hazard underneath the MYT-184 /GS cookie corruption:
 
 ```
   Script                             min(ms)    median(ms)    instructions     calls
-  arithmetic_tight_loop.mt            107.08        108.57           20017         0
-  method_dispatch.mt                  103.66        103.81           14042       506
-  object_alloc.mt                     626.50        633.54           12511         0
-  object_alloc_nested.mt             1508.56       1514.07           16811       500
-  gc_cycle_churn.mt                   244.28        244.33           26511    160900
-  field_write_hot.mt                   79.38         81.17            8018         1
-  field_read_hot.mt                    80.16         81.09            9020         1
-  polymorphic_field_hot.mt            541.79        547.52        42000094         8
-  string_ops.mt                       108.79        110.71           19019         0
-  recursive.mt                        677.03        678.33           17260   2545487
-  bitwise_tight_loop.mt                79.54         81.62           23019         0
-  short_circuit_chain.mt               64.23         64.39           24909         0
-  primitive_method_dispatch.mt        219.01        220.47           32041         0
-  array_multi_alloc.mt                 35.35         35.77            9911       500
-  array_multi_get.mt                  274.91        274.91           60117       500
-  for_each_loop.mt                    340.19        341.60           75655      5603
-  inline_monomorphic.mt                78.67         79.38           13016       501
-  inline_branching.mt                  81.63         82.33           15016       501
-  inline_polymorphic.mt               103.75        104.23           14051       508
-  inline_polymorphic_mixed.mt         355.64        356.41           32926       508
-  megamorphic_dispatch.mt             761.49        766.13           14069       512
-  inline_value_object_hot.mt          162.54        162.63           12517       500
-  function_call_hot.mt                 92.15         92.19           15011       500
-  function_entry_tier_hot.mt           92.29         93.11           11811      1500
-  async_await_tight_loop.mt           634.83        652.43           12425       501
-  async_await_chain.mt               1263.85       1269.49           23325      2001
-  lambda_call_hot.mt                  670.48        674.28           12521   1999501
-  lambda_closure_hot.mt               692.11        702.98           12526   1999502
-  generic_dispatch_hot.mt             642.51        644.69           20074      1012
-  try_catch_finally_hot.mt            351.94        354.55           50019      2000
-  switch_dispatch_hot.mt              481.10        481.77           14634       500
-  overload_dispatch_hot.mt            487.81        489.69           34026      2001
-  abstract_dispatch_hot.mt            104.00        104.15           14042       506
-  cast_hot.mt                         272.09        274.68           19560       505
-  collections_hash_hot.mt             632.36        635.58           32763       502
-  collections_hash_user_class_hot.mt        694.90        703.48           35775       502
-  collections_hashset_hot.mt          170.35        174.25           18655         1
-  stream_pipeline_hot.mt              372.53        373.57         2090493    292256
-  reflection_lookup_hot.mt           1445.92       1466.48           81551   1203003
-  pattern_match_hot.mt                475.08        477.85           12861       500
-  string_interpolation_hot.mt         216.64        217.77         7400025         0
-  boxed_primitive_dispatch_hot.mt        612.78        618.17           32805         0
-  boxed_bool_dispatch_hot.mt          516.64        522.81           29276         0
-  boxed_string_dispatch_hot.mt        385.99        392.62           24264         0
-  static_call_hot.mt                  169.03        169.48           32516      2000
-  linked_list_nested_hot.mt           279.76        281.96          124921      1969
-  method_chain_hot.mt                  20.84         21.06           36526      2389
-  string_build_call_hot.mt             94.37         94.78           21015       500
+  arithmetic_tight_loop.mt            108.23        109.67           20017         0
+  method_dispatch.mt                  102.60        103.29           14042       506
+  object_alloc.mt                     647.78        652.63           12511         0
+  object_alloc_nested.mt             1524.06       1524.22           16811       500
+  gc_cycle_churn.mt                   244.00        246.46           26511    160900
+  field_write_hot.mt                   81.06         81.35            8018         1
+  field_read_hot.mt                    79.25         79.84            9020         1
+  polymorphic_field_hot.mt            552.18        552.49        42000094         8
+  string_ops.mt                       109.70        110.60           19019         0
+  recursive.mt                        674.31        675.73           17260   2545487
+  bitwise_tight_loop.mt                76.67         77.88           23019         0
+  short_circuit_chain.mt               64.91         65.96           24909         0
+  primitive_method_dispatch.mt        226.76        227.10           32041         0
+  array_multi_alloc.mt                 36.17         36.58            9911       500
+  array_multi_get.mt                  279.02        279.55           60117       500
+  for_each_loop.mt                    347.53        352.48           75655      5603
+  inline_monomorphic.mt                79.49         81.37           13016       501
+  inline_branching.mt                  84.14         84.94           15016       501
+  inline_polymorphic.mt               105.66        106.22           14051       508
+  inline_polymorphic_mixed.mt         359.89        364.97           32926       508
+  megamorphic_dispatch.mt             782.21        783.79           14069       512
+  inline_value_object_hot.mt          164.54        165.09           12517       500
+  function_call_hot.mt                 94.49         96.47           15011       500
+  function_entry_tier_hot.mt           93.60         93.60           11811      1500
+  async_await_tight_loop.mt           644.37        647.63           12425       501
+  async_await_chain.mt               1271.68       1282.82           23325      2001
+  lambda_call_hot.mt                  667.24        674.23           12521   1999501
+  lambda_closure_hot.mt               702.49        708.85           12526   1999502
+  generic_dispatch_hot.mt             639.86        642.98           20074      1012
+  try_catch_finally_hot.mt            345.62        347.52           50019      2000
+  switch_dispatch_hot.mt              482.40        482.69           14634       500
+  overload_dispatch_hot.mt            495.24        495.77           34026      2001
+  abstract_dispatch_hot.mt            101.78        102.38           14042       506
+  cast_hot.mt                         270.58        270.97           19560       505
+  collections_hash_hot.mt             646.71        661.06           32763       502
+  collections_hash_user_class_hot.mt        724.05        727.84           35775       502
+  collections_hashset_hot.mt          170.90        171.42           18655         1
+  stream_pipeline_hot.mt              373.26        380.71         2090493    292256
+  reflection_lookup_hot.mt           1457.57       1459.50           81551   1203003
+  pattern_match_hot.mt                469.69        470.12           12861       500
+  string_interpolation_hot.mt         214.58        216.41         7400025         0
+  boxed_primitive_dispatch_hot.mt        634.99        640.07           32805         0
+  boxed_bool_dispatch_hot.mt          518.70        536.25           29276         0
+  boxed_string_dispatch_hot.mt        383.74        384.92           24264         0
+  static_call_hot.mt                  165.13        165.82           32516      2000
+  linked_list_nested_hot.mt           150.74        151.35          124921      1969
+  method_chain_hot.mt                  20.48         20.63           36526      2389
+  string_build_call_hot.mt             94.69         94.71           21015       500
 ```
 
-A fresh bench-baseline replacement is expected once the Step 2 (runtime-side
-direct method dispatch in `jit_call_method_ic`) and Step 3 (function-side
-`jit_call_function_direct` + CALL_FAST `cachedJit`) follow-up sweeps land —
-the wins should compound on `static_call_hot.mt`, `generic_dispatch_hot.mt`,
-`function_call_hot.mt`, and `function_entry_tier_hot.mt`.
+### Deltas
+
+Step 2 (runtime-side direct method JIT dispatch) is the surviving perf
+change. Step 3 (function-side direct dispatch via `jit_call_function_direct`
++ CALL_FAST IC `cachedJitFnPtr`) was reverted after a `generic_dispatch_hot.mt`
+regression that root-caused to per-call asmjit prologue + frame-setup cost
+exceeding mini-interpret for tiny static callees. Filed as MYT-322 for a
+proper re-attempt with pre-cached IC fields + a callee-size gate.
+
+Headlines vs the prior MYT-317 baseline (the +56% `generic_dispatch_hot.mt`
+intermediate state is in git history but not committed as a baseline):
+
+- **`linked_list_nested_hot.mt`: 305.04 → 150.74 ms (−50.6%)** —
+  Step 2 direct JIT dispatch from `jit_call_method_ic`'s warm path.
+  LinkedList traversal hits the runtime-side IC arm repeatedly on
+  JIT-compiled nodes with bodies large enough to amortize the per-call
+  prologue. The dominant MYT-321 win.
+- **`generic_dispatch_hot.mt`: 645.72 → 639.86 ms (−0.9%)** — back at
+  baseline after Step 3 revert.
+
+Workload-noise regressions worth watching but not currently load-bearing
+(all within ±5% of MYT-317 numbers):
+
+- `collections_hash_user_class_hot.mt`: 708.83 → 724.05 ms (+2.2%)
+- `boxed_primitive_dispatch_hot.mt`: 606.92 → 634.99 ms (+4.6%)
+- `boxed_bool_dispatch_hot.mt`: 496.16 → 518.70 ms (+4.5%)
+- `megamorphic_dispatch.mt`: 763.42 → 782.21 ms (+2.5%)
+
+These weren't moved deliberately by MYT-321; if they prove sticky on a
+re-run, file individually. None block MYT-321 from landing.

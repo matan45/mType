@@ -459,25 +459,6 @@ namespace vm::bytecode
             }
         }
 
-        // MYT-321 contract: function-side mirror of
-        // InlineCacheTable::clearCachedJitForFunction. Whenever
-        // JitCodeCache::invalidate releases a JitFunction the
-        // jit_call_function_ic IC slots that pointed at it must be zeroed
-        // so the next call probes fresh instead of jumping into freed code.
-        // Called from VirtualMachine::invalidateInlinedFunctionCallers
-        // alongside the method-side hook.
-        void clearCachedJitFnPtrFor(void* evictedJit) const
-        {
-            if (!evictedJit) return;
-            for (auto& [ip, state] : cachedStates)
-            {
-                if (state.cachedJitFnPtr == evictedJit)
-                {
-                    state.cachedJitFnPtr = nullptr;
-                }
-            }
-        }
-
         bool isFusionUnsafeTarget(size_t offset) const;
 
         void replaceInstructions(size_t offset, size_t count, const std::vector<Instruction>& newInstructions);
