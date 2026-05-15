@@ -8,6 +8,9 @@
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/NullPointerException.hpp"
 #include "../../../errors/FieldNotFoundException.hpp"
+#include "../../../value/ValueShim.hpp"
+#include "../utils/NullCheckUtils.hpp"
+#include "../utils/ErrorLocationHelper.hpp"
 
 namespace vm::runtime
 {
@@ -56,16 +59,126 @@ namespace vm::runtime
             const bytecode::BytecodeProgram::Instruction& instr,
             const bytecode::BytecodeProgram::CachedInstructionState& state);
 
-        // MYT-194: GET_FIELD_CACHED / SET_FIELD_CACHED fast paths. Same pattern
-        // as handleCallMethodCached — single shape compare against
+        // MYT-194 + MYT-319: GET_FIELD_CACHED / SET_FIELD_CACHED fast paths
+        // inlined here for dispatch inlining. Single shape compare against
         // cachedFieldShape, then indexed field access. Shape miss reverts the
-        // opcode and re-enters handleGetFieldIC / handleSetFieldIC.
-        void handleGetFieldCached(
+        // opcode and re-enters handleGetFieldIC / handleSetFieldIC via the
+        // out-of-line deopt helpers.
+        inline void handleGetFieldCached(
             const bytecode::BytecodeProgram::Instruction& instr,
-            const bytecode::BytecodeProgram::CachedInstructionState& state);
-        void handleSetFieldCached(
+            const bytecode::BytecodeProgram::CachedInstructionState& state)
+        {
+            if (instr.numOperands() == 0 || !state.cachedFieldShape
+                || state.cachedFieldIndex == SIZE_MAX)
+            {
+                deoptGetFieldAndReprocess(instr);
+                return;
+            }
+            if (context.stackManager->size() < 1)
+            {
+                deoptGetFieldAndReprocess(instr);
+                return;
+            }
+
+            // Peek so that a deopt leaves the stack untouched.
+            value::Value objectValue = context.stackManager->peek(0);
+
+            // Null check (respect the compiler's NONNULL_RECEIVER flag).
+            if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
+            {
+                if (utils::isNullValue(objectValue))
+                {
+                    const std::string& fieldName =
+                        context.program->getConstantPool().getString(instr.inlineOperands[0]);
+                    utils::ErrorLocationHelper::throwError<errors::NullPointerException>(
+                        context,
+                        "Cannot access field '" + fieldName + "' on null object");
+                }
+            }
+
+            // MYT-208: accept STACK_OBJECT (shape key is ClassDefinition*).
+            if (!value::isAnyObject(objectValue))
+            {
+                deoptGetFieldAndReprocess(instr);
+                return;
+            }
+
+            auto* instance = value::asObjectInstanceRaw(objectValue);
+            auto* shape = instance->getClassDefinitionRaw();
+            if (shape != state.cachedFieldShape)
+            {
+                deoptGetFieldAndReprocess(instr);
+                return;
+            }
+
+            // Hot path: shape matched — indexed read, no IC probe.
+            if (!instance->hasFieldVector())
+            {
+                instance->ensureFieldVector();
+            }
+            value::Value fieldValue = instance->getFieldByIndex(state.cachedFieldIndex);
+            context.stackManager->pop();
+            context.stackManager->push(fieldValue);
+        }
+
+        inline void handleSetFieldCached(
             const bytecode::BytecodeProgram::Instruction& instr,
-            const bytecode::BytecodeProgram::CachedInstructionState& state);
+            const bytecode::BytecodeProgram::CachedInstructionState& state)
+        {
+            if (instr.numOperands() == 0 || !state.cachedFieldShape
+                || state.cachedFieldIndex == SIZE_MAX)
+            {
+                deoptSetFieldAndReprocess(instr);
+                return;
+            }
+            if (context.stackManager->size() < 2)
+            {
+                deoptSetFieldAndReprocess(instr);
+                return;
+            }
+
+            // Stack: [..., object, newValue]. peek(0)=newValue, peek(1)=object.
+            value::Value newValue = context.stackManager->peek(0);
+            value::Value objectValue = context.stackManager->peek(1);
+
+            if (!(instr.flags & bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER))
+            {
+                if (utils::isNullValue(objectValue))
+                {
+                    const std::string& fieldName =
+                        context.program->getConstantPool().getString(instr.inlineOperands[0]);
+                    utils::ErrorLocationHelper::throwError<errors::NullPointerException>(
+                        context,
+                        "Cannot set field '" + fieldName + "' on null object");
+                }
+            }
+
+            // MYT-208: accept STACK_OBJECT (shape key is ClassDefinition*).
+            if (!value::isAnyObject(objectValue))
+            {
+                deoptSetFieldAndReprocess(instr);
+                return;
+            }
+
+            auto* instance = value::asObjectInstanceRaw(objectValue);
+            auto* shape = instance->getClassDefinitionRaw();
+            if (shape != state.cachedFieldShape)
+            {
+                deoptSetFieldAndReprocess(instr);
+                return;
+            }
+
+            if (!instance->hasFieldVector())
+            {
+                instance->ensureFieldVector();
+            }
+            instance->setFieldByIndex(state.cachedFieldIndex, newValue);
+            // Match handleSetFieldIC: consume both operands, push newValue for
+            // assignment chaining.
+            context.stackManager->pop();
+            context.stackManager->pop();
+            context.stackManager->push(newValue);
+        }
 
         // MYT-198: superinstruction fast paths. Each fused handler reads the
         // captured LOAD_LOCAL slot from state.fusedSlot, pushes the receiver,

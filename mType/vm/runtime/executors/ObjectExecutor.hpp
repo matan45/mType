@@ -9,7 +9,11 @@
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../value/ValueObject.hpp"
+#include "../../../value/ValueShim.hpp"
 #include "../../../ast/AccessModifier.hpp"
+#include "../utils/ErrorLocationHelper.hpp"
+#include "../utils/NullCheckUtils.hpp"
+#include "../utils/BoxingUtils.hpp"
 #include <span>
 #include <unordered_map>
 #include <memory>
@@ -42,14 +46,199 @@ namespace vm::runtime
         void handleNewValueObject(const bytecode::BytecodeProgram::Instruction& instr);
         void handleObjectToValue(const bytecode::BytecodeProgram::Instruction& instr);
 
-        // Field access
-        void handleGetField(const bytecode::BytecodeProgram::Instruction& instr);
-        void handleSetField(const bytecode::BytecodeProgram::Instruction& instr);
-        // MYT-212: class-targeted field read/write for static binding (see OpCode.hpp).
+        // Field access — MYT-319: hot paths inlined for dispatch-switch inlining.
+        inline void handleGetField(const bytecode::BytecodeProgram::Instruction& instr) {
+            if (instr.numOperands() == 0) {
+                utils::ErrorLocationHelper::throwRuntimeError(context, "GET_FIELD requires operand");
+            }
+
+            const std::string& fieldName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+            value::Value objectValue = context.stackManager->pop();
+
+            // Auto-box raw primitives at escape point (lazy re-boxing support).
+            if (value::isInt(objectValue) ||
+                value::isFloat(objectValue) ||
+                value::isBool(objectValue) ||
+                value::isString(objectValue) ||
+                value::isInternedString(objectValue)) {
+                objectValue = utils::autoBoxPrimitive(objectValue, context.environment);
+            }
+
+            utils::checkNullReceiver(instr, objectValue, context, "access field", fieldName);
+
+            // Handle ValueObject (value types)
+            if (value::isValueObject(objectValue)) {
+                auto valueObj = value::asValueObject(objectValue);
+                auto classDef = valueObj->getClassDefinition();
+
+                auto fieldDef = classDef ? classDef->getField(fieldName) : nullptr;
+                if (!fieldDef) {
+                    throw errors::FieldNotFoundException(fieldName, valueObj->getClassName());
+                }
+
+                // For auto-boxed primitives, skip access check when accessing internal "value" field.
+                bool isAutoBoxedPrimitive = (valueObj->getClassName() == "Int" ||
+                                              valueObj->getClassName() == "Float" ||
+                                              valueObj->getClassName() == "Bool" ||
+                                              valueObj->getClassName() == "String");
+                if (!isAutoBoxedPrimitive || fieldName != "value") {
+                    auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(fieldName, classDef);
+                    std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
+                    auto accessContext = createAccessContext(targetClassName, false);
+                    validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
+                }
+
+                value::Value fieldValue = valueObj->getFieldValue(fieldName);
+                context.stackManager->push(fieldValue);
+                return;
+            }
+
+            if (!value::isAnyObject(objectValue)) {
+                utils::ErrorLocationHelper::throwRuntimeError(context, "GET_FIELD requires an object instance");
+            }
+
+            // MYT-208: unwrap to raw ObjectInstance* — handles both OBJECT (bridge) and STACK_OBJECT (borrowed raw).
+            auto* instance = value::asObjectInstanceRaw(objectValue);
+
+            auto fieldDef = instance->getField(fieldName);
+            if (!fieldDef) {
+                throw errors::FieldNotFoundException(fieldName, instance->getClassDefinition()->getName());
+            }
+
+            // Validate access control — use the class that OWNS the field.
+            auto classDef = instance->getClassDefinition();
+            auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(fieldName, classDef);
+            std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
+
+            auto accessContext = createAccessContext(targetClassName, false);
+
+            validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
+
+            value::Value fieldValue = instance->getFieldValue(fieldName);
+            context.stackManager->push(fieldValue);
+        }
+
+        inline void handleSetField(const bytecode::BytecodeProgram::Instruction& instr) {
+            if (instr.numOperands() == 0) {
+                utils::ErrorLocationHelper::throwRuntimeError(context, "SET_FIELD requires operand");
+            }
+
+            const std::string& fieldName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+            value::Value newValue = context.stackManager->pop();
+            value::Value objectValue = context.stackManager->pop();
+
+            utils::checkNullReceiver(instr, objectValue, context, "set field", fieldName);
+
+            // Handle ValueObject (value types) — deep copy before mutation for value semantics.
+            if (value::isValueObject(objectValue)) {
+                auto valueObj = value::asValueObject(objectValue);
+
+                auto copy = valueObj->deepCopy();
+
+                auto classDef = copy->getClassDefinition();
+                auto fieldDef = classDef ? classDef->getField(fieldName) : nullptr;
+                if (!fieldDef) {
+                    throw errors::FieldNotFoundException(fieldName, copy->getClassName());
+                }
+
+                auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(fieldName, classDef);
+                std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
+                auto accessContext = createAccessContext(targetClassName, true);
+                validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
+
+                copy->setField(fieldName, newValue);
+
+                context.stackManager->push(value::Value(copy));
+                return;
+            }
+
+            if (!value::isAnyObject(objectValue)) {
+                utils::ErrorLocationHelper::throwRuntimeError(context, "SET_FIELD requires an object instance");
+            }
+
+            // MYT-208: raw unwrap supports OBJECT and STACK_OBJECT tags.
+            auto* instance = value::asObjectInstanceRaw(objectValue);
+
+            auto fieldDef = instance->getField(fieldName);
+            if (!fieldDef) {
+                throw errors::FieldNotFoundException(fieldName, instance->getClassDefinition()->getName());
+            }
+
+            if (fieldDef->isFinal()) {
+                if (fieldDef->isStatic()) {
+                    if (fieldDef->isInitialized()) {
+                        utils::ErrorLocationHelper::throwRuntimeError(context,
+                            "Cannot assign to final field '" + fieldName + "'");
+                    }
+                } else {
+                    size_t idx = instance->getClassDefinition()->getFieldIndex(fieldName);
+                    if (idx != SIZE_MAX)
+                    {
+                        if (!value::isVoid(instance->getFieldByIndex(idx)))
+                        {
+                            utils::ErrorLocationHelper::throwRuntimeError(context,
+                                "Cannot assign to final field '" + fieldName + "'");
+                        }
+                    }
+                }
+            }
+
+            // Validate access control — use the class that OWNS the field.
+            auto classDef = instance->getClassDefinition();
+            auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(fieldName, classDef);
+            std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
+
+            auto accessContext = createAccessContext(targetClassName, true);
+            validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
+
+            instance->setField(fieldName, newValue);
+
+            // Push the value back onto the stack for chained assignments.
+            context.stackManager->push(newValue);
+        }
+
+        // MYT-212: class-targeted field read/write for static binding — out-of-line
+        // (deeper hierarchy walk + ClassRegistry lookup; not measurably hotter
+        // than the generic path).
         void handleGetFieldTyped(const bytecode::BytecodeProgram::Instruction& instr);
         void handleSetFieldTyped(const bytecode::BytecodeProgram::Instruction& instr);
-        void handleInlineSetField(const bytecode::BytecodeProgram::Instruction& instr);
-        void handleInlineGetField(const bytecode::BytecodeProgram::Instruction& instr);
+
+        inline void handleInlineSetField(const bytecode::BytecodeProgram::Instruction& instr) {
+            const std::string& fieldName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+            value::Value newValue = context.stackManager->pop();
+            value::Value objectValue = context.stackManager->pop();
+
+            // MYT-208: accept STACK_OBJECT alongside OBJECT.
+            auto* instance = value::asObjectInstanceRaw(objectValue);
+            instance->setField(fieldName, newValue);
+        }
+
+        inline void handleInlineGetField(const bytecode::BytecodeProgram::Instruction& instr) {
+            const std::string& fieldName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+            value::Value objectValue = context.stackManager->pop();
+
+            // MYT-208: isAnyObject(...) covers both OBJECT and STACK_OBJECT.
+            if (value::isAnyObject(objectValue)) {
+                auto* instance = value::asObjectInstanceRaw(objectValue);
+                context.stackManager->push(instance->getFieldValue(fieldName));
+            } else if (value::isValueObject(objectValue)) {
+                auto valueObj = value::asValueObject(objectValue);
+                context.stackManager->push(valueObj->getFieldValue(fieldName));
+            } else {
+                // Fallback: auto-box primitive and read field
+                objectValue = utils::autoBoxPrimitive(objectValue, context.environment);
+                if (value::isAnyObject(objectValue)) {
+                    auto* instance = value::asObjectInstanceRaw(objectValue);
+                    context.stackManager->push(instance->getFieldValue(fieldName));
+                } else if (value::isValueObject(objectValue)) {
+                    auto valueObj = value::asValueObject(objectValue);
+                    context.stackManager->push(valueObj->getFieldValue(fieldName));
+                } else {
+                    throw errors::RuntimeException("INLINE_GET_FIELD: cannot read field '" + fieldName + "' from non-object");
+                }
+            }
+        }
+
         void handleGetStatic(const bytecode::BytecodeProgram::Instruction& instr);
         void handleSetStatic(const bytecode::BytecodeProgram::Instruction& instr);
 

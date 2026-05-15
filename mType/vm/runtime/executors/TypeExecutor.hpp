@@ -23,8 +23,29 @@ namespace vm::runtime
         ~TypeExecutor() = default;
 
         // Type operations
-        void handleInstanceof(const bytecode::BytecodeProgram::Instruction& instr);
-        void handleInstanceofTypeParam(const bytecode::BytecodeProgram::Instruction& instr);
+        // MYT-320: INSTANCEOF entries inlined (trivial — delegate to static
+        // checkInstanceOfByName). CAST entries kept out-of-line — they need
+        // NativeArray + multi-dim array reconstruction and run cold (one
+        // call per cast site, not per dispatch).
+        inline void handleInstanceof(const bytecode::BytecodeProgram::Instruction& instr) {
+            const std::string& targetTypeName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+            value::Value val = context.stackManager->pop();
+            // Shared FFI entry point — same code path as ScriptAPI::isInstanceOf.
+            bool result = checkInstanceOfByName(val, targetTypeName, context.environment);
+            context.stackManager->push(result);
+        }
+
+        inline void handleInstanceofTypeParam(const bytecode::BytecodeProgram::Instruction& instr) {
+            // The operand is a constant-pool string index holding the bare type
+            // parameter name (e.g. "T"). Resolve it against the current receiver's
+            // generic bindings, then chain into the existing instanceof machinery.
+            const std::string& paramName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+            std::string resolved = resolveTypeParameter(paramName);
+            value::Value val = context.stackManager->pop();
+            bool result = checkInstanceOfByName(val, resolved, context.environment);
+            context.stackManager->push(result);
+        }
+
         void handleCast(const bytecode::BytecodeProgram::Instruction& instr);
         void handleCastTypeParam(const bytecode::BytecodeProgram::Instruction& instr);
 

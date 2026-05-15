@@ -239,34 +239,7 @@ namespace vm::runtime
         : context(ctx)
     {}
 
-    void TypeExecutor::handleInstanceof(const bytecode::BytecodeProgram::Instruction& instr) {
-        // Get target type name from constant pool
-        const std::string& targetTypeName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
-
-        // Pop value to check
-        value::Value val = context.stackManager->pop();
-
-        // Shared FFI entry point — same code path as ScriptAPI::isInstanceOf.
-        bool result = checkInstanceOfByName(val, targetTypeName, context.environment);
-
-        // Push boolean result onto stack
-        context.stackManager->push(result);
-    }
-
-    void TypeExecutor::handleInstanceofTypeParam(const bytecode::BytecodeProgram::Instruction& instr) {
-        // The operand is a constant-pool string index holding the bare type
-        // parameter name (e.g. "T"). Resolve it against the current receiver's
-        // generic bindings, then chain into the existing instanceof machinery
-        // exactly as if the user had written `obj isClassOf <concrete>`.
-        const std::string& paramName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
-        std::string resolved = resolveTypeParameter(paramName);
-
-        value::Value val = context.stackManager->pop();
-
-        bool result = checkInstanceOfByName(val, resolved, context.environment);
-
-        context.stackManager->push(result);
-    }
+    // MYT-320: handleInstanceof / handleInstanceofTypeParam moved to TypeExecutor.hpp.
 
     bool TypeExecutor::checkInstanceOfByName(
         const value::Value& val,
