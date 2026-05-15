@@ -77,14 +77,10 @@ namespace vm::runtime
                 out = ::value::hashutils::boolHash(value::asBool(*field));
                 return true;
             case value::PrimitiveTypeTag::STRING:
-                if (value::isString(*field))
+                // MYT-317: SSO-aware. All string forms must hash identically.
+                if (value::isAnyString(*field))
                 {
-                    out = ::value::hashutils::stringHash(value::asString(*field));
-                    return true;
-                }
-                if (value::isInternedString(*field))
-                {
-                    out = ::value::hashutils::stringHash(value::asInternedString(*field).getString());
+                    out = ::value::hashutils::stringHash(value::asStringView(*field));
                     return true;
                 }
                 return false;

@@ -16,21 +16,18 @@ namespace net
         // ValueShim's `value::asString`, which this file now depends on.
         std::string extractString(const value::Value& v)
         {
-            if (value::isString(v))
-                return value::asString(v);
-            if (value::isInternedString(v))
-                return value::asInternedString(v).getString();
-            // Boxed String instance: pull the inner `value` field.
+            // MYT-317: SSO-aware on both the top-level value and the inner
+            // boxed-String `value` field.
+            if (value::isAnyString(v))
+                return std::string(value::asStringView(v));
             if (value::isObject(v))
             {
                 auto inst = value::asObject(v);
                 if (inst)
                 {
                     auto inner = inst->getFieldValue("value");
-                    if (value::isString(inner))
-                        return value::asString(inner);
-                    if (value::isInternedString(inner))
-                        return value::asInternedString(inner).getString();
+                    if (value::isAnyString(inner))
+                        return std::string(value::asStringView(inner));
                 }
             }
             return "";

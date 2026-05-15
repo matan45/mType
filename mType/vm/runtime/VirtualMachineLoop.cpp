@@ -265,9 +265,11 @@ namespace vm::runtime
                                     try
                                     {
                                         value::Value msgValue = objInstance->getFieldValue("msg");
-                                        if (value::isString(msgValue))
+                                        // MYT-317: SSO-aware error-message extraction.
+                                        if (value::isAnyString(msgValue))
                                         {
-                                            errorMsg += ": " + value::asString(msgValue);
+                                            errorMsg += ": ";
+                                            errorMsg += value::asStringView(msgValue);
                                         }
                                     }
                                     catch (...)
@@ -275,9 +277,10 @@ namespace vm::runtime
                                         try
                                         {
                                             value::Value messageValue = objInstance->getFieldValue("message");
-                                            if (value::isString(messageValue))
+                                            if (value::isAnyString(messageValue))
                                             {
-                                                errorMsg += ": " + value::asString(messageValue);
+                                                errorMsg += ": ";
+                                                errorMsg += value::asStringView(messageValue);
                                             }
                                         }
                                         catch (...)

@@ -116,22 +116,23 @@ std::string PrimitiveMethodExecutor::unboxStringFromValue(const value::Value& va
     if (value::isInternedString(val)) {
         return std::string(value::asInternedString(val).getString());
     }
+    // MYT-317: SSO. Construct from the inline bytes directly.
+    if (value::isInlineString(val)) {
+        return std::string(val.rawInlineChars(), val.rawInlineLen());
+    }
     if (value::isValueObject(val)) {
         const auto& obj = value::asValueObject(val);
         if (!obj) throw errors::RuntimeException("Cannot unbox null String value object");
         const value::Value& fieldValue = obj->getFieldByIndex(0);
-        if (value::isString(fieldValue)) return value::asString(fieldValue);
-        if (value::isInternedString(fieldValue))
-            return std::string(value::asInternedString(fieldValue).getString());
+        // MYT-317: SSO-aware nested string read.
+        if (value::isAnyString(fieldValue)) return std::string(value::asStringView(fieldValue));
         throw errors::RuntimeException("String value object 'value' field is not a string");
     }
     if (value::isObject(val)) {
         const auto& obj = value::asObject(val);
         if (!obj) throw errors::RuntimeException("Cannot unbox null String object");
         const value::Value& fieldValue = obj->getFieldByIndex(0);
-        if (value::isString(fieldValue)) return value::asString(fieldValue);
-        if (value::isInternedString(fieldValue))
-            return std::string(value::asInternedString(fieldValue).getString());
+        if (value::isAnyString(fieldValue)) return std::string(value::asStringView(fieldValue));
         throw errors::RuntimeException("String object 'value' field is not a string");
     }
     throw errors::RuntimeException("Cannot unbox String: unexpected value type");
@@ -236,8 +237,26 @@ void PrimitiveMethodExecutor::handleInvokeBoolGetValue() {
 
 void PrimitiveMethodExecutor::handleInvokeStringConcat() {
     value::Value argValue = context.stackManager->pop();
-    std::string arg = unboxStringFromValue(argValue);
     value::Value receiverValue = context.stackManager->pop();
+    // MYT-317: SSO fast path. If both operands carry string content (heap or
+    // inline) and the concatenated length fits in the inline buffer, build
+    // the result directly in a stack-local Value with no heap allocation
+    // and no StringPool lookup. Falls through to the original intern path
+    // for anything else (longer results, unboxed Object/ValueObject wrappers).
+    if (value::isAnyString(receiverValue) && value::isAnyString(argValue)) {
+        std::string_view r = value::asStringView(receiverValue);
+        std::string_view a = value::asStringView(argValue);
+        const size_t total = r.size() + a.size();
+        if (total <= value::Value::INLINE_STRING_CAP) {
+            char buf[value::Value::INLINE_STRING_CAP];
+            if (!r.empty()) std::memcpy(buf, r.data(), r.size());
+            if (!a.empty()) std::memcpy(buf + r.size(), a.data(), a.size());
+            context.stackManager->push(value::Value(
+                value::Value::InlineStringTag{}, buf, static_cast<uint8_t>(total)));
+            return;
+        }
+    }
+    std::string arg = unboxStringFromValue(argValue);
     std::string receiver = unboxStringFromValue(receiverValue);
     std::string result = std::move(receiver) + arg;
     // Try the global StringPool first.

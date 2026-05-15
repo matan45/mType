@@ -1116,11 +1116,9 @@ namespace vm::runtime
         if (baseClassName == "String" && argCount == 1) {
             std::string strValue;
             bool gotString = false;
-            if (value::isString(args[0])) {
-                strValue = value::asString(args[0]);
-                gotString = true;
-            } else if (value::isInternedString(args[0])) {
-                strValue = value::asInternedString(args[0]).getString();
+            // MYT-317: SSO-aware. Accept all three string forms.
+            if (value::isAnyString(args[0])) {
+                strValue = std::string(value::asStringView(args[0]));
                 gotString = true;
             }
             if (gotString) {

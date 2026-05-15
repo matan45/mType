@@ -137,15 +137,13 @@ namespace reflection
         return asInt(arg);
     }
 
-    const std::string& ReflectionNatives::extractString(const Value& arg, const std::string& funcName, const std::string& paramName)
+    std::string ReflectionNatives::extractString(const Value& arg, const std::string& funcName, const std::string& paramName)
     {
-        if (isString(arg))
+        // MYT-317: SSO-aware. Returns by value so STRING_INLINE inline bytes
+        // materialize into a fresh std::string.
+        if (isAnyString(arg))
         {
-            return asString(arg);
-        }
-        if (isInternedString(arg))
-        {
-            return asInternedString(arg).getString();
+            return std::string(asStringView(arg));
         }
         throw errors::RuntimeException(funcName + " requires " + paramName + " to be a string");
     }

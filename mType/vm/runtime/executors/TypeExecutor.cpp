@@ -476,7 +476,8 @@ namespace vm::runtime
             return value::isBool(val);
         }
         if (targetTypeName == "String" || targetTypeName == "string") {
-            return value::isString(val) || value::isInternedString(val);
+            // MYT-317: STRING_INLINE matches the String type check.
+            return value::isAnyString(val);
         }
         return false;
     }
@@ -715,15 +716,9 @@ namespace vm::runtime
         else if (value::isBool(val)) {
             return value::asBool(val) ? static_cast<int64_t>(1) : static_cast<int64_t>(0);
         }
-        else if (value::isString(val)) {
-            try {
-                return static_cast<int64_t>(std::stoll(value::asString(val)));
-            } catch (...) {
-                throwCastError("Cannot cast string to int: " + value::asString(val));
-            }
-        }
-        else if (value::isInternedString(val)) {
-            const std::string& str = value::asInternedString(val).getString();
+        else if (value::isAnyString(val)) {
+            // MYT-317: folds STRING_INLINE alongside heap STRING / INTERNED_STRING.
+            std::string str(value::asStringView(val));
             try {
                 return static_cast<int64_t>(std::stoll(str));
             } catch (...) {
@@ -758,15 +753,9 @@ namespace vm::runtime
         else if (value::isInt(val)) {
             return static_cast<double>(value::asInt(val));
         }
-        else if (value::isString(val)) {
-            try {
-                return std::stod(value::asString(val));
-            } catch (...) {
-                throwCastError("Cannot cast string to float: " + value::asString(val));
-            }
-        }
-        else if (value::isInternedString(val)) {
-            const std::string& str = value::asInternedString(val).getString();
+        else if (value::isAnyString(val)) {
+            // MYT-317: SSO-aware string→float cast.
+            std::string str(value::asStringView(val));
             try {
                 return std::stod(str);
             } catch (...) {
@@ -822,15 +811,9 @@ namespace vm::runtime
         else if (value::isFloat(val)) {
             return value::asFloat(val) != 0.0;
         }
-        else if (value::isString(val)) {
-            const std::string& str = value::asString(val);
-            // Non-empty strings are true
-            return !str.empty();
-        }
-        else if (value::isInternedString(val)) {
-            const value::InternedString& str = value::asInternedString(val);
-            // Non-empty strings are true
-            return str.length() > 0;
+        else if (value::isAnyString(val)) {
+            // MYT-317: SSO-aware. Non-empty strings of any form are true.
+            return !value::asStringView(val).empty();
         }
         else if (value::isAnyObject(val)) {
             auto* obj = value::asObjectInstanceRaw(val);
@@ -1158,11 +1141,9 @@ namespace vm::runtime
         if (value::isBool(val)) {
             return value::asBool(val) ? "true" : "false";
         }
-        if (value::isString(val)) {
-            return value::asString(val);
-        }
-        if (value::isInternedString(val)) {
-            return value::asInternedString(val).getString();
+        // MYT-317: SSO-aware stringify.
+        if (value::isAnyString(val)) {
+            return std::string(value::asStringView(val));
         }
         if (utils::isNullValue(val)) {
             return "null";

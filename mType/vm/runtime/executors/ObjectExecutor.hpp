@@ -56,11 +56,11 @@ namespace vm::runtime
             value::Value objectValue = context.stackManager->pop();
 
             // Auto-box raw primitives at escape point (lazy re-boxing support).
+            // MYT-317: isAnyString covers STRING_INLINE.
             if (value::isInt(objectValue) ||
                 value::isFloat(objectValue) ||
                 value::isBool(objectValue) ||
-                value::isString(objectValue) ||
-                value::isInternedString(objectValue)) {
+                value::isAnyString(objectValue)) {
                 objectValue = utils::autoBoxPrimitive(objectValue, context.environment);
             }
 

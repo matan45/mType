@@ -334,8 +334,8 @@ namespace value
                     break;
 
                 case 4: // SIMD_STRING
-                    if (value::isString(value) ||
-                        value::isInternedString(value)) {
+                    // MYT-317: STRING_INLINE also routes through the SIMD string lane.
+                    if (value::isAnyString(value)) {
                         std::get<4>(storage)->setUnchecked(index, value);
                     } else {
                         convertToHeterogeneous();

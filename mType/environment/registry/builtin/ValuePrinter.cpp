@@ -12,14 +12,11 @@ namespace environment::registry::builtin
 
     void ValuePrinter::print(const Value& value, std::ostream& out) const
     {
-        if (value::isString(value))
+        // MYT-317: SSO-aware. asStringView handles STRING_INLINE plus the
+        // two STRING bridge kinds in one branch.
+        if (value::isAnyString(value))
         {
-            out << value::asString(value);
-            return;
-        }
-        if (value::isInternedString(value))
-        {
-            out << value::asInternedString(value).getString();
+            out << value::asStringView(value);
             return;
         }
         if (value::isInt(value))
@@ -123,14 +120,9 @@ namespace environment::registry::builtin
         {
             Value result = methodCallHandler(value, "toString", {});
 
-            if (value::isString(result))
+            if (value::isAnyString(result))
             {
-                return value::asString(result);
-            }
-
-            if (value::isInternedString(result))
-            {
-                return value::asInternedString(result).getString();
+                return std::string(value::asStringView(result));
             }
 
             if (value::isObject(result))
@@ -140,14 +132,9 @@ namespace environment::registry::builtin
                 {
                     Value fieldValue = resultObj->getFieldValue("value");
 
-                    if (value::isString(fieldValue))
+                    if (value::isAnyString(fieldValue))
                     {
-                        return value::asString(fieldValue);
-                    }
-
-                    if (value::isInternedString(fieldValue))
-                    {
-                        return value::asInternedString(fieldValue).getString();
+                        return std::string(value::asStringView(fieldValue));
                     }
                 }
             }

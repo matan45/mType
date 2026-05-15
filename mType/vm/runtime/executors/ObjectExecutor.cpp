@@ -21,6 +21,7 @@
 #include "../../../value/IntegerCache.hpp"
 #include "../../../value/ObjectInstancePool.hpp"
 #include "../../../value/SmallArgsBuffer.hpp"
+#include "../context/SharedStackFramePool.hpp"
 #include "../utils/BoxingUtils.hpp"
 #include "../utils/MethodResolver.hpp"
 #include "../../../runtimeTypes/klass/SignatureUtils.hpp"
@@ -436,7 +437,7 @@ namespace vm::runtime
 
         // Create a SharedStackFrame for this lambda invocation to support nested closures
         // Link it to the parent frame so nested lambdas can access parent variables
-        auto newSharedFrame = std::make_shared<SharedStackFrame>();
+        auto newSharedFrame = makePooledFrame();
         newSharedFrame->parentFrame = lambda->capturedFrame;  // Link to parent
         if (!context.callStack.empty()) {
             context.callStack.back().sharedFrame = newSharedFrame;
@@ -471,7 +472,8 @@ namespace vm::runtime
                     needsBoxing = true;
                     boxClassName = "Bool";
                 }
-                else if (expectedType == "String" && value::isString(argValue)) {
+                else if (expectedType == "String" && value::isAnyString(argValue)) {
+                    // MYT-317: STRING_INLINE also auto-boxes into String.
                     needsBoxing = true;
                     boxClassName = "String";
                 }
@@ -797,11 +799,11 @@ namespace vm::runtime
         // Auto-box raw primitives at escape point (lazy re-boxing support).
         // INVOKE_STRING_CONCAT can leave a raw STRING / INTERNED_STRING on the
         // stack; route those through the same boxing path as int/float/bool.
+        // MYT-317: also route STRING_INLINE through auto-box on method dispatch.
         if (value::isInt(objectValue) ||
             value::isFloat(objectValue) ||
             value::isBool(objectValue) ||
-            value::isString(objectValue) ||
-            value::isInternedString(objectValue)) {
+            value::isAnyString(objectValue)) {
             objectValue = autoBoxPrimitive(objectValue, context.environment);
         }
 

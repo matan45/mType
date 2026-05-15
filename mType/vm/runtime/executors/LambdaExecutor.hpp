@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include "../context/ExecutionContext.hpp"
+#include "../context/SharedStackFramePool.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../../runtimeTypes/klass/ClassDefinition.hpp"
@@ -105,7 +106,7 @@ namespace vm::runtime
                 sharedFrame = context.callStack.back().sharedFrame;
             } else {
                 // Create new shared frame
-                sharedFrame = std::make_shared<SharedStackFrame>();
+                sharedFrame = makePooledFrame();
                 if (!context.callStack.empty()) {
                     context.callStack.back().sharedFrame = sharedFrame;
                 }

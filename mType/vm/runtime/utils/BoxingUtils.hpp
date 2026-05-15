@@ -23,7 +23,8 @@ namespace vm::runtime::utils
         case value::PrimitiveTypeTag::BOOL:
             return value::isBool(val);
         case value::PrimitiveTypeTag::STRING:
-            return value::isString(val) || value::isInternedString(val);
+            // MYT-317: STRING_INLINE counts as a string-typed primitive.
+            return value::isAnyString(val);
         case value::PrimitiveTypeTag::NONE:
             return false;
         }
@@ -86,7 +87,7 @@ namespace vm::runtime::utils
             className = "Float";
         else if (value::isBool(val))
             className = "Bool";
-        else if (value::isString(val) || value::isInternedString(val))
+        else if (value::isAnyString(val))  // MYT-317: includes STRING_INLINE.
             className = "String";
         else
             return val;

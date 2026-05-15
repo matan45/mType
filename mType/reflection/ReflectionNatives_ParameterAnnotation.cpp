@@ -28,8 +28,8 @@ namespace reflection
 
         std::string extractName(const Value& arg, const char* fn, const char* label)
         {
-            if (isString(arg)) return asString(arg);
-            if (isInternedString(arg)) return asInternedString(arg).getString();
+            // MYT-317: SSO-aware.
+            if (isAnyString(arg)) return std::string(asStringView(arg));
             throw errors::RuntimeException(std::string(fn) + " requires " + label + ":string");
         }
 

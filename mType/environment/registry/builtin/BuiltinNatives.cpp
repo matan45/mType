@@ -132,10 +132,11 @@ namespace environment::registry::builtin
 
     static int64_t hashCode_fn(const Value& arg)
     {
-        if (value::isString(arg))
-            return ::value::hashutils::stringHash(value::asString(arg));
-        if (value::isInternedString(arg))
-            return ::value::hashutils::stringHash(value::asInternedString(arg).getString());
+        // MYT-317: SSO-aware. asStringView folds STRING_INLINE alongside
+        // heap STD_STRING / INTERNED_STRING into one hash branch — critical
+        // so equal-content strings hash identically across representations.
+        if (value::isAnyString(arg))
+            return ::value::hashutils::stringHash(value::asStringView(arg));
         if (value::isInt(arg))
             return ::value::hashutils::intHash(value::asInt(arg));
         if (value::isFloat(arg))

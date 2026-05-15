@@ -89,10 +89,10 @@ namespace json
             return JsonValue::floating(value::asFloat(val));
         if (value::isBool(val))
             return JsonValue::boolean(value::asBool(val));
-        if (value::isString(val))
-            return JsonValue::string(value::asString(val));
-        if (value::isInternedString(val))
-            return JsonValue::string(value::asInternedString(val).getString());
+        // MYT-317: SSO-aware. Folds the three string forms (STD_STRING heap,
+        // INTERNED_STRING heap, STRING_INLINE) into a single branch.
+        if (value::isAnyString(val))
+            return JsonValue::string(std::string(value::asStringView(val)));
         if (value::isObject(val))
         {
             auto p = value::asObject(val);

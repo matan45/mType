@@ -6,6 +6,7 @@
 #include "../environment/registry/NativeRegistry.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../vm/bytecode/BytecodeProgram.hpp"
+#include "../value/BridgeArena.hpp"
 #include "../errors/RuntimeException.hpp"
 
 #include <filesystem>
@@ -212,6 +213,11 @@ namespace plugin
         {
             if (prog) prog->clearNativeCacheSlots();
         }
+        // MYT-317: drop cached bridge slots. Live Values keep their own
+        // bridges; this only purges destructed raw memory blocks so a future
+        // bridge kind that ever transitively retained a plugin object cannot
+        // sneak it past unload through a recycled slot.
+        ::value::BridgeArena::getInstance().reset();
     }
 
     void PluginLoader::invalidateInlinedCallers(

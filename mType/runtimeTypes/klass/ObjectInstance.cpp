@@ -394,8 +394,8 @@ namespace runtimeTypes::klass
             else if (value::isBool(fieldValue)) hash += value::asBool(fieldValue) ? "true" : "false";
             else if (value::isVoid(fieldValue)) hash += "void";
             else if (value::isNullType(fieldValue)) hash += "null";
-            else if (value::isString(fieldValue)) hash += value::asString(fieldValue);
-            else if (value::isInternedString(fieldValue)) hash += value::asInternedString(fieldValue).getString();
+            // MYT-317: SSO-aware — append all string forms via string_view.
+            else if (value::isAnyString(fieldValue)) hash.append(value::asStringView(fieldValue));
             else if (value::isObject(fieldValue))
             {
                 auto obj = value::asObject(fieldValue);

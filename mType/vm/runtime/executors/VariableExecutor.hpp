@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include "../context/ExecutionContext.hpp"
+#include "../context/SharedStackFramePool.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../value/ValueType.hpp"
 #include "../../../value/ValueShim.hpp"
@@ -178,7 +179,7 @@ namespace vm::runtime
                 }
                 else if (!varName.empty())
                 {
-                    context.callStack.back().sharedFrame = std::make_shared<SharedStackFrame>();
+                    context.callStack.back().sharedFrame = makePooledFrame();
                     auto sharedFrame = context.callStack.back().sharedFrame;
                     sharedFrame->setLocal(varName, slot, val);
                 }
@@ -636,7 +637,7 @@ namespace vm::runtime
                 }
                 else if (!varName.empty())
                 {
-                    context.callStack.back().sharedFrame = std::make_shared<SharedStackFrame>();
+                    context.callStack.back().sharedFrame = makePooledFrame();
                     context.callStack.back().sharedFrame->setLocal(varName, slot, val);
                 }
             }

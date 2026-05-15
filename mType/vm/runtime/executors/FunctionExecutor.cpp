@@ -394,11 +394,8 @@ namespace vm::runtime
                 {
                     typeSignature += "bool";
                 }
-                else if (value::isString(arg))
-                {
-                    typeSignature += "string";
-                }
-                else if (value::isInternedString(arg))
+                // MYT-317: STRING_INLINE also classifies as "string".
+                else if (value::isAnyString(arg))
                 {
                     typeSignature += "string";
                 }
@@ -628,7 +625,8 @@ namespace vm::runtime
                 if (obj->getTypeName() == "String")
                 {
                     value::Value unboxedValue = obj->getFieldValue("value");
-                    if (value::isString(unboxedValue))
+                    // MYT-317: accept any string form when unwrapping String box.
+                    if (value::isAnyString(unboxedValue))
                     {
                         arg = unboxedValue;
                     }
@@ -673,7 +671,7 @@ namespace vm::runtime
                 }
                 continue;
             }
-            else if (paramType == "String" && value::isString(arg))
+            else if (paramType == "String" && value::isAnyString(arg))
             {
                 // Auto-box string to String
                 auto stringClass = context.environment->findClass("String");

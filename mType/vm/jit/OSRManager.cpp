@@ -532,8 +532,12 @@ namespace vm::jit
         if (value::isInt(val)) return SlotType::INT;
         if (value::isFloat(val)) return SlotType::FLOAT;
         if (value::isBool(val)) return SlotType::BOOL;
-        if (value::isString(val)) return SlotType::STRING;
-        if (value::isInternedString(val)) return SlotType::STRING;
+        // MYT-317: STRING_INLINE rolls into the STRING slot type so the
+        // tracker doesn't see a spurious new type when a SSO concat result
+        // flows through. JIT-side inline-string emission is out of scope;
+        // the JIT guard on tag==STRING will fail for STRING_INLINE and
+        // route through the interpreter, which is correct.
+        if (value::isAnyString(val)) return SlotType::STRING;
         if (value::isObject(val)) return SlotType::OBJECT;
         // MYT-208: distinct slot type so the JIT type tracker propagates the
         // STACK_OBJECT tag through type-quickened opcodes (LOAD_LOCAL_*).

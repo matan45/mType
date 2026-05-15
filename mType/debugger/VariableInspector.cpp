@@ -157,11 +157,9 @@ namespace debugger {
             ss << std::fixed << std::setprecision(2) << value::asFloat(val);
             return ss.str();
         }
-        if (value::isString(val)) {
-            return "\"" + value::asString(val) + "\"";
-        }
-        if (value::isInternedString(val)) {
-            return "\"" + value::asInternedString(val).getString() + "\"";
+        // MYT-317: SSO-aware. Folds all three string forms into one branch.
+        if (value::isAnyString(val)) {
+            return "\"" + std::string(value::asStringView(val)) + "\"";
         }
         if (value::isBool(val)) {
             return value::asBool(val) ? "true" : "false";
@@ -232,8 +230,8 @@ namespace debugger {
     std::string VariableInspector::getTypeName(const value::Value& val) {
         if (value::isInt(val))           return "int";
         if (value::isFloat(val))         return "float";
-        if (value::isString(val))        return "string";
-        if (value::isInternedString(val)) return "string";
+        // MYT-317: STRING_INLINE also reports as "string".
+        if (value::isAnyString(val))     return "string";
         if (value::isBool(val))          return "bool";
         if (value::isObject(val)) {
             auto obj = value::asObject(val);

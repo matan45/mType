@@ -972,16 +972,12 @@ namespace debugger
             {
                 return value::asBool(val) ? "true" : "false";
             }
-            else if (value::isString(val))
-            {
-                return "\"" + value::asString(val) + "\"";
-            }
-            else if (value::isInternedString(val))
+            // MYT-317: SSO-aware. Folds all three string forms into one branch.
+            else if (value::isAnyString(val))
             {
                 try
                 {
-                    auto internedStr = value::asInternedString(val);
-                    return "\"" + internedStr.getString() + "\"";
+                    return "\"" + std::string(value::asStringView(val)) + "\"";
                 }
                 catch (const std::exception& e)
                 {
@@ -1085,11 +1081,8 @@ namespace debugger
             {
                 return "Bool";
             }
-            else if (value::isString(val))
-            {
-                return "String";
-            }
-            else if (value::isInternedString(val))
+            // MYT-317: STRING_INLINE also reports as "String".
+            else if (value::isAnyString(val))
             {
                 return "String";
             }

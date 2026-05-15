@@ -28,8 +28,8 @@ namespace
         case value::PrimitiveTypeTag::BOOL:
             return value::isBool(v);
         case value::PrimitiveTypeTag::STRING:
-            return value::isString(v) ||
-                   value::isInternedString(v);
+            // MYT-317: STRING_INLINE is also a string-typed primitive.
+            return value::isAnyString(v);
         case value::PrimitiveTypeTag::NONE:
         default:
             return true;
@@ -163,9 +163,9 @@ namespace vm::runtime
         }
 
         // String concatenation (includes objects and arrays, which should call toString())
+        // MYT-317: isAnyString covers STRING_INLINE alongside heap STRING.
         if (op == OpCode::ADD &&
-            (value::isString(left) || value::isString(right) ||
-             value::isInternedString(left) || value::isInternedString(right) ||
+            (value::isAnyString(left) || value::isAnyString(right) ||
              value::isObject(left) ||
              value::isObject(right) ||
              value::isValueObject(left) ||
@@ -203,11 +203,9 @@ namespace vm::runtime
         if (value::isBool(val)) {
             return value::asBool(val) ? "true" : "false";
         }
-        if (value::isString(val)) {
-            return value::asString(val);
-        }
-        if (value::isInternedString(val)) {
-            return value::asInternedString(val).getString();
+        // MYT-317: SSO-aware. Folds the three string forms into one branch.
+        if (value::isAnyString(val)) {
+            return std::string(value::asStringView(val));
         }
         if (value::isNullType(val)) {
             return "null";
