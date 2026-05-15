@@ -309,8 +309,8 @@ namespace debugger
 
         std::string asPlainString(const value::Value& val)
         {
-            if (value::isString(val)) return value::asString(val);
-            if (value::isInternedString(val)) return value::asInternedString(val).getString();
+            // MYT-317: SSO-aware. Folds all three string forms into one branch.
+            if (value::isAnyString(val)) return std::string(value::asStringView(val));
             throw std::runtime_error("Expected string value");
         }
 
@@ -590,8 +590,8 @@ namespace debugger
                 {
                     return asDouble(left) == asDouble(right);
                 }
-                if ((value::isString(left) || value::isInternedString(left)) &&
-                    (value::isString(right) || value::isInternedString(right)))
+                // MYT-317: isAnyString covers STRING_INLINE.
+                if (value::isAnyString(left) && value::isAnyString(right))
                 {
                     return asPlainString(left) == asPlainString(right);
                 }
@@ -645,8 +645,8 @@ namespace debugger
                 {
                     return asDouble(left) + asDouble(right);
                 }
-                if ((value::isString(left) || value::isInternedString(left)) &&
-                    (value::isString(right) || value::isInternedString(right)))
+                // MYT-317: isAnyString covers STRING_INLINE.
+                if (value::isAnyString(left) && value::isAnyString(right))
                 {
                     auto& pool = value::StringPool::getInstance();
                     return pool.intern(asPlainString(left) + asPlainString(right));
@@ -818,8 +818,8 @@ namespace debugger
         if (value::isBool(val)) return value::asBool(val);
         if (value::isInt(val)) return value::asInt(val) != 0;
         if (value::isFloat(val)) return value::asFloat(val) != 0.0 && !std::isnan(value::asFloat(val));
-        if (value::isString(val)) return !value::asString(val).empty();
-        if (value::isInternedString(val)) return !value::asInternedString(val).getString().empty();
+        // MYT-317: SSO-aware truthiness.
+        if (value::isAnyString(val)) return !value::asStringView(val).empty();
         return !isNullish(val);
     }
 }

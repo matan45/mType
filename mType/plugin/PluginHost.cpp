@@ -165,6 +165,18 @@ namespace plugin
                 if (outLen) *outLen = s.size();
                 return s.c_str();
             }
+            // MYT-317: STRING_INLINE. The inline buffer is not null-terminated;
+            // materialize into a thread_local std::string so the returned
+            // pointer is null-terminated and stable for the plugin call.
+            // Same lifetime contract as the heap forms above (valid until the
+            // next host call on this thread).
+            if (::value::isInlineString(v->v))
+            {
+                thread_local std::string scratch;
+                scratch.assign(v->v.rawInlineChars(), v->v.rawInlineLen());
+                if (outLen) *outLen = scratch.size();
+                return scratch.c_str();
+            }
             if (outLen) *outLen = 0;
             return "";
         }

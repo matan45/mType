@@ -85,9 +85,9 @@ namespace environment::registry {
                 if (value::isBool(v)) return value::asBool(v);
                 throw errors::TypeException("expected boolean argument");
             } else if constexpr (std::is_same_v<T, std::string>) {
-                // Accept both STRING and INTERNED_STRING — matches extractString pattern.
-                if (value::isString(v)) return value::asString(v);
-                if (value::isInternedString(v)) return value::asInternedString(v).getString();
+                // MYT-317: also accept STRING_INLINE. asStringView folds all
+                // three forms into one branch.
+                if (value::isAnyString(v)) return std::string(value::asStringView(v));
                 throw errors::TypeException("expected string argument");
             } else if constexpr (std::is_same_v<T, ::value::InternedString>) {
                 if (value::isInternedString(v)) return value::asInternedString(v);

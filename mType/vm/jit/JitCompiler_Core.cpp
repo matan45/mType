@@ -117,9 +117,9 @@ namespace vm::jit
             case OpCode::STORE_LOCAL_FLOAT:
             case OpCode::STORE_LOCAL_BOOL:
             case OpCode::STORE_LOCAL_BOXED_INST:
-                if (instr.operands.empty())
+                if (instr.numOperands() == 0)
                     return false;
-                outSlot = instr.operands[0];
+                outSlot = instr.inlineOperands[0];
                 return true;
             default:
                 return false;
@@ -144,9 +144,9 @@ namespace vm::jit
                                const bytecode::BytecodeProgram::Instruction& instr,
                                int64_t expected)
     {
-        if (instr.opcode != OpCode::PUSH_INT || instr.operands.empty())
+        if (instr.opcode != OpCode::PUSH_INT || instr.numOperands() == 0)
             return false;
-        const auto index = static_cast<size_t>(instr.operands[0]);
+        const auto index = static_cast<size_t>(instr.inlineOperands[0]);
         const auto& integers = program.getConstantPool().integers;
         return index < integers.size() && integers[index] == expected;
     }
@@ -333,8 +333,8 @@ namespace vm::jit
                 case OpCode::JUMP_IF_FALSE:
                 case OpCode::JUMP_IF_TRUE:
                 {
-                    if (instr.operands.empty()) break;
-                    const size_t target = static_cast<size_t>(instr.operands[0]);
+                    if (instr.numOperands() == 0) break;
+                    const size_t target = static_cast<size_t>(instr.inlineOperands[0]);
                     if (target <= ip + 1 || target > endOffsetInclusive + 1)
                         break;
                     // `for` lowers its loop condition as:
@@ -379,7 +379,8 @@ namespace vm::jit
     }
 
     bool JitCompiler::canCompile(const bytecode::BytecodeProgram::FunctionMetadata& meta,
-                                  const bytecode::BytecodeProgram& program) const
+                                  const bytecode::BytecodeProgram& program,
+                                  OpCode* outOpcode) const
     {
         if (meta.isNative)
             return false;
@@ -406,7 +407,10 @@ namespace vm::jit
         {
             const auto& instr = program.getInstruction(ip);
             if (supported.find(static_cast<uint8_t>(instr.opcode)) == supported.end())
+            {
+                if (outOpcode) *outOpcode = instr.opcode;
                 return false;
+            }
         }
         if (endOffset > meta.startOffset &&
             hasUnsafeOrPopLoopShape(program, meta.startOffset, endOffset - 1))
@@ -939,7 +943,14 @@ namespace vm::jit
         constexpr size_t valueSize = sizeof(value::Value);
 
         size_t scanEnd = funcMeta.startOffset + funcMeta.instructionCount;
-        bool usesBoxedTypes = scanOpcodesForBoxedTypes(program, funcMeta.startOffset, scanEnd);
+        // MYT-316: pass the enclosing function's identity so plain CALL /
+        // CALL_FAST sites targeting the same function (self-recursion) don't
+        // flip the function into boxed mode — the inliner would reject those
+        // anyway, and TCO / self-direct-call need unboxed mode to fire.
+        const std::string& selfFnName = funcMeta.mangledName.empty()
+            ? funcMeta.name : funcMeta.mangledName;
+        bool usesBoxedTypes = scanOpcodesForBoxedTypes(program, funcMeta.startOffset, scanEnd,
+                                                        selfFnName);
         if (!usesBoxedTypes)
         {
             for (const auto& t : funcMeta.parameterTypes)
@@ -1026,6 +1037,7 @@ namespace vm::jit
                                    const bytecode::BytecodeProgram::FunctionMetadata& funcMeta,
                                    CompilationFrame& frame,
                                    ic::TypeFeedbackCollector* typeFeedback,
+                                   JitCodeCache* codeCache,  // MYT-315
                                    uint64_t* inlineFieldICHits,
                                    uint64_t* inlineFieldICMisses,
                                    uint64_t* inlineFieldSetICHits,
@@ -1068,6 +1080,7 @@ namespace vm::jit
         s.inlineDecisions = inlineDecisions;
         s.tailCallsOptimized = tailCallsOptimized;
         s.selfDirectCalls = selfDirectCalls;
+        s.codeCache = codeCache;  // MYT-315: fresh JIT lookup at compile time
 
         // MYT-207: expose the FuncNode's entry label so non-tail self-recursive
         // CALL sites can `cc.invoke(label, sig)` directly, skipping the
@@ -1137,9 +1150,12 @@ namespace vm::jit
             bailoutCount++;
             return false;
         }
-        if (!canCompile(*funcMeta, program))
+        OpCode offendingOpcode = OpCode::OPCODE_SENTINEL_;
+        if (!canCompile(*funcMeta, program, &offendingOpcode))
         {
             bailoutCount++;
+            if (offendingOpcode != OpCode::OPCODE_SENTINEL_)
+                functionBailoutOpcodes[static_cast<uint8_t>(offendingOpcode)]++;
             return false;
         }
 
@@ -1163,6 +1179,7 @@ namespace vm::jit
         auto frame = setupCompilationFrame(cc, program, *funcMeta, localCount);
 
         if (!emitFunctionBody(cc, ctxPtr, program, *funcMeta, frame, typeFeedback,
+                               &codeCache,  // MYT-315
                                &inlineFieldICHits, &inlineFieldICMisses,
                                &inlineFieldSetICHits, &inlineFieldSetICMisses,
                                &inlineDecisions,

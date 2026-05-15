@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include "JitCompiler.hpp"
+#include "JitCodeCache.hpp"  // MYT-315: lookup callee JIT pointer at compile time
 #include "JitHelpers.hpp"
 #include "../bytecode/OpCode.hpp"
 #include "ic/InlineCacheTable.hpp"
@@ -14,12 +15,25 @@
 #include <cstdlib>  // MYT-252: getenv for MTYPE_DISABLE_INLINE_FIELD_GET/SET (still scoped)
 #include <deque>    // MYT-251: stable storage for interned class names
 #include <string>   // MYT-251
+#include <unordered_map>  // MYT-315: nested-call eligibility cache
 
 namespace vm::jit
 {
     using namespace asmjit;
     using namespace asmjit::x86;
     using OpCode = bytecode::OpCode;
+
+    // MYT-315: forward declarations for the direct-dispatch emit helpers.
+    // Definitions live near tryEmitDirectMethodCall below; declared here so
+    // emitInlinedMethodCallPoly (defined earlier in this TU) can call them
+    // from the per-entry rejected-entry branch.
+    static void emitMethodCallMarshalAndCleanup(JitEmissionState& s, size_t argCount);
+    static void emitMethodDirectInvoke(JitEmissionState& s,
+                                        const void* cachedJit,
+                                        size_t argCountPlusReceiver);
+    static const void* resolveCachedJit(JitEmissionState& s,
+                                         const ic::MethodICEntry& entry);
+
 
     // MYT-251: walk the callee's bytecode and return the peak operand-stack
     // depth it reaches starting from depth 0. The inline guards in
@@ -91,6 +105,20 @@ namespace vm::jit
         JitEmissionState& s,
         const bytecode::BytecodeProgram::Instruction& instr);
 
+    // MYT-316: shared plain-function inline emitter, used by both CALL_STATIC
+    // (tryEmitInlinedStaticCall) and plain CALL / CALL_FAST (emitCallOp /
+    // emitCallFastOp in JitCompiler_ControlFlow.cpp). The callee must already
+    // be resolved by the caller; `calleeHandle` is the interned
+    // FunctionNameHandle used for reverse-edge bookkeeping on the
+    // JitCodeCache (so a later redefinition of `callee` can evict every JIT
+    // buffer that pasted its body inline). Pass INVALID_FN_HANDLE to skip
+    // the bookkeeping (e.g. OSR with no static caller name to evict).
+    bool tryEmitInlinedFunctionCall(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::FunctionMetadata* callee,
+        size_t argCount,
+        bytecode::FunctionNameHandle calleeHandle);
+
     void emitBoxCallArgs(JitEmissionState& s, size_t argCount, size_t destStartSlot)
     {
         auto& cc = s.cc;
@@ -143,7 +171,7 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t constIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t constIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         Gp dest = cc.new_gp64();
         cc.lea(dest, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));
         Gp pPtr = cc.new_gp64();
@@ -172,7 +200,7 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t fieldNameIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t fieldNameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         Gp objAddr = cc.new_gp64();
         cc.lea(objAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 1) * valueSize)));
         Gp dest = cc.new_gp64();
@@ -393,7 +421,7 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t fieldNameIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t fieldNameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         Gp objAddr = cc.new_gp64();
         cc.lea(objAddr, Mem(s.boxedBase, static_cast<int32_t>((s.stackDepth - 2) * valueSize)));
         Gp dest = cc.new_gp64();
@@ -553,8 +581,8 @@ namespace vm::jit
                                   const bytecode::BytecodeProgram::Instruction& instr)
     {
         auto& cc = s.cc;
-        uint32_t nameIndex = static_cast<uint32_t>(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        uint32_t nameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
+        size_t argCount = instr.inlineOperands[1];
         if (argCount > JitContext::MAX_CALL_ARGS)
         {
             s.compileFailed = true;
@@ -773,8 +801,8 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t methodNameIndex = static_cast<uint32_t>(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        uint32_t methodNameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
+        size_t argCount = instr.inlineOperands[1];
         {
             int objIdx = s.stackDepth - static_cast<int>(argCount) - 1;
             Gp destAddr = cc.new_gp64();
@@ -846,7 +874,7 @@ namespace vm::jit
         const bytecode::BytecodeProgram::Instruction& instr,
         const ic::MethodICEntry& entry)
     {
-        const size_t argCount = instr.operands[1];
+        const size_t argCount = instr.inlineOperands[1];
         const auto kind = entry.protocolFastKind;
         if (!protocolFastKindMatchesArity(kind, argCount)) return false;
         if (!entry.shape) return false;
@@ -952,7 +980,7 @@ namespace vm::jit
         const auto& entry = cache.entries[0];
         const auto* callee = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
             entry.funcMetadata);
-        const size_t argCount = instr.operands[1];
+        const size_t argCount = instr.inlineOperands[1];
 
         // Sanity: arg count must match the callee's parameter count (including
         // the implicit `this`). If not, fall through to the generic path —
@@ -1138,9 +1166,12 @@ namespace vm::jit
     //   endLabel:
     static bool emitInlinedMethodCallPoly(JitEmissionState& s,
                                            const bytecode::BytecodeProgram::Instruction& instr,
-                                           const ic::MethodInlineCache& cache)
+                                           const ic::MethodInlineCache& cache,
+                                           const std::array<optimization::InlineDecision,
+                                                            ic::IC_MAX_POLYMORPHIC_ENTRIES>&
+                                               perEntryDecisions)
     {
-        const size_t argCount = instr.operands[1];
+        const size_t argCount = instr.inlineOperands[1];
         const uint8_t entryCount = cache.entryCount;
 
         // Per-entry argcount sanity + max-localCount computation. Only one
@@ -1148,6 +1179,11 @@ namespace vm::jit
         // to the largest callee (MAX, not SUM). MYT-251 step 3b: same
         // logic for the operand-stack peak — accumulate the worst case
         // across entries so the shared frame fits any shape that runs.
+        // MYT-173 follow-up: non-inlineable entries route through
+        // emitCallMethodOpGeneric per-shape and never paste their callee
+        // body into the caller's frame — skip their localCount /
+        // operand-stack-peak contribution so a single oversized helper-
+        // routed shape doesn't inflate the shared inline window.
         size_t maxLocalCount = 0;
         size_t maxCalleePeak = 0;
         for (uint8_t i = 0; i < entryCount; ++i)
@@ -1155,6 +1191,8 @@ namespace vm::jit
             const auto* callee = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
                 cache.entries[i].funcMetadata);
             if (callee->parameterCount != argCount + 1) return false;
+            if (perEntryDecisions[i] != optimization::InlineDecision::INLINE)
+                continue;
             if (callee->localCount > maxLocalCount)
                 maxLocalCount = callee->localCount;
             const size_t p = computeCalleePeakOperandStack(s.program, *callee);
@@ -1190,9 +1228,14 @@ namespace vm::jit
         // Pre-scan each callee's jump targets independently. F-b's
         // createJumpLabels already handles the per-entry range; we just
         // call it entryCount times.
+        // MYT-173 follow-up: skip non-inlineable entries — their dispatch
+        // goes through emitCallMethodOpGeneric which has its own label
+        // bookkeeping.
         std::vector<std::unordered_map<size_t, asmjit::Label>> perEntryJumpLabels(entryCount);
         for (uint8_t i = 0; i < entryCount; ++i)
         {
+            if (perEntryDecisions[i] != optimization::InlineDecision::INLINE)
+                continue;
             const auto* callee = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
                 cache.entries[i].funcMetadata);
             perEntryJumpLabels[i] = createJumpLabels(
@@ -1244,6 +1287,48 @@ namespace vm::jit
                 ? nextCheckLabels[i]
                 : slowLabel;
             emitInlineShapeGuardReusingClassDef(s, classDefReg, entry.shape, missLabel);
+
+            // MYT-173 follow-up: per-entry routing. Inlineable entries paste
+            // the callee body in-line as before. Non-inlineable entries (one
+            // is oversized, has TRY/CATCH, etc.) keep the same shape guard
+            // chain width but route this shape's matched-guard fallthrough
+            // through emitCallMethodOpGeneric — same helper the all-miss
+            // slow path uses. Pre-change a single ineligible entry forfeited
+            // the entire site to the helper; now the inlineable shapes pay
+            // no IC dispatch overhead.
+            if (perEntryDecisions[i] != optimization::InlineDecision::INLINE)
+            {
+                // Match the slow-path branch's expectations: restore the
+                // pre-call snapshot, run the generic helper (which pushes a
+                // BOXED return via emitReturnValueCopyBoxed — same shape
+                // each inline body leaves at endLabel), then jump past the
+                // remaining shape bodies. The next loop iter will restore
+                // from snap again so state stays consistent across branches.
+                restoreEmitStateForInline(s, snap);
+
+                // MYT-315: if this rejected entry has a JIT-compiled callee
+                // (either cached at IC populate time OR found via a fresh
+                // JitCodeCache lookup right now), direct-dispatch instead of
+                // routing through jit_call_method_ic's mini-interpreter hop.
+                // The runtime shape guard for entry[i] already matched at
+                // this point (control fell through
+                // emitInlineShapeGuardReusingClassDef above), so the cached
+                // pointer is safe to call.
+                const void* directTarget = resolveCachedJit(s, cache.entries[i]);
+                if (directTarget)
+                {
+                    emitMethodCallMarshalAndCleanup(s, argCount);
+                    emitMethodDirectInvoke(s, directTarget, argCount + 1);
+                    emitReturnValueCopyBoxed(s);
+                }
+                else
+                {
+                    emitCallMethodOpGeneric(s, instr);
+                }
+                if (s.compileFailed) return true;
+                cc.jmp(endLabel);
+                continue;
+            }
 
             // Fall-through is this shape's inlined body. Each body is a
             // fresh emission — restore the snapshot before emitting so
@@ -1330,8 +1415,8 @@ namespace vm::jit
         JitEmissionState& s,
         const bytecode::BytecodeProgram::Instruction& instr)
     {
-        const uint32_t nameIndex = static_cast<uint32_t>(instr.operands[0]);
-        const size_t argCount = instr.operands[1];
+        const uint32_t nameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
+        const size_t argCount = instr.inlineOperands[1];
         if (nameIndex >= s.program.getConstantPool().strings.size())
             return false;
 
@@ -1348,6 +1433,11 @@ namespace vm::jit
             return false;
         if (callee->parameterCount != argCount)
             return false;
+
+        // CALL_STATIC-specific gates: no generic instantiations, primitive-only
+        // signatures. These keep the static-call slow path simple and predate
+        // MYT-316 generalization; if either of these proves over-restrictive
+        // for static sites, lift them into the shared helper.
         if (!callee->genericTypeParameters.empty())
             return false;
         for (const auto& paramType : callee->parameterTypes)
@@ -1356,6 +1446,41 @@ namespace vm::jit
                 return false;
         }
         if (!isInlineStaticPrimitiveType(callee->returnType))
+            return false;
+
+        // MYT-316: register the reverse edge so a redefinition (rare for
+        // CALL_STATIC, but defensive) evicts every caller that pasted this
+        // callee's body.
+        const auto handle = s.program.internFrameName(funcName);
+        return tryEmitInlinedFunctionCall(s, callee, argCount, handle);
+    }
+
+    // MYT-316: shared inline emitter for plain (non-method) function calls.
+    // Used by tryEmitInlinedStaticCall (CALL_STATIC) and by emitCallOp /
+    // emitCallFastOp (plain CALL / CALL_FAST) in JitCompiler_ControlFlow.cpp.
+    //
+    // The caller is expected to have resolved `callee` and to pass a fresh
+    // `argCount` (no implicit `this` — plain functions have no receiver).
+    // Boxed mode is required: the inlined body emits in boxed-mode
+    // conventions and the locals-copy assumes that emission style.
+    //
+    // No runtime identity guard is emitted. Identity safety is provided by
+    // eager invalidation: on success the helper records a caller→callee edge
+    // in JitCodeCache via registerInlineEdge, and a subsequent
+    // invalidatedInlineCallersOf(callee) returns this caller's name so its
+    // JIT buffer can be evicted. Pass INVALID_FN_HANDLE to skip bookkeeping
+    // (best-effort safety only — caller accepts residual stale-code risk).
+    bool tryEmitInlinedFunctionCall(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::FunctionMetadata* callee,
+        size_t argCount,
+        bytecode::FunctionNameHandle calleeHandle)
+    {
+        if (!s.usesBoxedTypes)
+            return false;
+        if (!callee)
+            return false;
+        if (callee->parameterCount != argCount)
             return false;
 
         auto decision = optimization::checkFunctionInlineEligibility(
@@ -1436,6 +1561,17 @@ namespace vm::jit
         s.slotTypes.resize(static_cast<size_t>(firstArgStackIdx));
         s.slotTypes.push_back(SlotType::BOXED);
         s.arrayInfoCache.clear();
+
+        // MYT-316: register the reverse edge so a later redefinition of
+        // `callee` will evict this caller's JIT buffer. Only meaningful when
+        // we have a static caller name to evict (currentCompilingFn empty in
+        // OSR — record nothing, leaving best-effort safety).
+        if (calleeHandle != bytecode::INVALID_FN_HANDLE
+            && !s.currentCompilingFn.empty()
+            && s.codeCache)
+        {
+            s.codeCache->registerInlineEdge(calleeHandle, s.currentCompilingFn);
+        }
         return true;
     }
 
@@ -1474,11 +1610,24 @@ namespace vm::jit
         if (!icTable.hasMethodIC(s.currentIP)) return false;
 
         auto& cache = icTable.getMethodIC(s.currentIP);
+        // MYT-173 follow-up: per-entry decisions. Default-init to INLINE so
+        // unused slots (entryCount < IC_MAX_POLYMORPHIC_ENTRIES) and the MONO
+        // path (single entry, decision implicit in the top-level return)
+        // don't carry meaningful data. The POLY emitter only consults
+        // [0..cache.entryCount).
+        std::array<optimization::InlineDecision, ic::IC_MAX_POLYMORPHIC_ENTRIES>
+            perEntryDecisions{};
+        for (auto& d : perEntryDecisions)
+            d = optimization::InlineDecision::INLINE;
         auto decision = optimization::checkInlineEligibility(
             s.program, cache, s.currentCompilingFn, s.inlineStack.size(),
-            s.isOSRCompilation);
+            s.isOSRCompilation, &perEntryDecisions);
         // MYT-210: telemetry — every site decision (including INLINE) is
         // counted so --jit-stats can report the eligibility breakdown.
+        // MYT-173 follow-up: when a site mixes inlineable and helper-routed
+        // entries, `decision` is INLINE (the site is worth specializing).
+        // Per-entry detail is not surfaced here; consumers wanting per-shape
+        // attribution should add a `bumpMethodEntry` counter.
         if (s.inlineDecisions) s.inlineDecisions->bumpMethod(decision);
 
         if (decision != optimization::InlineDecision::INLINE) return false;
@@ -1491,14 +1640,265 @@ namespace vm::jit
         if (cache.state == ic::ICState::MONOMORPHIC)
             return emitInlinedMethodCallMono(s, instr, cache);
         if (cache.state == ic::ICState::POLYMORPHIC)
-            return emitInlinedMethodCallPoly(s, instr, cache);
+            return emitInlinedMethodCallPoly(s, instr, cache, perEntryDecisions);
         return false;
+    }
+
+    // MYT-315: safety filter. The MYT-184 /GS cookie corruption reproduces
+    // when a JIT-compiled callee with a "complex" body is invoked as a
+    // nested entry from another JIT frame. Empirically, the failure mode
+    // tracks with callees that themselves issue runtime invocations:
+    // method calls, function calls, object construction, await, throw.
+    // Simple straight-line arithmetic/field-read callees (the
+    // inline_polymorphic_mixed.mt Shape methods) survive 2M nested calls
+    // without incident; ArrayList::add (nested call to this.resize, array
+    // store, field write) trips the cookie on the first call.
+    //
+    // Until MYT-321 roots out the actual frame-layout invariant being
+    // violated, this conservative scan keeps us at single-level nesting:
+    // we only direct-dispatch leaf callees that don't themselves nest.
+    // Cached per FunctionMetadata pointer so the scan runs once per callee.
+    static bool calleeIsDirectCallSafe(
+        const bytecode::BytecodeProgram::FunctionMetadata* funcMeta,
+        const bytecode::BytecodeProgram* program)
+    {
+        if (!funcMeta || !program) return false;
+        static std::unordered_map<const bytecode::BytecodeProgram::FunctionMetadata*, bool> cache;
+        auto it = cache.find(funcMeta);
+        if (it != cache.end()) return it->second;
+
+        bool safe = true;
+        const size_t end = funcMeta->startOffset + funcMeta->instructionCount;
+        for (size_t ip = funcMeta->startOffset; ip < end; ++ip)
+        {
+            const auto& instr = program->getInstruction(ip);
+            switch (instr.opcode)
+            {
+                case OpCode::CALL:
+                case OpCode::CALL_FAST:
+                case OpCode::CALL_METHOD:
+                case OpCode::CALL_METHOD_CACHED:
+                case OpCode::CALL_METHOD_POLY_CACHED:
+                case OpCode::LOAD_LOCAL_CALL_CACHED:
+                case OpCode::LOAD_LOCAL_CALL_POLY_CACHED:
+                case OpCode::CALL_STATIC:
+                case OpCode::NEW_OBJECT:
+                case OpCode::NEW_STACK:
+                case OpCode::NEW_VALUE_OBJECT:
+                case OpCode::AWAIT:
+                case OpCode::THROW:
+                    safe = false;
+                    break;
+                default:
+                    break;
+            }
+            if (!safe) break;
+        }
+        cache[funcMeta] = safe;
+        return safe;
+    }
+
+    // Lazy lookup of the callee's JIT pointer. The IC entry's cachedJit
+    // slot is populated at IC fill time, which is BEFORE the callee tiers
+    // up via MYT-314. So that slot is null on hot benchmarks where the
+    // caller and callee tier up in parallel. This helper falls back to a
+    // fresh JitCodeCache lookup against the entry's qualified name. Doesn't
+    // mutate `entry` (some emitters hold the cache as const&).
+    //
+    // Returns nullptr when:
+    //   - the receiver is a value class (loadFromValueObject materialization
+    //     is skipped on the direct path)
+    //   - the callee's body contains a nested call / object construction /
+    //     await / throw (MYT-315 safety filter — see calleeIsDirectCallSafe)
+    //   - no JIT entry exists yet
+    static const void* resolveCachedJit(JitEmissionState& s,
+                                         const ic::MethodICEntry& entry)
+    {
+        if (entry.receiverIsValueObject) return nullptr;
+        const auto* funcMeta = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
+            entry.funcMetadata);
+        if (!calleeIsDirectCallSafe(funcMeta, entry.program)) return nullptr;
+        if (entry.cachedJit) return entry.cachedJit;
+        if (!s.codeCache) return nullptr;
+        return reinterpret_cast<const void*>(
+            s.codeCache->lookup(entry.qualifiedName));
+    }
+
+    // MYT-315 helpers — extracted from tryEmitDirectMethodCall so the inliner's
+    // POLY-rejected branch (emitInlinedMethodCallPoly) can reuse them. The
+    // marshal+cleanup mirrors emitCallMethodOpGeneric lines 778-799; the
+    // invoke targets jit_call_method_direct with the cached JitFunction
+    // pointer as an immediate.
+    static void emitMethodCallMarshalAndCleanup(JitEmissionState& s, size_t argCount)
+    {
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+        int objIdx = s.stackDepth - static_cast<int>(argCount) - 1;
+        Gp destAddr = cc.new_gp64();
+        cc.lea(destAddr, Mem(s.ctxPtr, offsetof(JitContext, callArgs)));
+        Gp srcAddr = cc.new_gp64();
+        cc.lea(srcAddr, Mem(s.boxedBase, static_cast<int32_t>(objIdx * valueSize)));
+        InvokeNode* cpInv;
+        cc.invoke(Out(cpInv), reinterpret_cast<uint64_t>(jit_value_copy),
+                  FuncSignature::build<void, value::Value*, const value::Value*>());
+        cpInv->set_arg(0, destAddr);
+        cpInv->set_arg(1, srcAddr);
+
+        emitBoxCallArgs(s, argCount, 1);
+        for (size_t i = 0; i < argCount; ++i)
+        {
+            SlotType at = popType(s);
+            if (isBoxedSlotType(at))
+                emitValueDestroy(s, s.stackDepth - static_cast<int>(argCount) + static_cast<int>(i));
+        }
+        popType(s);
+        emitValueDestroy(s, s.stackDepth - static_cast<int>(argCount) - 1);
+        s.stackDepth -= static_cast<int>(argCount) + 1;
+    }
+
+    static void emitMethodDirectInvoke(JitEmissionState& s,
+                                        const void* cachedJit,
+                                        size_t argCountPlusReceiver)
+    {
+        auto& cc = s.cc;
+        Gp cjReg = cc.new_gp64();
+        cc.mov(cjReg, reinterpret_cast<uint64_t>(cachedJit));
+        Gp acReg = cc.new_gp64();
+        cc.mov(acReg, static_cast<int64_t>(argCountPlusReceiver));
+        InvokeNode* dcInv;
+        cc.invoke(Out(dcInv),
+                  reinterpret_cast<uint64_t>(jit_call_method_direct),
+                  FuncSignature::build<void, JitContext*, const void*, size_t>());
+        dcInv->set_arg(0, s.ctxPtr);
+        dcInv->set_arg(1, cjReg);
+        dcInv->set_arg(2, acReg);
+    }
+
+    static bool tryEmitDirectMethodCall(JitEmissionState& s,
+                                         const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (!s.typeFeedback) return false;
+        auto& icTable = s.typeFeedback->getICTable();
+        if (!icTable.hasMethodIC(s.currentIP)) return false;
+
+        auto& cache = icTable.getMethodIC(s.currentIP);
+        if (cache.state != ic::ICState::MONOMORPHIC &&
+            cache.state != ic::ICState::POLYMORPHIC)
+            return false;
+
+        bool anyCachedJit = false;
+        for (uint8_t i = 0; i < cache.entryCount; ++i)
+        {
+            if (resolveCachedJit(s, cache.entries[i]))
+            {
+                anyCachedJit = true;
+                break;
+            }
+        }
+        if (!anyCachedJit) return false;
+
+        const size_t argCount = instr.inlineOperands[1];
+        if (argCount + 1 > JitContext::MAX_CALL_ARGS) return false;
+
+        const int receiverStackIdx = s.stackDepth - static_cast<int>(argCount) - 1;
+        if (receiverStackIdx < 0) return false;
+
+        // Boxed-mode required: callArgs marshalling, emitReturnValueCopyBoxed,
+        // and the shape-guard's boxed-receiver extract all rely on the boxed
+        // operand stack. scanOpcodesForBoxedTypes already trips CALL_METHOD
+        // into boxed mode, but bail defensively if a future caller reaches
+        // this path otherwise.
+        if (!s.usesBoxedTypes) return false;
+
+        auto& cc = s.cc;
+
+        asmjit::Label slowLabel = cc.new_label();
+        asmjit::Label joinLabel = cc.new_label();
+
+        const InlineEmitStateSnapshot snap = snapshotEmitStateForInline(s);
+
+        if (cache.state == ic::ICState::MONOMORPHIC)
+        {
+            const auto& entry = cache.entries[0];
+            const void* monoTarget = resolveCachedJit(s, entry);
+            if (!monoTarget || !entry.shape)
+            {
+                // Defensive — the anyCachedJit gate above should already
+                // exclude this, but make absolutely sure we never emit a
+                // null-target call.
+                return false;
+            }
+
+            emitInlineShapeGuard(s, receiverStackIdx, entry.shape, slowLabel);
+            emitMethodCallMarshalAndCleanup(s, argCount);
+            emitMethodDirectInvoke(s, monoTarget, argCount + 1);
+            emitReturnValueCopyBoxed(s);
+            cc.jmp(joinLabel);
+        }
+        else
+        {
+            // POLY: chained guards over up-to-4 cached shapes. Mirrors
+            // emitInlinedMethodCallPoly's guard chain at line 1245-1343.
+            const uint8_t entryCount = cache.entryCount;
+
+            std::vector<asmjit::Label> nextCheckLabels;
+            nextCheckLabels.reserve(entryCount > 0
+                                    ? static_cast<size_t>(entryCount - 1) : 0);
+            for (uint8_t i = 0; i + 1 < entryCount; ++i)
+                nextCheckLabels.push_back(cc.new_label());
+
+            Gp classDefReg = emitExtractReceiverClassDef(s, receiverStackIdx);
+
+            for (uint8_t i = 0; i < entryCount; ++i)
+            {
+                if (i > 0) cc.bind(nextCheckLabels[i - 1]);
+
+                const auto& entry = cache.entries[i];
+                const asmjit::Label missLabel = (i + 1 < entryCount)
+                    ? nextCheckLabels[i]
+                    : slowLabel;
+
+                const void* polyTarget = resolveCachedJit(s, entry);
+                if (!polyTarget || !entry.shape)
+                {
+                    // Entry has no JIT'd callee yet — skip to next guard.
+                    // A later compile of this caller (or a fresh lookup
+                    // via resolveCachedJit's JitCodeCache probe) will
+                    // pick the callee up once it's JIT'd.
+                    cc.jmp(missLabel);
+                    continue;
+                }
+
+                emitInlineShapeGuardReusingClassDef(s, classDefReg,
+                                                    entry.shape, missLabel);
+
+                // Each shape's body runs from the pre-call snapshot. Iter 0
+                // already has snap state; iterations 1+ must restore.
+                if (i > 0) restoreEmitStateForInline(s, snap);
+
+                emitMethodCallMarshalAndCleanup(s, argCount);
+                emitMethodDirectInvoke(s, polyTarget, argCount + 1);
+                emitReturnValueCopyBoxed(s);
+                cc.jmp(joinLabel);
+            }
+        }
+
+        // --- Slow path: shape miss or all guards missed ---
+        cc.bind(slowLabel);
+        restoreEmitStateForInline(s, snap);
+        emitCallMethodOpGeneric(s, instr);
+        // emitCallMethodOpGeneric ends with its own emitReturnValueCopyBoxed,
+        // so the slow path falls through to joinLabel with the operand stack
+        // in the same configuration the fast path leaves it in.
+
+        cc.bind(joinLabel);
+        return true;
     }
 
     static bool emitCallMethodOp(JitEmissionState& s,
                                   const bytecode::BytecodeProgram::Instruction& instr)
     {
-        size_t argCount = instr.operands[1];
+        size_t argCount = instr.inlineOperands[1];
         if (argCount + 1 > JitContext::MAX_CALL_ARGS)
         {
             s.compileFailed = true;
@@ -1511,6 +1911,13 @@ namespace vm::jit
         // ineligible sites (cold IC, polymorphic, ValueObject receiver, etc.)
         // it returns false and we emit the generic path unchanged.
         if (tryEmitInlinedMethodCall(s, instr))
+            return true;
+        // MYT-315: try direct JIT-to-JIT dispatch when the IC entry has a
+        // cached JitFunction pointer. The shape guard + direct call skips
+        // the IC mini-interpreter (callMethodFromJitDirect) for the hot
+        // path on this call site. Falls through to emitCallMethodOpGeneric
+        // when no entry has a cached JIT pointer (callee not JIT'd yet).
+        if (tryEmitDirectMethodCall(s, instr))
             return true;
         emitCallMethodOpGeneric(s, instr);
         return true;
@@ -1680,7 +2087,7 @@ namespace vm::jit
                                   const bytecode::BytecodeProgram::Instruction& instr)
     {
         auto& cc = s.cc;
-        uint32_t typeIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t typeIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         SlotType vType = popType(s);
         Gp valAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, vType);
         Gp pPtr = cc.new_gp64();
@@ -1712,7 +2119,7 @@ namespace vm::jit
         // INSTANCEOF (concrete RHS) still uses the cheaper jit_instanceof
         // helper — different signatures, can't share emit code.
         auto& cc = s.cc;
-        uint32_t paramNameIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t paramNameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         SlotType vType = popType(s);
         Gp valAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, vType);
         Gp idx = cc.new_gp64();
@@ -1755,7 +2162,7 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t paramNameIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t paramNameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         SlotType srcType = popType(s);
         Gp srcAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, srcType);
         Gp dest = cc.new_gp64();
@@ -1779,7 +2186,7 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t typeIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t typeIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         SlotType srcType = popType(s);
         Gp srcAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, srcType);
         Gp dest = cc.new_gp64();
@@ -1805,8 +2212,8 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t classIndex = static_cast<uint32_t>(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        uint32_t classIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
+        size_t argCount = instr.inlineOperands[1];
         if (argCount > JitContext::MAX_CALL_ARGS)
         {
             s.compileFailed = true;
@@ -1849,8 +2256,8 @@ namespace vm::jit
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-        uint32_t classIndex = static_cast<uint32_t>(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        uint32_t classIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
+        size_t argCount = instr.inlineOperands[1];
         if (argCount > JitContext::MAX_CALL_ARGS)
         {
             s.compileFailed = true;
@@ -2068,14 +2475,14 @@ namespace vm::jit
                 // emit that resolves the owner's slot at compile time is a
                 // follow-up.
                 bytecode::BytecodeProgram::Instruction getField(
-                    OpCode::GET_FIELD, instr.operands[1]);
+                    OpCode::GET_FIELD, instr.inlineOperands[1]);
                 return emitGetFieldOp(s, getField);
             }
             case OpCode::SET_FIELD_TYPED:
             {
                 // Symmetric to GET_FIELD_TYPED above. Same shadowing caveat.
                 bytecode::BytecodeProgram::Instruction setField(
-                    OpCode::SET_FIELD, instr.operands[1]);
+                    OpCode::SET_FIELD, instr.inlineOperands[1]);
                 return emitSetFieldOp(s, setField);
             }
             case OpCode::INLINE_GET_FIELD: return emitGetFieldOp(s, instr);
@@ -2084,13 +2491,12 @@ namespace vm::jit
             case OpCode::CALL_METHOD:
             case OpCode::CALL_METHOD_CACHED:
             case OpCode::CALL_METHOD_POLY_CACHED:
-                // MYT-173 / MYT-203: CACHED + POLY_CACHED are treated
-                // identically to CALL_METHOD here — tryEmitInlinedMethodCall
-                // reads the IC (unaffected by opcode rewrite) and F-a/F-c
-                // inlining (MONO + POLY) wins when eligible. A dedicated JIT
-                // emit branch that exploits the side-table snapshot to skip
-                // jit_call_method_ic for non-inlineable POLY sites is a
-                // clean follow-up; MVP relies on the interpreter side.
+                // MYT-173 / MYT-203: CACHED + POLY_CACHED route through
+                // CALL_METHOD's emitter — tryEmitInlinedMethodCall reads the
+                // IC (unaffected by opcode rewrite). The MYT-173 follow-up
+                // (per-entry POLY eligibility) now lets mixed-inlineability
+                // POLY sites inline the eligible shapes and route the rest
+                // through jit_call_method_ic per-shape.
                 return emitCallMethodOp(s, instr);
             case OpCode::LOAD_LOCAL_CALL_CACHED:
             {
@@ -2129,14 +2535,14 @@ namespace vm::jit
                 // the existing emitters — net machine code is equivalent to
                 // the unfused sequence, which is already well-optimised.
                 bytecode::BytecodeProgram::Instruction loadLocal(
-                    OpCode::LOAD_LOCAL, instr.operands[0]);
+                    OpCode::LOAD_LOCAL, instr.inlineOperands[0]);
                 if (!emitControlFlowOps(s, loadLocal, nullptr))
                 {
                     s.compileFailed = true;
                     return true;
                 }
                 bytecode::BytecodeProgram::Instruction getField(
-                    OpCode::GET_FIELD, instr.operands[1]);
+                    OpCode::GET_FIELD, instr.inlineOperands[1]);
                 return emitGetFieldOp(s, getField);
             }
             case OpCode::INSTANCEOF:     return emitInstanceofOp(s, instr);
@@ -2189,20 +2595,21 @@ namespace vm::jit
             // MYT-274 Phase 2 v2: structural-equality fused opcodes — emit
             // a direct call to the JIT helper that reads the raw int
             // fields and computes hash / equality without per-field
-            // operand-stack churn. The slot-indices array lives inside the
-            // Instruction's operand vector, which is stable for the
-            // program's lifetime (no realloc after compile), so we pass
-            // &operands[1] / &operands[2] as a raw pointer.
+            // operand-stack churn. The slot-indices array is passed as a
+            // raw pointer immediate; MYT-313 packed the inline operands into
+            // the Instruction itself (unstable across vector reallocation),
+            // so we materialize a program-owned stable copy.
             case OpCode::STRUCT_HASH_INT:
             {
-                if (instr.operands.empty()) { s.compileFailed = true; return true; }
-                const uint64_t fieldCount = instr.operands[0];
-                if (instr.operands.size() < 1 + fieldCount)
+                if (instr.numOperands() == 0) { s.compileFailed = true; return true; }
+                const uint64_t fieldCount = instr.inlineOperands[0];
+                if (instr.numOperands() < 1 + fieldCount)
                 {
                     s.compileFailed = true;
                     return true;
                 }
-                const uint64_t* slotsPtr = instr.operands.data() + 1;
+                const uint64_t* slotsPtr = s.program.materializeStableOperandSlice(
+                    instr, 1, static_cast<size_t>(fieldCount));
 
                 Gp receiverAddr = cc.new_gp64();
                 cc.lea(receiverAddr, Mem(s.boxedBase,
@@ -2228,15 +2635,16 @@ namespace vm::jit
             }
             case OpCode::STRUCT_EQ_INT:
             {
-                if (instr.operands.size() < 2) { s.compileFailed = true; return true; }
-                const uint64_t classNameIdx = instr.operands[0];
-                const uint64_t fieldCount = instr.operands[1];
-                if (instr.operands.size() < 2 + fieldCount)
+                if (instr.numOperands() < 2) { s.compileFailed = true; return true; }
+                const uint64_t classNameIdx = instr.inlineOperands[0];
+                const uint64_t fieldCount = instr.inlineOperands[1];
+                if (instr.numOperands() < 2 + fieldCount)
                 {
                     s.compileFailed = true;
                     return true;
                 }
-                const uint64_t* slotsPtr = instr.operands.data() + 2;
+                const uint64_t* slotsPtr = s.program.materializeStableOperandSlice(
+                    instr, 2, static_cast<size_t>(fieldCount));
 
                 // Class-name string lives in the ConstantPool; storage is
                 // stable for the program's lifetime, so a c_str() pointer

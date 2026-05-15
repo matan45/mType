@@ -73,13 +73,13 @@ namespace debugger
             for (size_t ip = startIp; ip <= currentIp; ++ip)
             {
                 const auto& instr = program->getInstruction(ip);
-                if (!isLocalStoreOpcode(instr.opcode) || instr.operands.size() < 2)
+                if (!isLocalStoreOpcode(instr.opcode) || instr.numOperands() < 2)
                 {
                     continue;
                 }
 
-                const size_t slot = static_cast<size_t>(instr.operands[0]);
-                const size_t nameIndex = static_cast<size_t>(instr.operands[1]);
+                const size_t slot = static_cast<size_t>(instr.inlineOperands[0]);
+                const size_t nameIndex = static_cast<size_t>(instr.inlineOperands[1]);
                 if (slot >= program->getTopLevelLocalCount())
                 {
                     continue;
@@ -972,16 +972,12 @@ namespace debugger
             {
                 return value::asBool(val) ? "true" : "false";
             }
-            else if (value::isString(val))
-            {
-                return "\"" + value::asString(val) + "\"";
-            }
-            else if (value::isInternedString(val))
+            // MYT-317: SSO-aware. Folds all three string forms into one branch.
+            else if (value::isAnyString(val))
             {
                 try
                 {
-                    auto internedStr = value::asInternedString(val);
-                    return "\"" + internedStr.getString() + "\"";
+                    return "\"" + std::string(value::asStringView(val)) + "\"";
                 }
                 catch (const std::exception& e)
                 {
@@ -1085,11 +1081,8 @@ namespace debugger
             {
                 return "Bool";
             }
-            else if (value::isString(val))
-            {
-                return "String";
-            }
-            else if (value::isInternedString(val))
+            // MYT-317: STRING_INLINE also reports as "String".
+            else if (value::isAnyString(val))
             {
                 return "String";
             }

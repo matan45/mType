@@ -7,76 +7,14 @@
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../jit/OSRManager.hpp"
 #include "../VirtualMachine.hpp"
-#include "../utils/NullCheckUtils.hpp"
-#include <iostream>
+
 namespace vm::runtime
 {
-    ControlFlowExecutor::ControlFlowExecutor(ExecutionContext& ctx)
-        : context(ctx)
-    {}
-
-    void ControlFlowExecutor::handleJump(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("JUMP requires operand");
-        }
-        context.instructionPointer = instr.operands[0] - 1;  // -1 because loop increments
-    }
-
-    void ControlFlowExecutor::handleJumpIfFalse(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("JUMP_IF_FALSE requires operand");
-        }
-        value::Value condition = context.stackManager->pop();
-        if (!isTruthy(condition)) {
-            context.instructionPointer = instr.operands[0] - 1;
-        }
-    }
-
-    void ControlFlowExecutor::handleJumpIfTrue(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("JUMP_IF_TRUE requires operand");
-        }
-        value::Value condition = context.stackManager->pop();
-        if (isTruthy(condition)) {
-            context.instructionPointer = instr.operands[0] - 1;
-        }
-    }
-
-    void ControlFlowExecutor::handleJumpIfFalseOrPop(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("JUMP_IF_FALSE_OR_POP requires operand");
-        }
-        // Peek at the value without popping
-        value::Value condition = context.stackManager->peek();
-        if (!isTruthy(condition)) {
-            // If false, jump (keeping the false value on stack as result)
-            context.instructionPointer = instr.operands[0] - 1;
-        } else {
-            // If true, pop it and continue to evaluate the right side
-            context.stackManager->pop();
-        }
-    }
-
-    void ControlFlowExecutor::handleJumpIfTrueOrPop(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("JUMP_IF_TRUE_OR_POP requires operand");
-        }
-        // Peek at the value without popping
-        value::Value condition = context.stackManager->peek();
-        if (isTruthy(condition)) {
-            // If true, jump (keeping the true value on stack as result)
-            context.instructionPointer = instr.operands[0] - 1;
-        } else {
-            // If false, pop it and continue to evaluate the right side
-            context.stackManager->pop();
-        }
-    }
+    // MYT-319: handleJumpBack, handleReturn, handleReturnValue stay here
+    // because they pull in OSR / debug / profiler / Promise / ObjectInstance.
+    // Pure jump variants live in the header for dispatch inlining.
 
     void ControlFlowExecutor::handleJumpBack(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("JUMP_BACK requires operand");
-        }
-
         // Phase 5: OSR check at loop back-edge
         if (osrManager && context.vm && context.vm->isJitEnabled())
         {
@@ -98,17 +36,7 @@ namespace vm::runtime
         }
 
         // Normal interpreter path: jump back to loop start
-        context.instructionPointer = instr.operands[0] - 1;  // -1 because loop increments
-    }
-
-    void ControlFlowExecutor::handleJumpIfNull(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            throw errors::RuntimeException("JUMP_IF_NULL requires operand");
-        }
-        value::Value val = context.stackManager->pop();
-        if (utils::isNullValue(val)) {
-            context.instructionPointer = instr.operands[0] - 1;
-        }
+        context.instructionPointer = instr.inlineOperands[0] - 1;  // -1 because loop increments
     }
 
     void ControlFlowExecutor::handleReturn() {
@@ -184,9 +112,5 @@ namespace vm::runtime
 
         handleReturn();
         context.stackManager->push(returnVal);
-    }
-
-    bool ControlFlowExecutor::isTruthy(const value::Value& val) const {
-        return utils::isTruthy(val);
     }
 }

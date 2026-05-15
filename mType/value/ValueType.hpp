@@ -1,7 +1,9 @@
 #pragma once
 #include <string>
+#include <string_view>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <cassert>
 #include <limits>
@@ -65,7 +67,12 @@ namespace value
         // to .mt programs, an inline PROMISE_INT receiver must first be
         // materialized to a real AsyncPromiseValue (slow path). That helper
         // does not yet exist; add it before exposing the methods.
-        PROMISE_INT
+        PROMISE_INT,
+        // MYT-317: short-string optimization. Up to 14 bytes of UTF-8 content
+        // live inline in the Value (offsets 2..15) with the length at offset 1.
+        // Not a heap tag — refcount ops skip it. Cross-equality with STRING
+        // (heap STD_STRING / INTERNED_STRING) is handled in Value::operator==.
+        STRING_INLINE
     };
 
     //
@@ -116,6 +123,23 @@ namespace value
             payload_.i = v;
         }
 
+        // MYT-317: short-string optimization. Mandatory tag struct disambiguates
+        // from Value(const char*) (which bridges) and prevents the
+        // pointer→Value(bool) decay regression — see
+        // [[feedback_value_bool_pointer_decay]]. `len` must be <= 14.
+        // The init list activates the inline-overlay struct (inlineTag_ /
+        // inlineLen_ / inlineChars_) so all subsequent writes stay within the
+        // active union member.
+        struct InlineStringTag {};
+        static constexpr uint8_t INLINE_STRING_CAP = 14;
+        Value(InlineStringTag, const char* data, uint8_t len) noexcept
+        {
+            assert(len <= INLINE_STRING_CAP && "InlineStringTag: len must be <= 14");
+            inlineTag_ = ValueType::STRING_INLINE;
+            inlineLen_ = len;
+            if (len) std::memcpy(inlineChars_, data, len);
+        }
+
         // Implicit ctors from each shared_ptr heap type + string types.
         // Each wraps the argument in a TypedBridge<Kind, Held> and stores
         // the bridge pointer. Defined in ValueType.cpp.
@@ -141,13 +165,22 @@ namespace value
         Value(const InternedString& s);
         Value(InternedString&& s);
 
-        Value(const Value& other) noexcept : tag_(other.tag_), payload_(other.payload_)
+        // MYT-317: copies via raw byte-copy of the full 16B storage because
+        // STRING_INLINE content occupies what used to be tag padding (offsets
+        // 1..7). Memberwise `tag_/payload_` copy would skip those bytes.
+        // Value has no virtual functions and trivially-bit-copyable storage
+        // (the 8-byte payload is itself a POD union of value types and a raw
+        // pointer), so memcpy is safe — only the refcount needs explicit
+        // adjustment via retainIfHeap/releaseIfHeap.
+        Value(const Value& other) noexcept
         {
+            std::memcpy(this, &other, sizeof(Value));
             retainIfHeap();
         }
 
-        Value(Value&& other) noexcept : tag_(other.tag_), payload_(other.payload_)
+        Value(Value&& other) noexcept
         {
+            std::memcpy(this, &other, sizeof(Value));
             other.tag_ = ValueType::VOID;
             other.payload_.i = 0;
         }
@@ -157,8 +190,7 @@ namespace value
             if (this != &other)
             {
                 releaseIfHeap();
-                tag_ = other.tag_;
-                payload_ = other.payload_;
+                std::memcpy(this, &other, sizeof(Value));
                 retainIfHeap();
             }
             return *this;
@@ -169,8 +201,7 @@ namespace value
             if (this != &other)
             {
                 releaseIfHeap();
-                tag_ = other.tag_;
-                payload_ = other.payload_;
+                std::memcpy(this, &other, sizeof(Value));
                 other.tag_ = ValueType::VOID;
                 other.payload_.i = 0;
             }
@@ -188,6 +219,9 @@ namespace value
         BridgeBase* rawBridge() const noexcept { return static_cast<BridgeBase*>(payload_.ptr); }
         // MYT-134: raw pointer accessor for STACK_OBJECT values. Undefined unless tag_ == STACK_OBJECT.
         runtimeTypes::klass::ObjectInstance* rawStackObject() const noexcept { return payload_.stackObject; }
+        // MYT-317: STRING_INLINE accessors. Undefined unless tag_ == STRING_INLINE.
+        const char* rawInlineChars() const noexcept { return inlineChars_; }
+        uint8_t rawInlineLen() const noexcept { return inlineLen_; }
 
         // Byte offset of payload_ within Value. Consumed by the JIT emitter
         // to synthesize inline loads of the bridge pointer without calling a
@@ -202,6 +236,13 @@ namespace value
         // heap kinds by held shared_ptr::get() (the shared_ptr default ==).
         bool operator==(const Value& other) const noexcept
         {
+            // MYT-317: cross-kind string equality between STRING and STRING_INLINE.
+            const bool lhsStr = (tag_ == ValueType::STRING || tag_ == ValueType::STRING_INLINE);
+            const bool rhsStr = (other.tag_ == ValueType::STRING || other.tag_ == ValueType::STRING_INLINE);
+            if (lhsStr && rhsStr)
+            {
+                return stringEquals(other);
+            }
             if (tag_ != other.tag_) return false;
             switch (tag_)
             {
@@ -219,6 +260,10 @@ namespace value
 
     private:
         bool equalsHeap(const Value& other) const noexcept;
+        // MYT-317: STRING / STRING_INLINE cross-kind content equality.
+        // Out-of-line in ValueTypeUtils.cpp so the bridge-kind dispatch
+        // can use the StringPool / InternedString full types.
+        bool stringEquals(const Value& other) const noexcept;
 
         union Payload
         {
@@ -231,10 +276,29 @@ namespace value
             runtimeTypes::klass::ObjectInstance* stackObject;
         };
 
-        ValueType tag_;
-        // 7 bytes of tail padding — compiler inserts automatically to align
-        // Payload to 8. Reserved for future tag-bit expansion (e.g. GC flags).
-        Payload payload_;
+        // MYT-317: anonymous union overlays the heap form (tag + payload at
+        // offset 8) with the inline-string form (tag + length + 14 bytes of
+        // content). Both inner structs are 16B; the union's alignment is 8
+        // (inherited from Payload). Bytes 1..7 are tag padding in the heap
+        // form and the first half of the inline buffer in the inline form.
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4201)
+#endif
+        union {
+            struct {
+                ValueType tag_;
+                Payload   payload_;
+            };
+            struct {
+                ValueType inlineTag_;
+                uint8_t   inlineLen_;
+                char      inlineChars_[14];
+            };
+        };
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
         bool isHeapTag() const noexcept
         {
@@ -342,6 +406,18 @@ namespace value
     {
         return v.tag() == ValueType::STRING && v.rawBridge()->kind() == BridgeKind::INTERNED_STRING;
     }
+    // MYT-317: short-string optimization. tag-only check — no bridge.
+    inline bool isInlineString(const Value& v) noexcept
+    {
+        return v.tag() == ValueType::STRING_INLINE;
+    }
+    // MYT-317: either form (heap STRING or STRING_INLINE). Use when a caller
+    // treats both representations uniformly (printers, formatters, JSON
+    // serial, string-content equality).
+    inline bool isAnyString(const Value& v) noexcept
+    {
+        return v.tag() == ValueType::STRING || v.tag() == ValueType::STRING_INLINE;
+    }
     inline bool isNativeArray(const Value& v) noexcept
     {
         return v.tag() == ValueType::ARRAY && v.rawBridge()->kind() == BridgeKind::NATIVE_ARRAY;
@@ -372,5 +448,24 @@ namespace value
         assert(isInternedString(v) && "asInternedString(): tag/kind must be STRING/INTERNED_STRING");
         using Bridge = TypedBridge<BridgeKind::INTERNED_STRING, InternedString>;
         return static_cast<Bridge*>(v.rawBridge())->get();
+    }
+    // MYT-317: SSO-aware accessor. Returns a string_view that points into
+    // either the inline buffer (STRING_INLINE) or the bridge-held storage
+    // (STRING / STD_STRING / INTERNED_STRING). Use when the caller only
+    // needs read access and can handle both representations.
+    inline std::string_view asStringView(const Value& v) noexcept
+    {
+        if (v.tag() == ValueType::STRING_INLINE)
+        {
+            return std::string_view(v.rawInlineChars(), v.rawInlineLen());
+        }
+        auto* bridge = v.rawBridge();
+        if (bridge->kind() == BridgeKind::STD_STRING)
+        {
+            using B = TypedBridge<BridgeKind::STD_STRING, std::string>;
+            return static_cast<B*>(bridge)->get();
+        }
+        using B = TypedBridge<BridgeKind::INTERNED_STRING, InternedString>;
+        return static_cast<B*>(bridge)->get().getString();
     }
 }

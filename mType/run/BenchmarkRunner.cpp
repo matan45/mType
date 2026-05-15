@@ -32,13 +32,16 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 41> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 48> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
         // MYT-208: short-scope allocations inside a helper called in a hot
         // loop — the workload class where escape-analysis Phase 2 wins.
         "object_alloc_nested.mt",
+        // Repeated short-lived cyclic object graphs. Exercises normal GC
+        // safepoints and cycle detection under allocation churn.
+        "gc_cycle_churn.mt",
         // MYT-191: direct-field-write hot loop. SET_FIELD lives inside the
         // OSR-compiled outer loop (unlike object_alloc.mt, whose SETs are
         // in Point.constructor and run interpreted), so this is the only
@@ -48,6 +51,7 @@ namespace
         // acceptance benchmark for the GET_FIELD_CACHED interpreter fast
         // path (and tryEmitInlinedFieldGet on the JIT side).
         "field_read_hot.mt",
+        "polymorphic_field_hot.mt",
         "string_ops.mt",
         "recursive.mt",
         "bitwise_tight_loop.mt",
@@ -68,6 +72,17 @@ namespace
         // IC_MAX_POLYMORPHIC_ENTRIES = 4). Exercises the chained shape-guard
         // emission against the maximum IC-width case.
         "inline_polymorphic.mt",
+        // MYT-173 follow-up: mixed-inlineability POLY-4 site. Three small
+        // shapes inline, one oversized shape routes through the per-shape
+        // helper branch in emitInlinedMethodCallPoly. Pre-change every
+        // dispatch ran jit_call_method_ic because the all-or-nothing
+        // eligibility gate rejected the whole site; primary regression
+        // benchmark for the per-entry POLY eligibility relaxation.
+        "inline_polymorphic_mixed.mt",
+        // MYT-173 follow-up: 6 subclasses overflow IC_MAX_POLYMORPHIC_ENTRIES
+        // (= 4) and drive the IC to MEGAMORPHIC. Baseline for the MEGA cliff —
+        // every dispatch hits jit_call_method_ic with no inlined fast path.
+        "megamorphic_dispatch.mt",
         // MYT-167 F-e: value-class MONO hot loop. Pre-F-e the slow path was
         // jit_call_method's temp-ObjectInstance materialisation per call;
         // post-F-e the IC populates with receiverIsValueObject=true and the
@@ -77,6 +92,13 @@ namespace
         // distanceSq in a tight 2 M-iter loop — measures the per-call
         // overhead removed by inlining versus the jit_call_function helper.
         "function_call_hot.mt",
+        // MYT-314: hot non-looping leaf-methods tier up via the function-
+        // entry path (PROFILE_ENTER -> JitCompiler::compile). Three small
+        // leaves with no internal loop; OSR cannot see them and the plain-
+        // function inliner is currently disabled, so the only path to
+        // native code is MYT-314's tier-up. Companion to function_call_hot
+        // (which measures the inliner once it returns).
+        "function_entry_tier_hot.mt",
         // Async/await suspend-resume cost in a tight await loop.
         "async_await_tight_loop.mt",
         // Sequential await chain — 4 awaits/iter, distinct continuation shapes.
@@ -125,6 +147,8 @@ namespace
         // at depth 2+ on a linked container (vs the ArrayList-backed
         // stream_pipeline_hot).
         "linked_list_nested_hot.mt",
+        "method_chain_hot.mt",
+        "string_build_call_hot.mt",
     };
 
     constexpr const char* BENCHMARKS_REL = "mType/tests/testFiles/benchmarks";
@@ -154,6 +178,8 @@ namespace
         std::size_t osrFailed = 0;
         std::uint64_t inlineFieldICHits = 0;
         std::uint64_t inlineFieldICMisses = 0;
+        std::array<std::uint64_t, 256> functionBailoutOpcodes = {};
+        std::array<std::uint64_t, 256> osrBailoutOpcodes = {};
         std::vector<JitFailedLoop> failedLoops;
         std::vector<JitHotFunc> hotFunctions;
     };
@@ -180,6 +206,8 @@ namespace
             out.bailoutCount = compiler->getBailoutCount();
             out.inlineFieldICHits = compiler->getInlineFieldICHits();
             out.inlineFieldICMisses = compiler->getInlineFieldICMisses();
+            out.functionBailoutOpcodes = compiler->getFunctionBailoutOpcodes();
+            out.osrBailoutOpcodes = compiler->getOSRBailoutOpcodes();
         }
         if (auto* cache = vm.getJitCodeCache())
         {
@@ -258,7 +286,8 @@ namespace
         return {};
     }
 
-    IterationSample runOne(const std::string& path, bool jitEnabled, bool captureJit)
+    IterationSample runOne(const std::string& path, bool jitEnabled, bool captureJit,
+                           bool suppressScriptOutput)
     {
         IterationSample sample{};
 
@@ -269,7 +298,20 @@ namespace
         interpreter.getVM()->setJitEnabled(jitEnabled);
 
         const auto t0 = std::chrono::high_resolution_clock::now();
-        interpreter.runScript(path);
+        std::ostringstream suppressedOutput;
+        std::streambuf* oldCout = nullptr;
+        if (suppressScriptOutput)
+            oldCout = std::cout.rdbuf(suppressedOutput.rdbuf());
+        try
+        {
+            interpreter.runScript(path);
+        }
+        catch (...)
+        {
+            if (oldCout) std::cout.rdbuf(oldCout);
+            throw;
+        }
+        if (oldCout) std::cout.rdbuf(oldCout);
         const auto t1 = std::chrono::high_resolution_clock::now();
 
         sample.wallMs = std::chrono::duration<double, std::milli>(t1 - t0).count();
@@ -333,6 +375,24 @@ namespace
         return os.str();
     }
 
+    std::string jsonEscape(const std::string& s)
+    {
+        std::ostringstream os;
+        for (char ch : s)
+        {
+            switch (ch)
+            {
+                case '\\': os << "\\\\"; break;
+                case '"': os << "\\\""; break;
+                case '\n': os << "\\n"; break;
+                case '\r': os << "\\r"; break;
+                case '\t': os << "\\t"; break;
+                default: os << ch; break;
+            }
+        }
+        return os.str();
+    }
+
     void printTextJit(const JitSample& j)
     {
         if (!j.captured) return;
@@ -345,6 +405,29 @@ namespace
                   << " osr-failed=" << j.osrFailed
                   << " field-ic-hits=" << j.inlineFieldICHits
                   << " field-ic-misses=" << j.inlineFieldICMisses << "\n";
+
+        auto printOpcodeCounts = [](const char* label,
+                                    const std::array<std::uint64_t, 256>& counts)
+        {
+            bool any = false;
+            for (std::uint64_t count : counts)
+            {
+                if (count != 0) { any = true; break; }
+            }
+            if (!any) return;
+
+            std::cout << "      " << label << "\n";
+            for (std::size_t i = 0; i < counts.size(); ++i)
+            {
+                if (counts[i] == 0) continue;
+                std::cout << "        "
+                          << vm::bytecode::getOpCodeName(
+                                 static_cast<vm::bytecode::OpCode>(i))
+                          << ": " << counts[i] << "\n";
+            }
+        };
+        printOpcodeCounts("function-bailout-opcodes", j.functionBailoutOpcodes);
+        printOpcodeCounts("osr-bailout-opcodes", j.osrBailoutOpcodes);
 
         if (!j.hotFunctions.empty())
         {
@@ -369,6 +452,24 @@ namespace
             }
             std::cout << "\n";
         }
+    }
+
+    void printJsonOpcodeCounts(const char* fieldName,
+                               const std::array<std::uint64_t, 256>& counts,
+                               const char* suffix)
+    {
+        std::cout << "          \"" << fieldName << "\": [";
+        bool first = true;
+        for (std::size_t i = 0; i < counts.size(); ++i)
+        {
+            if (counts[i] == 0) continue;
+            if (!first) std::cout << ", ";
+            first = false;
+            std::cout << "{ \"opcode\": \""
+                      << vm::bytecode::getOpCodeName(static_cast<vm::bytecode::OpCode>(i))
+                      << "\", \"count\": " << counts[i] << " }";
+        }
+        std::cout << "]" << suffix << "\n";
     }
 
     void printTextResult(const ScriptResult& r, bool jitEnabled)
@@ -441,12 +542,12 @@ namespace
         {
             const auto& r = results[i];
             std::cout << "    {\n";
-            std::cout << "      \"name\": \"" << r.name << "\",\n";
-            std::cout << "      \"path\": \"" << r.path << "\",\n";
+            std::cout << "      \"name\": \"" << jsonEscape(r.name) << "\",\n";
+            std::cout << "      \"path\": \"" << jsonEscape(r.path) << "\",\n";
             std::cout << "      \"ok\": " << (r.ok ? "true" : "false");
             if (!r.ok)
             {
-                std::cout << ",\n      \"error\": \"" << r.errorMessage << "\"";
+                std::cout << ",\n      \"error\": \"" << jsonEscape(r.errorMessage) << "\"";
                 std::cout << "\n    }" << (i + 1 < results.size() ? "," : "") << "\n";
                 continue;
             }
@@ -464,7 +565,51 @@ namespace
             std::cout << "      \"string_pool\": { \"requests\": " << first.stringPoolRequests
                       << ", \"hits\": " << first.stringPoolHits << " },\n";
             std::cout << "      \"array_pool\": { \"allocations\": " << first.arrayPoolAllocs
-                      << ", \"hits\": " << first.arrayPoolHits << " }\n";
+                      << ", \"hits\": " << first.arrayPoolHits << " }";
+            if (first.jit.captured)
+            {
+                std::cout << ",\n      \"jit\": {\n";
+                std::cout << "        \"compiled\": " << first.jit.compileCount << ",\n";
+                std::cout << "        \"bailouts\": " << first.jit.bailoutCount << ",\n";
+                std::cout << "        \"cached\": " << first.jit.cachedFunctions << ",\n";
+                std::cout << "        \"osr_profiled\": " << first.jit.loopsProfiled << ",\n";
+                std::cout << "        \"osr_compiled\": " << first.jit.osrCompiled << ",\n";
+                std::cout << "        \"osr_failed\": " << first.jit.osrFailed << ",\n";
+                std::cout << "        \"field_ic\": { \"hits\": "
+                          << first.jit.inlineFieldICHits << ", \"misses\": "
+                          << first.jit.inlineFieldICMisses << " },\n";
+                printJsonOpcodeCounts("function_bailout_opcodes",
+                                      first.jit.functionBailoutOpcodes, ",");
+                printJsonOpcodeCounts("osr_bailout_opcodes",
+                                      first.jit.osrBailoutOpcodes, ",");
+                std::cout << "        \"hot_functions\": [";
+                for (std::size_t h = 0; h < first.jit.hotFunctions.size(); ++h)
+                {
+                    const auto& hf = first.jit.hotFunctions[h];
+                    if (h != 0) std::cout << ", ";
+                    std::cout << "{ \"name\": \"" << jsonEscape(hf.name)
+                              << "\", \"calls\": " << hf.calls
+                              << ", \"compiled\": " << (hf.compiled ? "true" : "false")
+                              << " }";
+                }
+                std::cout << "],\n";
+                std::cout << "        \"failed_loops\": [";
+                for (std::size_t f = 0; f < first.jit.failedLoops.size(); ++f)
+                {
+                    const auto& fl = first.jit.failedLoops[f];
+                    if (f != 0) std::cout << ", ";
+                    std::cout << "{ \"jump_back_offset\": " << fl.jumpBackOffset
+                              << ", \"reason\": \""
+                              << vm::jit::osrBailoutReasonName(fl.reason)
+                              << "\", \"opcode\": \""
+                              << vm::bytecode::getOpCodeName(
+                                     static_cast<vm::bytecode::OpCode>(fl.offendingOpcode))
+                              << "\" }";
+                }
+                std::cout << "]\n";
+                std::cout << "      }";
+            }
+            std::cout << "\n";
             std::cout << "    }" << (i + 1 < results.size() ? "," : "") << "\n";
         }
         std::cout << "  ]\n}\n";
@@ -480,7 +625,8 @@ namespace
         {
             for (int i = 0; i < opts.warmupIterations; ++i)
             {
-                (void)runOne(path, opts.jitEnabled, false);
+                const bool suppressScriptOutput = opts.outputFormat == BenchmarkOutput::Json;
+                (void)runOne(path, opts.jitEnabled, false, suppressScriptOutput);
             }
             for (int i = 0; i < opts.measuredIterations; ++i)
             {
@@ -488,7 +634,9 @@ namespace
                 // runner recreates the VM per iteration so stats don't accumulate,
                 // and the printed report reads from samples[0] anyway.
                 const bool captureJit = opts.printJitStats && i == 0;
-                result.measured.push_back(runOne(path, opts.jitEnabled, captureJit));
+                const bool suppressScriptOutput = opts.outputFormat == BenchmarkOutput::Json;
+                result.measured.push_back(runOne(path, opts.jitEnabled, captureJit,
+                                                 suppressScriptOutput));
             }
         }
         catch (const std::exception& e)

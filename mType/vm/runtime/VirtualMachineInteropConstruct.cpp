@@ -19,6 +19,7 @@
 #include "../../value/ObjectInstancePool.hpp"
 #include "../../value/PromiseValue.hpp"
 #include "../../value/ValueShim.hpp"  // MYT-208: makeStackObjectValue
+#include "context/SharedStackFramePool.hpp"
 
 namespace vm::runtime
 {
@@ -469,7 +470,7 @@ namespace vm::runtime
             stats.functionCalls++;
 
             // Create shared frame for this invocation, link to parent captures
-            auto newSharedFrame = std::make_shared<SharedStackFrame>();
+            auto newSharedFrame = makePooledFrame();
             newSharedFrame->parentFrame = lambda->capturedFrame;
             if (!callStack.empty())
             {

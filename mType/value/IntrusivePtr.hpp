@@ -34,11 +34,18 @@ namespace value
         {
             if (--refcount_ == 0)
             {
-                delete this;
+                destroy();
             }
         }
 
         uint32_t refcount() const noexcept { return refcount_; }
+
+    protected:
+        // MYT-317: terminal destruction hook. Default deletes; BridgeBase
+        // overrides to redirect into BridgeArena. The virtual call here
+        // costs no more than the virtual-dtor call already paid by
+        // `delete this`, so retain()/release() arithmetic stays non-virtual.
+        virtual void destroy() noexcept { delete this; }
 
     private:
         uint32_t refcount_{0};
@@ -103,6 +110,7 @@ namespace value
 
         void reset(T* raw = nullptr) noexcept
         {
+            if (ptr_ == raw) return;
             if (raw) raw->retain();
             if (ptr_) ptr_->release();
             ptr_ = raw;

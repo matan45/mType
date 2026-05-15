@@ -28,8 +28,8 @@ namespace reflection
                 throw errors::RuntimeException(std::string(fn) + " requires annotationHandle:int");
             int64_t handle = asInt(args[0]);
             std::string key;
-            if (isString(args[1])) key = asString(args[1]);
-            else if (isInternedString(args[1])) key = asInternedString(args[1]).getString();
+            // MYT-317: SSO-aware.
+            if (isAnyString(args[1])) key = std::string(asStringView(args[1]));
             else throw errors::RuntimeException(std::string(fn) + " requires paramKey:string");
 
             auto info = ReflectionHandleRegistry::instance().getAnnotation(handle);

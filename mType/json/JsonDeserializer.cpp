@@ -50,10 +50,9 @@ namespace
             return ::value::hashutils::floatHash(value::asFloat(val));
         if (value::isBool(val))
             return ::value::hashutils::boolHash(value::asBool(val));
-        if (value::isString(val))
-            return ::value::hashutils::stringHash(value::asString(val));
-        if (value::isInternedString(val))
-            return ::value::hashutils::stringHash(value::asInternedString(val).getString());
+        // MYT-317: SSO-aware. Folds all three string forms into one hash.
+        if (value::isAnyString(val))
+            return ::value::hashutils::stringHash(value::asStringView(val));
         return 0;
     }
 

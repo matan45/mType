@@ -214,6 +214,19 @@ namespace vm::jit
         uint64_t* tailCallsOptimized = nullptr;
         uint64_t* selfDirectCalls = nullptr;
 
+        // MYT-315: JitCodeCache reference so the emitter can do a fresh
+        // lookup of a callee's JIT pointer at JIT compile time. The IC-fill
+        // populator (InlineCacheExecutor.cpp / JitHelpers_Objects.cpp) sets
+        // entry.cachedJit at populate time, but that's typically before the
+        // callee tiers up — so the field is null forever on hot benchmarks.
+        // Reading freshly from JitCodeCache at compile time catches callees
+        // JIT'd later via MYT-314 function-entry tier-up. Assigned by
+        // emitFunctionBody / emitOSRBody after JitEmissionState construction.
+        // Placed at the end of the struct so the positional brace-init at
+        // the two construction sites (JitCompiler_Core.cpp / _OSR.cpp) is
+        // unaffected and the field default-inits to nullptr.
+        JitCodeCache* codeCache = nullptr;
+
         // MYT-251 step 2: constants widened (64 → 256, 32 → 96) alone, with
         // the MYT-248/249/250 workaround (s.currentCompilingFn.empty() bail
         // in tryEmitInlinedMethodCall) still active. While the workaround
@@ -350,8 +363,13 @@ namespace vm::jit
 
     void emitLocalsWriteBack(JitEmissionState& s);
 
+    // MYT-316: `selfFnName` lets the scan ask "would the inliner reject
+    // self-recursive calls in this function?" Pass the function being
+    // compiled (mangled name preferred, plain name fallback) at function-
+    // level emit; pass empty in OSR (no static caller identity).
     bool scanOpcodesForBoxedTypes(const bytecode::BytecodeProgram& program,
-                                  size_t startOffset, size_t endOffset);
+                                  size_t startOffset, size_t endOffset,
+                                  const std::string& selfFnName = std::string());
 
     std::unordered_map<size_t, asmjit::Label> createJumpLabels(
         asmjit::x86::Compiler& cc, const bytecode::BytecodeProgram& program,

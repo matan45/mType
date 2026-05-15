@@ -189,6 +189,9 @@
     <ClInclude Include="value\BoolCache.hpp">
       <Filter>value</Filter>
     </ClInclude>
+    <ClInclude Include="value\BridgeArena.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
     <ClInclude Include="value\CapturedVariable.hpp">
       <Filter>value</Filter>
     </ClInclude>

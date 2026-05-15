@@ -55,14 +55,10 @@ namespace value
             out.boolValue = asBool(source);
             return true;
         case PrimitiveTypeTag::STRING:
-            if (isString(source))
+            // MYT-317: SSO-aware. Folds all three string forms into one branch.
+            if (isAnyString(source))
             {
-                out.stringValue = asString(source);
-                return true;
-            }
-            if (isInternedString(source))
-            {
-                out.stringValue = asInternedString(source).getString();
+                out.stringValue = std::string(asStringView(source));
                 return true;
             }
             return false;

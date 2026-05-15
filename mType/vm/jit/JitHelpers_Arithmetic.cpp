@@ -47,14 +47,10 @@ namespace vm::jit
             out = value::asBool(v) ? "true" : "false";
             return true;
         }
-        if (value::isString(v))
+        // MYT-317: SSO-aware. Folds the three string forms into one branch.
+        if (value::isAnyString(v))
         {
-            out = value::asString(v);
-            return true;
-        }
-        if (value::isInternedString(v))
-        {
-            out = value::asInternedString(v).getString();
+            out = std::string(value::asStringView(v));
             return true;
         }
         if (value::isNullType(v))
@@ -144,9 +140,9 @@ namespace vm::jit
         // and the JIT loop continued with garbage, producing corrupted
         // String VALUE_OBJECTs whose value field held the right operand's
         // raw int (boxed_primitive_dispatch_hot.mt regression).
+        // MYT-317: isAnyString covers STRING_INLINE alongside heap STRING.
         if (op == '+' &&
-            (value::isString(*left) || value::isString(*right) ||
-             value::isInternedString(*left) || value::isInternedString(*right)))
+            (value::isAnyString(*left) || value::isAnyString(*right)))
         {
             std::string ls, rs;
             if (valueToStringForConcat(*left, ls) &&

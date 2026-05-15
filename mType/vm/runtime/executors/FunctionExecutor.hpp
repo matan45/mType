@@ -11,6 +11,14 @@ namespace vm::runtime
      * Executes function call opcodes
      * Handles CALL, CALL_STATIC
      * Manages call frames, argument passing, and static method access validation
+     *
+     * MYT-319 NOTE: handler bodies kept out-of-line. handleCall (~170L) and
+     * handleCallFast (~80L) are too large to inline through the dispatch
+     * switch without bloating VirtualMachineDispatch.obj — MSVC won't inline
+     * bodies past the default budget anyway in v145 (no /GL). Pulling in
+     * VirtualMachine.hpp + ObjectInstancePool + NativeContext + ObjectInstance
+     * + ClassDefinition + InterfaceDefinition into the header would also
+     * propagate that include weight to every TU using FunctionExecutor.hpp.
      */
     class FunctionExecutor
     {

@@ -1,16 +1,14 @@
 #include "ArithmeticExecutor.hpp"
 #include <cstddef>
 #include <cstdint>
-#include "../utils/ErrorLocationHelper.hpp"
-#include "../utils/CheckedArithmetic.hpp"
+#include <sstream>
 #include "../../../value/StringPool.hpp"
 #include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../../../value/ValueObject.hpp"
 #include "../../../value/NativeArray.hpp"
 #include "../../../value/FlatMultiArray.hpp"
 #include "../../../value/SparseMultiArray.hpp"
-#include "../../../value/ValueShim.hpp"
-#include <sstream>
 
 namespace
 {
@@ -30,8 +28,8 @@ namespace
         case value::PrimitiveTypeTag::BOOL:
             return value::isBool(v);
         case value::PrimitiveTypeTag::STRING:
-            return value::isString(v) ||
-                   value::isInternedString(v);
+            // MYT-317: STRING_INLINE is also a string-typed primitive.
+            return value::isAnyString(v);
         case value::PrimitiveTypeTag::NONE:
         default:
             return true;
@@ -41,245 +39,11 @@ namespace
 
 namespace vm::runtime
 {
-    ArithmeticExecutor::ArithmeticExecutor(ExecutionContext& ctx)
-        : context(ctx)
-    {}
-
-    void ArithmeticExecutor::handleAdd() {
-        value::Value right = context.stackManager->pop();
-        value::Value left = context.stackManager->pop();
-        context.stackManager->push(performBinaryOp(left, right, bytecode::OpCode::ADD));
-    }
-
-    void ArithmeticExecutor::handleSub() {
-        value::Value right = context.stackManager->pop();
-        value::Value left = context.stackManager->pop();
-        context.stackManager->push(performBinaryOp(left, right, bytecode::OpCode::SUB));
-    }
-
-    void ArithmeticExecutor::handleMul() {
-        value::Value right = context.stackManager->pop();
-        value::Value left = context.stackManager->pop();
-        context.stackManager->push(performBinaryOp(left, right, bytecode::OpCode::MUL));
-    }
-
-    void ArithmeticExecutor::handleDiv() {
-        value::Value right = context.stackManager->pop();
-        value::Value left = context.stackManager->pop();
-        context.stackManager->push(performBinaryOp(left, right, bytecode::OpCode::DIV));
-    }
-
-    void ArithmeticExecutor::handleMod() {
-        value::Value right = context.stackManager->pop();
-        value::Value left = context.stackManager->pop();
-        context.stackManager->push(performBinaryOp(left, right, bytecode::OpCode::MOD));
-    }
-
-    void ArithmeticExecutor::handleNeg() {
-        value::Value val = context.stackManager->pop();
-        if (value::isInt(val)) {
-            context.stackManager->push(utils::wrappingNeg64(value::asInt(val)));
-        } else if (value::isFloat(val)) {
-            context.stackManager->push(-value::asFloat(val));
-        } else {
-            throw errors::RuntimeException("NEG requires numeric value");
-        }
-    }
-
-    void ArithmeticExecutor::handleInc() {
-        value::Value val = context.stackManager->pop();
-        if (value::isInt(val)) {
-            context.stackManager->push(utils::wrappingAdd64(value::asInt(val), 1));
-        } else if (value::isFloat(val)) {
-            context.stackManager->push(value::asFloat(val) + 1.0);
-        } else {
-            throw errors::RuntimeException("INC requires numeric value");
-        }
-    }
-
-    void ArithmeticExecutor::handleDec() {
-        value::Value val = context.stackManager->pop();
-        if (value::isInt(val)) {
-            context.stackManager->push(utils::wrappingSub64(value::asInt(val), 1));
-        } else if (value::isFloat(val)) {
-            context.stackManager->push(value::asFloat(val) - 1.0);
-        } else {
-            throw errors::RuntimeException("DEC requires numeric value");
-        }
-    }
-
-    void ArithmeticExecutor::handleAddInt() {
-        if (context.stackManager->size() < 2) {
-            throw errors::RuntimeException("Stack underflow: ADD_INT requires 2 values");
-        }
-        // Phase 6: Type guard — deopt to generic ADD if types don't match
-        const auto& right = context.stackManager->peek(0);
-        const auto& left = context.stackManager->peek(1);
-        if (!value::isInt(left) || !value::isInt(right)) {
-            handleAdd(); // Fall back to generic
-            return;
-        }
-        int64_t r = value::asInt(context.stackManager->pop());
-        int64_t l = value::asInt(context.stackManager->pop());
-        context.stackManager->push(utils::wrappingAdd64(l, r));
-    }
-
-    void ArithmeticExecutor::handleAddIntConst(
-        const bytecode::BytecodeProgram::Instruction& /*instr*/,
-        const bytecode::BytecodeProgram::CachedInstructionState& state) {
-        // MYT-198: fused PUSH_INT + ADD_INT. At entry, tos is the left operand
-        // (the value that was on stack before the NOPed PUSH_INT would have
-        // pushed its literal). The literal is in the constant pool at
-        // state.fusedSlot — set by tryFuseAddIntConst.
-        if (context.stackManager->size() < 1) {
-            throw errors::RuntimeException("Stack underflow: ADD_INT_CONST requires 1 value");
-        }
-        const auto& tos = context.stackManager->peek(0);
-        if (!value::isInt(tos)) {
-            // Un-fuse on type miss: restore PUSH_INT + <add> at the pair, push
-            // the literal so the stack matches the pre-fusion shape, bump
-            // fusedDeoptCount sticky.
-            //
-            // Demote the pair to PUSH_INT + ADD_INT, not PUSH_INT + ADD:
-            // tryFuseAddIntConst only fires after trySpecializeArithmetic has
-            // already promoted ADD → ADD_INT, so the pre-fusion opcode was
-            // ADD_INT. Restoring to ADD would waste the next dispatch on a
-            // trySpecialize → promote cycle that re-derives ADD_INT. ADD_INT
-            // already has a built-in type-guard fallback to handleAdd() for
-            // genuinely non-int operands, so this is safe for heterogeneous
-            // sites too. Handle *this* dispatch directly through handleAdd()
-            // since tos is known non-int — the rewrite only affects the next
-            // dispatch of this IP.
-            int64_t literal = context.program->getConstantPool().getInteger(state.fusedSlot);
-            context.stackManager->push(literal);
-            const size_t ip = context.instructionPointer;
-            auto& mut = context.getMutableInstructionAt(ip);
-            auto& prevMut = context.getMutableInstructionAt(ip - 1);
-            prevMut.opcode = bytecode::OpCode::PUSH_INT;
-            // MYT-201: fused state now lives on the side table. Same entry as
-            // `state` above, but we need a mutable view to bump fusedDeoptCount.
-            auto& mutState = context.getOrCreateCachedState(ip);
-            prevMut.operands = { static_cast<uint64_t>(mutState.fusedSlot) };
-            mut.opcode = bytecode::OpCode::ADD_INT;
-            if (mutState.fusedDeoptCount < 255) ++mutState.fusedDeoptCount;
-            handleAdd();
-            return;
-        }
-        int64_t literal = context.program->getConstantPool().getInteger(state.fusedSlot);
-        int64_t l = value::asInt(context.stackManager->pop());
-        context.stackManager->push(utils::wrappingAdd64(l, literal));
-    }
-
-    void ArithmeticExecutor::handleSubInt() {
-        if (context.stackManager->size() < 2) {
-            throw errors::RuntimeException("Stack underflow: SUB_INT requires 2 values");
-        }
-        const auto& right = context.stackManager->peek(0);
-        const auto& left = context.stackManager->peek(1);
-        if (!value::isInt(left) || !value::isInt(right)) {
-            handleSub();
-            return;
-        }
-        int64_t r = value::asInt(context.stackManager->pop());
-        int64_t l = value::asInt(context.stackManager->pop());
-        context.stackManager->push(utils::wrappingSub64(l, r));
-    }
-
-    void ArithmeticExecutor::handleMulInt() {
-        if (context.stackManager->size() < 2) {
-            throw errors::RuntimeException("Stack underflow: MUL_INT requires 2 values");
-        }
-        const auto& right = context.stackManager->peek(0);
-        const auto& left = context.stackManager->peek(1);
-        if (!value::isInt(left) || !value::isInt(right)) {
-            handleMul();
-            return;
-        }
-        int64_t r = value::asInt(context.stackManager->pop());
-        int64_t l = value::asInt(context.stackManager->pop());
-        context.stackManager->push(utils::wrappingMul64(l, r));
-    }
-
-    void ArithmeticExecutor::handleDivInt() {
-        if (context.stackManager->size() < 2) {
-            throw errors::RuntimeException("Stack underflow: DIV_INT requires 2 values");
-        }
-        const auto& right = context.stackManager->peek(0);
-        const auto& left = context.stackManager->peek(1);
-        if (!value::isInt(left) || !value::isInt(right)) {
-            handleDiv();
-            return;
-        }
-        int64_t r = value::asInt(context.stackManager->pop());
-        int64_t l = value::asInt(context.stackManager->pop());
-        if (r == 0) {
-            utils::ErrorLocationHelper::throwRuntimeError(context, "Division by zero");
-        }
-        context.stackManager->push(l / r);
-    }
-
-    void ArithmeticExecutor::handleAddFloat() {
-        if (context.stackManager->size() < 2) {
-            throw errors::RuntimeException("Stack underflow: ADD_FLOAT requires 2 values");
-        }
-        const auto& right = context.stackManager->peek(0);
-        const auto& left = context.stackManager->peek(1);
-        if (!value::isFloat(left) || !value::isFloat(right)) {
-            handleAdd();
-            return;
-        }
-        double r = value::asFloat(context.stackManager->pop());
-        double l = value::asFloat(context.stackManager->pop());
-        context.stackManager->push(l + r);
-    }
-
-    void ArithmeticExecutor::handleSubFloat() {
-        if (context.stackManager->size() < 2) {
-            throw errors::RuntimeException("Stack underflow: SUB_FLOAT requires 2 values");
-        }
-        const auto& right = context.stackManager->peek(0);
-        const auto& left = context.stackManager->peek(1);
-        if (!value::isFloat(left) || !value::isFloat(right)) {
-            handleSub();
-            return;
-        }
-        double r = value::asFloat(context.stackManager->pop());
-        double l = value::asFloat(context.stackManager->pop());
-        context.stackManager->push(l - r);
-    }
-
-    void ArithmeticExecutor::handleMulFloat() {
-        if (context.stackManager->size() < 2) {
-            throw errors::RuntimeException("Stack underflow: MUL_FLOAT requires 2 values");
-        }
-        const auto& right = context.stackManager->peek(0);
-        const auto& left = context.stackManager->peek(1);
-        if (!value::isFloat(left) || !value::isFloat(right)) {
-            handleMul();
-            return;
-        }
-        double r = value::asFloat(context.stackManager->pop());
-        double l = value::asFloat(context.stackManager->pop());
-        context.stackManager->push(l * r);
-    }
-
-    void ArithmeticExecutor::handleDivFloat() {
-        if (context.stackManager->size() < 2) {
-            throw errors::RuntimeException("Stack underflow: DIV_FLOAT requires 2 values");
-        }
-        const auto& right = context.stackManager->peek(0);
-        const auto& left = context.stackManager->peek(1);
-        if (!value::isFloat(left) || !value::isFloat(right)) {
-            handleDiv();
-            return;
-        }
-        double r = value::asFloat(context.stackManager->pop());
-        double l = value::asFloat(context.stackManager->pop());
-        if (r == 0.0) {
-            utils::ErrorLocationHelper::throwRuntimeError(context, "Division by zero");
-        }
-        context.stackManager->push(l / r);
-    }
+    // MYT-319: hot dispatch handlers live in ArithmeticExecutor.hpp. Only
+    // performBinaryOp / valueToString / handleStringBuild / formatMultiArraySlice
+    // stay here — they pull in heavy includes (ObjectInstance / ClassDefinition /
+    // NativeArray / FlatMultiArray / SparseMultiArray / StringPool / ValueObject)
+    // and run rare paths (string concat, multi-array stringify).
 
     void ArithmeticExecutor::handleStringBuild(size_t count) {
         // Collect all segments from the stack (they are in reverse order)
@@ -399,9 +163,9 @@ namespace vm::runtime
         }
 
         // String concatenation (includes objects and arrays, which should call toString())
+        // MYT-317: isAnyString covers STRING_INLINE alongside heap STRING.
         if (op == OpCode::ADD &&
-            (value::isString(left) || value::isString(right) ||
-             value::isInternedString(left) || value::isInternedString(right) ||
+            (value::isAnyString(left) || value::isAnyString(right) ||
              value::isObject(left) ||
              value::isObject(right) ||
              value::isValueObject(left) ||
@@ -439,11 +203,9 @@ namespace vm::runtime
         if (value::isBool(val)) {
             return value::asBool(val) ? "true" : "false";
         }
-        if (value::isString(val)) {
-            return value::asString(val);
-        }
-        if (value::isInternedString(val)) {
-            return value::asInternedString(val).getString();
+        // MYT-317: SSO-aware. Folds the three string forms into one branch.
+        if (value::isAnyString(val)) {
+            return std::string(value::asStringView(val));
         }
         if (value::isNullType(val)) {
             return "null";

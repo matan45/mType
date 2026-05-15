@@ -188,20 +188,14 @@ namespace vm::jit
             if (isNull(*left) && isNull(*right)) return 1;
             if (isNull(*left) || isNull(*right)) return 0;
 
-            const bool leftString =
-                value::isString(*left) || value::isInternedString(*left);
-            const bool rightString =
-                value::isString(*right) || value::isInternedString(*right);
+            // MYT-317: SSO-aware. Cross-kind equality between STRING and
+            // STRING_INLINE folds into a single string_view compare.
+            const bool leftString = value::isAnyString(*left);
+            const bool rightString = value::isAnyString(*right);
             if (leftString || rightString)
             {
                 if (!leftString || !rightString) return 0;
-                std::string leftValue = value::isString(*left)
-                    ? value::asString(*left)
-                    : std::string(value::asInternedString(*left).getString());
-                std::string rightValue = value::isString(*right)
-                    ? value::asString(*right)
-                    : std::string(value::asInternedString(*right).getString());
-                return leftValue == rightValue ? 1 : 0;
+                return value::asStringView(*left) == value::asStringView(*right) ? 1 : 0;
             }
 
             if (left->tag() != right->tag()) return 0;
@@ -226,14 +220,12 @@ namespace vm::jit
         // returns false otherwise (caller treats as empty/equal-mismatch).
         bool tryReadString(const value::Value& val, std::string& out)
         {
-            if (value::isString(val))
+            // MYT-317: SSO-aware on both the top-level Value and the inner
+            // boxed field (STRING_INLINE can land in a String wrapper's
+            // `value` field via autoBoxPrimitive on a SSO concat result).
+            if (value::isAnyString(val))
             {
-                out = value::asString(val);
-                return true;
-            }
-            if (value::isInternedString(val))
-            {
-                out = std::string(value::asInternedString(val).getString());
+                out = std::string(value::asStringView(val));
                 return true;
             }
             if (value::isAnyObject(val))
@@ -242,10 +234,9 @@ namespace vm::jit
                 if (!obj) return false;
                 obj->ensureFieldVector();
                 const value::Value& field = obj->getFieldByIndex(0);
-                if (value::isString(field)) { out = value::asString(field); return true; }
-                if (value::isInternedString(field))
+                if (value::isAnyString(field))
                 {
-                    out = std::string(value::asInternedString(field).getString());
+                    out = std::string(value::asStringView(field));
                     return true;
                 }
                 return false;
@@ -255,10 +246,9 @@ namespace vm::jit
                 const auto& obj = value::asValueObject(val);
                 if (!obj) return false;
                 const value::Value& field = obj->getFieldByIndex(0);
-                if (value::isString(field)) { out = value::asString(field); return true; }
-                if (value::isInternedString(field))
+                if (value::isAnyString(field))
                 {
-                    out = std::string(value::asInternedString(field).getString());
+                    out = std::string(value::asStringView(field));
                     return true;
                 }
                 return false;

@@ -3,6 +3,7 @@
 #include "JitHelpers.hpp"
 #include "JitCodeCache.hpp"
 #include "../bytecode/OpCode.hpp"
+#include "../optimization/InlineAnalysis.hpp"  // MYT-316: INLINE_SIZE_LIMIT
 #include "../../runtimeTypes/klass/ObjectInstance.hpp"
 #include "../../value/ValueObject.hpp"
 #include "../../value/ValueBridge.hpp"
@@ -10,6 +11,7 @@
 #include <cassert>
 #include <cstdint>
 #include <memory>
+#include <string>
 
 namespace vm::jit
 {
@@ -105,12 +107,106 @@ namespace vm::jit
         return addr;
     }
 
+    // MYT-316: cheap eligibility pre-check used by the scan below to decide
+    // whether a plain CALL / CALL_FAST should trigger boxed-mode emission.
+    // The scan runs once per JIT/OSR compile, BEFORE emission, so this must
+    // not duplicate work the real inliner does at emit time — it only needs
+    // to be conservative enough that real misses (self-recursion, oversized
+    // bodies, try/catch) don't flip the enclosing function into boxed mode
+    // for no payoff. The full eligibility / safety checks still run in
+    // tryEmitInlinedFunctionCall.
+    //
+    // `selfFnName` is the function being compiled (mangled name preferred,
+    // plain name fallback). Empty for OSR — OSR has no static caller
+    // identity, so self-recursion can't be excluded at scan time; the real
+    // inliner still rejects it via checkFunctionInlineEligibility.
+    static bool calleeMightBeInlineable(
+        const bytecode::BytecodeProgram& program,
+        const bytecode::BytecodeProgram::Instruction& instr,
+        bool isCallFast,
+        const std::string& selfFnName)
+    {
+        const bytecode::BytecodeProgram::FunctionMetadata* callee = nullptr;
+        if (isCallFast)
+        {
+            callee = program.getFunctionByIndex(
+                static_cast<size_t>(instr.inlineOperands[0]));
+        }
+        else
+        {
+            const auto idx = static_cast<uint32_t>(instr.inlineOperands[0]);
+            if (idx >= program.getConstantPool().strings.size()) return false;
+            const std::string& name = program.getConstantPool().getString(idx);
+            callee = program.getFunction(name);
+        }
+        if (!callee) return false;
+        if (callee->isNative || callee->isAsync) return false;
+        if (callee->instructionCount == 0) return false;
+        if (callee->instructionCount > optimization::INLINE_SIZE_LIMIT) return false;
+        if (!callee->exceptionTable.getEntries().empty()) return false;
+        if (callee->returnType == "void") return false;
+
+        // Self-recursion: the real inliner will reject this via SELF_RECURSIVE
+        // and tryEmitSelfTailCall / tryEmitSelfDirectCall would have a much
+        // better shot in unboxed mode. Don't flip the function to boxed mode
+        // for a call site that can't benefit from inlining.
+        if (!selfFnName.empty())
+        {
+            if (callee->name == selfFnName || callee->mangledName == selfFnName)
+                return false;
+        }
+
+        // Mirror the HAS_NESTED_CALL / HAS_TRY_CATCH / HAS_ASYNC opcodes from
+        // scanCalleeOpcodes (InlineAnalysis.cpp). The full deny-list runs at
+        // emit time; the pre-check just needs to avoid flipping boxed mode
+        // for callees that won't actually inline. Capped at INLINE_SIZE_LIMIT
+        // ops above, so the inner loop is O(<=32) per CALL site.
+        const size_t end = callee->startOffset + callee->instructionCount;
+        for (size_t cip = callee->startOffset; cip < end; ++cip)
+        {
+            const auto& cinstr = program.getInstruction(cip);
+            switch (cinstr.opcode)
+            {
+                case OpCode::CALL: case OpCode::CALL_FAST:
+                case OpCode::CALL_METHOD: case OpCode::CALL_METHOD_CACHED:
+                case OpCode::CALL_METHOD_POLY_CACHED:
+                case OpCode::CALL_STATIC:
+                case OpCode::INVOKE:
+                case OpCode::TRY_BEGIN: case OpCode::TRY_END:
+                case OpCode::CATCH: case OpCode::FINALLY: case OpCode::THROW:
+                case OpCode::AWAIT: case OpCode::CREATE_PROMISE:
+                case OpCode::SUPER_INVOKE: case OpCode::SUPER_CONSTRUCTOR:
+                case OpCode::SUPER_GET_FIELD: case OpCode::SUPER_SET_FIELD:
+                case OpCode::GET_SUPER:
+                case OpCode::NEW_STACK:
+                case OpCode::STRING_BUILD:
+                case OpCode::JUMP_IF_NULL:
+                    return false;
+                default:
+                    break;
+            }
+        }
+        return true;
+    }
+
     bool scanOpcodesForBoxedTypes(const bytecode::BytecodeProgram& program,
-                                  size_t startOffset, size_t endOffset)
+                                  size_t startOffset, size_t endOffset,
+                                  const std::string& selfFnName)
     {
         for (size_t ip = startOffset; ip < endOffset; ++ip)
         {
             const auto& si = program.getInstruction(ip);
+            // MYT-316: CALL / CALL_FAST trigger boxed mode only when the
+            // callee is a plausible inline candidate. Self-recursive
+            // functions (fib/ack/gcd) keep their unboxed-mode TCO and
+            // direct-call optimizations.
+            if (si.opcode == OpCode::CALL || si.opcode == OpCode::CALL_FAST)
+            {
+                if (calleeMightBeInlineable(program, si,
+                        si.opcode == OpCode::CALL_FAST, selfFnName))
+                    return true;
+                continue;
+            }
             switch (si.opcode)
             {
                 case OpCode::PUSH_STRING: case OpCode::GET_FIELD:
@@ -187,9 +283,9 @@ namespace vm::jit
         for (size_t ip = startOffset; ip < endOffset; ++ip)
         {
             const auto& si = program.getInstruction(ip);
-            if (si.opcode == OpCode::CALL && si.operands.size() >= 2)
+            if (si.opcode == OpCode::CALL && si.numOperands() >= 2)
             {
-                uint32_t fnIdx = static_cast<uint32_t>(si.operands[0]);
+                uint32_t fnIdx = static_cast<uint32_t>(si.inlineOperands[0]);
                 if (fnIdx >= program.getConstantPool().strings.size())
                     continue;
                 const std::string& fn = program.getConstantPool().getString(fnIdx);
@@ -219,9 +315,9 @@ namespace vm::jit
                 instr.opcode == OpCode::JUMP_IF_TRUE_OR_POP ||
                 instr.opcode == OpCode::JUMP_BACK)
             {
-                if (!instr.operands.empty())
+                if (instr.hasOperands())
                 {
-                    size_t target = instr.operands[0];
+                    size_t target = instr.inlineOperands[0];
                     if (target >= rangeStart && target <= rangeEnd &&
                         labels.find(target) == labels.end())
                     {
@@ -241,9 +337,9 @@ namespace vm::jit
         for (size_t ip = startOffset; ip < endOffset; ++ip)
         {
             const auto& instr = program.getInstruction(ip);
-            if (instr.opcode == OpCode::JUMP_BACK && !instr.operands.empty())
+            if (instr.opcode == OpCode::JUMP_BACK && instr.hasOperands())
             {
-                targets.insert(instr.operands[0]);
+                targets.insert(instr.inlineOperands[0]);
             }
         }
         return targets;

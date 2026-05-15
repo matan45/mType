@@ -14,8 +14,8 @@ namespace vm::jit::ic
         if (value::isInt(val)) return ObservedType::INT;
         if (value::isFloat(val)) return ObservedType::FLOAT;
         if (value::isBool(val)) return ObservedType::INT; // bool treated as int for specialization
-        if (value::isString(val)) return ObservedType::STRING;
-        if (value::isInternedString(val)) return ObservedType::STRING;
+        // MYT-317: STRING_INLINE participates in the same STRING type class.
+        if (value::isAnyString(val)) return ObservedType::STRING;
         if (value::isObject(val)) return ObservedType::OBJECT;
         return ObservedType::MIXED;
     }

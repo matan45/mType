@@ -168,15 +168,12 @@ namespace mType
                         ::value::StringPool::getInstance().decrementRef(oldPoolId);
                     }
 
-                    // Handle string types and increment ref count for new value
-                    if (::value::isString(value))
+                    // MYT-317: SSO-aware. Intern via the byte view; works
+                    // for inline / std / interned forms uniformly.
+                    if (::value::isAnyString(value))
                     {
-                        poolIds_[index] = internStringAndAddRef(::value::asString(value));
-                    }
-                    else if (::value::isInternedString(value))
-                    {
-                        const auto& internedStr = ::value::asInternedString(value);
-                        poolIds_[index] = internStringAndAddRef(internedStr.getString());
+                        poolIds_[index] = internStringAndAddRef(
+                            std::string(::value::asStringView(value)));
                     }
                     else
                     {
@@ -382,15 +379,11 @@ namespace mType
                         ::value::StringPool::getInstance().decrementRef(oldPoolId);
                     }
 
-                    // Handle string types and increment ref count for new value
-                    if (::value::isString(value))
+                    // MYT-317: SSO-aware. Same pattern as setUnchecked above.
+                    if (::value::isAnyString(value))
                     {
-                        poolIds_[index] = internStringAndAddRef(::value::asString(value));
-                    }
-                    else if (::value::isInternedString(value))
-                    {
-                        const auto& internedStr = ::value::asInternedString(value);
-                        poolIds_[index] = internStringAndAddRef(internedStr.getString());
+                        poolIds_[index] = internStringAndAddRef(
+                            std::string(::value::asStringView(value)));
                     }
                 }
 

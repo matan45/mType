@@ -137,11 +137,9 @@ namespace json
     std::string JsonNatives::extractString(const value::Value& arg,
                                            const std::string& funcName)
     {
-        if (value::isString(arg))
-            return value::asString(arg);
-
-        if (value::isInternedString(arg))
-            return value::asInternedString(arg).getString();
+        // MYT-317: SSO-aware. Folds all three string forms into one branch.
+        if (value::isAnyString(arg))
+            return std::string(value::asStringView(arg));
 
         throw errors::RuntimeException(funcName + ": expected string argument");
     }

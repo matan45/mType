@@ -44,6 +44,13 @@ namespace value
         explicit BridgeBase(BridgeKind k) noexcept : kind_(k) {}
         BridgeKind kind() const noexcept { return kind_; }
 
+    protected:
+        // MYT-317: override the RefCounted destruction terminal so dead
+        // bridges return to BridgeArena instead of going straight to
+        // operator delete. Definition lives in ValueTypeUtils.cpp to keep
+        // BridgeArena out of this header (avoids a cycle).
+        void destroy() noexcept override;
+
     private:
         BridgeKind kind_;
     };

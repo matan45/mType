@@ -69,7 +69,8 @@ namespace runtimeTypes::klass
                     argType = value::ValueType::FLOAT;
                 } else if (value::isBool(arg)) {
                     argType = value::ValueType::BOOL;
-                } else if (value::isString(arg) || value::isInternedString(arg)) {
+                } else if (value::isAnyString(arg)) {
+                    // MYT-317: STRING_INLINE classifies as STRING for overload resolution.
                     argType = value::ValueType::STRING;
                 } else if (value::isVoid(arg) || value::isNullType(arg)) {
                     argType = value::ValueType::VOID; // null

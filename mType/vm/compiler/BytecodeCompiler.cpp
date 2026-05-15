@@ -87,13 +87,13 @@ namespace
             const auto& i3 = program.getInstruction(meta.startOffset + 3);
             const auto& i4 = program.getInstruction(meta.startOffset + 4);
 
-            if (i0.opcode == OpCode::LOAD_LOCAL && !i0.operands.empty() && i0.operands[0] == 0 &&
-                i1.opcode == OpCode::LOAD_LOCAL && !i1.operands.empty() && i1.operands[0] == 1 &&
-                i2.opcode == OpCode::SET_FIELD && !i2.operands.empty() &&
+            if (i0.opcode == OpCode::LOAD_LOCAL && i0.hasOperands() && i0.inlineOperands[0] == 0 &&
+                i1.opcode == OpCode::LOAD_LOCAL && i1.hasOperands() && i1.inlineOperands[0] == 1 &&
+                i2.opcode == OpCode::SET_FIELD && i2.hasOperands() &&
                 i3.opcode == OpCode::PUSH_NULL &&
                 i4.opcode == OpCode::RETURN_VALUE)
             {
-                trivialSetters[name] = i2.operands[0];
+                trivialSetters[name] = i2.inlineOperands[0];
             }
         }
 
@@ -161,16 +161,16 @@ namespace
         {
             const auto& instr = program.getInstruction(ip);
             if (instr.opcode != OpCode::CALL_METHOD) continue;
-            if (instr.operands.size() < 2) continue;
+            if (instr.numOperands() < 2) continue;
 
             const std::string& methodName =
-                program.getConstantPool().getString(instr.operands[0]);
+                program.getConstantPool().getString(instr.inlineOperands[0]);
             auto it = trivialSetters.find(methodName);
             if (it == trivialSetters.end()) continue;
 
             auto& mutableInstr = program.getMutableInstruction(ip);
             mutableInstr.opcode = OpCode::INLINE_SET_FIELD;
-            mutableInstr.operands = { it->second };
+            mutableInstr.setSingleOperand(it->second);
         }
     }
     void inlineTrivialGetters(vm::bytecode::BytecodeProgram& program)
@@ -194,15 +194,15 @@ namespace
             const auto& i1 = program.getInstruction(meta.startOffset + 1);
             const auto& i2 = program.getInstruction(meta.startOffset + 2);
 
-            if (i0.opcode == OpCode::LOAD_LOCAL && !i0.operands.empty() && i0.operands[0] == 0 &&
-                i1.opcode == OpCode::GET_FIELD && !i1.operands.empty() &&
+            if (i0.opcode == OpCode::LOAD_LOCAL && i0.hasOperands() && i0.inlineOperands[0] == 0 &&
+                i1.opcode == OpCode::GET_FIELD && i1.hasOperands() &&
                 i2.opcode == OpCode::RETURN_VALUE)
             {
                 // Only inline if the field is public — INLINE_GET_FIELD skips access validation.
                 // Walk the inheritance chain to find the field's actual declaring class:
                 // a Child method may return `this.parentField` where the field lives on Parent.
                 std::string getterClassName = name.substr(0, name.find("::"));
-                std::string fieldName = program.getConstantPool().getString(i1.operands[0]);
+                std::string fieldName = program.getConstantPool().getString(i1.inlineOperands[0]);
                 bool fieldIsPublic = false;
                 std::string currentClass = getterClassName;
                 while (!currentClass.empty()) {
@@ -223,7 +223,7 @@ namespace
                     currentClass = foundCls->parentClassName;
                 }
                 if (fieldIsPublic) {
-                    trivialGetters[name] = i1.operands[0];
+                    trivialGetters[name] = i1.inlineOperands[0];
                 }
             }
         }
@@ -288,16 +288,16 @@ namespace
         {
             const auto& instr = program.getInstruction(ip);
             if (instr.opcode != OpCode::CALL_METHOD) continue;
-            if (instr.operands.size() < 2) continue;
+            if (instr.numOperands() < 2) continue;
 
             const std::string& methodName =
-                program.getConstantPool().getString(instr.operands[0]);
+                program.getConstantPool().getString(instr.inlineOperands[0]);
             auto it = trivialGetters.find(methodName);
             if (it == trivialGetters.end()) continue;
 
             auto& mutableInstr = program.getMutableInstruction(ip);
             mutableInstr.opcode = OpCode::INLINE_GET_FIELD;
-            mutableInstr.operands = { it->second };
+            mutableInstr.setSingleOperand(it->second);
         }
     }
 
@@ -324,13 +324,13 @@ namespace
                     const auto& next = program.getInstruction(ip + 1);
                     if (next.opcode == OpCode::ARRAY_LENGTH)
                     {
-                        uint64_t localIdx = instr.operands[0];
+                        uint64_t localIdx = instr.inlineOperands[0];
                         auto& mLoad = program.getMutableInstruction(ip);
                         mLoad.opcode = OpCode::NOP;
-                        mLoad.operands.clear();
+                        mLoad.clearOperands();
                         auto& mLen = program.getMutableInstruction(ip + 1);
                         mLen.opcode = OpCode::ARRAY_LENGTH_LOCAL;
-                        mLen.operands = { localIdx };
+                        mLen.setSingleOperand(localIdx);
                         ip++; // skip the rewritten instruction
                         continue;
                     }
@@ -345,13 +345,13 @@ namespace
                     if (next1.opcode == OpCode::LOAD_LOCAL &&
                         next2.opcode == OpCode::ARRAY_GET_INT)
                     {
-                        uint64_t arrLocal = instr.operands[0];
+                        uint64_t arrLocal = instr.inlineOperands[0];
                         auto& mLoad = program.getMutableInstruction(ip);
                         mLoad.opcode = OpCode::NOP;
-                        mLoad.operands.clear();
+                        mLoad.clearOperands();
                         auto& mGet = program.getMutableInstruction(ip + 2);
                         mGet.opcode = OpCode::ARRAY_GET_INT_LOCAL;
-                        mGet.operands = { arrLocal };
+                        mGet.setSingleOperand(arrLocal);
                         ip += 2;
                         continue;
                     }
@@ -366,13 +366,13 @@ namespace
                     if (next1.opcode == OpCode::LOAD_LOCAL &&
                         next3.opcode == OpCode::ARRAY_SET_INT)
                     {
-                        uint64_t arrLocal = instr.operands[0];
+                        uint64_t arrLocal = instr.inlineOperands[0];
                         auto& mLoad = program.getMutableInstruction(ip);
                         mLoad.opcode = OpCode::NOP;
-                        mLoad.operands.clear();
+                        mLoad.clearOperands();
                         auto& mSet = program.getMutableInstruction(ip + 3);
                         mSet.opcode = OpCode::ARRAY_SET_INT_LOCAL;
-                        mSet.operands = { arrLocal };
+                        mSet.setSingleOperand(arrLocal);
                         ip += 3;
                         continue;
                     }
@@ -569,6 +569,11 @@ namespace vm::compiler
 
         // FUSED LOCAL-ARRAY OPERATIONS PASS
         fuseLocalArrayOps(program);
+
+        // MYT-318: validate operand-count contract before execution so the
+        // hot-path executors covered by the validator's table can drop their
+        // runtime defensive checks. Runs after every transformation pass.
+        program.validateInstructionOperands();
 
         return std::move(program);
     }

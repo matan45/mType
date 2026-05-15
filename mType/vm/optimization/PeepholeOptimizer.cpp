@@ -330,9 +330,9 @@ namespace vm::optimization
                 break;
             }
 
-            if (isJump && !instr.operands.empty())
+            if (isJump && instr.hasOperands())
             {
-                uint32_t target = static_cast<uint32_t>(instr.operands[0]);
+                uint32_t target = static_cast<uint32_t>(instr.inlineOperands[0]);
 
                 // If the jump target is after the replacement point, adjust it
                 if (target >= replacementEndOffset)
@@ -343,7 +343,7 @@ namespace vm::optimization
                     // Ensure the new target is valid
                     if (newTarget >= 0 && newTarget < static_cast<int>(program.getInstructionCount()))
                     {
-                        instr.operands[0] = static_cast<uint32_t>(newTarget);
+                        instr.setOperand0(static_cast<uint32_t>(newTarget));
                     }
                     else
                     {
@@ -362,9 +362,9 @@ namespace vm::optimization
 
             // CRITICAL: Also update LAMBDA instruction offsets
             // LAMBDA instruction format: operands[0] = lambda start offset
-            if (instr.opcode == bytecode::OpCode::LAMBDA && !instr.operands.empty())
+            if (instr.opcode == bytecode::OpCode::LAMBDA && instr.hasOperands())
             {
-                uint32_t lambdaOffset = static_cast<uint32_t>(instr.operands[0]);
+                uint32_t lambdaOffset = static_cast<uint32_t>(instr.inlineOperands[0]);
 
                 // If the lambda start is after the replacement point, adjust it
                 if (lambdaOffset >= replacementEndOffset)
@@ -373,7 +373,7 @@ namespace vm::optimization
 
                     if (newOffset >= 0 && newOffset < static_cast<int>(program.getInstructionCount()))
                     {
-                        instr.operands[0] = static_cast<uint32_t>(newOffset);
+                        instr.setOperand0(static_cast<uint32_t>(newOffset));
                     }
                     else
                     {

@@ -108,14 +108,14 @@ namespace vm::jit
                 case OpCode::STORE_LOCAL_BOOL:
                 case OpCode::STORE_LOCAL_BOXED_INST:
                 case OpCode::ADD_INT_STORE_LOCAL:        // dst slot in operand[0]
-                    if (!instr.operands.empty())
-                        writtenSlots.insert(instr.operands[0]);
+                    if (instr.hasOperands())
+                        writtenSlots.insert(instr.inlineOperands[0]);
                     break;
                 case OpCode::LOAD_STORE_LOCAL:           // src=op[0], dst=op[1]
-                    if (instr.operands.size() >= 2)
+                    if (instr.numOperands() >= 2)
                     {
-                        readSlots.insert(instr.operands[0]);
-                        writtenSlots.insert(instr.operands[1]);
+                        readSlots.insert(instr.inlineOperands[0]);
+                        writtenSlots.insert(instr.inlineOperands[1]);
                     }
                     break;
                 case OpCode::LOAD_LOCAL:
@@ -123,16 +123,16 @@ namespace vm::jit
                 case OpCode::LOAD_LOCAL_FLOAT:
                 case OpCode::LOAD_LOCAL_BOOL:
                 case OpCode::LOAD_LOCAL_BOXED_INST:
-                    if (!instr.operands.empty())
-                        readSlots.insert(instr.operands[0]);
+                    if (instr.hasOperands())
+                        readSlots.insert(instr.inlineOperands[0]);
                     break;
                 case OpCode::LOAD_LOAD_ADD_INT:
                 case OpCode::LOAD_LOAD_SUB_INT:
                 case OpCode::LOAD_LOAD_MUL_INT:
-                    if (instr.operands.size() >= 2)
+                    if (instr.numOperands() >= 2)
                     {
-                        readSlots.insert(instr.operands[0]);
-                        readSlots.insert(instr.operands[1]);
+                        readSlots.insert(instr.inlineOperands[0]);
+                        readSlots.insert(instr.inlineOperands[1]);
                     }
                     break;
                 default: break;
@@ -358,6 +358,7 @@ namespace vm::jit
                              size_t loopStartOffset, size_t loopEndOffset,
                              size_t jumpBackOffset,
                              ic::TypeFeedbackCollector* typeFeedback,
+                             JitCodeCache* codeCache,  // MYT-315
                              uint64_t* inlineFieldICHits,
                              uint64_t* inlineFieldICMisses,
                              uint64_t* inlineFieldSetICHits,
@@ -392,6 +393,7 @@ namespace vm::jit
         s.inlineFieldSetICHits = inlineFieldSetICHits;
         s.inlineFieldSetICMisses = inlineFieldSetICMisses;
         s.inlineDecisions = inlineDecisions;
+        s.codeCache = codeCache;  // MYT-315: fresh JIT lookup at compile time
         // MYT-251: explicit OSR-context signal. Replaces the
         // currentCompilingFn.empty() heuristic at OSR-emit sites
         // (e.g. tryEmitInlinedMethodCall's gate). currentCompilingFn
@@ -420,9 +422,9 @@ namespace vm::jit
         // — the same instruction the interpreter's JUMP_BACK would have
         // landed on.
         const auto& jbInstr = program.getInstruction(jumpBackOffset);
-        if (!jbInstr.operands.empty())
+        if (jbInstr.hasOperands())
         {
-            size_t jumpBackTarget = jbInstr.operands[0];
+            size_t jumpBackTarget = jbInstr.inlineOperands[0];
             auto it = labels.find(jumpBackTarget);
             if (it != labels.end())
                 cc.jmp(it->second);
@@ -492,6 +494,7 @@ namespace vm::jit
         if (!canCompileLoopOSR(loopStartOffset, loopEndOffset, program, &offendingOpcode))
         {
             bailoutCount++;
+            osrBailoutOpcodes[static_cast<uint8_t>(offendingOpcode)]++;
             reportBailout(OSRBailoutReason::UNSUPPORTED_OPCODE,
                           static_cast<uint8_t>(offendingOpcode));
             return false;
@@ -522,12 +525,15 @@ namespace vm::jit
         if (!emitOSRBody(cc, ctxPtr, program, frame, localSlotInfos,
                          localCount, loopStartOffset, loopEndOffset,
                          jumpBackOffset, typeFeedback,
+                         &codeCache,  // MYT-315
                          &inlineFieldICHits, &inlineFieldICMisses,
                          &inlineFieldSetICHits, &inlineFieldSetICMisses,
                          &inlineDecisions,
                          bodyReason, bodyOpcode))
         {
             bailoutCount++;
+            if (bodyOpcode != 0)
+                osrBailoutOpcodes[bodyOpcode]++;
             reportBailout(bodyReason, bodyOpcode);
             return false;
         }

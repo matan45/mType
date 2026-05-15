@@ -21,12 +21,12 @@ namespace vm::optimization::patterns
         const auto& instr = program.getInstruction(offset);
 
         // Only optimize jump instructions
-        if (!isJumpInstruction(instr.opcode) || instr.operands.empty())
+        if (!isJumpInstruction(instr.opcode) || !instr.hasOperands())
         {
             return false;
         }
 
-        size_t targetOffset = instr.operands[0];
+        size_t targetOffset = instr.inlineOperands[0];
 
         // Check if target is within bounds
         if (targetOffset >= program.getInstructionCount())
@@ -55,7 +55,7 @@ namespace vm::optimization::patterns
             instr.opcode == OpCode::JUMP_IF_FALSE_OR_POP ||
             instr.opcode == OpCode::JUMP_IF_TRUE_OR_POP)
         {
-            if (targetInstr.opcode == OpCode::JUMP && !targetInstr.operands.empty())
+            if (targetInstr.opcode == OpCode::JUMP && targetInstr.hasOperands())
             {
                 size_t finalTarget = getFinalJumpTarget(program, targetOffset);
                 return finalTarget != targetOffset && isSafeToThread(program, offset, finalTarget);
@@ -69,7 +69,7 @@ namespace vm::optimization::patterns
                                                                   size_t offset) const
     {
         const auto& instr = program.getInstruction(offset);
-        size_t targetOffset = instr.operands[0];
+        size_t targetOffset = instr.inlineOperands[0];
 
         // Get the final target after threading through jumps
         size_t finalTarget = getFinalJumpTarget(program, targetOffset);
@@ -101,9 +101,9 @@ namespace vm::optimization::patterns
 
             // If this is an unconditional jump, follow it
             if ((instr.opcode == OpCode::JUMP || instr.opcode == OpCode::JUMP_BACK) &&
-                !instr.operands.empty())
+                instr.hasOperands())
             {
-                size_t nextTarget = instr.operands[0];
+                size_t nextTarget = instr.inlineOperands[0];
 
                 // Don't follow jumps across function boundaries
                 if (!areInSameFunction(program, startOffset, nextTarget))
@@ -140,7 +140,7 @@ namespace vm::optimization::patterns
 
         const auto& instr = program.getInstruction(offset);
         return (instr.opcode == OpCode::JUMP || instr.opcode == OpCode::JUMP_BACK) &&
-               !instr.operands.empty();
+               instr.hasOperands();
     }
 
     bool JumpThreadingPattern::isSafeToThread(const BytecodeProgram& program,

@@ -1,82 +1,78 @@
 # mType Interpreter Benchmarks
 
-The benchmark harness measures wall-clock execution time and `ExecutionStats`
-counters for five canonical scripts. It is the foundation for every perf
-story under epic MYT-118 — each optimization is expected to produce a
-measurable before/after number against this suite.
+The benchmark harness measures wall-clock execution time, `ExecutionStats`,
+pool counters, and optional JIT/OSR diagnostics for the canonical VM scripts in
+`mType/tests/testFiles/benchmarks/`.
 
-## Quick start
+## Quick Start
 
 From the repo root:
 
-```
-mType.exe --benchmark
+```powershell
+bin\mType\Release\x64\mType.exe --benchmark
 ```
 
-This runs all five scripts in `mType/tests/testFiles/benchmarks/` with
-1 warmup + 3 measured iterations each, JIT on, and prints a table.
+This runs the 48-script canonical suite with 1 warmup + 3 measured iterations,
+JIT on, and prints a human-readable table.
 
 ## Flags
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--benchmark` | — | Run the full canonical suite (5 scripts). |
-| `--benchmark=<path.mt>` | — | Run a single benchmark script. |
-| `--benchmark-iterations=<N>` | 3 | Measured iterations per script. Warmup is fixed at 1. |
-| `--benchmark-output=<fmt>` | `text` | `text` (human-readable table) or `json` (one record per script). |
+| `--benchmark` | - | Run the full canonical VM benchmark suite. |
+| `--benchmark=<path.mt>` | - | Run a single benchmark script. |
+| `--benchmark-lexer=<path>` | - | Run the lexer-only token-drain microbenchmark. |
+| `--benchmark-iterations=<N>` | `3` | Measured iterations per script. Warmup is fixed at 1. |
+| `--benchmark-output=<fmt>` | `text` | `text` or `json`. JSON suppresses script stdout so the stream is parseable. |
 | `--no-jit` | JIT on | Disable JIT compilation. Use to capture a pure-interpreter baseline. |
-| `--jit-stats` | off | Print JIT statistics after the benchmark table. |
+| `--jit-stats` | off | Include JIT/OSR statistics in text output and per-script JSON records. |
 
-## What the harness measures
+## What The Harness Measures
 
-For each iteration it constructs a fresh `ScriptInterpreter`, sets JIT per
-the options, then times the full pipeline:
+For each iteration it constructs a fresh `ScriptInterpreter`, sets JIT per the
+options, then times the full pipeline:
 
+```text
+parse -> bytecode compile -> optimize -> execute
+<------------- wall-clock measured ------------>
+                              <--- exec --->
 ```
-parse  ->  bytecode compile  ->  optimize  ->  execute
-<-------------- wall-clock measured -------------->
-                                 <---- exec ---->
-```
 
-- `wall-clock` — end-to-end `runScript()` duration. Matches user-felt latency.
-- `exec (VM)` — `ExecutionStats::executionTime`, the inner interpreter loop only.
-  The gap between wall-clock and exec is parse/compile cost.
-- `instructions` / `calls` — `ExecutionStats::instructionsExecuted` and
-  `functionCalls` from the first measured iteration (deterministic per script).
-- `mem-allocated` — `ExecutionStats::memoryAllocated` is currently an unused
-  stub in the VM and will always read 0 until a future ticket wires it up.
-- `string-pool` / `array-pool` — process-singleton deltas observed across the
-  iteration.
+- `wall-clock`: end-to-end `runScript()` duration.
+- `exec (VM)`: `ExecutionStats::executionTime`, the inner VM loop only.
+- `instructions` / `calls`: first measured iteration counters.
+- `string-pool` / `array-pool`: process-singleton deltas across the iteration.
+- `jit`: with `--jit-stats`, reports compiles, bailouts, cache size, OSR counts,
+  hot functions, failed loops, and opcode-level bailout counts.
 
-Across measured iterations the harness reports min / median / mean / stddev
-of wall-clock. **Min is the canonical comparison number** — noise is
-one-sided upward, so the minimum wall-clock is the most stable estimate.
+Across measured iterations the harness reports min / median / mean / stddev of
+wall-clock. Min is the canonical comparison number because noise is usually
+one-sided upward.
 
-## Updating the committed baseline
+## Coverage Notes
 
-After a meaningful change (or on a new machine), regenerate the baseline:
+The canonical suite is fixed in `BenchmarkRunner.cpp`; adding a `.mt` file does
+not automatically add it to `--benchmark`. Add new deterministic scripts there
+and register them in `IntegrationTestSuite.cpp` with a sibling `.expected`.
 
-```
-mType.exe --benchmark --benchmark-output=text        > bench.jit.txt
-mType.exe --benchmark --no-jit --benchmark-output=text > bench.nojit.txt
+The suite includes both ordinary allocation workloads and `gc_cycle_churn.mt`,
+which creates short-lived cyclic object graphs to exercise GC safepoints and
+cycle detection during normal benchmark execution.
+
+`lexer_stress.mt` is intentionally excluded from the VM suite and correctness
+registration. Use `--benchmark-lexer=<path>` for lexer-only timing.
+
+## Updating The Baseline
+
+After a meaningful performance change or on a new machine:
+
+```powershell
+bin\mType\Release\x64\mType.exe --benchmark --jit-stats > bench.jit.txt
+bin\mType\Release\x64\mType.exe --benchmark --no-jit > bench.nojit.txt
 ```
 
 Copy the numbers into `docs/bench-baseline.md` under a new dated section.
-Record machine, commit SHA, and build mode at the top.
+Record machine, commit SHA, build mode, and the exact invocation.
 
-The `string_ops`, `method_dispatch`, etc. sanity-output lines
-(`print("... acc=...")` etc.) are deterministic across runs for a given
-commit — if they change, something about program semantics changed, not
-just performance.
-
-## Calibrating iteration counts
-
-Each `.mt` script has a `// TARGET: ~2s` comment near the top.
-If your first local run lands outside the 1-5s band for any script,
-open the script, scale the loop bound up or down, and commit the new
-value alongside an updated `bench-baseline.md`.
-
-## Supersedes
-
-The previous root-level `benchmark.ps1` is superseded by `--benchmark`
-and has been removed.
+The benchmark scripts' `print(...)` lines are deterministic for a given commit.
+If they change, semantics changed, not just performance.

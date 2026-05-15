@@ -240,9 +240,9 @@ namespace vm::jit
         {
             case OpCode::PUSH_INT:
             {
-                if (instr.operands[0] >= s.program.getConstantPool().integers.size())
+                if (instr.inlineOperands[0] >= s.program.getConstantPool().integers.size())
                 { s.compileFailed = true; return true; }
-                int64_t val = s.program.getConstantPool().getInteger(instr.operands[0]);
+                int64_t val = s.program.getConstantPool().getInteger(instr.inlineOperands[0]);
                 // MYT-211: publish a constant hint so downstream consumers
                 // (cc.cmp imm, imm-folded shifts, etc.) can fold the literal
                 // without going through memory. We still write the value to
@@ -257,9 +257,9 @@ namespace vm::jit
             }
             case OpCode::PUSH_FLOAT:
             {
-                if (instr.operands[0] >= s.program.getConstantPool().floats.size())
+                if (instr.inlineOperands[0] >= s.program.getConstantPool().floats.size())
                 { s.compileFailed = true; return true; }
-                double dval = s.program.getConstantPool().getFloat(instr.operands[0]);
+                double dval = s.program.getConstantPool().getFloat(instr.inlineOperands[0]);
                 uint64_t bits;
                 std::memcpy(&bits, &dval, sizeof(bits));
                 Gp tmp = cc.new_gp64();
@@ -271,7 +271,7 @@ namespace vm::jit
             }
             case OpCode::PUSH_BOOL:
             {
-                int64_t val = (instr.operands[0] != 0) ? 1 : 0;
+                int64_t val = (instr.inlineOperands[0] != 0) ? 1 : 0;
                 Gp tmp = cc.new_gp64();
                 cc.mov(tmp, val);
                 cc.mov(Mem(s.stackBase, s.stackDepth * 8), tmp);

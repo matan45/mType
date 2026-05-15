@@ -239,34 +239,7 @@ namespace vm::runtime
         : context(ctx)
     {}
 
-    void TypeExecutor::handleInstanceof(const bytecode::BytecodeProgram::Instruction& instr) {
-        // Get target type name from constant pool
-        const std::string& targetTypeName = context.program->getConstantPool().getString(instr.operands[0]);
-
-        // Pop value to check
-        value::Value val = context.stackManager->pop();
-
-        // Shared FFI entry point — same code path as ScriptAPI::isInstanceOf.
-        bool result = checkInstanceOfByName(val, targetTypeName, context.environment);
-
-        // Push boolean result onto stack
-        context.stackManager->push(result);
-    }
-
-    void TypeExecutor::handleInstanceofTypeParam(const bytecode::BytecodeProgram::Instruction& instr) {
-        // The operand is a constant-pool string index holding the bare type
-        // parameter name (e.g. "T"). Resolve it against the current receiver's
-        // generic bindings, then chain into the existing instanceof machinery
-        // exactly as if the user had written `obj isClassOf <concrete>`.
-        const std::string& paramName = context.program->getConstantPool().getString(instr.operands[0]);
-        std::string resolved = resolveTypeParameter(paramName);
-
-        value::Value val = context.stackManager->pop();
-
-        bool result = checkInstanceOfByName(val, resolved, context.environment);
-
-        context.stackManager->push(result);
-    }
+    // MYT-320: handleInstanceof / handleInstanceofTypeParam moved to TypeExecutor.hpp.
 
     bool TypeExecutor::checkInstanceOfByName(
         const value::Value& val,
@@ -308,7 +281,7 @@ namespace vm::runtime
         // Forward-from-caller is resolved against the CURRENT top frame's
         // bindings (we haven't pushed the new frame yet). Storing concrete
         // names means the resolver doesn't need a fixpoint walk later.
-        if (instr.operands.empty()) {
+        if (instr.numOperands() == 0) {
             throw errors::RuntimeException("BIND_TYPE_ARGS: missing operand count");
         }
 
@@ -328,10 +301,10 @@ namespace vm::runtime
         }
 
         const auto& constantPool = context.program->getConstantPool();
-        const size_t n = static_cast<size_t>(instr.operands[0]);
+        const size_t n = static_cast<size_t>(instr.inlineOperands[0]);
         // Variable-arity guard — well-formed bytecode satisfies this; a
         // malformed .mtc would otherwise read past the operand vector.
-        if (instr.operands.size() < 1 + 3 * n) {
+        if (instr.numOperands() < 1 + 3 * n) {
             throw errors::RuntimeException("BIND_TYPE_ARGS: malformed operands");
         }
 
@@ -345,11 +318,11 @@ namespace vm::runtime
         for (size_t i = 0; i < n; ++i) {
             const size_t base = 1 + 3 * i;
             const std::string& paramName = constantPool.getString(
-                static_cast<uint32_t>(instr.operands[base + 0]));
+                static_cast<uint32_t>(instr.operandAt(base + 0)));
             const auto kind = static_cast<bytecode::TypeArgValueKind>(
-                static_cast<uint8_t>(instr.operands[base + 1]));
+                static_cast<uint8_t>(instr.operandAt(base + 1)));
             const std::string& rawValue = constantPool.getString(
-                static_cast<uint32_t>(instr.operands[base + 2]));
+                static_cast<uint32_t>(instr.operandAt(base + 2)));
 
             std::string resolved;
             if (kind == bytecode::TypeArgValueKind::ForwardFromCaller) {
@@ -384,7 +357,7 @@ namespace vm::runtime
     }
 
     void TypeExecutor::handleCastTypeParam(const bytecode::BytecodeProgram::Instruction& instr) {
-        const std::string& paramName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& paramName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
 
         try {
             std::string resolved = resolveTypeParameter(paramName);
@@ -411,7 +384,7 @@ namespace vm::runtime
 
     void TypeExecutor::handleCast(const bytecode::BytecodeProgram::Instruction& instr) {
         // Get target type name from constant pool
-        const std::string& targetTypeName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& targetTypeName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
 
         // Pop value to cast
         value::Value val = context.stackManager->pop();
@@ -503,7 +476,8 @@ namespace vm::runtime
             return value::isBool(val);
         }
         if (targetTypeName == "String" || targetTypeName == "string") {
-            return value::isString(val) || value::isInternedString(val);
+            // MYT-317: STRING_INLINE matches the String type check.
+            return value::isAnyString(val);
         }
         return false;
     }
@@ -742,15 +716,9 @@ namespace vm::runtime
         else if (value::isBool(val)) {
             return value::asBool(val) ? static_cast<int64_t>(1) : static_cast<int64_t>(0);
         }
-        else if (value::isString(val)) {
-            try {
-                return static_cast<int64_t>(std::stoll(value::asString(val)));
-            } catch (...) {
-                throwCastError("Cannot cast string to int: " + value::asString(val));
-            }
-        }
-        else if (value::isInternedString(val)) {
-            const std::string& str = value::asInternedString(val).getString();
+        else if (value::isAnyString(val)) {
+            // MYT-317: folds STRING_INLINE alongside heap STRING / INTERNED_STRING.
+            std::string str(value::asStringView(val));
             try {
                 return static_cast<int64_t>(std::stoll(str));
             } catch (...) {
@@ -785,15 +753,9 @@ namespace vm::runtime
         else if (value::isInt(val)) {
             return static_cast<double>(value::asInt(val));
         }
-        else if (value::isString(val)) {
-            try {
-                return std::stod(value::asString(val));
-            } catch (...) {
-                throwCastError("Cannot cast string to float: " + value::asString(val));
-            }
-        }
-        else if (value::isInternedString(val)) {
-            const std::string& str = value::asInternedString(val).getString();
+        else if (value::isAnyString(val)) {
+            // MYT-317: SSO-aware string→float cast.
+            std::string str(value::asStringView(val));
             try {
                 return std::stod(str);
             } catch (...) {
@@ -849,15 +811,9 @@ namespace vm::runtime
         else if (value::isFloat(val)) {
             return value::asFloat(val) != 0.0;
         }
-        else if (value::isString(val)) {
-            const std::string& str = value::asString(val);
-            // Non-empty strings are true
-            return !str.empty();
-        }
-        else if (value::isInternedString(val)) {
-            const value::InternedString& str = value::asInternedString(val);
-            // Non-empty strings are true
-            return str.length() > 0;
+        else if (value::isAnyString(val)) {
+            // MYT-317: SSO-aware. Non-empty strings of any form are true.
+            return !value::asStringView(val).empty();
         }
         else if (value::isAnyObject(val)) {
             auto* obj = value::asObjectInstanceRaw(val);
@@ -1185,11 +1141,9 @@ namespace vm::runtime
         if (value::isBool(val)) {
             return value::asBool(val) ? "true" : "false";
         }
-        if (value::isString(val)) {
-            return value::asString(val);
-        }
-        if (value::isInternedString(val)) {
-            return value::asInternedString(val).getString();
+        // MYT-317: SSO-aware stringify.
+        if (value::isAnyString(val)) {
+            return std::string(value::asStringView(val));
         }
         if (utils::isNullValue(val)) {
             return "null";

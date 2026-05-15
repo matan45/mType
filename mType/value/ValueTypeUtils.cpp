@@ -1,5 +1,6 @@
 #include "ValueTypeUtils.hpp"
 #include <cstddef>
+#include <new>
 #include "NativeArray.hpp"
 #include "FlatMultiArray.hpp"
 #include "SparseMultiArray.hpp"
@@ -8,6 +9,7 @@
 #include "arrays/object/FlatMultiObjectArray.hpp"
 #include "../runtimeTypes/klass/ObjectInstance.hpp"
 #include "PromiseValue.hpp"
+#include "BridgeArena.hpp"
 #include <cassert>
 // BytecodeLambda lives in mtype-vm; the bridge ctor below needs the complete
 // type, so this include crosses the mtype-core → mtype-vm layer.
@@ -30,11 +32,49 @@ namespace value {
     // bridge pointer in the payload. retain() bumps the refcount to 1;
     // subsequent Value copies retain again via retainIfHeap().
 
+    // MYT-317: BridgeBase::destroy() runs the derived TypedBridge destructor
+    // (virtual dispatch via ~BridgeBase()), then hands the empty memory to
+    // the per-kind freelist. Snapshot kind_ first — it's invalid after the
+    // destructor runs.
+    void BridgeBase::destroy() noexcept
+    {
+        BridgeKind k = kind_;
+        this->~BridgeBase();
+        BridgeArena::getInstance().releaseSlot(k, this);
+    }
+
     namespace {
+        // Releases the slot if placement-new throws. Disarmed once the bridge
+        // is fully constructed — from then on releaseSlot() runs via the
+        // virtual BridgeBase::destroy() path when refcount hits zero.
+        struct BridgeSlotGuard
+        {
+            void* slot;
+            BridgeKind k;
+            bool fromArena;
+            bool armed{true};
+            ~BridgeSlotGuard() noexcept
+            {
+                if (!armed) return;
+                if (fromArena) BridgeArena::getInstance().releaseSlot(k, slot);
+                else ::operator delete(slot, std::align_val_t{alignof(std::max_align_t)});
+            }
+        };
+
         template <BridgeKind K, typename Held>
         BridgeBase* makeBridge(Held h)
         {
-            auto* b = new TypedBridge<K, Held>(std::move(h));
+            using Bridge = TypedBridge<K, Held>;
+            void* slot = BridgeArena::getInstance().acquireSlot(K, sizeof(Bridge));
+            const bool fromArena = (slot != nullptr);
+            if (!slot)
+            {
+                slot = ::operator new(sizeof(Bridge),
+                                      std::align_val_t{alignof(std::max_align_t)});
+            }
+            BridgeSlotGuard guard{slot, K, fromArena};
+            auto* b = ::new (slot) Bridge(std::move(h));
+            guard.armed = false;
             b->retain();
             return b;
         }
@@ -126,6 +166,16 @@ namespace value {
         {
             return static_cast<TypedBridge<K, Held>*>(v.rawBridge())->get().get();
         }
+    }
+
+    // MYT-317: cross-kind string equality. Operator== routes here when both
+    // sides are any string form (STRING or STRING_INLINE). string_view
+    // accessor folds the representation difference into a single content
+    // compare. Out-of-line because asStringView dereferences the bridge for
+    // the heap case.
+    bool Value::stringEquals(const Value& other) const noexcept
+    {
+        return asStringView(*this) == asStringView(other);
     }
 
     bool Value::equalsHeap(const Value& other) const noexcept

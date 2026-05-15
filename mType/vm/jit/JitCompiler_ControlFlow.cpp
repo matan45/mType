@@ -13,6 +13,17 @@ namespace vm::jit
     using namespace asmjit::x86;
     using OpCode = bytecode::OpCode;
 
+    // MYT-316: defined in JitCompiler_Objects.cpp. Speculatively pastes the
+    // callee's bytecode body inline if it passes the plain-function inline
+    // eligibility (size, no try/await/nested-call, depth limit). No runtime
+    // identity guard — invalidation is eager via JitCodeCache reverse edges
+    // (see registerInlineEdge / invalidatedInlineCallersOf).
+    bool tryEmitInlinedFunctionCall(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::FunctionMetadata* callee,
+        size_t argCount,
+        bytecode::FunctionNameHandle calleeHandle);
+
     // Emit an inline GC poll: bump g_jit_gc_poll_counter and only invoke
     // jit_gc_safepoint (which resets the counter and calls GC::maybeCollect)
     // when it crosses GC_CHECK_INTERVAL. Skips the ABI register-spill
@@ -302,9 +313,9 @@ namespace vm::jit
         if (!s.usesBoxedTypes) { s.compileFailed = true; return; }
         flushAllHints(s);
         auto& cc = s.cc;
-        uint32_t nameIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t nameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         // operand[1] is the type-name index (currently unused at JIT level).
-        uint8_t isFinal = (instr.operands.size() >= 3 && instr.operands[2] != 0) ? 1 : 0;
+        uint8_t isFinal = (instr.numOperands() >= 3 && instr.inlineOperands[2] != 0) ? 1 : 0;
 
         SlotType valType = topType(s);
         Gp valAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, valType);
@@ -475,7 +486,7 @@ namespace vm::jit
     static std::string resolveCallReturnType(JitEmissionState& s,
                                               const bytecode::BytecodeProgram::Instruction& instr)
     {
-        uint32_t nameIndex = static_cast<uint32_t>(instr.operands[0]);
+        uint32_t nameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         if (nameIndex >= s.program.getConstantPool().strings.size())
         {
             s.compileFailed = true;
@@ -834,8 +845,8 @@ namespace vm::jit
                             const bytecode::BytecodeProgram::Instruction& instr)
     {
         auto& cc = s.cc;
-        uint32_t nameIndex = static_cast<uint32_t>(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        uint32_t nameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
+        size_t argCount = instr.inlineOperands[1];
 
         if (argCount > JitContext::MAX_CALL_ARGS)
         {
@@ -861,6 +872,17 @@ namespace vm::jit
                                        reinterpret_cast<uint64_t>(jit_call_function),
                                        nameIndex))
                 return true;
+
+            // MYT-316: try speculative inlining before falling through to the
+            // cc.invoke runtime boundary. The inliner enforces its own
+            // eligibility gates (size, opcode deny-list, depth, stack peak);
+            // if it declines, we fall through to the generic dispatch below.
+            if (calleeMeta)
+            {
+                const auto calleeHandle = s.program.internFrameName(funcName);
+                if (tryEmitInlinedFunctionCall(s, calleeMeta, argCount, calleeHandle))
+                    return true;
+            }
         }
 
         std::string returnType = resolveCallReturnType(s, instr);
@@ -901,8 +923,8 @@ namespace vm::jit
                                 const bytecode::BytecodeProgram::Instruction& instr)
     {
         auto& cc = s.cc;
-        uint32_t funcIndex = static_cast<uint32_t>(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        uint32_t funcIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
+        size_t argCount = instr.inlineOperands[1];
 
         if (argCount > JitContext::MAX_CALL_ARGS)
         {
@@ -927,6 +949,16 @@ namespace vm::jit
             s.compileFailed = true;
             return true;
         }
+
+        // MYT-316: speculative inlining before the runtime boundary. CALL_FAST's
+        // funcIndex is the stable post-IC dispatch key; the matching handle is
+        // interned from the callee's name.
+        {
+            const auto calleeHandle = s.program.internFrameName(calleeMeta->name);
+            if (tryEmitInlinedFunctionCall(s, calleeMeta, argCount, calleeHandle))
+                return true;
+        }
+
         const std::string& returnType = calleeMeta->returnType;
 
         bool isPrimReturn = (returnType == "int" || returnType == "float" ||
@@ -981,7 +1013,7 @@ namespace vm::jit
             {
                 SlotType forcedType = SlotType::INT;
                 bool hasForcedType = typedLocalSlotType(instr.opcode, forcedType);
-                emitLoadLocal(s, instr.operands[0], hasForcedType, forcedType);
+                emitLoadLocal(s, instr.inlineOperands[0], hasForcedType, forcedType);
                 return true;
             }
 
@@ -993,7 +1025,7 @@ namespace vm::jit
             {
                 SlotType forcedType = SlotType::INT;
                 bool hasForcedType = typedLocalSlotType(instr.opcode, forcedType);
-                emitStoreLocal(s, instr.operands[0], hasForcedType, forcedType);
+                emitStoreLocal(s, instr.inlineOperands[0], hasForcedType, forcedType);
                 return true;
             }
 
@@ -1001,8 +1033,8 @@ namespace vm::jit
                 // MYT-202: compile-time fused LOAD_LOCAL src + STORE_LOCAL dst.
                 // De-fuse at JIT time — chained emitLoadLocal + emitStoreLocal
                 // produces the same native code as the unfused sequence.
-                emitLoadLocal(s, instr.operands[0]);
-                emitStoreLocal(s, instr.operands[1]);
+                emitLoadLocal(s, instr.inlineOperands[0]);
+                emitStoreLocal(s, instr.inlineOperands[1]);
                 return true;
 
             case OpCode::LOAD_VAR:
@@ -1012,12 +1044,12 @@ namespace vm::jit
             // this case keeps a hot loop JIT-compilable after the interpreter
             // has promoted some LOAD_VAR sites to LOAD_VAR_CACHED.
             case OpCode::LOAD_VAR_CACHED:
-                emitLoadVar(s, static_cast<uint32_t>(instr.operands[0]));
+                emitLoadVar(s, static_cast<uint32_t>(instr.inlineOperands[0]));
                 return true;
 
             case OpCode::STORE_VAR:
             case OpCode::STORE_VAR_CACHED: // MYT-204
-                emitStoreVar(s, static_cast<uint32_t>(instr.operands[0]));
+                emitStoreVar(s, static_cast<uint32_t>(instr.inlineOperands[0]));
                 return true;
 
             case OpCode::DECLARE_VAR: // MYT-208
@@ -1026,7 +1058,7 @@ namespace vm::jit
 
             case OpCode::JUMP:
             {
-                size_t target = instr.operands[0];
+                size_t target = instr.inlineOperands[0];
                 // MYT-211: jump source must leave memory coherent — both the
                 // direct jmp target and the onExit (OSR exit) path read stack
                 // memory. flushAllHints writes any dirty register-cached slot
@@ -1050,7 +1082,7 @@ namespace vm::jit
 
             case OpCode::JUMP_IF_FALSE:
             {
-                size_t target = instr.operands[0];
+                size_t target = instr.inlineOperands[0];
                 s.stackDepth--;
                 popType(s);
                 Gp cond = cc.new_gp64();
@@ -1077,7 +1109,7 @@ namespace vm::jit
 
             case OpCode::JUMP_IF_TRUE:
             {
-                size_t target = instr.operands[0];
+                size_t target = instr.inlineOperands[0];
                 s.stackDepth--;
                 popType(s);
                 Gp cond = cc.new_gp64();
@@ -1109,7 +1141,7 @@ namespace vm::jit
                 // preserved on the runtime stack (becomes the expression result);
                 // on fall-through the value is popped. Peek without decrementing
                 // the runtime-side counter before the conditional jump.
-                size_t target = instr.operands[0];
+                size_t target = instr.inlineOperands[0];
                 bool jumpOnZero = (instr.opcode == OpCode::JUMP_IF_FALSE_OR_POP);
 
                 // MYT-211: short-circuit needs the value preserved past the
@@ -1159,7 +1191,7 @@ namespace vm::jit
                 // back-edge target reads stack memory.
                 flushAllHints(s);
                 emitInlineGcSafepoint(s);
-                size_t target = instr.operands[0];
+                size_t target = instr.inlineOperands[0];
                 if (auto* lbl = findInlineJumpLabel(s, target))
                     cc.jmp(*lbl);
                 else

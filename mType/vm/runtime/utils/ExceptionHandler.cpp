@@ -104,9 +104,9 @@ namespace vm::runtime::utils
             if (searchInstr.opcode == bytecode::OpCode::CATCH)
             {
                 // Found a catch block - check if it matches the exception type
-                if (!searchInstr.operands.empty())
+                if (searchInstr.hasOperands())
                 {
-                    std::string catchType = program->getConstantPool().getString(searchInstr.operands[0]);
+                    std::string catchType = program->getConstantPool().getString(searchInstr.inlineOperands[0]);
 
                     if (e.matchesCatchType(catchType))
                     {

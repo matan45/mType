@@ -220,7 +220,9 @@ namespace vm::optimization
         const MethodInlineCache& cache,
         const std::string& currentCompilingFn,
         size_t currentInlineDepth,
-        bool isOSRCompilation)
+        bool isOSRCompilation,
+        std::array<InlineDecision, vm::jit::ic::IC_MAX_POLYMORPHIC_ENTRIES>*
+            perEntryDecisions)
     {
         if (currentInlineDepth >= INLINE_DEPTH_LIMIT)
             return InlineDecision::DEPTH_EXCEEDED;
@@ -237,22 +239,43 @@ namespace vm::optimization
         if (cache.entryCount == 0)
             return InlineDecision::UNKNOWN_SHAPE;
 
+        // MYT-173 follow-up: per-entry eligibility. Walk every entry and
+        // record the decision; the site is "INLINE" if at least one entry
+        // is inlineable. emitInlinedMethodCallPoly routes the rest through
+        // the per-shape helper branch (jit_call_method_ic) — the guard
+        // chain stays the same width, only the body emission switches.
+        // Pre-change every entry had to pass; one HAS_TRY_CATCH or
+        // CALLEE_TOO_BIG entry forfeited the entire site to the helper.
         size_t combinedSize = 0;
+        bool anyInlineable = false;
+        InlineDecision firstReject = InlineDecision::INLINE;
         for (uint8_t i = 0; i < cache.entryCount; ++i)
         {
             auto d = checkEntryEligibility(program, cache.entries[i], currentCompilingFn,
                                             isOSRCompilation);
-            if (d != InlineDecision::INLINE)
-                return d;
+            if (perEntryDecisions)
+                (*perEntryDecisions)[i] = d;
 
-            const auto* callee = static_cast<const BytecodeProgram::FunctionMetadata*>(
-                cache.entries[i].funcMetadata);
-            combinedSize += callee->instructionCount;
+            if (d == InlineDecision::INLINE)
+            {
+                anyInlineable = true;
+                const auto* callee = static_cast<const BytecodeProgram::FunctionMetadata*>(
+                    cache.entries[i].funcMetadata);
+                combinedSize += callee->instructionCount;
+            }
+            else if (firstReject == InlineDecision::INLINE)
+            {
+                firstReject = d;
+            }
         }
 
-        // MYT-165: combined-body cap prevents code-cache blowup on maximally
-        // polymorphic sites. IC_MAX_POLYMORPHIC_ENTRIES × INLINE_SIZE_LIMIT
-        // = 4 × 16 = 64 ops across all shape bodies.
+        if (!anyInlineable)
+            return firstReject;
+
+        // MYT-165 / MYT-173 follow-up: combined-body cap prevents code-cache
+        // blowup. Now measured only over inlineable entries (helper-routed
+        // entries pay no code-cache space beyond the guard + helper-call
+        // stub). Cap remains IC_MAX_POLYMORPHIC_ENTRIES × INLINE_SIZE_LIMIT.
         if (combinedSize > INLINE_SIZE_LIMIT * vm::jit::ic::IC_MAX_POLYMORPHIC_ENTRIES)
             return InlineDecision::CALLEE_TOO_BIG;
 

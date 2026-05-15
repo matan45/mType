@@ -704,7 +704,7 @@ namespace vm::runtime
         // at dispatch time — no eager resolution.
         const auto& prev = program->getInstruction(ip - 1);
         if (prev.opcode != bytecode::OpCode::PUSH_INT) return;
-        if (prev.operands.empty()) return;
+        if (prev.numOperands() == 0) return;
 
         // Same fusion-safety gates as the LOAD_LOCAL fusions: no control-flow
         // target may land directly on the fused op, and sticky un-fuse blocks
@@ -719,7 +719,7 @@ namespace vm::runtime
             if (existing->fusedDeoptCount >= 1) return;
         }
 
-        uint64_t constIdx = prev.operands[0];
+        uint64_t constIdx = prev.inlineOperands[0];
         // fusedSlot is uint32_t — assert before truncation so an oversized
         // constant-pool index surfaces as a clean failure rather than silent
         // data loss. Constant pools are bounded by the compiler, but the
@@ -729,7 +729,7 @@ namespace vm::runtime
         auto& prevMut = const_cast<bytecode::BytecodeProgram*>(program)
                             ->getMutableInstruction(ip - 1);
         prevMut.opcode = bytecode::OpCode::NOP;
-        prevMut.operands.clear();
+        prevMut.clearOperands();
 
         auto& state = program->getOrCreateCachedState(ip);
         state.fusedSlot = static_cast<uint32_t>(constIdx);
@@ -747,11 +747,11 @@ namespace vm::runtime
         if (jitEnabled && jitCodeCache && jitNativeDepth < MAX_JIT_NATIVE_DEPTH
             && !inJitFallbackInterpreter)
         {
-            std::string funcName = program->getConstantPool().getString(instr.operands[0]);
+            std::string funcName = program->getConstantPool().getString(instr.inlineOperands[0]);
             auto jitCode = jitCodeCache->lookup(funcName);
             if (jitCode)
             {
-                size_t argCount = instr.operands[1];
+                size_t argCount = instr.inlineOperands[1];
 
                 // MYT-196: small-buffer-optimized args for JIT entry.
                 value::SmallArgsBuffer args(argCount);
@@ -815,12 +815,12 @@ namespace vm::runtime
         if (jitEnabled && jitCodeCache && jitNativeDepth < MAX_JIT_NATIVE_DEPTH
             && !inJitFallbackInterpreter)
         {
-            const auto* funcMeta = program->getFunctionByIndex(instr.operands[0]);
+            const auto* funcMeta = program->getFunctionByIndex(instr.inlineOperands[0]);
             if (funcMeta) {
                 auto jitCode = jitCodeCache->lookup(funcMeta->mangledName);
                 if (jitCode)
                 {
-                    size_t argCount = instr.operands[1];
+                    size_t argCount = instr.inlineOperands[1];
 
                     // MYT-196: small-buffer-optimized args for JIT entry.
                     value::SmallArgsBuffer args(argCount);
@@ -868,6 +868,37 @@ namespace vm::runtime
         functionExecutor->handleCallFast(instr);
     }
 
+    void VirtualMachine::invalidateInlinedFunctionCallers(
+        bytecode::FunctionNameHandle callee)
+    {
+        if (!jitCodeCache) return;
+        auto callers = jitCodeCache->invalidatedInlineCallersOf(callee);
+        if (callers.empty()) return;
+
+        auto* icTable = inlineCacheTable.get();
+        for (const auto& callerName : callers)
+        {
+            // JitCodeCache::invalidate releases the native code memory and
+            // returns the JitFunction pointer that was freed. The MYT-315
+            // contract requires us to scrub every IC table that may hold
+            // that pointer.
+            jit::JitFunction removed = jitCodeCache->invalidate(callerName);
+            if (removed && icTable)
+            {
+                icTable->clearCachedJitForFunction(
+                    reinterpret_cast<const void*>(removed));
+            }
+            // A caller F that inlined `callee` may itself have been inlined
+            // into a third caller G. We don't have F's handle directly here
+            // — the next compile that pastes F into G will register a fresh
+            // edge under F's handle. For correctness today we rely on the
+            // current invalidate target chain (PluginLoader walks all
+            // unbound names; REPL redefinition passes the redefined
+            // function's handle). If transitive eviction becomes necessary,
+            // resolve callerName -> handle via internFrameName and recurse.
+        }
+    }
+
     void VirtualMachine::printJitStats() const
     {
         std::cout << "\n=== JIT Statistics ===\n";
@@ -901,6 +932,29 @@ namespace vm::runtime
         {
             std::cout << "  Successful compiles:    " << jitCompiler->getCompileCount() << "\n";
             std::cout << "  Bailouts:               " << jitCompiler->getBailoutCount() << "\n";
+            auto printOpcodeBailouts = [](const char* label,
+                                          const std::array<uint64_t, 256>& counts)
+            {
+                bool any = false;
+                for (uint64_t count : counts)
+                {
+                    if (count != 0) { any = true; break; }
+                }
+                if (!any) return;
+
+                std::cout << label << "\n";
+                for (size_t i = 0; i < counts.size(); ++i)
+                {
+                    if (counts[i] == 0) continue;
+                    std::cout << "    - "
+                              << bytecode::getOpCodeName(static_cast<bytecode::OpCode>(i))
+                              << ": " << counts[i] << "\n";
+                }
+            };
+            printOpcodeBailouts("  Function bailout opcodes:",
+                                jitCompiler->getFunctionBailoutOpcodes());
+            printOpcodeBailouts("  OSR bailout opcodes:",
+                                jitCompiler->getOSRBailoutOpcodes());
             // MYT-207: self-recursion call-dispatch telemetry.
             //   Tail calls optimized — `return self(args...)` sites lowered to
             //     arg-overwrite + jmp (loop). Counts CALL SITES, not dynamic

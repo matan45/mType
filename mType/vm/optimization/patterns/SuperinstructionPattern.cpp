@@ -51,7 +51,7 @@ namespace vm::optimization::patterns
         // carries extras, and tightening the check is defensive against any
         // future opcode-format drift.
         if (a.opcode == OpCode::LOAD_LOCAL && b.opcode == OpCode::STORE_LOCAL &&
-            a.operands.size() == 1 && b.operands.size() == 1)
+            a.numOperands() == 1 && b.numOperands() == 1)
         {
             return Kind::LoadStoreLocal;
         }
@@ -61,7 +61,7 @@ namespace vm::optimization::patterns
         // change the fused executor hasn't been updated for. LOAD_LOCAL
         // likewise must carry exactly one operand.
         if (a.opcode == OpCode::LOAD_LOCAL && b.opcode == OpCode::GET_FIELD &&
-            a.operands.size() == 1 && b.operands.size() == 1)
+            a.numOperands() == 1 && b.numOperands() == 1)
         {
             return Kind::LoadGetField;
         }
@@ -69,7 +69,7 @@ namespace vm::optimization::patterns
         // Pair: ADD_INT + STORE_LOCAL (varName-free form only, same reason as
         // LoadStoreLocal — fusion drops the shared-frame late-binding operand).
         if (a.opcode == OpCode::ADD_INT && b.opcode == OpCode::STORE_LOCAL &&
-            b.operands.size() == 1)
+            b.numOperands() == 1)
         {
             return Kind::AddIntStoreLocal;
         }
@@ -80,7 +80,7 @@ namespace vm::optimization::patterns
         // RETURN_VALUE for `return new Int(x)` style. Both opcodes are pure
         // stack ops with no operands.
         if (a.opcode == OpCode::OBJECT_TO_VALUE && b.opcode == OpCode::CREATE_PROMISE &&
-            a.operands.empty() && b.operands.empty())
+            !a.hasOperands() && !b.hasOperands())
         {
             return Kind::ObjectToValueCreatePromise;
         }
@@ -89,7 +89,7 @@ namespace vm::optimization::patterns
         // value-returning function. Pure stack ops, no operands. Safe — no
         // suspend semantics on either side.
         if (a.opcode == OpCode::CREATE_PROMISE && b.opcode == OpCode::RETURN_VALUE &&
-            a.operands.empty() && b.operands.empty())
+            !a.hasOperands() && !b.hasOperands())
         {
             return Kind::CreatePromiseReturnValue;
         }
@@ -100,7 +100,7 @@ namespace vm::optimization::patterns
         if (isStructural(c.opcode)) return Kind::None;
 
         if (a.opcode == OpCode::LOAD_LOCAL && b.opcode == OpCode::LOAD_LOCAL &&
-            a.operands.size() == 1 && b.operands.size() == 1)
+            a.numOperands() == 1 && b.numOperands() == 1)
         {
             switch (c.opcode)
             {
@@ -173,7 +173,7 @@ namespace vm::optimization::patterns
             const auto& b = program.getInstruction(offset + 1);
             result.originalLength = 2;
             result.instructions.emplace_back(
-                OpCode::LOAD_STORE_LOCAL, a.operands[0], b.operands[0]);
+                OpCode::LOAD_STORE_LOCAL, a.inlineOperands[0], b.inlineOperands[0]);
             break;
         }
         case Kind::LoadGetField:
@@ -182,7 +182,7 @@ namespace vm::optimization::patterns
             const auto& b = program.getInstruction(offset + 1);
             result.originalLength = 2;
             result.instructions.emplace_back(
-                OpCode::LOAD_GET_FIELD, a.operands[0], b.operands[0]);
+                OpCode::LOAD_GET_FIELD, a.inlineOperands[0], b.inlineOperands[0]);
             break;
         }
         case Kind::AddIntStoreLocal:
@@ -190,7 +190,7 @@ namespace vm::optimization::patterns
             const auto& b = program.getInstruction(offset + 1);
             result.originalLength = 2;
             result.instructions.emplace_back(
-                OpCode::ADD_INT_STORE_LOCAL, b.operands[0]);
+                OpCode::ADD_INT_STORE_LOCAL, b.inlineOperands[0]);
             break;
         }
         case Kind::ObjectToValueCreatePromise:
@@ -211,7 +211,7 @@ namespace vm::optimization::patterns
             const auto& b = program.getInstruction(offset + 1);
             result.originalLength = 3;
             result.instructions.emplace_back(
-                OpCode::LOAD_LOAD_ADD_INT, a.operands[0], b.operands[0]);
+                OpCode::LOAD_LOAD_ADD_INT, a.inlineOperands[0], b.inlineOperands[0]);
             break;
         }
         case Kind::LoadLoadSubInt:
@@ -220,7 +220,7 @@ namespace vm::optimization::patterns
             const auto& b = program.getInstruction(offset + 1);
             result.originalLength = 3;
             result.instructions.emplace_back(
-                OpCode::LOAD_LOAD_SUB_INT, a.operands[0], b.operands[0]);
+                OpCode::LOAD_LOAD_SUB_INT, a.inlineOperands[0], b.inlineOperands[0]);
             break;
         }
         case Kind::LoadLoadMulInt:
@@ -229,7 +229,7 @@ namespace vm::optimization::patterns
             const auto& b = program.getInstruction(offset + 1);
             result.originalLength = 3;
             result.instructions.emplace_back(
-                OpCode::LOAD_LOAD_MUL_INT, a.operands[0], b.operands[0]);
+                OpCode::LOAD_LOAD_MUL_INT, a.inlineOperands[0], b.inlineOperands[0]);
             break;
         }
         case Kind::None:

@@ -294,6 +294,9 @@
     <ClInclude Include="vm\runtime\context\ExecutionContext.hpp">
       <Filter>vm\runtime\context</Filter>
     </ClInclude>
+    <ClInclude Include="vm\runtime\context\SharedStackFramePool.hpp">
+      <Filter>vm\runtime\context</Filter>
+    </ClInclude>
     <ClInclude Include="vm\runtime\context\TypeArgMapPtr.hpp">
       <Filter>vm\runtime\context</Filter>
     </ClInclude>

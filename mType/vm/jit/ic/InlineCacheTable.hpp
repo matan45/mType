@@ -25,6 +25,15 @@ namespace vm::jit::ic
         // Invalidate all caches (e.g., on class redefinition)
         void invalidateAll();
 
+        // MYT-315: zero every MethodICEntry.cachedJit that points to `evictedJit`.
+        // Must be called whenever JitCodeCache::invalidate releases a
+        // JitFunction's native code page — failing to do so leaves IC entries
+        // holding dangling function pointers that the JIT direct-call emitter
+        // would call into. The argument is `const void*` because MethodICEntry
+        // stores the pointer opaquely; the caller passes the raw JitFunction
+        // value reinterpret-cast to `const void*`.
+        void clearCachedJitForFunction(const void* evictedJit);
+
         // Clear everything
         void clear();
 

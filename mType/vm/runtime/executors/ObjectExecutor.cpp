@@ -21,6 +21,7 @@
 #include "../../../value/IntegerCache.hpp"
 #include "../../../value/ObjectInstancePool.hpp"
 #include "../../../value/SmallArgsBuffer.hpp"
+#include "../context/SharedStackFramePool.hpp"
 #include "../utils/BoxingUtils.hpp"
 #include "../utils/MethodResolver.hpp"
 #include "../../../runtimeTypes/klass/SignatureUtils.hpp"
@@ -49,11 +50,11 @@ namespace vm::runtime
     }
 
     void ObjectExecutor::handleNewValueObject(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.size() >= 2)
+        if (instr.numOperands() >= 2)
         {
             const std::string& className =
-                context.program->getConstantPool().getString(instr.operands[0]);
-            size_t argCount = instr.operands[1];
+                context.program->getConstantPool().getString(instr.inlineOperands[0]);
+            size_t argCount = instr.inlineOperands[1];
 
             if (argCount == 1 &&
                 value::classNameToPrimitiveTag(className) != value::PrimitiveTypeTag::NONE)
@@ -105,92 +106,16 @@ namespace vm::runtime
         context.stackManager->push(value::Value(valueObj));
     }
 
-    void ObjectExecutor::handleGetField(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            utils::ErrorLocationHelper::throwRuntimeError(context, "GET_FIELD requires operand");
-        }
-
-        const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
-        value::Value objectValue = context.stackManager->pop();
-
-        // Auto-box raw primitives at escape point (lazy re-boxing support).
-        // INVOKE_STRING_CONCAT can leave a raw STRING / INTERNED_STRING on the
-        // stack; route those through the same boxing path as int/float/bool.
-        if (value::isInt(objectValue) ||
-            value::isFloat(objectValue) ||
-            value::isBool(objectValue) ||
-            value::isString(objectValue) ||
-            value::isInternedString(objectValue)) {
-            objectValue = autoBoxPrimitive(objectValue, context.environment);
-        }
-
-        utils::checkNullReceiver(instr, objectValue, context, "access field", fieldName);
-
-        // Handle ValueObject (value types)
-        if (value::isValueObject(objectValue)) {
-            auto valueObj = value::asValueObject(objectValue);
-            auto classDef = valueObj->getClassDefinition();
-
-            auto fieldDef = classDef ? classDef->getField(fieldName) : nullptr;
-            if (!fieldDef) {
-                throw errors::FieldNotFoundException(fieldName, valueObj->getClassName());
-            }
-
-            // For auto-boxed primitives (Int, Float, Bool, String), skip access check
-            // when accessing internal "value" field — auto-boxing is a VM-internal operation
-            // and shouldn't be restricted by the calling context
-            bool isAutoBoxedPrimitive = (valueObj->getClassName() == "Int" ||
-                                          valueObj->getClassName() == "Float" ||
-                                          valueObj->getClassName() == "Bool" ||
-                                          valueObj->getClassName() == "String");
-            if (!isAutoBoxedPrimitive || fieldName != "value") {
-                auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(fieldName, classDef);
-                std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
-                auto accessContext = createAccessContext(targetClassName, false);
-                validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
-            }
-
-            value::Value fieldValue = valueObj->getFieldValue(fieldName);
-            context.stackManager->push(fieldValue);
-            return;
-        }
-
-        if (!value::isAnyObject(objectValue)) {
-            utils::ErrorLocationHelper::throwRuntimeError(context, "GET_FIELD requires an object instance");
-        }
-
-        // MYT-208: unwrap to raw ObjectInstance* — handles both OBJECT (bridge)
-        // and STACK_OBJECT (borrowed raw) tags uniformly.
-        auto* instance = value::asObjectInstanceRaw(objectValue);
-
-        auto fieldDef = instance->getField(fieldName);
-        if (!fieldDef) {
-            throw errors::FieldNotFoundException(fieldName, instance->getClassDefinition()->getName());
-        }
-
-        // Validate access control
-        // IMPORTANT: Use the class that OWNS the field, not the runtime class of the instance
-        // This is critical for private field access validation in inheritance
-        auto classDef = instance->getClassDefinition();
-        auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(fieldName, classDef);
-        std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
-
-        auto accessContext = createAccessContext(targetClassName, false);
-
-        validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
-
-        value::Value fieldValue = instance->getFieldValue(fieldName);
-        context.stackManager->push(fieldValue);
-    }
+    // MYT-319: handleGetField body moved to ObjectExecutor.hpp.
 
     void ObjectExecutor::handleGetFieldTyped(const bytecode::BytecodeProgram::Instruction& instr) {
         // MYT-212: class-targeted field read. Operands: [classNameIndex, fieldNameIndex].
-        if (instr.operands.size() < 2) {
+        if (instr.numOperands() < 2) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "GET_FIELD_TYPED requires 2 operands");
         }
 
-        const std::string& className = context.program->getConstantPool().getString(instr.operands[0]);
-        const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[1]);
+        const std::string& className = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+        const std::string& fieldName = context.program->getConstantPool().getString(instr.inlineOperands[1]);
         value::Value objectValue = context.stackManager->pop();
 
         if (value::isInt(objectValue) ||
@@ -273,12 +198,12 @@ namespace vm::runtime
     void ObjectExecutor::handleSetFieldTyped(const bytecode::BytecodeProgram::Instruction& instr) {
         // MYT-212: class-targeted field write. Operands: [classNameIndex, fieldNameIndex].
         // Stack (top→bottom): newValue, receiver — same convention as SET_FIELD.
-        if (instr.operands.size() < 2) {
+        if (instr.numOperands() < 2) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "SET_FIELD_TYPED requires 2 operands");
         }
 
-        const std::string& className = context.program->getConstantPool().getString(instr.operands[0]);
-        const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[1]);
+        const std::string& className = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+        const std::string& fieldName = context.program->getConstantPool().getString(instr.inlineOperands[1]);
         value::Value newValue = context.stackManager->pop();
         value::Value objectValue = context.stackManager->pop();
 
@@ -365,135 +290,15 @@ namespace vm::runtime
         context.stackManager->push(newValue);
     }
 
-    void ObjectExecutor::handleSetField(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
-            utils::ErrorLocationHelper::throwRuntimeError(context, "SET_FIELD requires operand");
-        }
-
-        const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
-        value::Value newValue = context.stackManager->pop();
-        value::Value objectValue = context.stackManager->pop();
-
-        utils::checkNullReceiver(instr, objectValue, context, "set field", fieldName);
-
-        // Handle ValueObject (value types) — deep copy before mutation for value semantics
-        if (value::isValueObject(objectValue)) {
-            auto valueObj = value::asValueObject(objectValue);
-
-            // Deep copy for value semantics: always mutate a fresh copy
-            auto copy = valueObj->deepCopy();
-
-            auto classDef = copy->getClassDefinition();
-            auto fieldDef = classDef ? classDef->getField(fieldName) : nullptr;
-            if (!fieldDef) {
-                throw errors::FieldNotFoundException(fieldName, copy->getClassName());
-            }
-
-            auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(fieldName, classDef);
-            std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
-            auto accessContext = createAccessContext(targetClassName, true);
-            validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
-
-            copy->setField(fieldName, newValue);
-
-            // Push the modified copy back (caller must store it back to the variable)
-            context.stackManager->push(value::Value(copy));
-            return;
-        }
-
-        if (!value::isAnyObject(objectValue)) {
-            utils::ErrorLocationHelper::throwRuntimeError(context, "SET_FIELD requires an object instance");
-        }
-
-        // MYT-208: raw unwrap supports OBJECT and STACK_OBJECT tags.
-        auto* instance = value::asObjectInstanceRaw(objectValue);
-
-        auto fieldDef = instance->getField(fieldName);
-        if (!fieldDef) {
-            throw errors::FieldNotFoundException(fieldName, instance->getClassDefinition()->getName());
-        }
-
-        if (fieldDef->isFinal()) {
-            if (fieldDef->isStatic()) {
-                // Static final: use the shared FieldDefinition flag
-                if (fieldDef->isInitialized()) {
-                    utils::ErrorLocationHelper::throwRuntimeError(context,
-                        "Cannot assign to final field '" + fieldName + "'");
-                }
-            } else {
-                // Instance final: check if this specific instance already has a value set
-                size_t idx = instance->getClassDefinition()->getFieldIndex(fieldName);
-                if (idx != SIZE_MAX)
-                {
-                    if (!value::isVoid(instance->getFieldByIndex(idx)))
-                    {
-                        utils::ErrorLocationHelper::throwRuntimeError(context,
-                            "Cannot assign to final field '" + fieldName + "'");
-                    }
-                }
-            }
-        }
-
-        // Validate access control
-        // IMPORTANT: Use the class that OWNS the field, not the runtime class of the instance
-        // This is critical for private field access validation in inheritance
-        auto classDef = instance->getClassDefinition();
-        auto fieldOwnerClass = classDef->getFieldOwnerInHierarchy(fieldName, classDef);
-        std::string targetClassName = fieldOwnerClass ? fieldOwnerClass->getName() : classDef->getName();
-
-        auto accessContext = createAccessContext(targetClassName, true);
-        validation::AccessValidator::validateFieldAccess(fieldName, fieldDef->getAccessModifier(), accessContext);
-
-        instance->setField(fieldName, newValue);
-
-        // Push the value back onto the stack for chained assignments
-        // This allows expressions like: obj1.field = obj2.field = value
-        context.stackManager->push(newValue);
-    }
-
-    void ObjectExecutor::handleInlineSetField(const bytecode::BytecodeProgram::Instruction& instr) {
-        const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
-        value::Value newValue = context.stackManager->pop();
-        value::Value objectValue = context.stackManager->pop();
-
-        // MYT-208: accept STACK_OBJECT alongside OBJECT.
-        auto* instance = value::asObjectInstanceRaw(objectValue);
-        instance->setField(fieldName, newValue);
-    }
-
-    void ObjectExecutor::handleInlineGetField(const bytecode::BytecodeProgram::Instruction& instr) {
-        const std::string& fieldName = context.program->getConstantPool().getString(instr.operands[0]);
-        value::Value objectValue = context.stackManager->pop();
-
-        // MYT-208: isAnyObject(...) covers both OBJECT and STACK_OBJECT;
-        // asObjectInstanceRaw unwraps both into a non-owning ObjectInstance*.
-        if (value::isAnyObject(objectValue)) {
-            auto* instance = value::asObjectInstanceRaw(objectValue);
-            context.stackManager->push(instance->getFieldValue(fieldName));
-        } else if (value::isValueObject(objectValue)) {
-            auto valueObj = value::asValueObject(objectValue);
-            context.stackManager->push(valueObj->getFieldValue(fieldName));
-        } else {
-            // Fallback: auto-box primitive and read field
-            objectValue = autoBoxPrimitive(objectValue, context.environment);
-            if (value::isAnyObject(objectValue)) {
-                auto* instance = value::asObjectInstanceRaw(objectValue);
-                context.stackManager->push(instance->getFieldValue(fieldName));
-            } else if (value::isValueObject(objectValue)) {
-                auto valueObj = value::asValueObject(objectValue);
-                context.stackManager->push(valueObj->getFieldValue(fieldName));
-            } else {
-                throw errors::RuntimeException("INLINE_GET_FIELD: cannot read field '" + fieldName + "' from non-object");
-            }
-        }
-    }
+    // MYT-319: handleSetField / handleInlineSetField / handleInlineGetField
+    // bodies moved to ObjectExecutor.hpp.
 
     void ObjectExecutor::handleGetStatic(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+        if (instr.numOperands() == 0) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "GET_STATIC requires operand");
         }
 
-        const std::string& qualifiedName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& qualifiedName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
 
         size_t colonPos = qualifiedName.find("::");
         if (colonPos == std::string::npos) {
@@ -528,11 +333,11 @@ namespace vm::runtime
     }
 
     void ObjectExecutor::handleSetStatic(const bytecode::BytecodeProgram::Instruction& instr) {
-        if (instr.operands.empty()) {
+        if (instr.numOperands() == 0) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "SET_STATIC requires operand");
         }
 
-        const std::string& qualifiedName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& qualifiedName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         value::Value newValue = context.stackManager->pop();
 
         size_t colonPos = qualifiedName.find("::");
@@ -632,7 +437,7 @@ namespace vm::runtime
 
         // Create a SharedStackFrame for this lambda invocation to support nested closures
         // Link it to the parent frame so nested lambdas can access parent variables
-        auto newSharedFrame = std::make_shared<SharedStackFrame>();
+        auto newSharedFrame = makePooledFrame();
         newSharedFrame->parentFrame = lambda->capturedFrame;  // Link to parent
         if (!context.callStack.empty()) {
             context.callStack.back().sharedFrame = newSharedFrame;
@@ -667,7 +472,8 @@ namespace vm::runtime
                     needsBoxing = true;
                     boxClassName = "Bool";
                 }
-                else if (expectedType == "String" && value::isString(argValue)) {
+                else if (expectedType == "String" && value::isAnyString(argValue)) {
+                    // MYT-317: STRING_INLINE also auto-boxes into String.
                     needsBoxing = true;
                     boxClassName = "String";
                 }
@@ -976,8 +782,8 @@ namespace vm::runtime
             return;
         }
 
-        const std::string& methodName = context.program->getConstantPool().getString(instr.operands[0]);
-        size_t argCount = instr.operands[1];
+        const std::string& methodName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+        size_t argCount = instr.inlineOperands[1];
 
         // MYT-196: pop arguments into a small-buffer-optimized scratch buffer.
         // Buffer outlives the invokeLambdaMethod / invokeInstanceMethod call,
@@ -993,11 +799,11 @@ namespace vm::runtime
         // Auto-box raw primitives at escape point (lazy re-boxing support).
         // INVOKE_STRING_CONCAT can leave a raw STRING / INTERNED_STRING on the
         // stack; route those through the same boxing path as int/float/bool.
+        // MYT-317: also route STRING_INLINE through auto-box on method dispatch.
         if (value::isInt(objectValue) ||
             value::isFloat(objectValue) ||
             value::isBool(objectValue) ||
-            value::isString(objectValue) ||
-            value::isInternedString(objectValue)) {
+            value::isAnyString(objectValue)) {
             objectValue = autoBoxPrimitive(objectValue, context.environment);
         }
 
@@ -1118,12 +924,12 @@ namespace vm::runtime
     bool ObjectExecutor::tryDispatchSpecializedCollectionCall(
         const bytecode::BytecodeProgram::Instruction& instr)
     {
-        if (instr.operands.size() < 2 || !context.stackManager) return false;
+        if (instr.numOperands() < 2 || !context.stackManager) return false;
 
-        const std::string& rawMethodName = context.program->getConstantPool().getString(instr.operands[0]);
+        const std::string& rawMethodName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         const std::string methodName =
             runtimeTypes::klass::SignatureUtils::extractSimpleName(rawMethodName);
-        const size_t argCount = static_cast<size_t>(instr.operands[1]);
+        const size_t argCount = static_cast<size_t>(instr.inlineOperands[1]);
 
         if (context.stackManager->size() <= argCount) return false;
 
@@ -1473,12 +1279,12 @@ namespace vm::runtime
     // but in a single dispatch with no operand-stack churn between fields.
     void ObjectExecutor::handleStructHashInt(const bytecode::BytecodeProgram::Instruction& instr)
     {
-        if (instr.operands.empty())
+        if (instr.numOperands() == 0)
         {
             utils::ErrorLocationHelper::throwRuntimeError(context, "STRUCT_HASH_INT requires fieldCount operand");
         }
-        const size_t fieldCount = static_cast<size_t>(instr.operands[0]);
-        if (instr.operands.size() < 1 + fieldCount)
+        const size_t fieldCount = static_cast<size_t>(instr.inlineOperands[0]);
+        if (instr.numOperands() < 1 + fieldCount)
         {
             utils::ErrorLocationHelper::throwRuntimeError(context, "STRUCT_HASH_INT operand list truncated");
         }
@@ -1497,7 +1303,7 @@ namespace vm::runtime
         {
             for (size_t i = 0; i < fieldCount; ++i)
             {
-                const size_t slot = static_cast<size_t>(instr.operands[1 + i]);
+                const size_t slot = static_cast<size_t>(instr.operandAt(1 + i));
                 const value::Value& fv = objRaw->getFieldByIndex(slot);
                 const int64_t iv = value::isInt(fv) ? value::asInt(fv) : 0;
                 h = h * 31 + iv;
@@ -1508,7 +1314,7 @@ namespace vm::runtime
             auto vobj = value::asValueObject(receiverValue);
             for (size_t i = 0; i < fieldCount; ++i)
             {
-                const size_t slot = static_cast<size_t>(instr.operands[1 + i]);
+                const size_t slot = static_cast<size_t>(instr.operandAt(1 + i));
                 const value::Value& fv = vobj->getFieldByIndex(slot);
                 const int64_t iv = value::isInt(fv) ? value::asInt(fv) : 0;
                 h = h * 31 + iv;
@@ -1524,13 +1330,13 @@ namespace vm::runtime
     // pairwise; push false on mismatch, true when all match.
     void ObjectExecutor::handleStructEqInt(const bytecode::BytecodeProgram::Instruction& instr)
     {
-        if (instr.operands.size() < 2)
+        if (instr.numOperands() < 2)
         {
             utils::ErrorLocationHelper::throwRuntimeError(context, "STRUCT_EQ_INT requires owner-class name and fieldCount");
         }
-        const std::string& ownerClassName = context.program->getConstantPool().getString(instr.operands[0]);
-        const size_t fieldCount = static_cast<size_t>(instr.operands[1]);
-        if (instr.operands.size() < 2 + fieldCount)
+        const std::string& ownerClassName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
+        const size_t fieldCount = static_cast<size_t>(instr.inlineOperands[1]);
+        if (instr.numOperands() < 2 + fieldCount)
         {
             utils::ErrorLocationHelper::throwRuntimeError(context, "STRUCT_EQ_INT operand list truncated");
         }
@@ -1566,7 +1372,7 @@ namespace vm::runtime
 
         for (size_t i = 0; i < fieldCount; ++i)
         {
-            const size_t slot = static_cast<size_t>(instr.operands[2 + i]);
+            const size_t slot = static_cast<size_t>(instr.operandAt(2 + i));
             const value::Value& a = thisRaw->getFieldByIndex(slot);
             const value::Value& b = otherRaw->getFieldByIndex(slot);
             const int64_t ai = value::isInt(a) ? value::asInt(a) : 0;

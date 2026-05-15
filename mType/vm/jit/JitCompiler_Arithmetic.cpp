@@ -1075,9 +1075,9 @@ namespace vm::jit
                 // {ADD,SUB,MUL}_INT. De-fuse at JIT time; the JIT machine-code
                 // output is the same as the unfused sequence.
                 bytecode::BytecodeProgram::Instruction load1(
-                    OpCode::LOAD_LOCAL, instr.operands[0]);
+                    OpCode::LOAD_LOCAL, instr.inlineOperands[0]);
                 bytecode::BytecodeProgram::Instruction load2(
-                    OpCode::LOAD_LOCAL, instr.operands[1]);
+                    OpCode::LOAD_LOCAL, instr.inlineOperands[1]);
                 if (!emitControlFlowOps(s, load1, nullptr) ||
                     !emitControlFlowOps(s, load2, nullptr))
                 {
@@ -1103,7 +1103,7 @@ namespace vm::jit
                     return true;
                 }
                 bytecode::BytecodeProgram::Instruction store(
-                    OpCode::STORE_LOCAL, instr.operands[0]);
+                    OpCode::STORE_LOCAL, instr.inlineOperands[0]);
                 return emitControlFlowOps(s, store, nullptr);
             }
 

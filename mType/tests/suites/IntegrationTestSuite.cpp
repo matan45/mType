@@ -337,6 +337,17 @@ namespace tests::testSuite
         addOutputVerificationTest("Inline Function Object Args",
                                   passPath + "inlining/inline_function_object_args.mt");
 
+        // MYT-316: plain-CALL / CALL_FAST inlining wired into emitCallOp /
+        // emitCallFastOp (MYT-210 landed the eligibility check + counter
+        // scaffolding; MYT-316 plumbs the actual emit path and adds the
+        // reverse-edge invalidation index on JitCodeCache).
+        addOutputVerificationTest("Inline Function Boxed Return",
+                                  passPath + "inlining/inline_function_boxed_return.mt");
+        addOutputVerificationTest("Inline Function Hot Loop",
+                                  passPath + "inlining/inline_function_hot_loop.mt");
+        addOutputVerificationTest("Inline Function Deny List (try/catch)",
+                                  passPath + "inlining/inline_function_deny_list.mt");
+
         // MYT-173: CALL_METHOD_CACHED promotion + sticky deopt.
         addOutputVerificationTest("CALL_METHOD_CACHED Monomorphic Promote",
                                   passPath + "ic/call_method_cached_mono.mt");
@@ -527,6 +538,8 @@ namespace tests::testSuite
                                   benchmarkPath + "field_read_hot.mt");
         addOutputVerificationTest("Benchmark: field_write_hot",
                                   benchmarkPath + "field_write_hot.mt");
+        addOutputVerificationTest("Benchmark: polymorphic_field_hot",
+                                  benchmarkPath + "polymorphic_field_hot.mt");
         addOutputVerificationTest("Benchmark: for_each_loop",
                                   benchmarkPath + "for_each_loop.mt");
         addOutputVerificationTest("Benchmark: function_call_hot",
@@ -539,6 +552,12 @@ namespace tests::testSuite
                                   benchmarkPath + "inline_monomorphic.mt");
         addOutputVerificationTest("Benchmark: inline_polymorphic",
                                   benchmarkPath + "inline_polymorphic.mt");
+        // MYT-173 follow-up: mixed-inlineability POLY-4 site (3 small + 1
+        // oversized callee). JIT-on output must match the --no-jit reference
+        // — the per-shape helper routing for Big must produce the same
+        // accumulator sum as full-helper dispatch.
+        addOutputVerificationTest("Benchmark: inline_polymorphic_mixed",
+                                  benchmarkPath + "inline_polymorphic_mixed.mt");
         addOutputVerificationTest("Benchmark: inline_value_object_hot",
                                   benchmarkPath + "inline_value_object_hot.mt");
         addOutputVerificationTest("Benchmark: lambda_call_hot",
@@ -549,12 +568,21 @@ namespace tests::testSuite
         // needs separate investigation before it can be a regression test.
         addOutputVerificationTest("Benchmark: linked_list_nested_hot",
                                   benchmarkPath + "linked_list_nested_hot.mt");
+        // MYT-173 follow-up: 6 subclasses overflow IC_MAX_POLYMORPHIC_ENTRIES.
+        // MEGA-path correctness check — every dispatch goes through
+        // jit_call_method_ic; output must match the --no-jit reference.
+        addOutputVerificationTest("Benchmark: megamorphic_dispatch",
+                                  benchmarkPath + "megamorphic_dispatch.mt");
+        addOutputVerificationTest("Benchmark: method_chain_hot",
+                                  benchmarkPath + "method_chain_hot.mt");
         addOutputVerificationTest("Benchmark: method_dispatch",
                                   benchmarkPath + "method_dispatch.mt");
         addOutputVerificationTest("Benchmark: object_alloc",
                                   benchmarkPath + "object_alloc.mt");
         addOutputVerificationTest("Benchmark: object_alloc_nested",
                                   benchmarkPath + "object_alloc_nested.mt");
+        addOutputVerificationTest("Benchmark: gc_cycle_churn",
+                                  benchmarkPath + "gc_cycle_churn.mt");
         addOutputVerificationTest("Benchmark: overload_dispatch_hot",
                                   benchmarkPath + "overload_dispatch_hot.mt");
         addOutputVerificationTest("Benchmark: pattern_match_hot",
@@ -573,6 +601,8 @@ namespace tests::testSuite
                                   benchmarkPath + "stream_pipeline_hot.mt");
         addOutputVerificationTest("Benchmark: string_interpolation_hot",
                                   benchmarkPath + "string_interpolation_hot.mt");
+        addOutputVerificationTest("Benchmark: string_build_call_hot",
+                                  benchmarkPath + "string_build_call_hot.mt");
         addOutputVerificationTest("Benchmark: string_ops",
                                   benchmarkPath + "string_ops.mt");
         addOutputVerificationTest("Benchmark: switch_dispatch_hot",
@@ -726,5 +756,12 @@ namespace tests::testSuite
         // demo runtime. Pins the OSR gate so it cannot silently regress.
         addOutputVerificationTest("MYT-308 JIT heap global-array OSR",
                         passPath + "myt308JitHeapGlobalArrayOsr.mt");
+
+        // MYT-314 regression: a hot non-looping leaf function must tier up
+        // via PROFILE_ENTER -> JitProfiler::recordEntry -> JitCompiler::
+        // compile. Pre-fix the only tier-up path was OSR (loop-only), so
+        // recursive/leaf-call hotness silently stayed in the interpreter.
+        addOutputVerificationTest("MYT-314 JIT function-entry tier",
+                        passPath + "myt314JitFunctionEntryTier_pass.mt");
     }
 }
