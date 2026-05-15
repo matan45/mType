@@ -337,6 +337,17 @@ namespace tests::testSuite
         addOutputVerificationTest("Inline Function Object Args",
                                   passPath + "inlining/inline_function_object_args.mt");
 
+        // MYT-316: plain-CALL / CALL_FAST inlining wired into emitCallOp /
+        // emitCallFastOp (MYT-210 landed the eligibility check + counter
+        // scaffolding; MYT-316 plumbs the actual emit path and adds the
+        // reverse-edge invalidation index on JitCodeCache).
+        addOutputVerificationTest("Inline Function Boxed Return",
+                                  passPath + "inlining/inline_function_boxed_return.mt");
+        addOutputVerificationTest("Inline Function Hot Loop",
+                                  passPath + "inlining/inline_function_hot_loop.mt");
+        addOutputVerificationTest("Inline Function Deny List (try/catch)",
+                                  passPath + "inlining/inline_function_deny_list.mt");
+
         // MYT-173: CALL_METHOD_CACHED promotion + sticky deopt.
         addOutputVerificationTest("CALL_METHOD_CACHED Monomorphic Promote",
                                   passPath + "ic/call_method_cached_mono.mt");

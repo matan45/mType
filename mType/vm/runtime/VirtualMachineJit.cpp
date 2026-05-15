@@ -868,6 +868,37 @@ namespace vm::runtime
         functionExecutor->handleCallFast(instr);
     }
 
+    void VirtualMachine::invalidateInlinedFunctionCallers(
+        bytecode::FunctionNameHandle callee)
+    {
+        if (!jitCodeCache) return;
+        auto callers = jitCodeCache->invalidatedInlineCallersOf(callee);
+        if (callers.empty()) return;
+
+        auto* icTable = inlineCacheTable.get();
+        for (const auto& callerName : callers)
+        {
+            // JitCodeCache::invalidate releases the native code memory and
+            // returns the JitFunction pointer that was freed. The MYT-315
+            // contract requires us to scrub every IC table that may hold
+            // that pointer.
+            jit::JitFunction removed = jitCodeCache->invalidate(callerName);
+            if (removed && icTable)
+            {
+                icTable->clearCachedJitForFunction(
+                    reinterpret_cast<const void*>(removed));
+            }
+            // A caller F that inlined `callee` may itself have been inlined
+            // into a third caller G. We don't have F's handle directly here
+            // — the next compile that pastes F into G will register a fresh
+            // edge under F's handle. For correctness today we rely on the
+            // current invalidate target chain (PluginLoader walks all
+            // unbound names; REPL redefinition passes the redefined
+            // function's handle). If transitive eviction becomes necessary,
+            // resolve callerName -> handle via internFrameName and recurse.
+        }
+    }
+
     void VirtualMachine::printJitStats() const
     {
         std::cout << "\n=== JIT Statistics ===\n";

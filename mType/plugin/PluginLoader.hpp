@@ -64,6 +64,15 @@ namespace plugin
          * so a still-warm IC doesn't jump into the freed plugin image. */
         static void invalidateNativeCaches(const std::shared_ptr<::vm::runtime::VirtualMachine>& vm);
 
+        /* MYT-316: defensive sweep for inlined-function-caller invalidation
+         * on plugin unload. Plugin functions are native and not currently
+         * inlineable (CALLEE_NATIVE rejection in InlineAnalysis), so this is
+         * a no-op for today's plugins — but a future plugin API that ships
+         * mType functions would need this hook, and the JIT'd caller
+         * eviction path already exists, so wire it in now. */
+        static void invalidateInlinedCallers(const std::shared_ptr<::vm::runtime::VirtualMachine>& vm,
+                                              const std::vector<std::string>& names);
+
         mutable std::mutex mtx_;
         std::unordered_map<std::string, std::unique_ptr<PluginHandle>> loaded_;
     };

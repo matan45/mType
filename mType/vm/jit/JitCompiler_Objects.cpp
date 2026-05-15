@@ -105,6 +105,20 @@ namespace vm::jit
         JitEmissionState& s,
         const bytecode::BytecodeProgram::Instruction& instr);
 
+    // MYT-316: shared plain-function inline emitter, used by both CALL_STATIC
+    // (tryEmitInlinedStaticCall) and plain CALL / CALL_FAST (emitCallOp /
+    // emitCallFastOp in JitCompiler_ControlFlow.cpp). The callee must already
+    // be resolved by the caller; `calleeHandle` is the interned
+    // FunctionNameHandle used for reverse-edge bookkeeping on the
+    // JitCodeCache (so a later redefinition of `callee` can evict every JIT
+    // buffer that pasted its body inline). Pass INVALID_FN_HANDLE to skip
+    // the bookkeeping (e.g. OSR with no static caller name to evict).
+    bool tryEmitInlinedFunctionCall(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::FunctionMetadata* callee,
+        size_t argCount,
+        bytecode::FunctionNameHandle calleeHandle);
+
     void emitBoxCallArgs(JitEmissionState& s, size_t argCount, size_t destStartSlot)
     {
         auto& cc = s.cc;
@@ -1419,6 +1433,11 @@ namespace vm::jit
             return false;
         if (callee->parameterCount != argCount)
             return false;
+
+        // CALL_STATIC-specific gates: no generic instantiations, primitive-only
+        // signatures. These keep the static-call slow path simple and predate
+        // MYT-316 generalization; if either of these proves over-restrictive
+        // for static sites, lift them into the shared helper.
         if (!callee->genericTypeParameters.empty())
             return false;
         for (const auto& paramType : callee->parameterTypes)
@@ -1427,6 +1446,41 @@ namespace vm::jit
                 return false;
         }
         if (!isInlineStaticPrimitiveType(callee->returnType))
+            return false;
+
+        // MYT-316: register the reverse edge so a redefinition (rare for
+        // CALL_STATIC, but defensive) evicts every caller that pasted this
+        // callee's body.
+        const auto handle = s.program.internFrameName(funcName);
+        return tryEmitInlinedFunctionCall(s, callee, argCount, handle);
+    }
+
+    // MYT-316: shared inline emitter for plain (non-method) function calls.
+    // Used by tryEmitInlinedStaticCall (CALL_STATIC) and by emitCallOp /
+    // emitCallFastOp (plain CALL / CALL_FAST) in JitCompiler_ControlFlow.cpp.
+    //
+    // The caller is expected to have resolved `callee` and to pass a fresh
+    // `argCount` (no implicit `this` — plain functions have no receiver).
+    // Boxed mode is required: the inlined body emits in boxed-mode
+    // conventions and the locals-copy assumes that emission style.
+    //
+    // No runtime identity guard is emitted. Identity safety is provided by
+    // eager invalidation: on success the helper records a caller→callee edge
+    // in JitCodeCache via registerInlineEdge, and a subsequent
+    // invalidatedInlineCallersOf(callee) returns this caller's name so its
+    // JIT buffer can be evicted. Pass INVALID_FN_HANDLE to skip bookkeeping
+    // (best-effort safety only — caller accepts residual stale-code risk).
+    bool tryEmitInlinedFunctionCall(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::FunctionMetadata* callee,
+        size_t argCount,
+        bytecode::FunctionNameHandle calleeHandle)
+    {
+        if (!s.usesBoxedTypes)
+            return false;
+        if (!callee)
+            return false;
+        if (callee->parameterCount != argCount)
             return false;
 
         auto decision = optimization::checkFunctionInlineEligibility(
@@ -1507,6 +1561,17 @@ namespace vm::jit
         s.slotTypes.resize(static_cast<size_t>(firstArgStackIdx));
         s.slotTypes.push_back(SlotType::BOXED);
         s.arrayInfoCache.clear();
+
+        // MYT-316: register the reverse edge so a later redefinition of
+        // `callee` will evict this caller's JIT buffer. Only meaningful when
+        // we have a static caller name to evict (currentCompilingFn empty in
+        // OSR — record nothing, leaving best-effort safety).
+        if (calleeHandle != bytecode::INVALID_FN_HANDLE
+            && !s.currentCompilingFn.empty()
+            && s.codeCache)
+        {
+            s.codeCache->registerInlineEdge(calleeHandle, s.currentCompilingFn);
+        }
         return true;
     }
 

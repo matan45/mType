@@ -354,6 +354,18 @@ namespace vm::runtime
         vm::jit::ic::InlineCacheTable* getInlineCacheTable() const { return inlineCacheTable.get(); }
         vm::jit::ic::TypeFeedbackCollector* getTypeFeedbackCollector() const { return typeFeedbackCollector.get(); }
 
+        // MYT-316: function-redefinition / plugin-reload invalidation. When a
+        // function's body is replaced, every JIT'd caller that speculatively
+        // pasted the old body inline must be evicted — there is no runtime
+        // identity guard. Looks up reverse caller→callee edges in
+        // JitCodeCache (registerInlineEdge populates them during emit),
+        // invalidates each caller's JIT buffer, and scrubs the IC table to
+        // satisfy MYT-315's cachedJit-pointer contract. No-op when no caller
+        // ever inlined `callee`. Modeled on
+        // BytecodeProgram::clearNativeCacheSlots — eager eviction, no
+        // runtime check.
+        void invalidateInlinedFunctionCallers(bytecode::FunctionNameHandle callee);
+
         // Phase 6: Inline caching control
         void setICEnabled(bool enabled);
         bool isICEnabled() const { return icEnabled; }

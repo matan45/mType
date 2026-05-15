@@ -13,6 +13,17 @@ namespace vm::jit
     using namespace asmjit::x86;
     using OpCode = bytecode::OpCode;
 
+    // MYT-316: defined in JitCompiler_Objects.cpp. Speculatively pastes the
+    // callee's bytecode body inline if it passes the plain-function inline
+    // eligibility (size, no try/await/nested-call, depth limit). No runtime
+    // identity guard — invalidation is eager via JitCodeCache reverse edges
+    // (see registerInlineEdge / invalidatedInlineCallersOf).
+    bool tryEmitInlinedFunctionCall(
+        JitEmissionState& s,
+        const bytecode::BytecodeProgram::FunctionMetadata* callee,
+        size_t argCount,
+        bytecode::FunctionNameHandle calleeHandle);
+
     // Emit an inline GC poll: bump g_jit_gc_poll_counter and only invoke
     // jit_gc_safepoint (which resets the counter and calls GC::maybeCollect)
     // when it crosses GC_CHECK_INTERVAL. Skips the ABI register-spill
@@ -861,6 +872,17 @@ namespace vm::jit
                                        reinterpret_cast<uint64_t>(jit_call_function),
                                        nameIndex))
                 return true;
+
+            // MYT-316: try speculative inlining before falling through to the
+            // cc.invoke runtime boundary. The inliner enforces its own
+            // eligibility gates (size, opcode deny-list, depth, stack peak);
+            // if it declines, we fall through to the generic dispatch below.
+            if (calleeMeta)
+            {
+                const auto calleeHandle = s.program.internFrameName(funcName);
+                if (tryEmitInlinedFunctionCall(s, calleeMeta, argCount, calleeHandle))
+                    return true;
+            }
         }
 
         std::string returnType = resolveCallReturnType(s, instr);
@@ -927,6 +949,16 @@ namespace vm::jit
             s.compileFailed = true;
             return true;
         }
+
+        // MYT-316: speculative inlining before the runtime boundary. CALL_FAST's
+        // funcIndex is the stable post-IC dispatch key; the matching handle is
+        // interned from the callee's name.
+        {
+            const auto calleeHandle = s.program.internFrameName(calleeMeta->name);
+            if (tryEmitInlinedFunctionCall(s, calleeMeta, argCount, calleeHandle))
+                return true;
+        }
+
         const std::string& returnType = calleeMeta->returnType;
 
         bool isPrimReturn = (returnType == "int" || returnType == "float" ||

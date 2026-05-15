@@ -167,19 +167,29 @@ namespace plugin
 
         invalidateNativeCaches(vm);
 
+        /* MYT-316: evict any JIT'd caller that speculatively inlined a function
+         * of the same name as one being unbound. Conservative defense — see
+         * invalidateInlinedCallers for why this is a no-op for today's
+         * native-only plugins, but the hook is in place for future plugin
+         * APIs and for the symmetry with invalidateNativeCaches. */
+        invalidateInlinedCallers(vm, handle->registeredNames);
+
         /* Unload ordering (must stay in this order):
          *   1. registry->unregisterNativeFunction (above)  — no new dispatch
          *      can resolve to this plugin's names.
          *   2. invalidateNativeCaches                       — every IC slot
          *      holding a NativeDelegate into this plugin is zeroed.
-         *   3. handle->bindings.clear()                     — trampoline
+         *   3. invalidateInlinedCallers                     — every JIT'd
+         *      caller that pasted a callee of the same name is evicted
+         *      (MYT-316).
+         *   4. handle->bindings.clear()                     — trampoline
          *      userData is dropped so no in-flight pointer can be reused.
-         *   4. osClose                                       — unmap plugin
+         *   5. osClose                                       — unmap plugin
          *      code last.
          *
          * Any new cache that stores a NativeDelegate or a raw function pointer
          * into plugin code MUST hook into invalidateNativeCaches; otherwise it
-         * will hold a dangling pointer after step 4. */
+         * will hold a dangling pointer after step 5. */
         handle->bindings.clear();
         osClose(handle->osHandle);
     }
@@ -201,6 +211,28 @@ namespace plugin
         for (const auto* prog : vm->getLoadedPrograms())
         {
             if (prog) prog->clearNativeCacheSlots();
+        }
+    }
+
+    void PluginLoader::invalidateInlinedCallers(
+        const std::shared_ptr<::vm::runtime::VirtualMachine>& vm,
+        const std::vector<std::string>& names)
+    {
+        if (!vm) return;
+        // FunctionNameHandle is interned per-BytecodeProgram, so the same
+        // function name can have different handle ids across programs.
+        // Sweep each program's intern table and invalidate against the
+        // VM-level JIT cache — invalidatedInlineCallersOf returns empty for
+        // handles that were never registered, so unused programs are
+        // effectively no-ops.
+        for (const auto* prog : vm->getLoadedPrograms())
+        {
+            if (!prog) continue;
+            for (const auto& name : names)
+            {
+                const auto h = prog->internFrameName(name);
+                vm->invalidateInlinedFunctionCallers(h);
+            }
         }
     }
 }
