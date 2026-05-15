@@ -30,6 +30,8 @@ namespace vm::jit
     static void emitMethodCallMarshalAndCleanup(JitEmissionState& s, size_t argCount);
     static void emitMethodDirectInvoke(JitEmissionState& s,
                                         const void* cachedJit,
+                                        const bytecode::BytecodeProgram* calleeProgram,
+                                        const void* funcMetadata,
                                         size_t argCountPlusReceiver);
     static const void* resolveCachedJit(JitEmissionState& s,
                                          const ic::MethodICEntry& entry);
@@ -1317,8 +1319,10 @@ namespace vm::jit
                 const void* directTarget = resolveCachedJit(s, cache.entries[i]);
                 if (directTarget)
                 {
+                    const auto& directEntry = cache.entries[i];
                     emitMethodCallMarshalAndCleanup(s, argCount);
-                    emitMethodDirectInvoke(s, directTarget, argCount + 1);
+                    emitMethodDirectInvoke(s, directTarget, directEntry.program,
+                                           directEntry.funcMetadata, argCount + 1);
                     emitReturnValueCopyBoxed(s);
                 }
                 else
@@ -1644,60 +1648,6 @@ namespace vm::jit
         return false;
     }
 
-    // MYT-315: safety filter. The MYT-184 /GS cookie corruption reproduces
-    // when a JIT-compiled callee with a "complex" body is invoked as a
-    // nested entry from another JIT frame. Empirically, the failure mode
-    // tracks with callees that themselves issue runtime invocations:
-    // method calls, function calls, object construction, await, throw.
-    // Simple straight-line arithmetic/field-read callees (the
-    // inline_polymorphic_mixed.mt Shape methods) survive 2M nested calls
-    // without incident; ArrayList::add (nested call to this.resize, array
-    // store, field write) trips the cookie on the first call.
-    //
-    // Until MYT-321 roots out the actual frame-layout invariant being
-    // violated, this conservative scan keeps us at single-level nesting:
-    // we only direct-dispatch leaf callees that don't themselves nest.
-    // Cached per FunctionMetadata pointer so the scan runs once per callee.
-    static bool calleeIsDirectCallSafe(
-        const bytecode::BytecodeProgram::FunctionMetadata* funcMeta,
-        const bytecode::BytecodeProgram* program)
-    {
-        if (!funcMeta || !program) return false;
-        static std::unordered_map<const bytecode::BytecodeProgram::FunctionMetadata*, bool> cache;
-        auto it = cache.find(funcMeta);
-        if (it != cache.end()) return it->second;
-
-        bool safe = true;
-        const size_t end = funcMeta->startOffset + funcMeta->instructionCount;
-        for (size_t ip = funcMeta->startOffset; ip < end; ++ip)
-        {
-            const auto& instr = program->getInstruction(ip);
-            switch (instr.opcode)
-            {
-                case OpCode::CALL:
-                case OpCode::CALL_FAST:
-                case OpCode::CALL_METHOD:
-                case OpCode::CALL_METHOD_CACHED:
-                case OpCode::CALL_METHOD_POLY_CACHED:
-                case OpCode::LOAD_LOCAL_CALL_CACHED:
-                case OpCode::LOAD_LOCAL_CALL_POLY_CACHED:
-                case OpCode::CALL_STATIC:
-                case OpCode::NEW_OBJECT:
-                case OpCode::NEW_STACK:
-                case OpCode::NEW_VALUE_OBJECT:
-                case OpCode::AWAIT:
-                case OpCode::THROW:
-                    safe = false;
-                    break;
-                default:
-                    break;
-            }
-            if (!safe) break;
-        }
-        cache[funcMeta] = safe;
-        return safe;
-    }
-
     // Lazy lookup of the callee's JIT pointer. The IC entry's cachedJit
     // slot is populated at IC fill time, which is BEFORE the callee tiers
     // up via MYT-314. So that slot is null on hot benchmarks where the
@@ -1708,8 +1658,7 @@ namespace vm::jit
     // Returns nullptr when:
     //   - the receiver is a value class (loadFromValueObject materialization
     //     is skipped on the direct path)
-    //   - the callee's body contains a nested call / object construction /
-    //     await / throw (MYT-315 safety filter — see calleeIsDirectCallSafe)
+    //   - the IC entry lacks callee program/metadata
     //   - no JIT entry exists yet
     static const void* resolveCachedJit(JitEmissionState& s,
                                          const ic::MethodICEntry& entry)
@@ -1717,7 +1666,7 @@ namespace vm::jit
         if (entry.receiverIsValueObject) return nullptr;
         const auto* funcMeta = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
             entry.funcMetadata);
-        if (!calleeIsDirectCallSafe(funcMeta, entry.program)) return nullptr;
+        if (!funcMeta || !entry.program) return nullptr;
         if (entry.cachedJit) return entry.cachedJit;
         if (!s.codeCache) return nullptr;
         return reinterpret_cast<const void*>(
@@ -1758,20 +1707,30 @@ namespace vm::jit
 
     static void emitMethodDirectInvoke(JitEmissionState& s,
                                         const void* cachedJit,
+                                        const bytecode::BytecodeProgram* calleeProgram,
+                                        const void* funcMetadata,
                                         size_t argCountPlusReceiver)
     {
         auto& cc = s.cc;
         Gp cjReg = cc.new_gp64();
         cc.mov(cjReg, reinterpret_cast<uint64_t>(cachedJit));
+        Gp progReg = cc.new_gp64();
+        cc.mov(progReg, reinterpret_cast<uint64_t>(calleeProgram));
+        Gp metaReg = cc.new_gp64();
+        cc.mov(metaReg, reinterpret_cast<uint64_t>(funcMetadata));
         Gp acReg = cc.new_gp64();
         cc.mov(acReg, static_cast<int64_t>(argCountPlusReceiver));
         InvokeNode* dcInv;
         cc.invoke(Out(dcInv),
                   reinterpret_cast<uint64_t>(jit_call_method_direct),
-                  FuncSignature::build<void, JitContext*, const void*, size_t>());
+                  FuncSignature::build<void, JitContext*, const void*,
+                                       const bytecode::BytecodeProgram*,
+                                       const void*, size_t>());
         dcInv->set_arg(0, s.ctxPtr);
         dcInv->set_arg(1, cjReg);
-        dcInv->set_arg(2, acReg);
+        dcInv->set_arg(2, progReg);
+        dcInv->set_arg(3, metaReg);
+        dcInv->set_arg(4, acReg);
     }
 
     static bool tryEmitDirectMethodCall(JitEmissionState& s,
@@ -1831,7 +1790,8 @@ namespace vm::jit
 
             emitInlineShapeGuard(s, receiverStackIdx, entry.shape, slowLabel);
             emitMethodCallMarshalAndCleanup(s, argCount);
-            emitMethodDirectInvoke(s, monoTarget, argCount + 1);
+            emitMethodDirectInvoke(s, monoTarget, entry.program,
+                                   entry.funcMetadata, argCount + 1);
             emitReturnValueCopyBoxed(s);
             cc.jmp(joinLabel);
         }
@@ -1877,7 +1837,8 @@ namespace vm::jit
                 if (i > 0) restoreEmitStateForInline(s, snap);
 
                 emitMethodCallMarshalAndCleanup(s, argCount);
-                emitMethodDirectInvoke(s, polyTarget, argCount + 1);
+                emitMethodDirectInvoke(s, polyTarget, entry.program,
+                                       entry.funcMetadata, argCount + 1);
                 emitReturnValueCopyBoxed(s);
                 cc.jmp(joinLabel);
             }

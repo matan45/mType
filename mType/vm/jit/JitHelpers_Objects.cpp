@@ -505,28 +505,28 @@ namespace vm::jit
         }
     }
 
-    // MYT-184 history: the original direct JIT->JIT path (tryDirectJitMethodDispatch,
-    // MYT-132 / MYT-161) was reverted because its inlining/splicing path's
-    // cc.new_stack allocation was undersized for nested calls, corrupting the
-    // MSVC /GS cookie of an outer caller (STATUS_STACK_BUFFER_OVERRUN at
-    // __report_gsfailure).
+    // MYT-321: direct JIT->JIT method dispatch has to recreate the runtime
+    // boundary that callMethodFromJitDirect used to provide. A raw function
+    // pointer is not enough: library callees must run with their owning
+    // BytecodeProgram (constant pool, metadata, nested IC lookups), and the VM
+    // call stack needs a method frame while the nested JIT body is active so
+    // exception handling, access checks, and stack traces see the callee.
     //
-    // MYT-315 re-introduces a direct path on a different mechanism:
-    // `jit_call_method_direct` below allocates a fresh nested `JitContext` on its
-    // own C++ stack frame and invokes the cached `JitFunction*` as a standard C
-    // function pointer call. The callee runs through its own full asmjit
-    // prologue (cc.add_func + cc.new_stack) — same path as a top-level VM->JIT
-    // entry — so there is no shared-frame hazard. The mini-interpreter path
-    // (callMethodFromJitDirect, still used by `jit_call_method_ic` below when
-    // the IC entry doesn't have a cached JitFunction) remains correct and is
-    // the fallback when the callee isn't JIT-compiled yet.
+    // The callee still gets an independent asmjit frame via its normal
+    // cc.add_func prologue; the extra C++ JitContext here supplies the correct
+    // runtime metadata and argument span for that frame.
 
     void jit_call_method_direct(JitContext* ctx,
                                  const void* cachedJit,
+                                 const bytecode::BytecodeProgram* calleeProgram,
+                                 const void* funcMetadata,
                                  size_t argCountPlusReceiver)
     {
         if (ctx->pendingException) return;
         if (!cachedJit || !ctx->vm) return;
+        const auto* funcMeta =
+            static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(funcMetadata);
+        if (!calleeProgram || !funcMeta) return;
 
         // Mirror tryJitDispatchResolved's native-recursion guard. Without
         // this, a recursive method via the direct path skips the same
@@ -549,18 +549,58 @@ namespace vm::jit
         }
 
         auto fn = reinterpret_cast<void(*)(JitContext*)>(const_cast<void*>(cachedJit));
+        const std::string& qualifiedName = funcMeta->mangledName.empty()
+            ? funcMeta->name : funcMeta->mangledName;
+
+        size_t calleeProgramIndex = 0;
+        const auto& loadedPrograms = ctx->vm->getLoadedPrograms();
+        if (!ctx->vm->getCallStack().empty())
+            calleeProgramIndex = ctx->vm->getCallStack().back().programIndex;
+        for (size_t i = 0; i < loadedPrograms.size(); ++i)
+        {
+            if (loadedPrograms[i] == calleeProgram)
+            {
+                calleeProgramIndex = i;
+                break;
+            }
+        }
+
+        std::string definingClassName;
+        size_t colonPos = qualifiedName.find("::");
+        if (colonPos != std::string::npos)
+            definingClassName = qualifiedName.substr(0, colonPos);
+
+        const size_t savedStackSize = ctx->stackManager ? ctx->stackManager->size() : 0;
+        vm::runtime::CallFrame frame;
+        frame.returnAddress = ctx->vm->getInstructionPointer();
+        frame.frameBase = savedStackSize;
+        frame.localBase = savedStackSize;
+        frame.functionName = calleeProgram->internFrameName(qualifiedName);
+        frame.definingClassName = definingClassName;
+        frame.programIndex = calleeProgramIndex;
+        if (argCountPlusReceiver > 0)
+        {
+            const value::Value& receiver = ctx->callArgs[0];
+            if (value::isObject(receiver))
+                frame.thisInstance = value::asObject(receiver);
+            else if (value::isStackObject(receiver))
+                frame.thisInstanceRaw = value::asObjectInstanceRaw(receiver);
+        }
+        ctx->vm->pushCallFrame(std::move(frame));
+        bool framePushed = true;
 
         JitContext nestedCtx{};
         nestedCtx.args = ctx->callArgs;
         nestedCtx.argCount = argCountPlusReceiver;
         nestedCtx.hasReturnValue = false;
-        nestedCtx.program = ctx->program;
+        nestedCtx.program = calleeProgram;
         nestedCtx.stackManager = ctx->stackManager;
         nestedCtx.environment = ctx->environment;
         nestedCtx.vm = ctx->vm;
         nestedCtx.jitCodeCache = ctx->jitCodeCache;
         nestedCtx.icTable = ctx->icTable;
-        nestedCtx.callingClassName = ctx->callingClassName;
+        nestedCtx.callingClassName = definingClassName.empty()
+            ? ctx->callingClassName : definingClassName;
 
         ctx->vm->incrementJitNativeDepth();
         try {
@@ -569,6 +609,11 @@ namespace vm::jit
             ctx->pendingException = std::current_exception();
         }
         ctx->vm->decrementJitNativeDepth();
+        if (framePushed)
+        {
+            ctx->vm->popCallStack();
+            framePushed = false;
+        }
 
         if (nestedCtx.pendingException && !ctx->pendingException) {
             ctx->pendingException = nestedCtx.pendingException;

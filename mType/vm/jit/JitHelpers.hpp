@@ -180,12 +180,17 @@ namespace vm::jit
     // ctx->callArgs[0..argCountPlusReceiver-1] in the same layout
     // jit_call_method_ic expects. `argCountPlusReceiver` is the parameter count
     // including the receiver (i.e. argCount + 1).
+    // `calleeProgram` and `funcMetadata` must describe the program/function
+    // that owns `cachedJit`; library callees must not run against the caller's
+    // constant pool.
     //
     // Stores any thrown exception on ctx->pendingException (the same channel
     // jit_call_method_ic uses); the JIT caller's emit pattern is unchanged
     // from the existing IC slow path.
     void jit_call_method_direct(JitContext* ctx,
                                  const void* cachedJit,
+                                 const bytecode::BytecodeProgram* calleeProgram,
+                                 const void* funcMetadata,
                                  size_t argCountPlusReceiver);
 
     // Protocol fast leaves for hot generic `K.hashCode()` / `K.equals(K)`
