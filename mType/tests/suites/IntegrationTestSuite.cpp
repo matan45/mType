@@ -544,6 +544,16 @@ namespace tests::testSuite
                                   benchmarkPath + "for_each_loop.mt");
         addOutputVerificationTest("Benchmark: function_call_hot",
                                   benchmarkPath + "function_call_hot.mt");
+        // MYT-322: free-function direct JIT-to-JIT dispatch coverage.
+        // mediumCompute is a ~48-instruction callee — above the size gate
+        // — so once function-entry tiering JIT-compiles it the lazy
+        // refresh in jit_call_function_ic picks up the pointer and routes
+        // through jit_call_function_direct. The four existing function/
+        // static-call benchmarks all have callees ≤ 4 instructions and
+        // exercise only the mini-interpret fallback; this is the
+        // dedicated correctness check for the direct-dispatch path.
+        addOutputVerificationTest("Benchmark: function_call_medium_hot",
+                                  benchmarkPath + "function_call_medium_hot.mt");
         addOutputVerificationTest("Benchmark: generic_dispatch_hot",
                                   benchmarkPath + "generic_dispatch_hot.mt");
         addOutputVerificationTest("Benchmark: inline_branching",

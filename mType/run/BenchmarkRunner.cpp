@@ -32,7 +32,7 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 48> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 49> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -99,6 +99,16 @@ namespace
         // native code is MYT-314's tier-up. Companion to function_call_hot
         // (which measures the inliner once it returns).
         "function_entry_tier_hot.mt",
+        // MYT-322: free-function direct JIT-to-JIT dispatch canary.
+        // Callee `mediumCompute` is ~30 bytecode instructions — above
+        // MIN_DIRECT_CALL_INSTRUCTION_COUNT — so once function-entry
+        // tiering JIT-compiles it the warm path in jit_call_function_ic
+        // refreshes its cachedJitFnPtr and routes through
+        // jit_call_function_direct. The four existing function-call
+        // benchmarks all have callees ≤ 4 instructions so they exercise
+        // only the mini-interpret fallback; this benchmark is the
+        // dedicated coverage for the direct-dispatch path.
+        "function_call_medium_hot.mt",
         // Async/await suspend-resume cost in a tight await loop.
         "async_await_tight_loop.mt",
         // Sequential await chain — 4 awaits/iter, distinct continuation shapes.

@@ -363,21 +363,45 @@ namespace vm::jit
                 if (cached->cachedFuncMetadata && ctx->vm)
                 {
                     // MYT-322: take the direct JIT-to-JIT path only when
-                    // (a) the callee has been JIT-compiled (cachedJitFnPtr
-                    // non-null), and (b) the callee's instructionCount
-                    // crosses the per-call-overhead break-even point. Tiny
-                    // leaves keep the cheaper mini-interpret fast path.
-                    if (cached->cachedJitFnPtr &&
-                        cached->cachedFuncMetadata->instructionCount >= MIN_DIRECT_CALL_INSTRUCTION_COUNT)
+                    // (a) the callee's instructionCount crosses the per-
+                    // call-overhead break-even point, and (b) the callee
+                    // has been JIT-compiled. Tiny leaves keep the cheaper
+                    // mini-interpret fast path.
+                    //
+                    // Lazy refresh of cachedJitFnPtr mirrors the method-
+                    // side pattern at JitHelpers_Objects.cpp:839-860. The
+                    // cold-fill at this IP runs before the callee tiers
+                    // up to JIT in most workloads; without the refresh,
+                    // cachedJitFnPtr stays null and the direct path
+                    // never engages even after function-entry tiering
+                    // compiles the callee. The probe is gated on the
+                    // size threshold so tiny callees that wouldn't take
+                    // the direct path anyway don't pay the hashmap cost
+                    // per call (the cause of MYT-321's revert).
+                    void* directTarget = cached->cachedJitFnPtr;
+                    if (cached->cachedFuncMetadata->instructionCount >= MIN_DIRECT_CALL_INSTRUCTION_COUNT)
                     {
-                        jit_call_function_direct(ctx,
-                                                  cached->cachedJitFnPtr,
-                                                  cached->cachedProgram,
-                                                  cached->cachedFuncMetadata,
-                                                  cached->cachedFrameName,
-                                                  cached->cachedProgramIndex,
-                                                  argCount);
-                        return;
+                        if (!directTarget && ctx->jitCodeCache)
+                        {
+                            directTarget = reinterpret_cast<void*>(
+                                ctx->jitCodeCache->lookup(funcName));
+                            if (directTarget)
+                            {
+                                ctx->program->getOrCreateCachedState(bytecodeOffset)
+                                    .cachedJitFnPtr = directTarget;
+                            }
+                        }
+                        if (directTarget)
+                        {
+                            jit_call_function_direct(ctx,
+                                                      directTarget,
+                                                      cached->cachedProgram,
+                                                      cached->cachedFuncMetadata,
+                                                      cached->cachedFrameName,
+                                                      cached->cachedProgramIndex,
+                                                      argCount);
+                            return;
+                        }
                     }
                     ctx->returnValue = ctx->vm->callFunctionFromJitDirect(
                         funcName, cached->cachedFuncMetadata,
