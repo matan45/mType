@@ -4,6 +4,8 @@
 // emitCallFastOp accepts them. Output correctness oracle: the inlined
 // path must produce the same string the runtime-dispatched path does.
 
+import * from "../../../lib/primitives/String.mt";
+
 function greet(int n): String {
     return "hi-" + n;
 }

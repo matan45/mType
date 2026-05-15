@@ -9052,10 +9052,28 @@
     <None Include="tests\testFiles\integration\pass\inlining\inline_function_basic.mt">
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_function_boxed_return.expected">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_function_boxed_return.mt">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\inlining\inline_function_chain.expected">
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\inlining\inline_function_chain.mt">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_function_deny_list.expected">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_function_deny_list.mt">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_function_hot_loop.expected">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_function_hot_loop.mt">
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\inlining\inline_function_object_args.expected">

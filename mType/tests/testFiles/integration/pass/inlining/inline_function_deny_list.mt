@@ -2,6 +2,8 @@
 // try/catch must not be inlined (HAS_TRY_CATCH in InlineAnalysis) — the
 // runtime-dispatched path must execute the exception flow correctly.
 
+import * from "../../../lib/exceptions/Exception.mt";
+
 function safeDiv(int a, int b): int {
     try {
         if (b == 0) {
