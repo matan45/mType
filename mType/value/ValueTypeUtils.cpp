@@ -44,17 +44,37 @@ namespace value {
     }
 
     namespace {
+        // Releases the slot if placement-new throws. Disarmed once the bridge
+        // is fully constructed — from then on releaseSlot() runs via the
+        // virtual BridgeBase::destroy() path when refcount hits zero.
+        struct BridgeSlotGuard
+        {
+            void* slot;
+            BridgeKind k;
+            bool fromArena;
+            bool armed{true};
+            ~BridgeSlotGuard() noexcept
+            {
+                if (!armed) return;
+                if (fromArena) BridgeArena::getInstance().releaseSlot(k, slot);
+                else ::operator delete(slot, std::align_val_t{alignof(std::max_align_t)});
+            }
+        };
+
         template <BridgeKind K, typename Held>
         BridgeBase* makeBridge(Held h)
         {
             using Bridge = TypedBridge<K, Held>;
             void* slot = BridgeArena::getInstance().acquireSlot(K, sizeof(Bridge));
+            const bool fromArena = (slot != nullptr);
             if (!slot)
             {
                 slot = ::operator new(sizeof(Bridge),
                                       std::align_val_t{alignof(std::max_align_t)});
             }
+            BridgeSlotGuard guard{slot, K, fromArena};
             auto* b = ::new (slot) Bridge(std::move(h));
+            guard.armed = false;
             b->retain();
             return b;
         }

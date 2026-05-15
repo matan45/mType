@@ -110,6 +110,7 @@ namespace value
 
         void reset(T* raw = nullptr) noexcept
         {
+            if (ptr_ == raw) return;
             if (raw) raw->retain();
             if (ptr_) ptr_->release();
             ptr_ = raw;
