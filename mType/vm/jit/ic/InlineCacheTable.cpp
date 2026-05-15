@@ -54,6 +54,21 @@ namespace vm::jit::ic
         }
     }
 
+    void InlineCacheTable::clearCachedJitForFunction(const void* evictedJit)
+    {
+        if (!evictedJit) return;
+        for (auto& [offset, cache] : methodCaches)
+        {
+            for (uint8_t i = 0; i < cache.entryCount; ++i)
+            {
+                if (cache.entries[i].cachedJit == evictedJit)
+                {
+                    cache.entries[i].cachedJit = nullptr;
+                }
+            }
+        }
+    }
+
     void InlineCacheTable::clear()
     {
         fieldCaches.clear();

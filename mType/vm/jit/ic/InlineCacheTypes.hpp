@@ -77,11 +77,18 @@ namespace vm::jit::ic
 
     // ---- Method IC ----
 
-    // MYT-184: MYT-161's cached JitEntryPtr/jitEntry field was removed along
-    // with tryDirectJitMethodDispatch (see JitHelpers_Objects.cpp for the
-    // rationale). Method IC hits dispatch via callMethodFromJitDirect's
-    // mini-interpret loop — no cached native entry is consulted, so the
-    // per-entry pointer served no purpose.
+    // MYT-184 / MYT-315: a per-entry cached JIT entry was removed in MYT-184
+    // (originally introduced in MYT-161 as tryDirectJitMethodDispatch). The
+    // revert root cause was the inlining/splicing path's `cc.new_stack`
+    // undersizing under nested calls — see the MYT-184 comment in
+    // JitHelpers_Objects.cpp. MYT-315 reintroduces a JIT pointer slot
+    // (`cachedJit` below), but on a different code path: the IC emitter
+    // calls into a separately-compiled JitFunction via `cc.invoke <imm>`,
+    // so the callee runs through its own full prologue and `cc.new_stack`
+    // allocations — no shared-frame hazard. The pointer is stored as
+    // `const void*` to keep this header free of <JitCodeCache.hpp>; the
+    // emitter and populators cast to `vm::jit::JitFunction` (see
+    // JitCodeCache.hpp:17).
 
     enum class MethodProtocolFastKind : uint8_t
     {
@@ -121,6 +128,13 @@ namespace vm::jit::ic
         // and K.equals(K). Populated only when the resolved target is known
         // to be semantically equivalent to a direct field-0 primitive op.
         MethodProtocolFastKind protocolFastKind = MethodProtocolFastKind::NONE;
+        // MYT-315: cached `vm::jit::JitFunction` (void(*)(JitContext*)) for
+        // direct JIT-to-JIT dispatch after the inline shape guard passes.
+        // Stored as void* to keep this header decoupled from JitCodeCache.hpp.
+        // Null until populated; any path that invalidates the underlying
+        // JIT code MUST zero this slot (see BytecodeProgram::clearMethodICCachedJit
+        // and InlineCacheExecutor::deoptAndReprocess / deoptPolyAndReprocess).
+        const void* cachedJit = nullptr;
     };
 
     struct MethodInlineCache

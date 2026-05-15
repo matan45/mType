@@ -169,6 +169,25 @@ namespace vm::jit
                              uint32_t methodNameIndex,
                              size_t argCount);
 
+    // MYT-315: direct JIT-to-JIT method dispatch. Called from the JIT emitter
+    // after an inline shape guard has matched and the IC entry holds a non-null
+    // cached JitFunction pointer. Skips jit_call_method_ic's IC lookup +
+    // callMethodFromJitDirect mini-interpreter; the cachedJit pointer is
+    // called directly via a standard C function-pointer invocation inside
+    // this helper.
+    //
+    // Caller responsibility: receiver + args must already be marshalled into
+    // ctx->callArgs[0..argCountPlusReceiver-1] in the same layout
+    // jit_call_method_ic expects. `argCountPlusReceiver` is the parameter count
+    // including the receiver (i.e. argCount + 1).
+    //
+    // Stores any thrown exception on ctx->pendingException (the same channel
+    // jit_call_method_ic uses); the JIT caller's emit pattern is unchanged
+    // from the existing IC slow path.
+    void jit_call_method_direct(JitContext* ctx,
+                                 const void* cachedJit,
+                                 size_t argCountPlusReceiver);
+
     // Protocol fast leaves for hot generic `K.hashCode()` / `K.equals(K)`
     // call sites. The JIT emitter shape-guards the receiver before calling
     // these; the helper still validates the primitive-wrapper layout and

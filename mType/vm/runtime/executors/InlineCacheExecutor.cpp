@@ -17,6 +17,8 @@
 #include "../../../value/SmallArgsBuffer.hpp"
 #include "../../../value/PrimitiveTypeTag.hpp"
 #include "../../../constants/SecurityConstants.hpp"
+#include "../VirtualMachine.hpp"
+#include "../../jit/JitCodeCache.hpp"
 
 namespace vm::runtime
 {
@@ -674,6 +676,19 @@ namespace vm::runtime
                     entry.protocolFastKind = classifyPrimitiveProtocolFastKind(
                         classDef, simpleMethodName, argCount,
                         lookupResult.definingClassName);
+                    // MYT-315: cache the callee's JitFunction pointer if it's
+                    // already JIT-compiled. Null when the callee hasn't been
+                    // JIT'd yet (function-entry tiering / OSR may compile it
+                    // later — a future IC re-fill at this site will pick it up).
+                    // Lookup is keyed by the function's qualifiedName; OSR
+                    // entries use "osr@<offset>" so this can't accidentally
+                    // return an OSR-entry pointer.
+                    if (context.vm) {
+                        if (auto* codeCache = context.vm->getJitCodeCache()) {
+                            entry.cachedJit = reinterpret_cast<const void*>(
+                                codeCache->lookup(entry.qualifiedName));
+                        }
+                    }
                     // MYT-183: re-fetch cache reference immediately before
                     // the write. The reference captured at the top of this
                     // method may have been invalidated by nested CALL_METHODs

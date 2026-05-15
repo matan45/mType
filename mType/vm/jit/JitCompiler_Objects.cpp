@@ -1546,6 +1546,205 @@ namespace vm::jit
         return false;
     }
 
+    // MYT-315: emit an inline shape guard + direct call into the IC entry's
+    // cached JitFunction*, with fallback to the existing jit_call_method_ic
+    // slow path on guard miss or absent cachedJit. Skips the mini-interpreter
+    // hop documented at JitHelpers_Objects.cpp:511 (callMethodFromJitDirect),
+    // closing the per-call ~150-250 cycle gap on tiny-method hot paths
+    // (`[[project_jit_tiny_method_ceiling]]`).
+    //
+    // Eligibility:
+    //   - MONOMORPHIC or POLYMORPHIC IC state
+    //   - at least one entry has a non-null `cachedJit` (the populator at
+    //     InlineCacheExecutor.cpp / JitHelpers_Objects.cpp ran when the
+    //     callee was already JIT-compiled; otherwise the slot is null and
+    //     this site stays on the slow path until the callee gets JIT'd and
+    //     the IC re-fills)
+    //   - argCount + 1 fits in JitContext::MAX_CALL_ARGS (caller invariant
+    //     already enforced by emitCallMethodOp's guard, but re-checked here)
+    //
+    // Emission shape (MONO): shape_guard -> marshal -> cc.invoke
+    // jit_call_method_direct -> emitReturnValueCopyBoxed -> jmp join.
+    // On miss the slowLabel runs the existing emitCallMethodOpGeneric.
+    //
+    // Emission shape (POLY): chained shape_guard per entry (reusing the
+    // extracted classDef register), each match falls into its own marshal +
+    // direct-call + emitReturnValueCopyBoxed + jmp join. The all-miss path
+    // routes through emitCallMethodOpGeneric, identical to the existing
+    // POLY inliner's miss handling.
+    //
+    // Returns false (do not handle, caller must emit generic path) when not
+    // eligible. Returns true and emits a complete call+return sequence
+    // (fast + slow + join binding) otherwise.
+    static bool tryEmitDirectMethodCall(JitEmissionState& s,
+                                         const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (!s.typeFeedback) return false;
+        auto& icTable = s.typeFeedback->getICTable();
+        if (!icTable.hasMethodIC(s.currentIP)) return false;
+
+        auto& cache = icTable.getMethodIC(s.currentIP);
+        if (cache.state != ic::ICState::MONOMORPHIC &&
+            cache.state != ic::ICState::POLYMORPHIC)
+            return false;
+
+        bool anyCachedJit = false;
+        for (uint8_t i = 0; i < cache.entryCount; ++i)
+        {
+            if (cache.entries[i].cachedJit)
+            {
+                anyCachedJit = true;
+                break;
+            }
+        }
+        if (!anyCachedJit) return false;
+
+        const size_t argCount = instr.inlineOperands[1];
+        if (argCount + 1 > JitContext::MAX_CALL_ARGS) return false;
+
+        const int receiverStackIdx = s.stackDepth - static_cast<int>(argCount) - 1;
+        if (receiverStackIdx < 0) return false;
+
+        // Boxed-mode required: callArgs marshalling, emitReturnValueCopyBoxed,
+        // and the shape-guard's boxed-receiver extract all rely on the boxed
+        // operand stack. scanOpcodesForBoxedTypes already trips CALL_METHOD
+        // into boxed mode, but bail defensively if a future caller reaches
+        // this path otherwise.
+        if (!s.usesBoxedTypes) return false;
+
+        auto& cc = s.cc;
+        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
+
+        asmjit::Label slowLabel = cc.new_label();
+        asmjit::Label joinLabel = cc.new_label();
+
+        const InlineEmitStateSnapshot snap = snapshotEmitStateForInline(s);
+
+        auto emitMarshalReceiverAndArgs = [&]() {
+            // Mirrors emitCallMethodOpGeneric lines 778-799: copy receiver
+            // into ctx->callArgs[0], box args into callArgs[1..], then
+            // destroy and pop the caller's operand-stack entries.
+            int objIdx = s.stackDepth - static_cast<int>(argCount) - 1;
+            Gp destAddr = cc.new_gp64();
+            cc.lea(destAddr, Mem(s.ctxPtr, offsetof(JitContext, callArgs)));
+            Gp srcAddr = cc.new_gp64();
+            cc.lea(srcAddr, Mem(s.boxedBase, static_cast<int32_t>(objIdx * valueSize)));
+            InvokeNode* cpInv;
+            cc.invoke(Out(cpInv), reinterpret_cast<uint64_t>(jit_value_copy),
+                      FuncSignature::build<void, value::Value*, const value::Value*>());
+            cpInv->set_arg(0, destAddr);
+            cpInv->set_arg(1, srcAddr);
+
+            emitBoxCallArgs(s, argCount, 1);
+            for (size_t i = 0; i < argCount; ++i)
+            {
+                SlotType at = popType(s);
+                if (isBoxedSlotType(at))
+                    emitValueDestroy(s, s.stackDepth - static_cast<int>(argCount) + static_cast<int>(i));
+            }
+            popType(s);
+            emitValueDestroy(s, s.stackDepth - static_cast<int>(argCount) - 1);
+            s.stackDepth -= static_cast<int>(argCount) + 1;
+        };
+
+        auto emitDirectInvoke = [&](const void* cachedJit) {
+            // cc.invoke against a raw immediate function-pointer target. The
+            // helper allocates a fresh nested JitContext on its own stack
+            // frame and calls cachedJit through a normal C function-pointer
+            // invocation — see jit_call_method_direct's body. SEH/PE unwind
+            // info is registered by AsmJit's JitRuntime::add for both the
+            // caller's frame and the callee's frame; the C++ helper sits
+            // between them with a standard prologue. No nested cc.new_stack
+            // is involved in the caller's frame, sidestepping the MYT-184
+            // /GS-cookie issue entirely.
+            Gp cjReg = cc.new_gp64();
+            cc.mov(cjReg, reinterpret_cast<uint64_t>(cachedJit));
+            Gp acReg = cc.new_gp64();
+            cc.mov(acReg, static_cast<int64_t>(argCount + 1));
+            InvokeNode* dcInv;
+            cc.invoke(Out(dcInv),
+                      reinterpret_cast<uint64_t>(jit_call_method_direct),
+                      FuncSignature::build<void, JitContext*, const void*, size_t>());
+            dcInv->set_arg(0, s.ctxPtr);
+            dcInv->set_arg(1, cjReg);
+            dcInv->set_arg(2, acReg);
+        };
+
+        if (cache.state == ic::ICState::MONOMORPHIC)
+        {
+            const auto& entry = cache.entries[0];
+            if (!entry.cachedJit || !entry.shape)
+            {
+                // Defensive — the anyCachedJit gate above should already
+                // exclude this, but make absolutely sure we never emit a
+                // null-target call.
+                return false;
+            }
+
+            emitInlineShapeGuard(s, receiverStackIdx, entry.shape, slowLabel);
+            emitMarshalReceiverAndArgs();
+            emitDirectInvoke(entry.cachedJit);
+            emitReturnValueCopyBoxed(s);
+            cc.jmp(joinLabel);
+        }
+        else
+        {
+            // POLY: chained guards over up-to-4 cached shapes. Mirrors
+            // emitInlinedMethodCallPoly's guard chain at line 1245-1343.
+            const uint8_t entryCount = cache.entryCount;
+
+            std::vector<asmjit::Label> nextCheckLabels;
+            nextCheckLabels.reserve(entryCount > 0
+                                    ? static_cast<size_t>(entryCount - 1) : 0);
+            for (uint8_t i = 0; i + 1 < entryCount; ++i)
+                nextCheckLabels.push_back(cc.new_label());
+
+            Gp classDefReg = emitExtractReceiverClassDef(s, receiverStackIdx);
+
+            for (uint8_t i = 0; i < entryCount; ++i)
+            {
+                if (i > 0) cc.bind(nextCheckLabels[i - 1]);
+
+                const auto& entry = cache.entries[i];
+                const asmjit::Label missLabel = (i + 1 < entryCount)
+                    ? nextCheckLabels[i]
+                    : slowLabel;
+
+                if (!entry.cachedJit || !entry.shape)
+                {
+                    // Entry has no JIT'd callee yet — skip to next guard.
+                    // The slow path will populate cachedJit on the next
+                    // miss-and-refill cycle once the callee is JIT'd.
+                    cc.jmp(missLabel);
+                    continue;
+                }
+
+                emitInlineShapeGuardReusingClassDef(s, classDefReg,
+                                                    entry.shape, missLabel);
+
+                // Each shape's body runs from the pre-call snapshot. Iter 0
+                // already has snap state; iterations 1+ must restore.
+                if (i > 0) restoreEmitStateForInline(s, snap);
+
+                emitMarshalReceiverAndArgs();
+                emitDirectInvoke(entry.cachedJit);
+                emitReturnValueCopyBoxed(s);
+                cc.jmp(joinLabel);
+            }
+        }
+
+        // --- Slow path: shape miss or all guards missed ---
+        cc.bind(slowLabel);
+        restoreEmitStateForInline(s, snap);
+        emitCallMethodOpGeneric(s, instr);
+        // emitCallMethodOpGeneric ends with its own emitReturnValueCopyBoxed,
+        // so the slow path falls through to joinLabel with the operand stack
+        // in the same configuration the fast path leaves it in.
+
+        cc.bind(joinLabel);
+        return true;
+    }
+
     static bool emitCallMethodOp(JitEmissionState& s,
                                   const bytecode::BytecodeProgram::Instruction& instr)
     {
@@ -1562,6 +1761,13 @@ namespace vm::jit
         // ineligible sites (cold IC, polymorphic, ValueObject receiver, etc.)
         // it returns false and we emit the generic path unchanged.
         if (tryEmitInlinedMethodCall(s, instr))
+            return true;
+        // MYT-315: try direct JIT-to-JIT dispatch when the IC entry has a
+        // cached JitFunction pointer. The shape guard + direct call skips
+        // the IC mini-interpreter (callMethodFromJitDirect) for the hot
+        // path on this call site. Falls through to emitCallMethodOpGeneric
+        // when no entry has a cached JIT pointer (callee not JIT'd yet).
+        if (tryEmitDirectMethodCall(s, instr))
             return true;
         emitCallMethodOpGeneric(s, instr);
         return true;

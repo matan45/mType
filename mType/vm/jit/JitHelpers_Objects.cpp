@@ -508,18 +508,80 @@ namespace vm::jit
         }
     }
 
-    // MYT-184: the direct JIT->JIT method dispatch (tryDirectJitMethodDispatch,
-    // originally MYT-132 / MYT-161) was removed after it was found to corrupt the
-    // native stack. When invoked nested, the asmjit-compiled callee's stack-frame
-    // layout (cc.new_stack for locals/operand/boxed areas, sized with
-    // INLINE_LOCALS_SLACK) wrote past its allocated bounds and clobbered the MSVC
-    // /GS cookie of a caller on the chain. Every run ended in
-    // STATUS_STACK_BUFFER_OVERRUN (0xC0000409) at __report_gsfailure — never an
-    // argument-layout mismatch as the original ticket hypothesised. All method IC
-    // hits now route through callMethodFromJitDirect's mini-interpret loop, which
-    // runs the callee bytecode directly and is immune to this class of bug. A
-    // future dedicated "nested entry" prologue (option b in the MYT-184 plan) can
-    // restore the fast path once stack-layout invariants are worked out.
+    // MYT-184 history: the original direct JIT->JIT path (tryDirectJitMethodDispatch,
+    // MYT-132 / MYT-161) was reverted because its inlining/splicing path's
+    // cc.new_stack allocation was undersized for nested calls, corrupting the
+    // MSVC /GS cookie of an outer caller (STATUS_STACK_BUFFER_OVERRUN at
+    // __report_gsfailure).
+    //
+    // MYT-315 re-introduces a direct path on a different mechanism:
+    // `jit_call_method_direct` below allocates a fresh nested `JitContext` on its
+    // own C++ stack frame and invokes the cached `JitFunction*` as a standard C
+    // function pointer call. The callee runs through its own full asmjit
+    // prologue (cc.add_func + cc.new_stack) — same path as a top-level VM->JIT
+    // entry — so there is no shared-frame hazard. The mini-interpreter path
+    // (callMethodFromJitDirect, still used by `jit_call_method_ic` below when
+    // the IC entry doesn't have a cached JitFunction) remains correct and is
+    // the fallback when the callee isn't JIT-compiled yet.
+
+    void jit_call_method_direct(JitContext* ctx,
+                                 const void* cachedJit,
+                                 size_t argCountPlusReceiver)
+    {
+        if (ctx->pendingException) return;
+        if (!cachedJit || !ctx->vm) return;
+
+        // Mirror tryJitDispatchResolved's native-recursion guard. Without
+        // this, a recursive method via the direct path skips the same
+        // safety net the function-dispatch helper uses.
+        if (ctx->vm->getJitNativeDepth() >= vm::runtime::VirtualMachine::MAX_JIT_NATIVE_DEPTH)
+        {
+            // Defer to the standard IC slow path by signalling no return
+            // value; the emitter falls back via the existing
+            // `jit_call_method_ic` jump target only when this helper isn't
+            // reached, so the safer choice here is to clear and rely on
+            // the caller to observe `!hasReturnValue`. For the v1, this
+            // path raises so the failure mode is loud rather than silent.
+            try {
+                throw errors::RuntimeException(
+                    "JIT: native recursion depth exceeded in direct dispatch");
+            } catch (...) {
+                ctx->pendingException = std::current_exception();
+            }
+            return;
+        }
+
+        auto fn = reinterpret_cast<void(*)(JitContext*)>(const_cast<void*>(cachedJit));
+
+        JitContext nestedCtx{};
+        nestedCtx.args = ctx->callArgs;
+        nestedCtx.argCount = argCountPlusReceiver;
+        nestedCtx.hasReturnValue = false;
+        nestedCtx.program = ctx->program;
+        nestedCtx.stackManager = ctx->stackManager;
+        nestedCtx.environment = ctx->environment;
+        nestedCtx.vm = ctx->vm;
+        nestedCtx.jitCodeCache = ctx->jitCodeCache;
+        nestedCtx.icTable = ctx->icTable;
+        nestedCtx.callingClassName = ctx->callingClassName;
+
+        ctx->vm->incrementJitNativeDepth();
+        try {
+            fn(&nestedCtx);
+        } catch (...) {
+            ctx->pendingException = std::current_exception();
+        }
+        ctx->vm->decrementJitNativeDepth();
+
+        if (nestedCtx.pendingException && !ctx->pendingException) {
+            ctx->pendingException = nestedCtx.pendingException;
+            return;
+        }
+        if (ctx->pendingException) return;
+
+        ctx->returnValue = std::move(nestedCtx.returnValue);
+        ctx->hasReturnValue = nestedCtx.hasReturnValue;
+    }
 
     bool jit_try_primitive_protocol_hash(value::Value* out,
                                          const value::Value* receiver)
@@ -712,6 +774,15 @@ namespace vm::jit
                         entry.protocolFastKind = classifyPrimitiveProtocolFastKind(
                             classDef, simpleMethodName, argCount,
                             lookupResult.definingClassName);
+                        // MYT-315: cache the callee's JitFunction pointer if
+                        // it's already JIT-compiled. See InlineCacheExecutor.cpp
+                        // for the interpreter-side mirror of this lookup.
+                        if (ctx->vm) {
+                            if (auto* codeCache = ctx->vm->getJitCodeCache()) {
+                                entry.cachedJit = reinterpret_cast<const void*>(
+                                    codeCache->lookup(entry.qualifiedName));
+                            }
+                        }
                         // MYT-183: re-fetch cache reference immediately
                         // before the write. Nested CALL_METHODs in
                         // jit_call_method above may have inserted new

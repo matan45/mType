@@ -59,7 +59,17 @@ namespace vm::jit
         void storeByIndex(size_t funcIndex, JitFunction code,
                           bytecode::FunctionNameHandle frameName);
 
-        // Invalidate a compiled function (for deoptimization)
+        // Invalidate a compiled function (for deoptimization).
+        //
+        // MYT-315 contract: any caller MUST also call
+        // InlineCacheTable::clearCachedJitForFunction(removed) on every IC
+        // table that may hold a reference (today: VirtualMachine::getInlineCacheTable()).
+        // Skipping that leaves MethodICEntry.cachedJit slots pointing at code
+        // that has already been released, and the JIT direct-call emitter
+        // (emitCallMethodOpGeneric) will call into freed memory on the next
+        // dispatch. JitCodeCache itself can't do the scrub because it doesn't
+        // hold an IC table reference (intentional — keeps the layering one-way:
+        // VM -> JitCodeCache, not vice versa).
         void invalidate(const std::string& functionName);
 
         // Check if a function has been compiled
