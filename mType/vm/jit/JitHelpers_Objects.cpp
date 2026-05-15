@@ -698,17 +698,18 @@ namespace vm::jit
                 if (entry && entry->funcMetadata)
                 {
                     // MYT-184: both receiver kinds route through
-                    // callMethodFromJitDirect's mini-interpret loop — direct
-                    // JIT→JIT dispatch stays disabled to preserve the /GS
-                    // stack-cookie invariant. The Value-receiver overload
-                    // handles both: ObjectInstance passes through to the
-                    // shared_ptr path bit-identically; ValueObject
-                    // batch-materialises a temp ObjectInstance via
-                    // loadFromValueObject and then takes the same path.
-                    // Either way the IC entry's pre-resolved funcMetadata
-                    // lets us skip the findInstanceMethodInHierarchy +
-                    // program->getFunction lookups that the slow
-                    // jit_call_method path redoes on every iteration.
+                    // callMethodFromJitDirect's mini-interpret loop. The
+                    // IC entry's pre-resolved funcMetadata lets us skip the
+                    // findInstanceMethodInHierarchy + program->getFunction
+                    // lookups that the slow jit_call_method path redoes on
+                    // every iteration.
+                    //
+                    // MYT-315: opportunistic JIT→JIT dispatch from this path
+                    // was tried but reverted — see errorLargeExceptionData_pass.mt
+                    // crash. The emit-side direct dispatch (tryEmitDirectMethodCall
+                    // and the POLY-rejected branch in emitInlinedMethodCallPoly)
+                    // captures the perf win on hot benchmarks without
+                    // re-introducing the runtime-side hazard.
                     auto* funcMeta = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(entry->funcMetadata);
                     std::vector<value::Value> args;
                     args.reserve(argCount);

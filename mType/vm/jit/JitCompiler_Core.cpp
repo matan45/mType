@@ -1030,6 +1030,7 @@ namespace vm::jit
                                    const bytecode::BytecodeProgram::FunctionMetadata& funcMeta,
                                    CompilationFrame& frame,
                                    ic::TypeFeedbackCollector* typeFeedback,
+                                   JitCodeCache* codeCache,  // MYT-315
                                    uint64_t* inlineFieldICHits,
                                    uint64_t* inlineFieldICMisses,
                                    uint64_t* inlineFieldSetICHits,
@@ -1072,6 +1073,7 @@ namespace vm::jit
         s.inlineDecisions = inlineDecisions;
         s.tailCallsOptimized = tailCallsOptimized;
         s.selfDirectCalls = selfDirectCalls;
+        s.codeCache = codeCache;  // MYT-315: fresh JIT lookup at compile time
 
         // MYT-207: expose the FuncNode's entry label so non-tail self-recursive
         // CALL sites can `cc.invoke(label, sig)` directly, skipping the
@@ -1170,6 +1172,7 @@ namespace vm::jit
         auto frame = setupCompilationFrame(cc, program, *funcMeta, localCount);
 
         if (!emitFunctionBody(cc, ctxPtr, program, *funcMeta, frame, typeFeedback,
+                               &codeCache,  // MYT-315
                                &inlineFieldICHits, &inlineFieldICMisses,
                                &inlineFieldSetICHits, &inlineFieldSetICMisses,
                                &inlineDecisions,

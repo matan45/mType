@@ -358,6 +358,7 @@ namespace vm::jit
                              size_t loopStartOffset, size_t loopEndOffset,
                              size_t jumpBackOffset,
                              ic::TypeFeedbackCollector* typeFeedback,
+                             JitCodeCache* codeCache,  // MYT-315
                              uint64_t* inlineFieldICHits,
                              uint64_t* inlineFieldICMisses,
                              uint64_t* inlineFieldSetICHits,
@@ -392,6 +393,7 @@ namespace vm::jit
         s.inlineFieldSetICHits = inlineFieldSetICHits;
         s.inlineFieldSetICMisses = inlineFieldSetICMisses;
         s.inlineDecisions = inlineDecisions;
+        s.codeCache = codeCache;  // MYT-315: fresh JIT lookup at compile time
         // MYT-251: explicit OSR-context signal. Replaces the
         // currentCompilingFn.empty() heuristic at OSR-emit sites
         // (e.g. tryEmitInlinedMethodCall's gate). currentCompilingFn
@@ -523,6 +525,7 @@ namespace vm::jit
         if (!emitOSRBody(cc, ctxPtr, program, frame, localSlotInfos,
                          localCount, loopStartOffset, loopEndOffset,
                          jumpBackOffset, typeFeedback,
+                         &codeCache,  // MYT-315
                          &inlineFieldICHits, &inlineFieldICMisses,
                          &inlineFieldSetICHits, &inlineFieldSetICMisses,
                          &inlineDecisions,
