@@ -7,6 +7,7 @@
 // Forward declaration
 namespace vm::bytecode {
     class BytecodeProgram;
+    struct FunctionNameHandle;
 }
 
 namespace vm::jit
