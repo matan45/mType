@@ -12,7 +12,7 @@ From the repo root:
 bin\mType\Release\x64\mType.exe --benchmark
 ```
 
-This runs the 44-script canonical suite with 1 warmup + 3 measured iterations,
+This runs the 48-script canonical suite with 1 warmup + 3 measured iterations,
 JIT on, and prints a human-readable table.
 
 ## Flags
@@ -54,6 +54,10 @@ one-sided upward.
 The canonical suite is fixed in `BenchmarkRunner.cpp`; adding a `.mt` file does
 not automatically add it to `--benchmark`. Add new deterministic scripts there
 and register them in `IntegrationTestSuite.cpp` with a sibling `.expected`.
+
+The suite includes both ordinary allocation workloads and `gc_cycle_churn.mt`,
+which creates short-lived cyclic object graphs to exercise GC safepoints and
+cycle detection during normal benchmark execution.
 
 `lexer_stress.mt` is intentionally excluded from the VM suite and correctness
 registration. Use `--benchmark-lexer=<path>` for lexer-only timing.

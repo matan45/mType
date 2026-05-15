@@ -581,6 +581,8 @@ namespace tests::testSuite
                                   benchmarkPath + "object_alloc.mt");
         addOutputVerificationTest("Benchmark: object_alloc_nested",
                                   benchmarkPath + "object_alloc_nested.mt");
+        addOutputVerificationTest("Benchmark: gc_cycle_churn",
+                                  benchmarkPath + "gc_cycle_churn.mt");
         addOutputVerificationTest("Benchmark: overload_dispatch_hot",
                                   benchmarkPath + "overload_dispatch_hot.mt");
         addOutputVerificationTest("Benchmark: pattern_match_hot",

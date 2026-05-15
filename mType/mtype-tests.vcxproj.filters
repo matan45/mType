@@ -2713,6 +2713,12 @@
     <None Include="tests\testFiles\benchmarks\object_alloc_nested.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\gc_cycle_churn.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\gc_cycle_churn.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\overload_dispatch_hot.expected">
       <Filter>testFiles\benchmarks</Filter>
     </None>
