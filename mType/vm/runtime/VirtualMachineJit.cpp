@@ -893,6 +893,18 @@ namespace vm::runtime
                 icTable->clearCachedJitForFunction(
                     reinterpret_cast<const void*>(removed));
             }
+            // MYT-321: also scrub the function-side IC slots
+            // (CachedInstructionState::cachedJitFnPtr) that route the
+            // jit_call_function_ic warm path through jit_call_function_direct.
+            if (removed && program)
+            {
+                program->clearCachedJitFnPtrFor(reinterpret_cast<void*>(removed));
+                for (const auto* loaded : getLoadedPrograms())
+                {
+                    if (loaded && loaded != program)
+                        loaded->clearCachedJitFnPtrFor(reinterpret_cast<void*>(removed));
+                }
+            }
             // A caller F that inlined `callee` may itself have been inlined
             // into a third caller G. We don't have F's handle directly here
             // — the next compile that pastes F into G will register a fresh

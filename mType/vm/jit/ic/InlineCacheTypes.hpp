@@ -77,18 +77,18 @@ namespace vm::jit::ic
 
     // ---- Method IC ----
 
-    // MYT-184 / MYT-315: a per-entry cached JIT entry was removed in MYT-184
-    // (originally introduced in MYT-161 as tryDirectJitMethodDispatch). The
-    // revert root cause was the inlining/splicing path's `cc.new_stack`
-    // undersizing under nested calls — see the MYT-184 comment in
-    // JitHelpers_Objects.cpp. MYT-315 reintroduces a JIT pointer slot
-    // (`cachedJit` below), but on a different code path: the IC emitter
-    // calls into a separately-compiled JitFunction via `cc.invoke <imm>`,
-    // so the callee runs through its own full prologue and `cc.new_stack`
-    // allocations — no shared-frame hazard. The pointer is stored as
-    // `const void*` to keep this header free of <JitCodeCache.hpp>; the
-    // emitter and populators cast to `vm::jit::JitFunction` (see
-    // JitCodeCache.hpp:17).
+    // MYT-184 / MYT-315 / MYT-321: a per-entry cached JIT entry was first
+    // tried in MYT-161 (tryDirectJitMethodDispatch), reverted in MYT-184
+    // on the wrong diagnosis (the revert blamed cc.new_stack undersizing
+    // for nested calls; the actual /GS-cookie corruption observed on
+    // errorLargeExceptionData_pass.mt was MYT-321's unary-INT-on-boxed-slot
+    // bug — orthogonal to nested asmjit frames). MYT-315 reintroduced the
+    // slot for the emit-side direct call path; MYT-321 fixed the actual
+    // root cause and turned direct dispatch on by default for both emit-
+    // side and runtime-side (jit_call_method_ic warm path). The pointer is
+    // stored as `const void*` to keep this header free of
+    // <JitCodeCache.hpp>; the emitter and populators cast to
+    // `vm::jit::JitFunction` (see JitCodeCache.hpp:17).
 
     enum class MethodProtocolFastKind : uint8_t
     {

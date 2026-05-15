@@ -41,8 +41,12 @@ namespace vm::jit
     // depth it reaches starting from depth 0. The inline guards in
     // emitInlinedMethodCallMono / emitInlinedMethodCallPoly use this to
     // reject candidates whose `caller_depth + callee_peak` would exceed
-    // MAX_OP_STACK — the previous overflow caused __fastfail(/GS-cookie)
-    // (MYT-248/249/250).
+    // MAX_OP_STACK and overrun cc.new_stack (MYT-248/249/250). MYT-184's
+    // separate /GS symptom on errorLargeExceptionData_pass.mt was a
+    // different root cause (unary INT on boxed slot, fixed in MYT-321);
+    // both classes of failure surface as __fastfail(/GS-cookie) because
+    // any out-of-bounds write into the asmjit-allocated frame trips the
+    // same MSVC instrumentation.
     //
     // For known opcodes we use DataFlowAnalyzer::calculateStackEffect
     // (vm/optimization/analysis/DataFlowAnalyzer.cpp:43). For opcodes that
@@ -1003,11 +1007,14 @@ namespace vm::jit
             return false;
 
         // MYT-251 step 3a: peak-operand-stack guard. Reject candidates whose
-        // caller_depth + callee_peak would exceed MAX_OP_STACK — the
-        // overflow that smashed /GS cookies in MYT-248/249/250. With the
-        // workaround at tryEmitInlinedMethodCall still active, this guard
-        // only runs from function-level JIT (currentCompilingFn non-empty);
-        // OSR-loop inlining doesn't reach here until step 4.
+        // caller_depth + callee_peak would exceed MAX_OP_STACK and overrun
+        // cc.new_stack (MYT-248/249/250). With the workaround at
+        // tryEmitInlinedMethodCall still active, this guard only runs from
+        // function-level JIT (currentCompilingFn non-empty); OSR-loop
+        // inlining doesn't reach here until step 4. The /GS symptom that
+        // motivated reverting MYT-161/MYT-184's direct-dispatch path
+        // turned out to be unrelated (MYT-321 boxed-slot INC bug); this
+        // guard remains valid against actual operand-stack overflow.
         {
             const size_t calleePeak = computeCalleePeakOperandStack(s.program, *callee);
             if (static_cast<size_t>(s.stackDepth) + calleePeak

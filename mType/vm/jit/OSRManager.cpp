@@ -98,15 +98,18 @@ namespace vm::jit
                              JitCodeCache& codeCache)
     {
         // MYT-248/249/250 bisect knob (MTYPE_DISABLE_OSR) removed — the
-        // underlying stack-buffer-overrun in OSR-emitted asmjit code was
+        // underlying cc.new_stack overrun in OSR-emitted asmjit code was
         // root-caused (speculative method inlining inside OSR-compiled
-        // loops overflowing operand-stack/locals slack and clobbering the
-        // /GS cookie) and fixed in MYT-251 (MAX_OP_STACK 64→256,
-        // INLINE_LOCALS_SLACK 32→96, plus runtime headroom guards in
-        // computeCalleePeakOperandStack and checkOpStackHeadroom). OSR is
-        // safe with inlining on; if a regression resurfaces, reproduce
-        // against the bench suite and fix the underlying overrun rather
-        // than reintroducing the kill switch.
+        // loops overflowing operand-stack/locals slack) and fixed in
+        // MYT-251 (MAX_OP_STACK 64→256, INLINE_LOCALS_SLACK 32→96, plus
+        // runtime headroom guards in computeCalleePeakOperandStack and
+        // checkOpStackHeadroom). MYT-184's separate /GS symptom on
+        // errorLargeExceptionData_pass.mt was a different bug (unary INT
+        // on boxed slot, fixed in MYT-321); both classes write OOB into
+        // the asmjit frame and surface as __fastfail. OSR is safe with
+        // inlining on; if a regression resurfaces, reproduce against the
+        // bench suite and fix the underlying overrun rather than
+        // reintroducing the kill switch.
 
         LoopId loopId{jumpBackOffset};
 

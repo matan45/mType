@@ -193,6 +193,22 @@ namespace vm::jit
                                  const void* funcMetadata,
                                  size_t argCountPlusReceiver);
 
+    // MYT-321: free-function counterpart of jit_call_method_direct. Used by
+    // jit_call_function_ic's warm path when CachedInstructionState::cachedJitFnPtr
+    // is populated (cold-path probe or lazy-refresh result of a JitCodeCache
+    // lookup). Threads the callee's owning BytecodeProgram/FunctionMetadata
+    // so library callees run against their own constant pool and so the
+    // pushed CallFrame carries the right programIndex for stack traces and
+    // exception unwinding. `argCount` is the parameter count (no receiver).
+    //
+    // Stores any thrown exception on ctx->pendingException; publishes
+    // ctx->returnValue / ctx->hasReturnValue on success.
+    void jit_call_function_direct(JitContext* ctx,
+                                   const void* cachedJit,
+                                   const bytecode::BytecodeProgram* calleeProgram,
+                                   const void* funcMetadata,
+                                   size_t argCount);
+
     // Protocol fast leaves for hot generic `K.hashCode()` / `K.equals(K)`
     // call sites. The JIT emitter shape-guards the receiver before calling
     // these; the helper still validates the primitive-wrapper layout and
