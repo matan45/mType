@@ -943,7 +943,14 @@ namespace vm::jit
         constexpr size_t valueSize = sizeof(value::Value);
 
         size_t scanEnd = funcMeta.startOffset + funcMeta.instructionCount;
-        bool usesBoxedTypes = scanOpcodesForBoxedTypes(program, funcMeta.startOffset, scanEnd);
+        // MYT-316: pass the enclosing function's identity so plain CALL /
+        // CALL_FAST sites targeting the same function (self-recursion) don't
+        // flip the function into boxed mode — the inliner would reject those
+        // anyway, and TCO / self-direct-call need unboxed mode to fire.
+        const std::string& selfFnName = funcMeta.mangledName.empty()
+            ? funcMeta.name : funcMeta.mangledName;
+        bool usesBoxedTypes = scanOpcodesForBoxedTypes(program, funcMeta.startOffset, scanEnd,
+                                                        selfFnName);
         if (!usesBoxedTypes)
         {
             for (const auto& t : funcMeta.parameterTypes)

@@ -363,8 +363,13 @@ namespace vm::jit
 
     void emitLocalsWriteBack(JitEmissionState& s);
 
+    // MYT-316: `selfFnName` lets the scan ask "would the inliner reject
+    // self-recursive calls in this function?" Pass the function being
+    // compiled (mangled name preferred, plain name fallback) at function-
+    // level emit; pass empty in OSR (no static caller identity).
     bool scanOpcodesForBoxedTypes(const bytecode::BytecodeProgram& program,
-                                  size_t startOffset, size_t endOffset);
+                                  size_t startOffset, size_t endOffset,
+                                  const std::string& selfFnName = std::string());
 
     std::unordered_map<size_t, asmjit::Label> createJumpLabels(
         asmjit::x86::Compiler& cc, const bytecode::BytecodeProgram& program,
