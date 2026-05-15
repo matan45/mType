@@ -32,7 +32,7 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 48> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 47> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
