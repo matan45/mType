@@ -303,6 +303,102 @@ namespace vm::jit
         }
     }
 
+    static bool isFieldReadOpcode(OpCode opcode)
+    {
+        switch (opcode)
+        {
+            case OpCode::GET_FIELD:
+            case OpCode::GET_FIELD_CACHED:
+            case OpCode::GET_FIELD_TYPED:
+            case OpCode::INLINE_GET_FIELD:
+            case OpCode::LOAD_GET_FIELD:
+            case OpCode::LOAD_LOCAL_GET_FIELD_CACHED:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    static bool isIgnorableConditionProducerSeparator(OpCode opcode)
+    {
+        switch (opcode)
+        {
+            case OpCode::LINE:
+            case OpCode::SOURCE_FILE:
+            case OpCode::NOP:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    static bool priorConditionProducerIsFieldRead(
+        const bytecode::BytecodeProgram& program,
+        size_t ip,
+        size_t startOffset)
+    {
+        while (ip > startOffset)
+        {
+            --ip;
+            const auto opcode = program.getInstruction(ip).opcode;
+            if (isIgnorableConditionProducerSeparator(opcode))
+                continue;
+            return isFieldReadOpcode(opcode);
+        }
+        return false;
+    }
+
+    static bool functionContainsLoopAndCall(
+        const bytecode::BytecodeProgram& program,
+        const bytecode::BytecodeProgram::FunctionMetadata* callee)
+    {
+        if (!callee || callee->returnType != "void")
+            return false;
+
+        bool hasLoopStart = false;
+        bool hasJumpBack = false;
+        bool hasCall = false;
+        const size_t end = callee->startOffset + callee->instructionCount;
+        for (size_t ip = callee->startOffset; ip < end; ++ip)
+        {
+            const auto& instr = program.getInstruction(ip);
+            if (instr.opcode == OpCode::LOOP_START)
+                hasLoopStart = true;
+            else if (instr.opcode == OpCode::JUMP_BACK)
+                hasJumpBack = true;
+            else if (isCallLikeOpcode(instr.opcode))
+                hasCall = true;
+        }
+
+        return hasLoopStart && hasJumpBack && hasCall;
+    }
+
+    static bool isUnsafeVoidLoopCall(
+        const bytecode::BytecodeProgram& program,
+        const bytecode::BytecodeProgram::Instruction& instr)
+    {
+        if (instr.numOperands() == 0)
+            return false;
+
+        if (instr.opcode == OpCode::CALL_FAST)
+        {
+            const auto* callee = program.getFunctionByIndex(
+                static_cast<size_t>(instr.inlineOperands[0]));
+            return functionContainsLoopAndCall(program, callee);
+        }
+
+        if (instr.opcode == OpCode::CALL)
+        {
+            const auto nameIndex = static_cast<size_t>(instr.inlineOperands[0]);
+            if (nameIndex >= program.getConstantPool().strings.size())
+                return false;
+            const std::string& name = program.getConstantPool().getString(nameIndex);
+            return functionContainsLoopAndCall(program, program.getFunction(name));
+        }
+
+        return false;
+    }
+
     static bool hasForwardConditionalCallRegion(
         const bytecode::BytecodeProgram& program,
         size_t startOffset,
@@ -336,6 +432,10 @@ namespace vm::jit
                         ++g_loopConditionGuardHits;
                         break;
                     }
+                    bool hasCall = false;
+                    size_t callCount = 0;
+                    bool hasUnsafeVoidLoopCall = false;
+                    OpCode firstCallOpcode = OpCode::CALL_METHOD;
                     for (size_t bodyIp = ip + 1;
                          bodyIp < target && bodyIp <= endOffsetInclusive;
                          ++bodyIp)
@@ -343,10 +443,24 @@ namespace vm::jit
                         const auto& bodyInstr = program.getInstruction(bodyIp);
                         if (isCallLikeOpcode(bodyInstr.opcode))
                         {
-                            if (outOpcode)
-                                *outOpcode = bodyInstr.opcode;
-                            return true;
+                            if (!hasCall)
+                                firstCallOpcode = bodyInstr.opcode;
+                            hasCall = true;
+                            ++callCount;
+                            if (isUnsafeVoidLoopCall(program, bodyInstr))
+                                hasUnsafeVoidLoopCall = true;
                         }
+                    }
+
+                    bool fieldProducer =
+                        priorConditionProducerIsFieldRead(program, ip, startOffset);
+                    bool reject = hasCall &&
+                        (fieldProducer || callCount >= 3 || hasUnsafeVoidLoopCall);
+                    if (reject)
+                    {
+                        if (outOpcode)
+                            *outOpcode = firstCallOpcode;
+                        return true;
                     }
                     break;
                 }
