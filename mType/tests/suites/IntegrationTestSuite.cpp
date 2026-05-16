@@ -307,6 +307,8 @@ namespace tests::testSuite
                                   passPath + "inlining/inline_osr_bool_value_chain.mt");
         addOutputVerificationTest("OSR Return Value Loop Bailout",
                                   passPath + "osr_return_value_loop_bailout.mt");
+        addOutputVerificationTest("MYT-324 JIT Combat Tick Registry Loop",
+                                  passPath + "myt324JitCombatTickRegistryLoop.mt");
 
         // MYT-259: OSR-emitted RETURN_VALUE on a freshly-allocated boxed
         // object returned from inside a hot inner loop. Guards both the

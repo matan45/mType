@@ -2620,10 +2620,22 @@
     <None Include="tests\testFiles\benchmarks\function_call_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\function_call_medium_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\function_call_medium_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\function_entry_tier_hot.expected">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\function_entry_tier_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\gc_cycle_churn.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\gc_cycle_churn.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\generic_dispatch_hot.expected">
@@ -2711,12 +2723,6 @@
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\object_alloc_nested.mt">
-      <Filter>testFiles\benchmarks</Filter>
-    </None>
-    <None Include="tests\testFiles\benchmarks\gc_cycle_churn.expected">
-      <Filter>testFiles\benchmarks</Filter>
-    </None>
-    <None Include="tests\testFiles\benchmarks\gc_cycle_churn.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\overload_dispatch_hot.expected">
@@ -9178,6 +9184,12 @@
     <None Include="tests\testFiles\integration\pass\invalidCombinationsHandling.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\jitDirectFunctionDispatch_pass.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\jitDirectFunctionDispatch_pass.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\jitJsonLspStartup_pass.expected">
       <Filter>testFiles\integration\pass</Filter>
     </None>
@@ -9290,6 +9302,12 @@
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\myt314JitFunctionEntryTier_pass.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt324JitCombatTickRegistryLoop.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt324JitCombatTickRegistryLoop.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\namespaceClassNameCollisions.expected">

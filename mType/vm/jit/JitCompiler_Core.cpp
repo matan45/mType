@@ -303,22 +303,6 @@ namespace vm::jit
         }
     }
 
-    static bool isFieldReadOpcode(OpCode opcode)
-    {
-        switch (opcode)
-        {
-            case OpCode::GET_FIELD:
-            case OpCode::GET_FIELD_CACHED:
-            case OpCode::GET_FIELD_TYPED:
-            case OpCode::INLINE_GET_FIELD:
-            case OpCode::LOAD_GET_FIELD:
-            case OpCode::LOAD_LOCAL_GET_FIELD_CACHED:
-                return true;
-            default:
-                return false;
-        }
-    }
-
     static bool hasForwardConditionalCallRegion(
         const bytecode::BytecodeProgram& program,
         size_t startOffset,
@@ -352,10 +336,6 @@ namespace vm::jit
                         ++g_loopConditionGuardHits;
                         break;
                     }
-                    if (ip == startOffset ||
-                        !isFieldReadOpcode(program.getInstruction(ip - 1).opcode))
-                        break;
-
                     for (size_t bodyIp = ip + 1;
                          bodyIp < target && bodyIp <= endOffsetInclusive;
                          ++bodyIp)
@@ -468,13 +448,14 @@ namespace vm::jit
                 return false;
             }
         }
-        // MYT-302: OSR's linear stack/boxed-slot model is unsafe for a bool
-        // field-read condition whose forward branch contains a helper call.
-        // The ticket repro has `if (u.selected) { consume(u.x); ... }`;
-        // selected is always false, but emitting the skipped call region still
-        // corrupts OSR state on Windows and exits silently. Keep only this
-        // field-condition shape in the VM until OSR grows label-local stack-
-        // state merge support.
+        // MYT-302/MYT-324: OSR's linear stack/boxed-slot model is unsafe for
+        // a bool condition whose forward branch contains a helper call. The
+        // original MYT-302 trigger used a field-read condition; MYT-324 uses
+        // registry-style accessor calls (`valid`, `hasOrder`) before another
+        // cluster of get/has calls in the branch. Emitting the skipped helper
+        // region can corrupt OSR state on Windows and exit silently. Keep only
+        // this forward conditional/helper-call shape in the VM until OSR grows
+        // label-local stack-state merge support.
         if (hasForwardConditionalCallRegion(program, loopStartOffset, loopEndOffset,
                                             outOpcode))
             return false;
