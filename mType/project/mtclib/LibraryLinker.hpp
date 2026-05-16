@@ -26,15 +26,25 @@ namespace project::mtclib
         // Add additional search path for library resolution
         void addSearchPath(const std::string& path);
 
+        // Override declared version ranges with lockfile-pinned versions.
+        // Caller passes a map of <name -> exact version>. Names absent from the
+        // map keep their declared range from the .mtproj.
+        void setLockfileVersions(const std::unordered_map<std::string, std::string>& versions);
+
         // Get the path resolver (for testing/configuration)
         MtcPathResolver& getPathResolver() { return pathResolver; }
 
     private:
+        std::string projectRoot;
         MtcPathResolver pathResolver;
         DependencyResolver dependencyResolver;
         std::unordered_map<std::string, MtcLibProgram> loadedLibraries;
+        std::unordered_map<std::string, std::string> lockedVersions;
 
         // Recursively load a library and its transitive dependencies
         void loadLibraryRecursive(const std::string& libraryName, const std::string& versionConstraint);
+
+        // Build the user-facing error message when a library can't be resolved.
+        [[noreturn]] void throwLibraryNotFound(const std::string& libraryName) const;
     };
 }

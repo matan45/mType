@@ -1,12 +1,14 @@
 #include "LibraryLinker.hpp"
 #include "MtcLibSerializer.hpp"
+#include <filesystem>
 #include <fstream>
 #include <stdexcept>
 
 namespace project::mtclib
 {
     LibraryLinker::LibraryLinker(const std::string& projectRoot)
-        : pathResolver(projectRoot)
+        : projectRoot(projectRoot)
+        , pathResolver(projectRoot)
     {
     }
 
@@ -15,13 +17,25 @@ namespace project::mtclib
         pathResolver.addSearchPath(path);
     }
 
+    void LibraryLinker::setLockfileVersions(
+        const std::unordered_map<std::string, std::string>& versions)
+    {
+        lockedVersions = versions;
+    }
+
     std::vector<MtcLibProgram> LibraryLinker::linkDependencies(const ProjectConfig& config)
     {
         loadedLibraries.clear();
 
-        // Load each declared dependency and its transitive dependencies
+        // Load each declared dependency and its transitive dependencies.
+        // Lockfile-pinned versions override the declared range so the resolver
+        // points at the exact build the user has on disk.
         for (const auto& dep : config.dependencies.packages) {
-            loadLibraryRecursive(dep.name, dep.versionRange);
+            auto lockedIt = lockedVersions.find(dep.name);
+            const std::string& version = (lockedIt != lockedVersions.end())
+                ? lockedIt->second
+                : dep.versionRange;
+            loadLibraryRecursive(dep.name, version);
         }
 
         if (loadedLibraries.empty()) {
@@ -54,19 +68,20 @@ namespace project::mtclib
             return;
         }
 
-        // Resolve path
-        auto libPath = versionConstraint.empty()
+        // Resolve path. Lockfile pinning is applied at the top-level call site
+        // in linkDependencies; transitive deps still flow through the declared
+        // versionConstraint as encoded in the .mtcLib metadata.
+        auto lockedIt = lockedVersions.find(libraryName);
+        std::string effectiveVersion = (lockedIt != lockedVersions.end())
+            ? lockedIt->second
+            : versionConstraint;
+
+        auto libPath = effectiveVersion.empty()
             ? pathResolver.resolve(libraryName)
-            : pathResolver.resolve(libraryName, versionConstraint);
+            : pathResolver.resolve(libraryName, effectiveVersion);
 
         if (!libPath) {
-            std::string searchedPaths;
-            for (const auto& sp : pathResolver.getSearchPaths()) {
-                if (!searchedPaths.empty()) searchedPaths += ", ";
-                searchedPaths += "'" + sp + "'";
-            }
-            throw std::runtime_error(
-                "Library '" + libraryName + "' not found. Searched: " + searchedPaths);
+            throwLibraryNotFound(libraryName);
         }
 
         // Deserialize
@@ -85,5 +100,42 @@ namespace project::mtclib
         for (const auto& dep : loadedLibraries[libraryName].dependencies) {
             loadLibraryRecursive(dep.name, dep.versionConstraint);
         }
+    }
+
+    void LibraryLinker::throwLibraryNotFound(const std::string& libraryName) const
+    {
+        std::string searchedPaths;
+        for (const auto& sp : pathResolver.getSearchPaths()) {
+            if (!searchedPaths.empty()) searchedPaths += ", ";
+            searchedPaths += "'" + sp + "'";
+        }
+        for (const auto& rr : pathResolver.getRegistryRoots()) {
+            if (!searchedPaths.empty()) searchedPaths += ", ";
+            searchedPaths += "'" + rr + "/<version>'";
+        }
+
+        // Distinguish "installed by mtpm but not yet compiled" from
+        // "not installed at all" using mt_modules/@<name>/.
+        std::filesystem::path moduleAlias =
+            std::filesystem::path(projectRoot) / "mt_modules" / ("@" + libraryName);
+        std::error_code ec;
+        bool installedByMtpm = std::filesystem::exists(moduleAlias, ec);
+
+        if (installedByMtpm) {
+            throw std::runtime_error(
+                "Library '" + libraryName + "' was installed by mtpm but no compiled .mtcLib was found.\n"
+                "  This usually means the package was installed by an older mtpm that didn't\n"
+                "  produce bytecode libraries. Run:\n"
+                "    mtpm install --force-resolve\n"
+                "  Searched: " + searchedPaths);
+        }
+
+        throw std::runtime_error(
+            "Library '" + libraryName + "' not found.\n"
+            "  Declared as a <Package> dependency but not installed locally. Run:\n"
+            "    mtpm install\n"
+            "  to fetch it from its declared <Source> (or install manually into\n"
+            "  one of the search roots below).\n"
+            "  Searched: " + searchedPaths);
     }
 }

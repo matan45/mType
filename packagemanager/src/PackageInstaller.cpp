@@ -1,4 +1,5 @@
 #include "PackageInstaller.hpp"
+#include "PackageCompiler.hpp"
 #include "Sha256.hpp"
 #include <filesystem>
 #include <iostream>
@@ -23,6 +24,11 @@ namespace packagemanager
     void PackageInstaller::setForceResolve(bool value)
     {
         forceResolve = value;
+    }
+
+    void PackageInstaller::setMTypeExecutable(const std::string& path)
+    {
+        mTypeExePath = path;
     }
 
     void PackageInstaller::reportProgress(const std::string& message)
@@ -185,6 +191,44 @@ namespace packagemanager
             }
             newLockfile.saveToFile(lockfilePath);
             reportProgress("Lockfile written: mtproj.lock");
+
+            // Compile each package to .mtcLib in its registry version dir so
+            // the build step downstream can link against compiled bytecode.
+            // The compile pass is the bridge that closes MYT-323: mtpm installs
+            // source; mType expects bytecode. Without this, ~/.mtype/registry
+            // would only ever hold source trees and LibraryLinker would always
+            // fail to resolve them.
+            if (!resolved.empty())
+            {
+                if (mTypeExePath.empty())
+                {
+                    reportProgress(
+                        "Warning: mType.exe not found alongside mtpm.exe — "
+                        "skipping bytecode compile step. Builds against this "
+                        "package will fail until mType is on the PATH or "
+                        "co-located with mtpm.");
+                }
+                else
+                {
+                    PackageCompiler compiler;
+                    compiler.setMTypeExecutable(mTypeExePath);
+                    compiler.setProgressCallback(progressCallback);
+
+                    reportProgress("Compiling packages to .mtcLib...");
+                    auto compileResult = compiler.compileAll(resolved);
+                    if (!compileResult.success)
+                    {
+                        for (const auto& e : compileResult.errors)
+                        {
+                            result.errors.push_back("compile: " + e);
+                        }
+                        // Surface as soft failure: registry source is still usable
+                        // for tools that don't go through LibraryLinker (LSP via
+                        // mt_modules), so don't roll back the lockfile.
+                        result.success = false;
+                    }
+                }
+            }
         }
         catch (const std::exception& e)
         {

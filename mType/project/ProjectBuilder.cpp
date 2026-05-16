@@ -8,6 +8,7 @@
 #include "../services/ScriptInterpreter.hpp"
 #include "../services/ImportManager.hpp"
 #include "MtModulesManager.hpp"
+#include "Lockfile.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../parser/Parser.hpp"
 #include "../vm/compiler/BytecodeCompiler.hpp"
@@ -505,6 +506,30 @@ namespace project
             for (const auto& sp : absoluteSearchPaths)
             {
                 linker.addSearchPath(sp);
+            }
+
+            // If the project has a lockfile, prefer its pinned versions over the
+            // declared ranges. Without this a .mtproj saying `^0.0.1` will not find
+            // a registry build at the exact version mtpm installed.
+            std::filesystem::path lockPath =
+                std::filesystem::path(config.projectRoot) / "mtproj.lock";
+            if (std::filesystem::exists(lockPath))
+            {
+                try
+                {
+                    auto lockfile = packagemanager::Lockfile::loadFromFile(lockPath.string());
+                    std::unordered_map<std::string, std::string> pins;
+                    for (const auto& [name, locked] : lockfile.packages)
+                    {
+                        pins[name] = locked.version;
+                    }
+                    linker.setLockfileVersions(pins);
+                }
+                catch (const std::exception&)
+                {
+                    // A corrupt or unreadable lockfile must not block the build —
+                    // fall back to declared ranges.
+                }
             }
 
             auto libraries = linker.linkDependencies(config);

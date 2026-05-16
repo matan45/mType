@@ -932,6 +932,270 @@ namespace tests::testSuite
                 require(!result.has_value(), "Should not find nonexistent library");
             });
 
+        // MYT-323: MtcPathResolver must consume the mtpm registry layout
+        // <root>/<name>/<version>/<name>.mtcLib so packages installed by
+        // mtpm and compiled by PackageCompiler are linkable without a flat
+        // libs/ folder.
+        addCallbackTest("MtcPathResolver: registry layout resolves versioned lookup",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                fs::path tempRegistry = fs::temp_directory_path() / "_mtype_resolver_test_registry";
+                if (fs::exists(tempRegistry)) fs::remove_all(tempRegistry);
+                fs::create_directories(tempRegistry / "myt323_demolib" / "1.2.3");
+
+                fs::path artifact = tempRegistry / "myt323_demolib" / "1.2.3" / "myt323_demolib.mtcLib";
+                { std::ofstream f(artifact, std::ios::binary); f << "fake-bytecode"; }
+
+                project::mtclib::MtcPathResolver resolver(".");
+                resolver.addRegistryRoot(tempRegistry.string());
+
+                auto resolved = resolver.resolve("myt323_demolib", "1.2.3");
+                auto cleanup = [&]() { fs::remove_all(tempRegistry); };
+
+                if (!resolved.has_value()) {
+                    cleanup();
+                    throw std::runtime_error("Should resolve myt323_demolib@1.2.3 from registry");
+                }
+                if (fs::canonical(*resolved) != fs::canonical(artifact)) {
+                    cleanup();
+                    throw std::runtime_error("Expected " + artifact.string() + ", got " + *resolved);
+                }
+                cleanup();
+            });
+
+        addCallbackTest("MtcPathResolver: registry layout strips version range prefix",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                fs::path tempRegistry = fs::temp_directory_path() / "_mtype_resolver_test_range";
+                if (fs::exists(tempRegistry)) fs::remove_all(tempRegistry);
+                fs::create_directories(tempRegistry / "myt323_demolib" / "1.2.3");
+
+                fs::path artifact = tempRegistry / "myt323_demolib" / "1.2.3" / "myt323_demolib.mtcLib";
+                { std::ofstream f(artifact, std::ios::binary); f << "fake"; }
+
+                project::mtclib::MtcPathResolver resolver(".");
+                resolver.addRegistryRoot(tempRegistry.string());
+
+                // Real .mtproj files often say "^1.2.3" — without stripping the
+                // caret, resolver would fail to find the exact-version dir.
+                auto resolved = resolver.resolve("myt323_demolib", "^1.2.3");
+                auto cleanup = [&]() { fs::remove_all(tempRegistry); };
+
+                if (!resolved.has_value()) {
+                    cleanup();
+                    throw std::runtime_error("Should resolve through stripped range prefix");
+                }
+                cleanup();
+            });
+
+        addCallbackTest("MtcPathResolver: registry layout picks highest version when unversioned",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                fs::path tempRegistry = fs::temp_directory_path() / "_mtype_resolver_test_highest";
+                if (fs::exists(tempRegistry)) fs::remove_all(tempRegistry);
+
+                // Three versions on disk; resolve() with no constraint should pick 2.0.0
+                for (const auto& v : {"1.0.0", "1.5.0", "2.0.0"}) {
+                    fs::create_directories(tempRegistry / "myt323_demolib" / v);
+                    fs::path artifact = tempRegistry / "myt323_demolib" / v / "myt323_demolib.mtcLib";
+                    std::ofstream f(artifact, std::ios::binary); f << "fake";
+                }
+
+                project::mtclib::MtcPathResolver resolver(".");
+                resolver.addRegistryRoot(tempRegistry.string());
+
+                auto resolved = resolver.resolve("myt323_demolib");
+                auto cleanup = [&]() { fs::remove_all(tempRegistry); };
+
+                if (!resolved.has_value()) {
+                    cleanup();
+                    throw std::runtime_error("Should resolve unversioned myt323_demolib");
+                }
+                if (resolved->find("2.0.0") == std::string::npos) {
+                    cleanup();
+                    throw std::runtime_error("Expected highest version 2.0.0, got " + *resolved);
+                }
+                cleanup();
+            });
+
+        addCallbackTest("MtcPathResolver: flat libs/ dir still works (regression)",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                fs::path tempDir = fs::temp_directory_path() / "_mtype_resolver_test_flat";
+                if (fs::exists(tempDir)) fs::remove_all(tempDir);
+                fs::create_directories(tempDir);
+
+                fs::path artifact = tempDir / "myt323_flatlib.mtcLib";
+                { std::ofstream f(artifact, std::ios::binary); f << "fake"; }
+
+                project::mtclib::MtcPathResolver resolver(".");
+                resolver.addSearchPath(tempDir.string());
+
+                auto resolved = resolver.resolve("myt323_flatlib");
+                auto cleanup = [&]() { fs::remove_all(tempDir); };
+
+                if (!resolved.has_value()) {
+                    cleanup();
+                    throw std::runtime_error("Flat layout regression: should resolve myt323_flatlib");
+                }
+                cleanup();
+            });
+
+        // MYT-323: LibraryLinker emits an actionable error tailored to the
+        // user's state — distinguishing "installed by mtpm but not compiled"
+        // from "not installed at all".
+        addCallbackTest("LibraryLinker: error suggests --force-resolve when mt_modules has alias",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                fs::path tempProject = fs::temp_directory_path() / "_mtype_linker_test_installed";
+                if (fs::exists(tempProject)) fs::remove_all(tempProject);
+                // Simulate "installed by mtpm" with an alias dir but no .mtcLib anywhere.
+                fs::create_directories(tempProject / "mt_modules" / "@myt323_ghostlib");
+
+                project::mtclib::LibraryLinker linker(tempProject.string());
+                project::ProjectConfig config;
+                config.projectRoot = tempProject.string();
+                project::PackageDependency dep;
+                dep.name = "myt323_ghostlib";
+                dep.versionRange = "1.0.0";
+                config.dependencies.packages.push_back(dep);
+
+                std::string errMsg;
+                try
+                {
+                    linker.linkDependencies(config);
+                }
+                catch (const std::exception& e)
+                {
+                    errMsg = e.what();
+                }
+
+                auto cleanup = [&]() { fs::remove_all(tempProject); };
+
+                if (errMsg.empty())
+                {
+                    cleanup();
+                    throw std::runtime_error("Expected linkDependencies to throw");
+                }
+                if (errMsg.find("force-resolve") == std::string::npos)
+                {
+                    cleanup();
+                    throw std::runtime_error(
+                        "Expected --force-resolve hint in error, got: " + errMsg);
+                }
+                if (errMsg.find("myt323_ghostlib") == std::string::npos)
+                {
+                    cleanup();
+                    throw std::runtime_error("Error must name the missing library");
+                }
+                cleanup();
+            });
+
+        addCallbackTest("LibraryLinker: error suggests mtpm install when no mt_modules alias",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                fs::path tempProject = fs::temp_directory_path() / "_mtype_linker_test_uninstalled";
+                if (fs::exists(tempProject)) fs::remove_all(tempProject);
+                fs::create_directories(tempProject);
+                // No mt_modules/ — the package was never installed.
+
+                project::mtclib::LibraryLinker linker(tempProject.string());
+                project::ProjectConfig config;
+                config.projectRoot = tempProject.string();
+                project::PackageDependency dep;
+                dep.name = "myt323_newlib";
+                dep.versionRange = "1.0.0";
+                config.dependencies.packages.push_back(dep);
+
+                std::string errMsg;
+                try
+                {
+                    linker.linkDependencies(config);
+                }
+                catch (const std::exception& e)
+                {
+                    errMsg = e.what();
+                }
+
+                auto cleanup = [&]() { fs::remove_all(tempProject); };
+
+                if (errMsg.find("mtpm install") == std::string::npos)
+                {
+                    cleanup();
+                    throw std::runtime_error("Expected 'mtpm install' hint, got: " + errMsg);
+                }
+                // Must not steer the user toward --force-resolve when nothing
+                // was actually installed.
+                if (errMsg.find("force-resolve") != std::string::npos)
+                {
+                    cleanup();
+                    throw std::runtime_error("Should not suggest --force-resolve for never-installed dep");
+                }
+                cleanup();
+            });
+
+        addCallbackTest("LibraryLinker: setLockfileVersions overrides declared range",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                // Layout: tempRegistry/myt323_lockedlib/0.0.1/myt323_lockedlib.mtcLib with valid bytes
+                // declared range = "^1.0.0", lockfile pin = "0.0.1"
+                // Without the pin, resolution would target the range. With the
+                // pin, it lands on 0.0.1 — failure mode at deserialize is OK; we
+                // only need to assert which path was attempted.
+                fs::path tempRegistry = fs::temp_directory_path() / "_mtype_linker_test_pin";
+                if (fs::exists(tempRegistry)) fs::remove_all(tempRegistry);
+                fs::create_directories(tempRegistry / "myt323_lockedlib" / "0.0.1");
+
+                // Empty (invalid) .mtcLib — deserialize will throw, but the
+                // throw comes from MtcLibSerializer (after pathResolver
+                // succeeded), so the error text differs from "not found".
+                fs::path artifact = tempRegistry / "myt323_lockedlib" / "0.0.1" / "myt323_lockedlib.mtcLib";
+                { std::ofstream f(artifact, std::ios::binary); }
+
+                project::mtclib::LibraryLinker linker(".");
+                linker.getPathResolver().addRegistryRoot(tempRegistry.string());
+
+                std::unordered_map<std::string, std::string> pins;
+                pins["myt323_lockedlib"] = "0.0.1";
+                linker.setLockfileVersions(pins);
+
+                project::ProjectConfig config;
+                config.projectRoot = ".";
+                project::PackageDependency dep;
+                dep.name = "myt323_lockedlib";
+                dep.versionRange = "^1.0.0";  // would resolve nowhere without pin
+                config.dependencies.packages.push_back(dep);
+
+                std::string errMsg;
+                try
+                {
+                    linker.linkDependencies(config);
+                }
+                catch (const std::exception& e)
+                {
+                    errMsg = e.what();
+                }
+
+                auto cleanup = [&]() { fs::remove_all(tempRegistry); };
+
+                // The pin should have routed resolution into the registry —
+                // expect a deserialization-style error, NOT "Library not found".
+                if (errMsg.find("not found") != std::string::npos)
+                {
+                    cleanup();
+                    throw std::runtime_error(
+                        "setLockfileVersions did not pin to 0.0.1; got: " + errMsg);
+                }
+                cleanup();
+            });
+
         addCallbackTest("LibrarySymbolProvider registers class stubs from built library",
             "",
             [](ScriptAPI&) {

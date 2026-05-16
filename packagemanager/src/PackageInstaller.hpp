@@ -32,6 +32,11 @@ namespace packagemanager
         // rewriting the lockfile with fresh hashes.
         void setForceResolve(bool value);
 
+        // Path to mType.exe used to compile each installed package to .mtcLib.
+        // When empty, the compile step is skipped (build will then fail at
+        // LibraryLinker with a guiding error message).
+        void setMTypeExecutable(const std::string& path);
+
         // Install all dependencies declared in the given list
         InstallResult install(const std::vector<PackageDependency>& dependencies);
 
@@ -50,6 +55,7 @@ namespace packagemanager
         MtModulesManager modulesManager;
         InstallProgressCallback progressCallback;
         bool forceResolve = false;
+        std::string mTypeExePath;
 
         void reportProgress(const std::string& message);
 

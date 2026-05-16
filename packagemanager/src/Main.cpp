@@ -1,6 +1,7 @@
 #include "PackageInstaller.hpp"
 #include "PackageManifest.hpp"
 #include "PackageRegistry.hpp"
+#include "PackageCompiler.hpp"
 #include "Publish.hpp"
 #include "SemVer.hpp"
 #include "../../mType/version/Version.hpp"
@@ -244,6 +245,8 @@ int main(int argc, char* argv[])
             std::cout << msg << "\n";
         });
         installer.setForceResolve(forceResolve);
+        installer.setMTypeExecutable(
+            packagemanager::PackageCompiler::discoverMTypeExecutable(argv[0]));
 
         auto result = installer.install(deps);
 
@@ -320,6 +323,8 @@ int main(int argc, char* argv[])
         installer.setProgressCallback([](const std::string& msg) {
             std::cout << msg << "\n";
         });
+        installer.setMTypeExecutable(
+            packagemanager::PackageCompiler::discoverMTypeExecutable(argv[0]));
 
         auto result = installer.install(deps);
 
@@ -353,6 +358,8 @@ int main(int argc, char* argv[])
         installer.setProgressCallback([](const std::string& msg) {
             std::cout << msg << "\n";
         });
+        installer.setMTypeExecutable(
+            packagemanager::PackageCompiler::discoverMTypeExecutable(argv[0]));
 
         auto result = installer.install(deps);
 
