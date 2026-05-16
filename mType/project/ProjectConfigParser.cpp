@@ -212,12 +212,43 @@ namespace project
             }
         }
 
+        // Auto-exclude project artifacts the user almost never wants in the
+        // bundle: `mt_modules/` (installed dep source — resolved through
+        // @aliases at import time) and the configured output directory
+        // (compiled artifacts from prior builds). This is the convention every
+        // package manager follows (node_modules, vendor/, target/, etc.) — a
+        // user's `<Include>**/*.mt</Include>` always means "my source", not
+        // "my source plus everything mtpm has put on disk".
+        auto isAutoExcluded = [&](const std::filesystem::path& file) {
+            std::error_code ec;
+            std::filesystem::path canonical = std::filesystem::weakly_canonical(file, ec);
+            if (ec) canonical = file;
+
+            std::filesystem::path mtModules =
+                std::filesystem::weakly_canonical(
+                    std::filesystem::path(config.projectRoot) / "mt_modules", ec);
+            std::filesystem::path outputDir =
+                std::filesystem::weakly_canonical(
+                    std::filesystem::path(config.projectRoot) / config.output.directory, ec);
+
+            auto startsWith = [](const std::filesystem::path& path,
+                                 const std::filesystem::path& prefix) {
+                auto pathIt = path.begin();
+                auto prefixIt = prefix.begin();
+                for (; prefixIt != prefix.end(); ++prefixIt, ++pathIt) {
+                    if (pathIt == path.end() || *pathIt != *prefixIt) return false;
+                }
+                return true;
+            };
+
+            return startsWith(canonical, mtModules) || startsWith(canonical, outputDir);
+        };
+
         for (const auto& file : includedFiles)
         {
-            if (excludedFiles.find(file) == excludedFiles.end())
-            {
-                config.resolvedSourceFiles.push_back(file);
-            }
+            if (excludedFiles.find(file) != excludedFiles.end()) continue;
+            if (isAutoExcluded(file)) continue;
+            config.resolvedSourceFiles.push_back(file);
         }
 
         std::sort(config.resolvedSourceFiles.begin(), config.resolvedSourceFiles.end());

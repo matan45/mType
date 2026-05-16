@@ -433,14 +433,19 @@ namespace project
     {
         const auto& sourceFiles = config.resolvedSourceFiles;
 
-        // Build virtual source that imports all project files
+        // Build virtual source that imports all project files.
+        // Use generic_string() (forward slashes) — std::filesystem::path::string()
+        // returns the native form, which is backslash-separated on Windows. The
+        // mType lexer interprets backslash inside a string literal as an escape
+        // introducer, so src\render\Foo.mt would be tokenised as `src` + <CR> +
+        // `ender\Foo.mt`, producing the ERROR_INVALID_NAME we saw in MYT-323.
         std::string virtualSource;
         for (const auto& sourceFile : sourceFiles)
         {
             std::filesystem::path srcPath(sourceFile);
             std::filesystem::path projRoot(config.projectRoot);
             std::filesystem::path relativePath = std::filesystem::relative(srcPath, projRoot);
-            virtualSource += "import * from \"" + relativePath.string() + "\";\n";
+            virtualSource += "import * from \"" + relativePath.generic_string() + "\";\n";
         }
 
         // Write virtual source to a uniquely named temp file (PID avoids race conditions)
@@ -497,45 +502,77 @@ namespace project
             environment = envBuilder.build();
         }
 
-        // Resolve library dependencies before compilation
+        // Resolve library dependencies before compilation.
+        //
+        // mType supports two distribution models for <Package> deps:
+        //   (a) Source distribution via mtpm: mtpm install populates
+        //       mt_modules/@<name>/ with aliases pointing at the registry
+        //       source. The user imports through `@<name>/...` and the
+        //       compiler pulls source into the bundle the same way it
+        //       handles local imports. No bytecode artifact is needed.
+        //   (b) Pre-compiled distribution: a <name>.mtcLib file sits on a
+        //       search path; LibraryLinker deserializes it and
+        //       LibrarySymbolProvider registers its classes/interfaces.
+        //
+        // Partition the declared deps: anything with mt_modules source goes
+        // through (a) and we skip it here (the alias-driven import path
+        // does the work). Anything without falls through to (b). This is
+        // what makes `mType.exe --build` succeed after `mtpm install`
+        // without forcing a bytecode compile step — MYT-323's actual cause.
         if (!config.dependencies.packages.empty())
         {
-            mtclib::LibraryLinker linker(config.projectRoot);
+            packagemanager::MtModulesManager modulesMgr(config.projectRoot);
 
-            // Add import search paths as library search paths too
-            for (const auto& sp : absoluteSearchPaths)
+            std::vector<PackageDependency> binaryOnlyDeps;
+            for (const auto& dep : config.dependencies.packages)
             {
-                linker.addSearchPath(sp);
+                if (!modulesMgr.isInstalled(dep.name))
+                {
+                    binaryOnlyDeps.push_back(dep);
+                }
             }
 
-            // If the project has a lockfile, prefer its pinned versions over the
-            // declared ranges. Without this a .mtproj saying `^0.0.1` will not find
-            // a registry build at the exact version mtpm installed.
-            std::filesystem::path lockPath =
-                std::filesystem::path(config.projectRoot) / "mtproj.lock";
-            if (std::filesystem::exists(lockPath))
+            if (!binaryOnlyDeps.empty())
             {
-                try
+                ProjectConfig linkerConfig = config;
+                linkerConfig.dependencies.packages = std::move(binaryOnlyDeps);
+
+                mtclib::LibraryLinker linker(config.projectRoot);
+
+                // Add import search paths as library search paths too
+                for (const auto& sp : absoluteSearchPaths)
                 {
-                    auto lockfile = packagemanager::Lockfile::loadFromFile(lockPath.string());
-                    std::unordered_map<std::string, std::string> pins;
-                    for (const auto& [name, locked] : lockfile.packages)
+                    linker.addSearchPath(sp);
+                }
+
+                // If the project has a lockfile, prefer its pinned versions over
+                // declared ranges. Without this a .mtproj saying `^0.0.1` will
+                // not find a versioned build at the exact installed version.
+                std::filesystem::path lockPath =
+                    std::filesystem::path(config.projectRoot) / "mtproj.lock";
+                if (std::filesystem::exists(lockPath))
+                {
+                    try
                     {
-                        pins[name] = locked.version;
+                        auto lockfile = packagemanager::Lockfile::loadFromFile(lockPath.string());
+                        std::unordered_map<std::string, std::string> pins;
+                        for (const auto& [name, locked] : lockfile.packages)
+                        {
+                            pins[name] = locked.version;
+                        }
+                        linker.setLockfileVersions(pins);
                     }
-                    linker.setLockfileVersions(pins);
+                    catch (const std::exception&)
+                    {
+                        // Corrupt lockfile must not block the build.
+                    }
                 }
-                catch (const std::exception&)
-                {
-                    // A corrupt or unreadable lockfile must not block the build —
-                    // fall back to declared ranges.
-                }
-            }
 
-            auto libraries = linker.linkDependencies(config);
-            for (const auto& lib : libraries)
-            {
-                mtclib::LibrarySymbolProvider::registerLibrarySymbols(lib, environment);
+                auto libraries = linker.linkDependencies(linkerConfig);
+                for (const auto& lib : libraries)
+                {
+                    mtclib::LibrarySymbolProvider::registerLibrarySymbols(lib, environment);
+                }
             }
         }
 

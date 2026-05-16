@@ -1,14 +1,12 @@
 #include "LibraryLinker.hpp"
 #include "MtcLibSerializer.hpp"
-#include <filesystem>
 #include <fstream>
 #include <stdexcept>
 
 namespace project::mtclib
 {
     LibraryLinker::LibraryLinker(const std::string& projectRoot)
-        : projectRoot(projectRoot)
-        , pathResolver(projectRoot)
+        : pathResolver(projectRoot)
     {
     }
 
@@ -114,28 +112,15 @@ namespace project::mtclib
             searchedPaths += "'" + rr + "/<version>'";
         }
 
-        // Distinguish "installed by mtpm but not yet compiled" from
-        // "not installed at all" using mt_modules/@<name>/.
-        std::filesystem::path moduleAlias =
-            std::filesystem::path(projectRoot) / "mt_modules" / ("@" + libraryName);
-        std::error_code ec;
-        bool installedByMtpm = std::filesystem::exists(moduleAlias, ec);
-
-        if (installedByMtpm) {
-            throw std::runtime_error(
-                "Library '" + libraryName + "' was installed by mtpm but no compiled .mtcLib was found.\n"
-                "  This usually means the package was installed by an older mtpm that didn't\n"
-                "  produce bytecode libraries. Run:\n"
-                "    mtpm install --force-resolve\n"
-                "  Searched: " + searchedPaths);
-        }
-
+        // ProjectBuilder partitions <Package> deps and only routes ones WITHOUT
+        // mt_modules source through here, so reaching this error means the dep
+        // is genuinely missing — neither source nor bytecode is on disk.
         throw std::runtime_error(
             "Library '" + libraryName + "' not found.\n"
-            "  Declared as a <Package> dependency but not installed locally. Run:\n"
-            "    mtpm install\n"
-            "  to fetch it from its declared <Source> (or install manually into\n"
-            "  one of the search roots below).\n"
+            "  Declared as a <Package> dependency but no source (mt_modules/@" +
+            libraryName + "/) or compiled .mtcLib is on disk.\n"
+            "  Run `mtpm install` to fetch the package from its <Source>, or\n"
+            "  place a pre-built " + libraryName + ".mtcLib on a search path.\n"
             "  Searched: " + searchedPaths);
     }
 }

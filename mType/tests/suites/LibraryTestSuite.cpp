@@ -1045,65 +1045,17 @@ namespace tests::testSuite
                 cleanup();
             });
 
-        // MYT-323: LibraryLinker emits an actionable error tailored to the
-        // user's state — distinguishing "installed by mtpm but not compiled"
-        // from "not installed at all".
-        addCallbackTest("LibraryLinker: error suggests --force-resolve when mt_modules has alias",
+        // MYT-323: LibraryLinker is now the .mtcLib code path only.
+        // ProjectBuilder filters out deps that already have mt_modules source
+        // before calling the linker — so reaching the throw means neither
+        // source nor bytecode exists. The error advises both alternatives.
+        addCallbackTest("LibraryLinker: error names library and suggests mtpm install + .mtcLib",
             "",
             [](ScriptAPI&) {
                 namespace fs = std::filesystem;
-                fs::path tempProject = fs::temp_directory_path() / "_mtype_linker_test_installed";
-                if (fs::exists(tempProject)) fs::remove_all(tempProject);
-                // Simulate "installed by mtpm" with an alias dir but no .mtcLib anywhere.
-                fs::create_directories(tempProject / "mt_modules" / "@myt323_ghostlib");
-
-                project::mtclib::LibraryLinker linker(tempProject.string());
-                project::ProjectConfig config;
-                config.projectRoot = tempProject.string();
-                project::PackageDependency dep;
-                dep.name = "myt323_ghostlib";
-                dep.versionRange = "1.0.0";
-                config.dependencies.packages.push_back(dep);
-
-                std::string errMsg;
-                try
-                {
-                    linker.linkDependencies(config);
-                }
-                catch (const std::exception& e)
-                {
-                    errMsg = e.what();
-                }
-
-                auto cleanup = [&]() { fs::remove_all(tempProject); };
-
-                if (errMsg.empty())
-                {
-                    cleanup();
-                    throw std::runtime_error("Expected linkDependencies to throw");
-                }
-                if (errMsg.find("force-resolve") == std::string::npos)
-                {
-                    cleanup();
-                    throw std::runtime_error(
-                        "Expected --force-resolve hint in error, got: " + errMsg);
-                }
-                if (errMsg.find("myt323_ghostlib") == std::string::npos)
-                {
-                    cleanup();
-                    throw std::runtime_error("Error must name the missing library");
-                }
-                cleanup();
-            });
-
-        addCallbackTest("LibraryLinker: error suggests mtpm install when no mt_modules alias",
-            "",
-            [](ScriptAPI&) {
-                namespace fs = std::filesystem;
-                fs::path tempProject = fs::temp_directory_path() / "_mtype_linker_test_uninstalled";
+                fs::path tempProject = fs::temp_directory_path() / "_mtype_linker_test_missing";
                 if (fs::exists(tempProject)) fs::remove_all(tempProject);
                 fs::create_directories(tempProject);
-                // No mt_modules/ — the package was never installed.
 
                 project::mtclib::LibraryLinker linker(tempProject.string());
                 project::ProjectConfig config;
@@ -1125,17 +1077,125 @@ namespace tests::testSuite
 
                 auto cleanup = [&]() { fs::remove_all(tempProject); };
 
+                if (errMsg.find("myt323_newlib") == std::string::npos)
+                {
+                    cleanup();
+                    throw std::runtime_error("Error must name the missing library, got: " + errMsg);
+                }
                 if (errMsg.find("mtpm install") == std::string::npos)
                 {
                     cleanup();
                     throw std::runtime_error("Expected 'mtpm install' hint, got: " + errMsg);
                 }
-                // Must not steer the user toward --force-resolve when nothing
-                // was actually installed.
-                if (errMsg.find("force-resolve") != std::string::npos)
+                if (errMsg.find(".mtcLib") == std::string::npos)
                 {
                     cleanup();
-                    throw std::runtime_error("Should not suggest --force-resolve for never-installed dep");
+                    throw std::runtime_error("Error should mention the .mtcLib alternative");
+                }
+                cleanup();
+            });
+
+        // MYT-323: ProjectBuilder must skip LibraryLinker for any <Package>
+        // dep that has source available in mt_modules/. This is the path
+        // that unblocks `mType.exe --build` after `mtpm install` — without
+        // it, the linker errors out trying to find a .mtcLib that mtpm
+        // doesn't produce.
+        addCallbackTest("ProjectBuilder: skips LibraryLinker for deps with mt_modules source",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                fs::path proj = fs::temp_directory_path() / "_mtype_pb_test_mtmod_skip";
+                if (fs::exists(proj)) fs::remove_all(proj);
+                fs::create_directories(proj / "mt_modules" / "@myt323_srcdep");
+                fs::create_directories(proj / "src");
+
+                // Minimal source — empty is fine, ProjectBuilder just needs
+                // SOMETHING to bundle. Parse errors are tolerated; we only
+                // care that the library-not-found error isn't raised.
+                { std::ofstream f(proj / "src" / "Main.mt"); f << ""; }
+
+                // Mark the mt_modules entry as installed per
+                // MtModulesManager::isInstalled — that requires mtpkg.json.
+                {
+                    std::ofstream f(proj / "mt_modules" / "@myt323_srcdep" / "mtpkg.json");
+                    f << R"({"name":"myt323_srcdep","version":"1.0.0"})";
+                }
+
+                project::ProjectConfig config;
+                config.name = "test_skip";
+                config.projectRoot = fs::canonical(proj).string();
+                config.resolvedSourceFiles.push_back(
+                    fs::canonical(proj / "src" / "Main.mt").string());
+                project::PackageDependency dep;
+                dep.name = "myt323_srcdep";
+                dep.versionRange = "1.0.0";
+                config.dependencies.packages.push_back(dep);
+
+                project::ProjectBuilder builder;
+                std::string outputPath = (proj / "out.mtcLib").string();
+                auto result = builder.buildLibrary(config, outputPath);
+
+                auto cleanup = [&]() { fs::remove_all(proj); };
+
+                // KEY assertion: LibraryLinker must NOT have fired for the
+                // mt_modules-backed dep. If it had, the result would carry
+                // "Library 'myt323_srcdep' not found".
+                for (const auto& err : result.errors)
+                {
+                    if (err.find("Library 'myt323_srcdep' not found") != std::string::npos)
+                    {
+                        cleanup();
+                        throw std::runtime_error(
+                            "LibraryLinker fired for dep with mt_modules source: " + err);
+                    }
+                }
+                cleanup();
+            });
+
+        addCallbackTest("ProjectBuilder: still calls LibraryLinker for deps without mt_modules",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                fs::path proj = fs::temp_directory_path() / "_mtype_pb_test_mtmod_miss";
+                if (fs::exists(proj)) fs::remove_all(proj);
+                fs::create_directories(proj / "src");
+                // NO mt_modules → dep falls through to LibraryLinker.
+
+                { std::ofstream f(proj / "src" / "Main.mt"); f << ""; }
+
+                project::ProjectConfig config;
+                config.name = "test_miss";
+                config.projectRoot = fs::canonical(proj).string();
+                config.resolvedSourceFiles.push_back(
+                    fs::canonical(proj / "src" / "Main.mt").string());
+                project::PackageDependency dep;
+                dep.name = "myt323_missingdep";
+                dep.versionRange = "1.0.0";
+                config.dependencies.packages.push_back(dep);
+
+                project::ProjectBuilder builder;
+                auto result = builder.buildLibrary(config, (proj / "out.mtcLib").string());
+
+                auto cleanup = [&]() { fs::remove_all(proj); };
+
+                // Must surface the linker error so the user knows to install.
+                bool foundLinkerError = false;
+                for (const auto& err : result.errors)
+                {
+                    if (err.find("myt323_missingdep") != std::string::npos &&
+                        err.find("not found") != std::string::npos)
+                    {
+                        foundLinkerError = true;
+                        break;
+                    }
+                }
+                if (!foundLinkerError)
+                {
+                    std::string allErrors;
+                    for (const auto& e : result.errors) allErrors += e + "; ";
+                    cleanup();
+                    throw std::runtime_error(
+                        "Expected library-not-found error for dep without mt_modules; got: " + allErrors);
                 }
                 cleanup();
             });

@@ -35,7 +35,6 @@ namespace project::mtclib
         MtcPathResolver& getPathResolver() { return pathResolver; }
 
     private:
-        std::string projectRoot;
         MtcPathResolver pathResolver;
         DependencyResolver dependencyResolver;
         std::unordered_map<std::string, MtcLibProgram> loadedLibraries;
