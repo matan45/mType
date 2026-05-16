@@ -544,6 +544,16 @@ namespace tests::testSuite
                                   benchmarkPath + "for_each_loop.mt");
         addOutputVerificationTest("Benchmark: function_call_hot",
                                   benchmarkPath + "function_call_hot.mt");
+        // MYT-322: free-function direct JIT-to-JIT dispatch coverage.
+        // mediumCompute is a ~48-instruction callee — above the size gate
+        // — so once function-entry tiering JIT-compiles it the lazy
+        // refresh in jit_call_function_ic picks up the pointer and routes
+        // through jit_call_function_direct. The four existing function/
+        // static-call benchmarks all have callees ≤ 4 instructions and
+        // exercise only the mini-interpret fallback; this is the
+        // dedicated correctness check for the direct-dispatch path.
+        addOutputVerificationTest("Benchmark: function_call_medium_hot",
+                                  benchmarkPath + "function_call_medium_hot.mt");
         addOutputVerificationTest("Benchmark: generic_dispatch_hot",
                                   benchmarkPath + "generic_dispatch_hot.mt");
         addOutputVerificationTest("Benchmark: inline_branching",
@@ -763,5 +773,16 @@ namespace tests::testSuite
         // recursive/leaf-call hotness silently stayed in the interpreter.
         addOutputVerificationTest("MYT-314 JIT function-entry tier",
                         passPath + "myt314JitFunctionEntryTier_pass.mt");
+
+        // MYT-322 regression: free-function direct JIT-to-JIT dispatch.
+        // Warms two function callees — one above MIN_DIRECT_CALL_INSTRUCTION_
+        // COUNT (routes through jit_call_function_direct's pre-cached IC
+        // fields), one below (stays on the cheaper callFunctionFromJitDirect
+        // mini-interpret path). Also exercises pendingException propagation
+        // across the direct-dispatch boundary by throwing from a large
+        // callee. Result correctness is the signal — perf is covered by the
+        // benchmark suite.
+        addOutputVerificationTest("MYT-322 JIT direct function dispatch",
+                        passPath + "jitDirectFunctionDispatch_pass.mt");
     }
 }

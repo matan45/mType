@@ -459,6 +459,26 @@ namespace vm::bytecode
             }
         }
 
+        // MYT-322: invalidation hook for jit_call_function_ic's IC slot.
+        // After JitCodeCache::invalidate releases native code, any slot
+        // holding the freed pointer in cachedJitFnPtr must be zeroed before
+        // the next warm dispatch. Mirrors
+        // InlineCacheTable::clearCachedJitForFunction on the method-IC side
+        // (function-IC slots live here on BytecodeProgram, not in the
+        // global ICTable, so they need a separate scrub). cachedFuncMetadata
+        // / cachedFrameName / cachedProgram stay populated: they describe
+        // the bytecode-level identity, which the native-code eviction
+        // doesn't affect. The next call at that IP re-probes the JIT
+        // pointer only.
+        void clearCachedJitFnPtrFor(const void* evictedJit) const
+        {
+            if (!evictedJit) return;
+            for (auto& [ip, state] : cachedStates)
+            {
+                if (state.cachedJitFnPtr == evictedJit) state.cachedJitFnPtr = nullptr;
+            }
+        }
+
         bool isFusionUnsafeTarget(size_t offset) const;
 
         void replaceInstructions(size_t offset, size_t count, const std::vector<Instruction>& newInstructions);

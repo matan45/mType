@@ -245,8 +245,12 @@ namespace vm::jit
     // MYT-251: bounds-check stackDepth bumps in JIT emit. Belt-and-suspenders
     // against the bug class fixed by MYT-248/249/250 — if a future emit path
     // would push past MAX_OP_STACK, mark compileFailed so the JIT bails
-    // cleanly instead of emitting code that overflows cc.new_stack at
-    // runtime (which silently smashes the C++ /GS cookie via __fastfail).
+    // cleanly instead of emitting code that overrun cc.new_stack at runtime.
+    // Out-of-bounds writes into the asmjit-allocated frame trip MSVC /GS
+    // instrumentation and surface as __fastfail; this guard prevents the
+    // operand-stack class of that overrun. MYT-184's separate /GS report
+    // (errorLargeExceptionData_pass.mt) was a different root cause — unary
+    // INT on a boxed slot, fixed in MYT-321.
     // Returns true when there is room, false (and sets compileFailed) when
     // the push would overflow. Callers must respect the false return —
     // typically by skipping the optimization that prompted the push (e.g.

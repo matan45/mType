@@ -6,166 +6,148 @@ See `docs/benchmarks.md` for how to update.
 Only the most recent run is kept here; prior runs live in git history
 (`git log -p docs/bench-baseline.md`).
 
-## 2026-05-15 — MYT-317 (bridge arena + SharedStackFrame pool + string SSO)
+## 2026-05-15 — MYT-322 (free-function direct JIT dispatch: pre-cached IC fields + size gate + lazy refresh)
 
 - Machine: dev machine (Windows 11 Home)
-- Commit:  branch `MYT-317` (uncommitted; on top of `2b763e11`)
+- Commit:  branch `MYT-322` (on top of `dev`)
 - Build:   Release x64, MSVC v145
 - Invocation: `mType.exe --benchmark` (jit=on, warmup=1, measured=3)
 
-MYT-317 lands three Value-layer allocation reductions in one PR:
+MYT-322 re-lands the free-function side of direct JIT-to-JIT dispatch that
+MYT-321's first attempt had to revert. The two gates that prevent the
++56% `generic_dispatch_hot.mt` regression:
 
-1. **Bridge arena** (`mType/value/BridgeArena.hpp`). Every heap `Value`'s
-   `TypedBridge<K, Held>` was an extra allocation per Value. `RefCounted`
-   gained a virtual `destroy()` hook (default `delete this`); `BridgeBase`
-   overrides it to push destructed raw memory blocks into a per-`BridgeKind`
-   freelist. `makeBridge` placement-news into a recycled slot on hit.
-   `PluginLoader::invalidateNativeCaches` resets the arena alongside
-   `clearNativeCacheSlots`.
-2. **SharedStackFrame pool** (`mType/vm/runtime/context/SharedStackFramePool.hpp`).
-   Every lambda invocation paid one `std::make_shared<SharedStackFrame>()`.
-   Pool mirrors `ObjectInstancePool::SlotDeleter`: cleared `locals` /
-   `nameToSlot` keep their bucket arrays for the next reuse, with a
-   `LOCALS_KEEP_THRESHOLD=256` shrink guard for deep nesting blowups. All
-   5 `make_shared<SharedStackFrame>` call sites switched to
-   `makePooledFrame()`.
-3. **String SSO** (`ValueType::STRING_INLINE`). Strings ≤14 bytes live
-   inline in the 16-byte `Value` (anonymous-union overlay; tag at offset 0,
-   length at offset 1, 14-byte char buffer at offsets 2–15). `Value` copy /
-   move switched to full-storage memcpy so the formerly-padding bytes are
-   carried across. `handleInvokeStringConcat` builds inline directly when
-   the combined length fits; longer results keep going through
-   `StringPool::intern()`. Cross-kind `STRING ↔ STRING_INLINE` equality
-   handled by a new private `stringEquals()` member; ~25 critical readers
-   (printers, JSON serial, NativeBinder, JIT helpers, FFI bridges,
-   reflection helpers, debugger formatters) migrated to `isAnyString` +
-   `asStringView`.
-
-`Value(InlineStringTag, const char*, uint8_t)` requires a mandatory tag
-struct to dodge the `[[feedback_value_bool_pointer_decay]]` regression
-that bit MYT-208.
+1. **Pre-cached IC fields** (`CachedInstructionState::cachedJitFnPtr` +
+   `cachedFrameName` populated at `jit_call_function_ic` cold-fill,
+   `cachedProgramIndex` bug fix from unconditional `0`). The helper
+   `jit_call_function_direct` takes the pre-interned `FunctionNameHandle`
+   and resolved `programIndex` as parameters, skipping the per-call
+   `internFrameName` hashmap probe + `loadedPrograms` scan.
+2. **Callee-size gate** (`MIN_DIRECT_CALL_INSTRUCTION_COUNT = 15` in
+   `JitHelpers.hpp`). Tiny callees (the original regression cause) stay
+   on `callFunctionFromJitDirect`'s mini-interpret path; only callees
+   above the threshold pay the `cc.new_stack` prologue cost in exchange
+   for the direct dispatch.
+3. **Invalidation wiring**: new `BytecodeProgram::clearCachedJitFnPtrFor`
+   scrubs IC slots on every loaded program when
+   `VirtualMachine::invalidateInlinedFunctionCallers` frees native code,
+   matching the method-side `InlineCacheTable::clearCachedJitForFunction`
+   contract.
+4. **Lazy refresh** in `jit_call_function_ic`'s warm path mirrors the
+   method-side pattern at `JitHelpers_Objects.cpp:839-860`: when a warm
+   hit finds `cachedJitFnPtr == nullptr` AND the callee crosses the
+   size gate, re-probe `JitCodeCache::lookup` and write back. The size-
+   gate guard on the probe keeps tiny callees off the hashmap, which is
+   what blew up MYT-321 originally. Without this, callees that tier up
+   to JIT after their caller's first cold-fill at the IP never get
+   picked up — the common case in single-loop benchmarks.
 
 ### Summary (jit=on)
 
 ```
   Script                             min(ms)    median(ms)    instructions     calls
-  arithmetic_tight_loop.mt            106.04        106.05           20017         0
-  method_dispatch.mt                   98.26         98.34           14042       506
-  object_alloc.mt                     614.97        622.53           12511         0
-  object_alloc_nested.mt             1520.44       1520.70           16811       500
-  gc_cycle_churn.mt                   224.68        225.34           26511    160900
-  field_write_hot.mt                   78.42         78.55            8018         1
-  field_read_hot.mt                    78.69         79.22            9020         1
-  polymorphic_field_hot.mt            537.03        538.45        42000094         8
-  string_ops.mt                       108.91        109.71           19019         0
-  recursive.mt                        676.43        687.14           17260   2545487
-  bitwise_tight_loop.mt                77.32         78.88           23019         0
-  short_circuit_chain.mt               64.34         65.22           24909         0
-  primitive_method_dispatch.mt        226.43        227.59           32041         0
-  array_multi_alloc.mt                 36.02         36.57            9911       500
-  array_multi_get.mt                  280.49        281.44           60117       500
-  for_each_loop.mt                    350.81        353.18           75655      5604
-  inline_monomorphic.mt                79.44         79.52           13016       501
-  inline_branching.mt                  83.14         84.00           15016       501
-  inline_polymorphic.mt               102.60        103.44           14051       508
-  inline_polymorphic_mixed.mt         329.40        333.63           32926       508
-  megamorphic_dispatch.mt             763.42        770.97           14069       512
-  inline_value_object_hot.mt          165.08        165.15           12517       500
-  function_call_hot.mt                 93.16         93.85           15011       500
-  function_entry_tier_hot.mt           93.60         94.53           11811      1500
-  async_await_tight_loop.mt           664.30        667.85           12425       501
-  async_await_chain.mt               1307.43       1310.06           23325      2001
-  lambda_call_hot.mt                  687.25        696.66           12521   1999501
-  lambda_closure_hot.mt               712.82        720.63           12526   1999502
-  generic_dispatch_hot.mt             645.72        647.95           20074      1012
-  try_catch_finally_hot.mt            360.27        368.14           50019      2000
-  switch_dispatch_hot.mt              497.67        499.79           14634       500
-  overload_dispatch_hot.mt            495.28        499.36           34026      2001
-  abstract_dispatch_hot.mt            101.20        101.27           14042       506
-  cast_hot.mt                         269.01        270.26           19560       505
-  collections_hash_hot.mt             628.70        633.81           32763       502
-  collections_hash_user_class_hot.mt        708.83        710.92           35775       502
-  collections_hashset_hot.mt          171.08        172.22           18655         1
-  stream_pipeline_hot.mt              407.33        407.98         2090493    306881
-  reflection_lookup_hot.mt           1948.10       1961.94           81551   1203003
-  pattern_match_hot.mt                473.76        474.46           12861       500
-  string_interpolation_hot.mt         217.31        217.57         7400025         0
-  boxed_primitive_dispatch_hot.mt        606.92        613.26           32805         0
-  boxed_bool_dispatch_hot.mt          496.16        500.10           29276         0
-  boxed_string_dispatch_hot.mt        374.86        380.15           24264         0
-  static_call_hot.mt                  167.43        168.06           32516      2000
-  linked_list_nested_hot.mt           305.04        307.73          124921     81001
-  method_chain_hot.mt                  21.16         21.42           36526      2389
-  string_build_call_hot.mt             95.03         95.23           21015       500
+  arithmetic_tight_loop.mt            103.08        103.45           20017         0
+  method_dispatch.mt                  105.21        106.18           14042       506
+  object_alloc.mt                     623.83        637.55           12511         0
+  object_alloc_nested.mt             1496.65       1505.98           16811       500
+  gc_cycle_churn.mt                   240.02        242.24           26511    160900
+  field_write_hot.mt                   77.50         78.03            8018         1
+  field_read_hot.mt                    78.51         78.54            9020         1
+  polymorphic_field_hot.mt            531.68        532.78        42000094         8
+  string_ops.mt                       108.19        109.57           19019         0
+  recursive.mt                        681.26        682.45           17260   2545487
+  bitwise_tight_loop.mt                75.96         76.62           23019         0
+  short_circuit_chain.mt               63.70         63.97           24909         0
+  primitive_method_dispatch.mt        228.06        229.59           32041         0
+  array_multi_alloc.mt                 35.34         35.55            9911       500
+  array_multi_get.mt                  279.65        279.68           60117       500
+  for_each_loop.mt                    339.08        343.08           75655      5603
+  inline_monomorphic.mt                79.10         79.61           13016       501
+  inline_branching.mt                  81.55         83.46           15016       501
+  inline_polymorphic.mt                99.91        101.57           14051       508
+  inline_polymorphic_mixed.mt         356.92        359.56           32926       508
+  megamorphic_dispatch.mt             793.51        820.96           14069       512
+  inline_value_object_hot.mt          168.81        169.71           12517       500
+  function_call_hot.mt                 95.01         95.39           15011       500
+  function_entry_tier_hot.mt           95.39         95.54           11811      1500
+  async_await_tight_loop.mt           652.31        655.14           12425       501
+  async_await_chain.mt               1291.86       1293.02           23325      2001
+  lambda_call_hot.mt                  688.12        693.10           12521   1999501
+  lambda_closure_hot.mt               710.95        717.98           12526   1999502
+  generic_dispatch_hot.mt             647.02        659.71           20074      1012
+  try_catch_finally_hot.mt            358.90        361.02           50019      2000
+  switch_dispatch_hot.mt              488.75        489.24           14634       500
+  overload_dispatch_hot.mt            494.59        494.94           34026      2001
+  abstract_dispatch_hot.mt            104.00        105.51           14042       506
+  cast_hot.mt                         268.12        270.22           19560       505
+  collections_hash_hot.mt             638.20        639.34           32763       502
+  collections_hash_user_class_hot.mt        717.83        718.19           35775       502
+  collections_hashset_hot.mt          180.55        185.14           18655         1
+  stream_pipeline_hot.mt              377.99        384.97         2090493    292256
+  reflection_lookup_hot.mt           1465.23       1482.36           81551   1203003
+  pattern_match_hot.mt                473.00        476.31           12861       500
+  string_interpolation_hot.mt         215.32        217.18         7400025         0
+  boxed_primitive_dispatch_hot.mt        618.11        619.73           32805         0
+  boxed_bool_dispatch_hot.mt          507.32        507.71           29276         0
+  boxed_string_dispatch_hot.mt        383.06        383.27           24264         0
+  static_call_hot.mt                  167.35        168.81           32516      2000
+  linked_list_nested_hot.mt           148.83        150.74          124921      1969
+  method_chain_hot.mt                  20.99         21.00           36526      2389
+  string_build_call_hot.mt             95.04         96.19           21015       500
 ```
 
-### Notes on the deltas vs the prior MYT-315 baseline (in git history)
+### Deltas
 
-The three sub-items hit different workload shapes. Headlines:
+AC benchmarks (the canary set the original revert tripped on) all stay
+within ±3% of the MYT-321 baseline:
 
-- **`function_entry_tier_hot.mt`: 471.59 → 93.60 ms (−80.2%)** — the
-  frame pool dominates this one. Every tier-up handshake pulled a fresh
-  `SharedStackFrame` per invocation; the pool reuses one slot for the hot
-  caller forever.
-- **`function_call_hot.mt`: 185.40 → 93.16 ms (−49.7%)** — same shape.
-- **`array_multi_alloc.mt`: 69.42 → 36.02 ms (−48.1%)** — bridge arena
-  on the per-allocation `NATIVE_ARRAY` / `FLAT_MULTI_ARRAY` bridges.
-- **`string_ops.mt`: 129.54 → 108.91 ms (−15.9%)** — string SSO. Short
-  concat results skip both the bridge allocation and `StringPool::intern`.
-- **`array_multi_get.mt`: 333.16 → 280.49 ms (−15.8%)** — bridge arena
-  on the per-element `Value` materialization path.
-- **`lambda_closure_hot.mt`: 824.90 → 712.82 ms (−13.6%)**,
-  **`lambda_call_hot.mt`: 787.29 → 687.25 ms (−12.7%)** — frame pool.
-- **`overload_dispatch_hot.mt`: 564.61 → 495.28 ms (−12.3%)** — boxed
-  primitive dispatch shares the bridge-arena win.
-- **`boxed_bool_dispatch_hot.mt`: 553.85 → 496.16 ms (−10.4%)**,
-  **`boxed_string_dispatch_hot.mt`: 414.25 → 374.86 ms (−9.5%)**,
-  **`boxed_primitive_dispatch_hot.mt`: 662.91 → 606.92 ms (−8.4%)** —
-  same bridge-arena win on the `ValueObject` / `OBJECT_INSTANCE` paths.
-- **`object_alloc.mt`: 665.32 → 614.97 ms (−7.6%)** — bridge arena.
-- **`method_dispatch.mt`: 105.88 → 98.26 ms (−7.2%)** — bridge arena
-  on the per-call boxed-receiver materialization.
-- **`reflection_lookup_hot.mt`: 2050.19 → 1948.10 ms (−5.0%)** — bridge
-  arena; reflection allocates many transient bridges.
+- **`generic_dispatch_hot.mt`: 639.86 → 647.02 ms (+1.1%)** — flat, no
+  re-regression. The original MYT-321 attempt was +56% here.
+- **`static_call_hot.mt`: 165.13 → 167.35 ms (+1.3%)** — flat.
+- **`function_call_hot.mt`: 94.49 → 95.01 ms (+0.6%)** — flat.
+- **`function_entry_tier_hot.mt`: 93.60 → 95.39 ms (+1.9%)** — flat.
 
-Regressions outside the ±3% noise band:
+The four AC benchmarks all have callees below
+`MIN_DIRECT_CALL_INSTRUCTION_COUNT` (1–4 instructions each), so by design
+they fall through to `callFunctionFromJitDirect`'s mini-interpret path
+and never engage the new direct-dispatch helper. The size-gated lazy
+refresh also skips them, so the hashmap-probe-per-call cost that caused
+MYT-321's revert is absent on the canary set. Flat result is the
+intended outcome.
 
-- **`inline_value_object_hot.mt`: 144.00 → 165.08 ms (+14.6%)** — needs
-  investigation. ValueObject hot path; suspect the virtual dispatch on
-  `destroy()` shows up despite ostensibly only firing at refcount=0.
-- **`polymorphic_field_hot.mt`: 471.65 → 537.03 ms (+13.9%)** — IC field
-  load path; the new `isAnyString` checks in the auto-box gate may be
-  adding a branch on every dispatch.
-- **`recursive.mt`: 618.77 → 676.43 ms (+9.3%)** — fib/ack. Pure function
-  calls don't touch the frame pool, so this is bridge-arena overhead or
-  the auto-box-gate widening on the boxed return path.
-- **`try_catch_finally_hot.mt`: 360.27 ms (+9.0%)**,
-  **`inline_polymorphic_mixed.mt`: 329.40 ms (+7.2%)**,
-  **`static_call_hot.mt`: 167.43 ms (+6.7%)**,
-  **`switch_dispatch_hot.mt`: 497.67 ms (+6.0%)** — all in the +5–9%
-  range, likely the same auto-box-gate widening pattern.
+### Observation: no benchmark in the suite captures a direct-dispatch win
 
-`gc_cycle_churn.mt` is new in this baseline (not in the MYT-315 run);
-no delta available.
+Even with the lazy refresh landed, the post-lazy-refresh run shows no
+measurable improvement on any benchmark, because the suite has no
+workload with the right shape:
 
-### Coverage caveats
+- Method-dispatch workloads already won under MYT-321
+  (`linked_list_nested_hot.mt` is steady at ~150 ms, down from pre-MYT-321
+  305 ms).
+- Free-function workloads all have callees ≤ 4 instructions (the four
+  AC benchmarks were designed as "tiny callee" canaries for the original
+  regression). None cross the 15-instruction size gate.
+- Async, lambda, collections, reflection workloads don't go through
+  `CALL_STATIC` at all, so the helper never fires.
 
-- JIT-side handling of `STRING_INLINE` is out of scope (`OSRManager` and
-  `TypeFeedbackCollector` classify it as `STRING` so the slot type stays
-  stable; JIT-emitted `tag == STRING` guards reject inline values and
-  fall through to the interpreter). String-SSO wins only materialize on
-  the interpreter concat path; pure-JIT string benchmarks will not show
-  the SSO delta until a JIT follow-up lands.
-- Bridge arena bucket caps are 32 for hot kinds (`STD_STRING`,
-  `OBJECT_INSTANCE`, `BYTECODE_LAMBDA`, `NATIVE_ARRAY`) and 8 for cold
-  kinds. No telemetry-driven retuning yet.
-- The frame pool is sized at `BUCKET_CAP=64`. The single freelist is
-  shape-agnostic — frames with very wide `locals` past 256 slots are
-  discarded rather than parked, so frame-explosion workloads see no
-  benefit. No regression there because the discard path falls back to
-  the original `delete` semantics.
+The lazy refresh is verified-correct against the
+`jitDirectFunctionDispatch_pass.mt` test fixture (which constructs a
+~30-instruction callee specifically to engage the direct path). Wins on
+production workloads are expected wherever a `CALL_STATIC` site targets
+a JIT-compiled non-trivial free-function body — those just aren't
+represented in the current bench suite.
 
-### Sanity outputs (must match on re-run for same commit)
+Run-to-run noise on this set is roughly ±3%; nothing in the diff
+between the pre-lazy-refresh and post-lazy-refresh runs falls outside
+that band, including method-side benchmarks (so the small
+`method_dispatch.mt` and `megamorphic_dispatch.mt` movements are noise,
+not regressions caused by the function-side IC slot work).
 
-- `function_entry_tier_hot.mt`: `function_entry_tier_hot total=6000003000000`
-- `myt314JitFunctionEntryTier_pass.mt` (integration fixture): `myt314 total=11325`
+### Still open
+
+- Add a `function_call_medium_hot.mt` benchmark with a 20-30 instruction
+  free-function callee in a 1M-iteration loop, plus a pre-warmup pass
+  that gets the callee JIT-compiled before the timed region. That's the
+  missing canary for "direct dispatch actually fires," and once it
+  exists the size-gate threshold becomes empirically tunable instead of
+  guessed.

@@ -170,8 +170,11 @@ namespace vm::jit
         // a local 64 here that could silently drift from the emitters'
         // bound check). Pair with the operand-stack pre-scan in the inline
         // guards (JitCompiler_Objects.cpp) so a hot OSR loop body that
-        // would overflow this budget bails at compile time instead of
-        // smashing the C++ /GS cookie at runtime.
+        // would overflow cc.new_stack bails at compile time. The MYT-184
+        // /GS cookie symptom that originally motivated reframing this guard
+        // turned out to be MYT-321's unary-INT-on-boxed-slot bug; pure
+        // operand-stack overflow is still a real cc.new_stack overrun
+        // failure mode this budget continues to defend against.
         constexpr size_t MAX_OP_STACK = JitEmissionState::MAX_OP_STACK;
         constexpr size_t valueSize = sizeof(value::Value);
 

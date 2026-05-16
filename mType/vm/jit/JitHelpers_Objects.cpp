@@ -505,28 +505,28 @@ namespace vm::jit
         }
     }
 
-    // MYT-184 history: the original direct JIT->JIT path (tryDirectJitMethodDispatch,
-    // MYT-132 / MYT-161) was reverted because its inlining/splicing path's
-    // cc.new_stack allocation was undersized for nested calls, corrupting the
-    // MSVC /GS cookie of an outer caller (STATUS_STACK_BUFFER_OVERRUN at
-    // __report_gsfailure).
+    // MYT-321: direct JIT->JIT method dispatch has to recreate the runtime
+    // boundary that callMethodFromJitDirect used to provide. A raw function
+    // pointer is not enough: library callees must run with their owning
+    // BytecodeProgram (constant pool, metadata, nested IC lookups), and the VM
+    // call stack needs a method frame while the nested JIT body is active so
+    // exception handling, access checks, and stack traces see the callee.
     //
-    // MYT-315 re-introduces a direct path on a different mechanism:
-    // `jit_call_method_direct` below allocates a fresh nested `JitContext` on its
-    // own C++ stack frame and invokes the cached `JitFunction*` as a standard C
-    // function pointer call. The callee runs through its own full asmjit
-    // prologue (cc.add_func + cc.new_stack) — same path as a top-level VM->JIT
-    // entry — so there is no shared-frame hazard. The mini-interpreter path
-    // (callMethodFromJitDirect, still used by `jit_call_method_ic` below when
-    // the IC entry doesn't have a cached JitFunction) remains correct and is
-    // the fallback when the callee isn't JIT-compiled yet.
+    // The callee still gets an independent asmjit frame via its normal
+    // cc.add_func prologue; the extra C++ JitContext here supplies the correct
+    // runtime metadata and argument span for that frame.
 
     void jit_call_method_direct(JitContext* ctx,
                                  const void* cachedJit,
+                                 const bytecode::BytecodeProgram* calleeProgram,
+                                 const void* funcMetadata,
                                  size_t argCountPlusReceiver)
     {
         if (ctx->pendingException) return;
         if (!cachedJit || !ctx->vm) return;
+        const auto* funcMeta =
+            static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(funcMetadata);
+        if (!calleeProgram || !funcMeta) return;
 
         // Mirror tryJitDispatchResolved's native-recursion guard. Without
         // this, a recursive method via the direct path skips the same
@@ -549,12 +549,134 @@ namespace vm::jit
         }
 
         auto fn = reinterpret_cast<void(*)(JitContext*)>(const_cast<void*>(cachedJit));
+        const std::string& qualifiedName = funcMeta->mangledName.empty()
+            ? funcMeta->name : funcMeta->mangledName;
+
+        size_t calleeProgramIndex = 0;
+        const auto& loadedPrograms = ctx->vm->getLoadedPrograms();
+        if (!ctx->vm->getCallStack().empty())
+            calleeProgramIndex = ctx->vm->getCallStack().back().programIndex;
+        for (size_t i = 0; i < loadedPrograms.size(); ++i)
+        {
+            if (loadedPrograms[i] == calleeProgram)
+            {
+                calleeProgramIndex = i;
+                break;
+            }
+        }
+
+        std::string definingClassName;
+        size_t colonPos = qualifiedName.find("::");
+        if (colonPos != std::string::npos)
+            definingClassName = qualifiedName.substr(0, colonPos);
+
+        const size_t savedStackSize = ctx->stackManager ? ctx->stackManager->size() : 0;
+        vm::runtime::CallFrame frame;
+        frame.returnAddress = ctx->vm->getInstructionPointer();
+        frame.frameBase = savedStackSize;
+        frame.localBase = savedStackSize;
+        frame.functionName = calleeProgram->internFrameName(qualifiedName);
+        frame.definingClassName = definingClassName;
+        frame.programIndex = calleeProgramIndex;
+        if (argCountPlusReceiver > 0)
+        {
+            const value::Value& receiver = ctx->callArgs[0];
+            if (value::isObject(receiver))
+                frame.thisInstance = value::asObject(receiver);
+            else if (value::isStackObject(receiver))
+                frame.thisInstanceRaw = value::asObjectInstanceRaw(receiver);
+        }
+        ctx->vm->pushCallFrame(std::move(frame));
+        bool framePushed = true;
 
         JitContext nestedCtx{};
         nestedCtx.args = ctx->callArgs;
         nestedCtx.argCount = argCountPlusReceiver;
         nestedCtx.hasReturnValue = false;
-        nestedCtx.program = ctx->program;
+        nestedCtx.program = calleeProgram;
+        nestedCtx.stackManager = ctx->stackManager;
+        nestedCtx.environment = ctx->environment;
+        nestedCtx.vm = ctx->vm;
+        nestedCtx.jitCodeCache = ctx->jitCodeCache;
+        nestedCtx.icTable = ctx->icTable;
+        nestedCtx.callingClassName = definingClassName.empty()
+            ? ctx->callingClassName : definingClassName;
+
+        ctx->vm->incrementJitNativeDepth();
+        try {
+            fn(&nestedCtx);
+        } catch (...) {
+            ctx->pendingException = std::current_exception();
+        }
+        ctx->vm->decrementJitNativeDepth();
+        if (framePushed)
+        {
+            ctx->vm->popCallStack();
+            framePushed = false;
+        }
+
+        if (nestedCtx.pendingException && !ctx->pendingException) {
+            ctx->pendingException = nestedCtx.pendingException;
+            return;
+        }
+        if (ctx->pendingException) return;
+
+        ctx->returnValue = std::move(nestedCtx.returnValue);
+        ctx->hasReturnValue = nestedCtx.hasReturnValue;
+    }
+
+    // MYT-322: function-side counterpart to jit_call_method_direct. Differs
+    // from the method-side helper in two ways:
+    //   1. frameName + calleeProgramIndex are passed in, pre-resolved by the
+    //      IC cold path in jit_call_function_ic. No per-call internFrameName
+    //      hashmap probe, no loadedPrograms scan.
+    //   2. No receiver / definingClassName handling — free functions have
+    //      neither. callingClassName is inherited unchanged from the caller.
+    // Together with the size gate enforced at the warm-path call site, this
+    // re-lands what MYT-321 reverted without re-introducing the
+    // generic_dispatch_hot.mt regression.
+    void jit_call_function_direct(JitContext* ctx,
+                                   const void* cachedJit,
+                                   const bytecode::BytecodeProgram* calleeProgram,
+                                   const void* funcMetadata,
+                                   bytecode::FunctionNameHandle frameName,
+                                   size_t calleeProgramIndex,
+                                   size_t argCount)
+    {
+        if (ctx->pendingException) return;
+        if (!cachedJit || !ctx->vm) return;
+        const auto* funcMeta =
+            static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(funcMetadata);
+        if (!calleeProgram || !funcMeta) return;
+
+        if (ctx->vm->getJitNativeDepth() >= vm::runtime::VirtualMachine::MAX_JIT_NATIVE_DEPTH)
+        {
+            try {
+                throw errors::RuntimeException(
+                    "JIT: native recursion depth exceeded in direct function dispatch");
+            } catch (...) {
+                ctx->pendingException = std::current_exception();
+            }
+            return;
+        }
+
+        auto fn = reinterpret_cast<void(*)(JitContext*)>(const_cast<void*>(cachedJit));
+
+        const size_t savedStackSize = ctx->stackManager ? ctx->stackManager->size() : 0;
+        vm::runtime::CallFrame frame;
+        frame.returnAddress = ctx->vm->getInstructionPointer();
+        frame.frameBase = savedStackSize;
+        frame.localBase = savedStackSize;
+        frame.functionName = frameName;
+        frame.programIndex = calleeProgramIndex;
+        frame.thisInstance = nullptr;
+        ctx->vm->pushCallFrame(std::move(frame));
+
+        JitContext nestedCtx{};
+        nestedCtx.args = ctx->callArgs;
+        nestedCtx.argCount = argCount;
+        nestedCtx.hasReturnValue = false;
+        nestedCtx.program = calleeProgram;
         nestedCtx.stackManager = ctx->stackManager;
         nestedCtx.environment = ctx->environment;
         nestedCtx.vm = ctx->vm;
@@ -569,6 +691,7 @@ namespace vm::jit
             ctx->pendingException = std::current_exception();
         }
         ctx->vm->decrementJitNativeDepth();
+        ctx->vm->popCallStack();
 
         if (nestedCtx.pendingException && !ctx->pendingException) {
             ctx->pendingException = nestedCtx.pendingException;
@@ -694,20 +817,62 @@ namespace vm::jit
                 }
                 if (entry && entry->funcMetadata)
                 {
-                    // MYT-184: both receiver kinds route through
-                    // callMethodFromJitDirect's mini-interpret loop. The
-                    // IC entry's pre-resolved funcMetadata lets us skip the
+                    // MYT-184: both receiver kinds funnel through one
+                    // dispatch path; pre-resolved funcMetadata skips the
                     // findInstanceMethodInHierarchy + program->getFunction
-                    // lookups that the slow jit_call_method path redoes on
+                    // probes the slow jit_call_method path would redo on
                     // every iteration.
                     //
-                    // MYT-315: opportunistic JIT→JIT dispatch from this path
-                    // was tried but reverted — see errorLargeExceptionData_pass.mt
-                    // crash. The emit-side direct dispatch (tryEmitDirectMethodCall
-                    // and the POLY-rejected branch in emitInlinedMethodCallPoly)
-                    // captures the perf win on hot benchmarks without
-                    // re-introducing the runtime-side hazard.
+                    // MYT-321: direct JIT-to-JIT dispatch is also enabled
+                    // from this runtime IC arm. The /GS hazard that motivated
+                    // the original MYT-315 revert turned out to be the
+                    // unary-INT-on-boxed-slot bug (fixed in
+                    // JitCompiler_Arithmetic.cpp), unrelated to whether
+                    // direct dispatch fires from emit-side or runtime-side.
+                    // The cachedJit slot is populated by the IC-fill path
+                    // below; if the callee tiers up AFTER fill, we refresh
+                    // lazily on first observation so the win is captured on
+                    // the very next iteration instead of waiting for an IC
+                    // eviction + repopulate cycle.
                     auto* funcMeta = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(entry->funcMetadata);
+
+                    const void* directTarget = entry->cachedJit;
+                    if (!directTarget && !entry->receiverIsValueObject)
+                    {
+                        if (auto* codeCache = ctx->vm->getJitCodeCache())
+                        {
+                            directTarget = reinterpret_cast<const void*>(
+                                codeCache->lookup(entry->qualifiedName));
+                            if (directTarget)
+                            {
+                                // Write back to the matching mutable entry
+                                // so subsequent hits skip the probe.
+                                for (uint8_t i = 0; i < cache.entryCount; ++i)
+                                {
+                                    if (cache.entries[i].shape == classDef)
+                                    {
+                                        cache.entries[i].cachedJit = directTarget;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (directTarget && !entry->receiverIsValueObject)
+                    {
+                        // Marshal: callArgs[0] is already the receiver and
+                        // [1..argCount] are the args — same layout
+                        // jit_call_method_direct expects (argCount+1 params).
+                        // The helper itself publishes ctx->returnValue /
+                        // ctx->hasReturnValue / ctx->pendingException.
+                        jit_call_method_direct(ctx, directTarget,
+                                                entry->program,
+                                                entry->funcMetadata,
+                                                argCount + 1);
+                        return;
+                    }
+
                     std::vector<value::Value> args;
                     args.reserve(argCount);
                     for (size_t i = 1; i <= argCount; ++i)

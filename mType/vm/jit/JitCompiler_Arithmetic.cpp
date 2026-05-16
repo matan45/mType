@@ -76,6 +76,8 @@ namespace vm::jit
     {
         // MYT-211: in-place unary on TOS — consume into reg, op, publish.
         auto& cc = s.cc;
+        SlotType vType = popType(s);
+        emitEnsureUnboxed(s, s.stackDepth - 1, vType, SlotType::INT);
         Gp tmp = consumeGpHint(s, s.stackDepth - 1);
         switch (instr.opcode)
         {
@@ -85,6 +87,7 @@ namespace vm::jit
             case OpCode::BITWISE_NOT_OP: case OpCode::BITWISE_NOT_INT:  cc.not_(tmp); break;
             default: return false;
         }
+        s.slotTypes.push_back(SlotType::INT);
         publishGpHint(s, s.stackDepth - 1, tmp);
         return true;
     }
