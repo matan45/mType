@@ -189,9 +189,7 @@ namespace packagemanager
             // Note: bytecode (.mtcLib) compilation is intentionally NOT run
             // here. mType's build path treats packages with mt_modules source
             // as source-level deps and resolves them via aliases — see
-            // ProjectBuilder::compileToProgram. Pre-compiled libraries remain
-            // available as an opt-in via PackageCompiler for a future
-            // --build-libs flag, but are not part of the default install.
+            // ProjectBuilder::compileToProgram.
         }
         catch (const std::exception& e)
         {

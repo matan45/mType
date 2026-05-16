@@ -933,9 +933,8 @@ namespace tests::testSuite
             });
 
         // MYT-323: MtcPathResolver must consume the mtpm registry layout
-        // <root>/<name>/<version>/<name>.mtcLib so packages installed by
-        // mtpm and compiled by PackageCompiler are linkable without a flat
-        // libs/ folder.
+        // <root>/<name>/<version>/<name>.mtcLib so a versioned .mtcLib is
+        // linkable without requiring a flat libs/ folder.
         addCallbackTest("MtcPathResolver: registry layout resolves versioned lookup",
             "",
             [](ScriptAPI&) {

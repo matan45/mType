@@ -57,9 +57,6 @@
     <ClInclude Include="..\packagemanager\src\MtModulesManager.hpp">
       <Filter>packagemanager\src</Filter>
     </ClInclude>
-    <ClInclude Include="..\packagemanager\src\PackageCompiler.hpp">
-      <Filter>packagemanager\src</Filter>
-    </ClInclude>
     <ClInclude Include="..\packagemanager\src\PackageInstaller.hpp">
       <Filter>packagemanager\src</Filter>
     </ClInclude>
@@ -321,9 +318,6 @@
       <Filter>packagemanager\src</Filter>
     </ClCompile>
     <ClCompile Include="..\packagemanager\src\MtModulesManager.cpp">
-      <Filter>packagemanager\src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\packagemanager\src\PackageCompiler.cpp">
       <Filter>packagemanager\src</Filter>
     </ClCompile>
     <ClCompile Include="..\packagemanager\src\PackageInstaller.cpp">
