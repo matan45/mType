@@ -1956,6 +1956,128 @@ namespace tests::testSuite
                     fs::remove_all(consumerOutputDir);
                 } catch (...) {}
             });
+
+        // =====================================================================
+        // MYT-325 follow-up: ProjectBuilder must mirror native plugin binaries
+        // that live alongside a dependency's .mtcLib into the build output,
+        // preserving their path relative to the project root. Otherwise user
+        // code calling __plugin_load("mt_modules/.../foo.dll") can't find the
+        // DLL once the exe runs from build/.
+        // =====================================================================
+        addCallbackTest("ProjectBuilder: copies native DLLs sibling to .mtcLib (MYT-325 follow-up)",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+
+                // === Step 1: Build StaticFinalLib .mtcLib ===
+                std::string libMtproj = "mType/tests/testFiles/library/projects/staticfinal-lib/StaticFinalLib.mtproj";
+                require(fs::exists(libMtproj), "StaticFinalLib.mtproj not found");
+
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
+                require(libConfig != nullptr, "Failed to parse StaticFinalLib.mtproj");
+
+                fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
+                std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
+
+                project::ProjectBuilder libBuilder;
+                auto libResult = libBuilder.buildLibrary(*libConfig, libPath);
+                require(libResult.success, "StaticFinalLib build failed: " +
+                    (libResult.errors.empty() ? "unknown" : libResult.errors[0]));
+
+                // === Step 2: Stage .mtcLib + a fake native binary in consumer/libs/ ===
+                // Use a tiny non-DLL file with .dll extension — ProjectBuilder
+                // selects by extension and copies bytes verbatim, so a real PE
+                // binary isn't needed for the copy test (we're not loading it).
+                std::string consumerLibsDir = "mType/tests/testFiles/library/projects/staticfinal-consumer/libs";
+                fs::create_directories(consumerLibsDir);
+                std::string destLib = consumerLibsDir + "/StaticFinalLib.mtcLib";
+                fs::copy_file(libPath, destLib, fs::copy_options::overwrite_existing);
+
+                std::string fakeNativeName = "staticfinal_fake.dll";
+                std::string fakeNativeSrc = consumerLibsDir + "/" + fakeNativeName;
+                {
+                    std::ofstream out(fakeNativeSrc, std::ios::binary);
+                    require(out.good(), "Failed to write fake native binary");
+                    out << "MYT-325 native copy fixture";
+                }
+
+                // === Step 3: Find launcher ===
+#ifdef _WIN32
+                std::string launcherName = "mtype-launcher.exe";
+#else
+                std::string launcherName = "mtype-launcher";
+#endif
+                std::string launcherPath;
+                std::vector<std::string> searchPaths = {
+                    "bin/mType/Debug/x64/" + launcherName,
+                    "bin/mType/Release/x64/" + launcherName,
+                    "bin/mtype-launcher/Debug/x64/" + launcherName,
+                    "bin/mtype-launcher/Release/x64/" + launcherName
+                };
+                for (const auto& candidate : searchPaths) {
+                    if (fs::exists(candidate)) { launcherPath = candidate; break; }
+                }
+                if (launcherPath.empty()) {
+                    throw std::runtime_error("SKIP: mtype-launcher not found (build it first)");
+                }
+
+                // === Step 4: Build consumer exe ===
+                std::string consumerMtproj = "mType/tests/testFiles/library/projects/staticfinal-consumer/StaticFinalConsumer.mtproj";
+                auto consumerConfig = configParser.parse(consumerMtproj);
+                require(consumerConfig != nullptr, "Failed to parse StaticFinalConsumer.mtproj");
+
+                fs::path consumerOutputDir = fs::path(consumerConfig->projectRoot) / consumerConfig->output.directory;
+#ifdef _WIN32
+                std::string exeName = consumerConfig->name + ".exe";
+#else
+                std::string exeName = consumerConfig->name;
+#endif
+                std::string exePath = (consumerOutputDir / exeName).string();
+
+                project::ProjectBuilder consumerBuilder;
+                auto consumerResult = consumerBuilder.buildExecutable(
+                    *consumerConfig, exePath, launcherPath);
+                require(consumerResult.success, "Consumer exe build failed: " +
+                    (consumerResult.errors.empty() ? "unknown" : consumerResult.errors[0]));
+
+                // === Step 5: Verify the native binary was mirrored ===
+                // staticfinal-consumer/libs/staticfinal_fake.dll → build's
+                // sibling-of-exe relative path is `libs/staticfinal_fake.dll`
+                // because the package's .mtcLib parent dir relative to the
+                // project root is exactly "libs".
+                fs::path expectedDest = consumerOutputDir / "libs" / fakeNativeName;
+                require(fs::exists(expectedDest),
+                    "ProjectBuilder did not mirror native binary to " + expectedDest.string());
+
+                // Content must match — copy, not stub.
+                {
+                    std::ifstream srcIn(fakeNativeSrc, std::ios::binary);
+                    std::ifstream dstIn(expectedDest.string(), std::ios::binary);
+                    std::string srcBytes((std::istreambuf_iterator<char>(srcIn)),
+                                         std::istreambuf_iterator<char>());
+                    std::string dstBytes((std::istreambuf_iterator<char>(dstIn)),
+                                         std::istreambuf_iterator<char>());
+                    require(srcBytes == dstBytes,
+                        "Mirrored native binary content differs from source");
+                }
+
+                // The .mtcLib must still be copied too (regression guard for
+                // the original behavior).
+                require(fs::exists(consumerOutputDir / "libs" / "StaticFinalLib.mtcLib"),
+                    "StaticFinalLib.mtcLib should still be copied alongside the exe");
+
+                // === Cleanup ===
+                try {
+                    fs::remove(destLib);
+                    fs::remove(fakeNativeSrc);
+                    fs::remove_all(fs::path(consumerLibsDir));
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
+                    fs::remove_all(consumerOutputDir);
+                } catch (...) {}
+            });
     }
 
     // =========================================================================

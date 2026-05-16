@@ -49,6 +49,15 @@ namespace plugin
 
         bool isLoaded(const std::string& path) const;
 
+        /* MYT-325 follow-up: register an additional directory to consult when
+         * a path passed to load() does not exist as-is. Used by the launcher
+         * to add exeDir so that user code calling
+         * `__plugin_load("mt_modules/.../foo.dll")` still resolves after the
+         * exe has been moved out of the project root (CWD is `build/` rather
+         * than the project root that the path string was authored against).
+         * Idempotent — duplicate adds are silently dropped. */
+        void addSearchPath(const std::string& dir);
+
     private:
         PluginLoader() = default;
         PluginLoader(const PluginLoader&) = delete;
@@ -59,6 +68,11 @@ namespace plugin
         static void* osLoad(const std::string& path, std::string& outErr);
         static void* osSym(void* handle, const char* symbol);
         static void  osClose(void* handle);
+
+        /* Returns the first existing-on-disk resolution of `path`: either the
+         * path verbatim or `<searchRoot>/<path>` for some registered root.
+         * Empty string if none found. Takes the lock internally. */
+        std::string resolveAgainstSearchPaths(const std::string& path) const;
 
         /* Invalidates cached NativeDelegate slots in every loaded BytecodeProgram
          * so a still-warm IC doesn't jump into the freed plugin image. */
@@ -75,5 +89,6 @@ namespace plugin
 
         mutable std::mutex mtx_;
         std::unordered_map<std::string, std::unique_ptr<PluginHandle>> loaded_;
+        std::vector<std::string> searchPaths_;
     };
 }

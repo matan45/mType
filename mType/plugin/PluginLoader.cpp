@@ -59,6 +59,39 @@ namespace plugin
         return loaded_.find(normalizePath(path)) != loaded_.end();
     }
 
+    void PluginLoader::addSearchPath(const std::string& dir)
+    {
+        if (dir.empty()) return;
+        std::lock_guard<std::mutex> lk(mtx_);
+        for (const auto& existing : searchPaths_)
+        {
+            if (existing == dir) return;
+        }
+        searchPaths_.push_back(dir);
+    }
+
+    std::string PluginLoader::resolveAgainstSearchPaths(const std::string& path) const
+    {
+        if (std::filesystem::exists(path))
+        {
+            return path;
+        }
+        std::vector<std::string> roots;
+        {
+            std::lock_guard<std::mutex> lk(mtx_);
+            roots = searchPaths_;
+        }
+        for (const auto& root : roots)
+        {
+            auto candidate = std::filesystem::path(root) / path;
+            if (std::filesystem::exists(candidate))
+            {
+                return candidate.string();
+            }
+        }
+        return {};
+    }
+
     void PluginLoader::load(const std::string& path,
                              std::shared_ptr<::environment::Environment> env,
                              std::shared_ptr<::vm::runtime::VirtualMachine> vm)
@@ -67,12 +100,19 @@ namespace plugin
         {
             throw ::errors::RuntimeException("PluginError: path cannot be empty");
         }
-        if (!std::filesystem::exists(path))
+
+        // Try the path verbatim first (CWD-relative or absolute — matches the
+        // original behavior), then fall back to each registered search root.
+        // The launcher registers exeDir at startup so user code that hard-codes
+        // a project-relative path like "mt_modules/.../foo.dll" keeps working
+        // when the exe runs from a different CWD (e.g. build/).
+        std::string resolvedPath = resolveAgainstSearchPaths(path);
+        if (resolvedPath.empty())
         {
             throw ::errors::RuntimeException("PluginError: file not found: " + path);
         }
 
-        std::string key = normalizePath(path);
+        std::string key = normalizePath(resolvedPath);
 
         std::lock_guard<std::mutex> lk(mtx_);
         if (loaded_.find(key) != loaded_.end())
@@ -81,10 +121,10 @@ namespace plugin
         }
 
         std::string osErr;
-        void* osHandle = osLoad(path, osErr);
+        void* osHandle = osLoad(resolvedPath, osErr);
         if (!osHandle)
         {
-            throw ::errors::RuntimeException("PluginError: failed to load '" + path + "': " + osErr);
+            throw ::errors::RuntimeException("PluginError: failed to load '" + resolvedPath + "': " + osErr);
         }
 
         auto registerFn = reinterpret_cast<PluginRegisterFn>(osSym(osHandle, kPluginEntryPoint));
@@ -93,7 +133,7 @@ namespace plugin
             osClose(osHandle);
             throw ::errors::RuntimeException(
                 "PluginError: missing entry point '" + std::string(kPluginEntryPoint) +
-                "' in '" + path + "'");
+                "' in '" + resolvedPath + "'");
         }
 
         auto handle = std::make_unique<PluginHandle>();
@@ -143,7 +183,10 @@ namespace plugin
                                std::shared_ptr<::environment::Environment> env,
                                std::shared_ptr<::vm::runtime::VirtualMachine> vm)
     {
-        std::string key = normalizePath(path);
+        // Mirror load()'s resolution so unload by relative path still finds
+        // the handle keyed by the absolute path that load() stored.
+        std::string resolved = resolveAgainstSearchPaths(path);
+        std::string key = normalizePath(resolved.empty() ? path : resolved);
 
         std::unique_ptr<PluginHandle> handle;
         {

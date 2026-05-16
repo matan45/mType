@@ -19,6 +19,10 @@
 #include <fstream>
 #include <sstream>
 #include <cstdint>
+#include <array>
+#include <algorithm>
+#include <cctype>
+#include <system_error>
 
 #ifdef _WIN32
 #include <process.h>    // _getpid()
@@ -282,13 +286,107 @@ namespace project
                     linker.addSearchPath(absPath.string());
                 }
 
-                for (const auto& dep : config.dependencies.packages) {
-                    auto resolved = linker.getPathResolver().resolve(dep.name);
-                    if (resolved) {
-                        std::filesystem::path destLib = libsDir / (dep.name + ".mtcLib");
-                        std::filesystem::copy_file(*resolved, destLib,
-                            std::filesystem::copy_options::overwrite_existing);
+                namespace fs = std::filesystem;
+                fs::path projectRootCanonical;
+                {
+                    std::error_code ec;
+                    projectRootCanonical = fs::weakly_canonical(fs::path(config.projectRoot), ec);
+                    if (ec) projectRootCanonical = fs::path(config.projectRoot);
+                }
+                fs::path buildRoot = outPath.parent_path();
+
+                // Mirror native plugin binaries from a directory tree into the
+                // build output, preserving each binary's path relative to the
+                // project root. Used for both the .mtcLib sibling-dir case
+                // (binary-distributed dep) and the mt_modules package-root
+                // case (source-distributed dep). Without this, user code that
+                // calls __plugin_load("mt_modules/.../foo.dll") fails at
+                // runtime once the exe is moved out of the project (CWD =
+                // build/), because PluginLoader can't find the DLL.
+                //
+                // Recursive so packages with native binaries under subdirs
+                // (e.g. mt_modules/@mtype-sfml/mt/*.dll) are picked up.
+                // Skipped entirely for trees outside the project root —
+                // registry-installed packages (e.g. ~/.mtype/...) have no
+                // project-relative path to preserve and need a different
+                // scheme, out of scope here.
+                static const std::array<std::string_view, 3> kNativeExtensions = {
+                    ".dll", ".so", ".dylib"
+                };
+                auto mirrorNativeBinaries = [&](const fs::path& packageDir) {
+                    std::error_code ec;
+                    fs::path packageCanonical = fs::weakly_canonical(packageDir, ec);
+                    if (ec) return;
+                    auto relFromProject = fs::relative(packageCanonical, projectRootCanonical, ec);
+                    if (ec || relFromProject.empty() ||
+                        relFromProject.generic_string().rfind("..", 0) == 0) {
+                        return;
                     }
+                    fs::recursive_directory_iterator walkIt(packageCanonical,
+                        fs::directory_options::skip_permission_denied, ec);
+                    if (ec) return;
+                    for (auto it = walkIt; it != fs::recursive_directory_iterator(); it.increment(ec)) {
+                        if (ec) { ec.clear(); continue; }
+                        // Skip .git noise — fast-forwards through large repos.
+                        if (it->is_directory(ec) &&
+                            it->path().filename() == ".git") {
+                            it.disable_recursion_pending();
+                            continue;
+                        }
+                        if (!it->is_regular_file(ec)) continue;
+                        std::string ext = it->path().extension().string();
+                        std::transform(ext.begin(), ext.end(), ext.begin(),
+                            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                        bool isNative = false;
+                        for (const auto& nx : kNativeExtensions) {
+                            if (ext == nx) { isNative = true; break; }
+                        }
+                        if (!isNative) continue;
+
+                        // Recompute the file's path relative to projectRoot so
+                        // both `mt_modules/@pkg/mt/foo.dll` and the package
+                        // root case land at their correct mirror locations.
+                        auto fileRel = fs::relative(it->path(), projectRootCanonical, ec);
+                        if (ec || fileRel.empty() ||
+                            fileRel.generic_string().rfind("..", 0) == 0) {
+                            continue;
+                        }
+                        fs::path destNative = buildRoot / fileRel;
+                        fs::create_directories(destNative.parent_path(), ec);
+                        fs::copy_file(it->path(), destNative,
+                            fs::copy_options::overwrite_existing, ec);
+                        // Best-effort; a copy failure shouldn't fail the build.
+                    }
+                };
+
+                packagemanager::MtModulesManager modulesMgr(config.projectRoot);
+
+                for (const auto& dep : config.dependencies.packages) {
+                    // Source-distributed deps live in mt_modules/@<name>/ and
+                    // don't have a .mtcLib — the compiler pulls source in via
+                    // alias-driven imports (see compileToProgram). The native
+                    // binaries the user's code references at runtime still
+                    // need to ship next to the exe.
+                    if (modulesMgr.isInstalled(dep.name)) {
+                        fs::path pkgRoot = fs::path(config.projectRoot)
+                            / "mt_modules" / ("@" + dep.name);
+                        mirrorNativeBinaries(pkgRoot);
+                        continue;
+                    }
+
+                    // Binary-distributed dep: copy the .mtcLib and any native
+                    // binaries that sit alongside it in the package directory.
+                    auto resolved = linker.getPathResolver().resolve(dep.name);
+                    if (!resolved) continue;
+
+                    fs::path destLib = libsDir / (dep.name + ".mtcLib");
+                    fs::copy_file(*resolved, destLib,
+                        fs::copy_options::overwrite_existing);
+
+                    std::error_code ec;
+                    fs::path resolvedCanonical = fs::weakly_canonical(fs::path(*resolved), ec);
+                    if (ec) continue;
+                    mirrorNativeBinaries(resolvedCanonical.parent_path());
                 }
             }
 
