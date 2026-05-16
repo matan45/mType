@@ -291,7 +291,19 @@ namespace project
                 {
                     std::error_code ec;
                     projectRootCanonical = fs::weakly_canonical(fs::path(config.projectRoot), ec);
-                    if (ec) projectRootCanonical = fs::path(config.projectRoot);
+                    if (ec) {
+                        // On symlinked project paths a non-canonical fallback
+                        // can make fs::relative produce wrong relative paths
+                        // (e.g. "../foo" instead of "foo"), which would mirror
+                        // DLLs outside the build dir. Warn so this is debuggable
+                        // instead of producing a quietly broken exe.
+                        std::cerr << "Warning: failed to canonicalize project root '"
+                                  << config.projectRoot << "' (" << ec.message()
+                                  << "). Falling back to the raw path — native "
+                                  << "plugin binaries may be mirrored to the wrong "
+                                  << "directory on systems with symlinks.\n";
+                        projectRootCanonical = fs::path(config.projectRoot);
+                    }
                 }
                 fs::path buildRoot = outPath.parent_path();
 
@@ -660,9 +672,18 @@ namespace project
                         }
                         linker.setLockfileVersions(pins);
                     }
-                    catch (const std::exception&)
+                    catch (const std::exception& e)
                     {
-                        // Corrupt lockfile must not block the build.
+                        // A corrupt lockfile must not block the build, but
+                        // swallowing the error silently leaves users debugging
+                        // mystery "wrong version picked" issues. Log so the
+                        // failure is visible while still falling back to
+                        // declared ranges. std::bad_alloc / I/O errors will
+                        // also surface here — they're rare enough that the
+                        // log line is the right place to learn about them.
+                        std::cerr << "Warning: failed to load lockfile at '"
+                                  << lockPath.string() << "': " << e.what()
+                                  << ". Falling back to declared version ranges.\n";
                     }
                 }
 

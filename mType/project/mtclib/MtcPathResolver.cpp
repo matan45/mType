@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <sstream>
 #include <algorithm>
+#include <vector>
 
 namespace project::mtclib
 {
@@ -200,19 +201,69 @@ namespace project::mtclib
 
         if (candidates.empty()) return std::nullopt;
 
-        // Sort by the version segment (directory name) lexicographically — adequate
-        // for semver dotted-numeric versions (0.1.2 < 0.10.0 needs special care, but
-        // existing SemVer comparison lives in packagemanager; the resolver intentionally
-        // stays free of that dep). On a tie or any ambiguity the latest mtime wins.
+        // Sort by the version segment (directory name), comparing numeric
+        // dotted components so 1.9.0 < 1.10.0 (lexicographic order would
+        // pick 1.9.0 as larger). Inlined rather than pulling in
+        // packagemanager::SemVer so the resolver stays free of that dep —
+        // the comparator below only needs the dotted-int prefix and falls
+        // back to lex compare on any trailing non-numeric piece (pre-release,
+        // build metadata). On exact-version tie the latest mtime wins.
         std::sort(candidates.begin(), candidates.end(),
             [](const std::filesystem::path& a, const std::filesystem::path& b) {
-                auto verA = a.parent_path().filename().string();
-                auto verB = b.parent_path().filename().string();
-                if (verA != verB) return verA < verB;
+                const std::string verA = a.parent_path().filename().string();
+                const std::string verB = b.parent_path().filename().string();
+                if (compareDottedVersions(verA, verB) < 0) return true;
+                if (compareDottedVersions(verA, verB) > 0) return false;
                 std::error_code ec;
                 return std::filesystem::last_write_time(a, ec) <
                        std::filesystem::last_write_time(b, ec);
             });
         return std::filesystem::canonical(candidates.back()).string();
+    }
+
+    int MtcPathResolver::compareDottedVersions(const std::string& a, const std::string& b)
+    {
+        // Split each version into numeric components plus a trailing tail.
+        // "1.10.0-rc.1" → components=[1, 10, 0], tail="-rc.1".
+        auto parse = [](const std::string& s, std::vector<unsigned long long>& comps,
+                        std::string& tail) {
+            size_t i = 0;
+            while (i < s.size()) {
+                if (s[i] < '0' || s[i] > '9') break;
+                unsigned long long n = 0;
+                while (i < s.size() && s[i] >= '0' && s[i] <= '9') {
+                    // Saturate on overflow rather than wrap — keeps ordering sane.
+                    if (n > (~0ULL - 9) / 10) { n = ~0ULL; ++i; continue; }
+                    n = n * 10 + static_cast<unsigned long long>(s[i] - '0');
+                    ++i;
+                }
+                comps.push_back(n);
+                if (i < s.size() && s[i] == '.') { ++i; continue; }
+                break;
+            }
+            tail = s.substr(i);
+        };
+
+        std::vector<unsigned long long> compsA, compsB;
+        std::string tailA, tailB;
+        parse(a, compsA, tailA);
+        parse(b, compsB, tailB);
+
+        // Compare component by component; missing trailing components are 0.
+        size_t n = std::max(compsA.size(), compsB.size());
+        for (size_t i = 0; i < n; ++i) {
+            unsigned long long va = i < compsA.size() ? compsA[i] : 0ULL;
+            unsigned long long vb = i < compsB.size() ? compsB[i] : 0ULL;
+            if (va < vb) return -1;
+            if (va > vb) return  1;
+        }
+
+        // Numeric prefix equal — fall back to lex on the tail. Note: this
+        // does NOT implement SemVer pre-release precedence (1.0.0-alpha <
+        // 1.0.0). For registry resolution that's acceptable; users wanting
+        // strict pre-release ordering should pin via lockfile.
+        if (tailA < tailB) return -1;
+        if (tailA > tailB) return  1;
+        return 0;
     }
 }

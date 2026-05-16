@@ -185,8 +185,9 @@ namespace plugin
     {
         // Mirror load()'s resolution so unload by relative path still finds
         // the handle keyed by the absolute path that load() stored.
-        std::string resolved = resolveAgainstSearchPaths(path);
-        std::string key = normalizePath(resolved.empty() ? path : resolved);
+        const std::string resolved = resolveAgainstSearchPaths(path);
+        const bool resolutionFailed = resolved.empty();
+        const std::string key = normalizePath(resolutionFailed ? path : resolved);
 
         std::unique_ptr<PluginHandle> handle;
         {
@@ -194,6 +195,20 @@ namespace plugin
             auto it = loaded_.find(key);
             if (it == loaded_.end())
             {
+                // If resolution failed, the user gave a path the loader can't
+                // see on disk anywhere. Surface that distinctly from the
+                // genuine "never loaded this" case — otherwise callers stare
+                // at a CWD-relative key and can't tell whether the plugin was
+                // never loaded or just got moved between load() and unload().
+                if (resolutionFailed)
+                {
+                    throw ::errors::RuntimeException(
+                        "PluginError: cannot resolve plugin path for unload: '" +
+                        path + "' is not on disk relative to CWD or any "
+                        "registered search root. If the plugin was loaded "
+                        "earlier, the file was moved or deleted — unload it "
+                        "with the same path you used at load().");
+                }
                 throw ::errors::RuntimeException("PluginError: not loaded: " + key);
             }
             handle = std::move(it->second);

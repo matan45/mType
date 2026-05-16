@@ -45,5 +45,10 @@ namespace project::mtclib
             const std::string& libraryName, const std::string& version) const;
         std::optional<std::string> resolveInRegistryHighest(
             const std::string& libraryName) const;
+
+        // Numeric dotted-component compare for version directory names so
+        // "1.10.0" sorts above "1.9.0". Returns -1/0/+1 like strcmp.
+        // Falls back to lex compare on any trailing non-numeric tail.
+        static int compareDottedVersions(const std::string& a, const std::string& b);
     };
 }
