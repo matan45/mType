@@ -1824,6 +1824,138 @@ namespace tests::testSuite
                     fs::remove_all(consumerOutputDir);
                 } catch (...) {}
             });
+
+        // =====================================================================
+        // MYT-325 regression: --build --exe must not double-execute the static
+        // initializer for a class that lives in BOTH the embedded main bytecode
+        // and a sidecar .mtcLib. Pre-fix this crashes with:
+        //   "Cannot assign to final static field 'ShaderType::VERTEX'"
+        // =====================================================================
+        addCallbackTest("End-to-end exe: Regression: static-final class in both embedded + sidecar (MYT-325)",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+
+                // === Step 1: Build StaticFinalLib .mtcLib ===
+                std::string libMtproj = "mType/tests/testFiles/library/projects/staticfinal-lib/StaticFinalLib.mtproj";
+                require(fs::exists(libMtproj), "StaticFinalLib.mtproj not found");
+
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
+                require(libConfig != nullptr, "Failed to parse StaticFinalLib.mtproj");
+
+                fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
+                std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
+
+                project::ProjectBuilder libBuilder;
+                auto libResult = libBuilder.buildLibrary(*libConfig, libPath);
+                require(libResult.success, "StaticFinalLib build failed: " +
+                    (libResult.errors.empty() ? "unknown" : libResult.errors[0]));
+
+                // === Step 2: Copy .mtcLib to consumer's MtcPathResolver search path ===
+                // Place it where dependency resolution will find it (mirrors mathlib test).
+                std::string consumerLibsDir = "mType/tests/testFiles/library/projects/staticfinal-consumer/libs";
+                fs::create_directories(consumerLibsDir);
+                std::string destLib = consumerLibsDir + "/StaticFinalLib.mtcLib";
+                fs::copy_file(libPath, destLib, fs::copy_options::overwrite_existing);
+
+                // === Step 3: Find launcher binary ===
+#ifdef _WIN32
+                std::string launcherName = "mtype-launcher.exe";
+#else
+                std::string launcherName = "mtype-launcher";
+#endif
+                std::string launcherPath;
+                std::vector<std::string> searchPaths = {
+                    "bin/mType/Debug/x64/" + launcherName,
+                    "bin/mType/Release/x64/" + launcherName,
+                    "bin/mtype-launcher/Debug/x64/" + launcherName,
+                    "bin/mtype-launcher/Release/x64/" + launcherName
+                };
+                for (const auto& candidate : searchPaths) {
+                    if (fs::exists(candidate)) {
+                        launcherPath = candidate;
+                        break;
+                    }
+                }
+                if (launcherPath.empty()) {
+                    throw std::runtime_error("SKIP: mtype-launcher not found (build it first)");
+                }
+
+                // === Step 4: Build consumer exe ===
+                std::string consumerMtproj = "mType/tests/testFiles/library/projects/staticfinal-consumer/StaticFinalConsumer.mtproj";
+                auto consumerConfig = configParser.parse(consumerMtproj);
+                require(consumerConfig != nullptr, "Failed to parse StaticFinalConsumer.mtproj");
+
+                fs::path consumerOutputDir = fs::path(consumerConfig->projectRoot) / consumerConfig->output.directory;
+#ifdef _WIN32
+                std::string exeName = consumerConfig->name + ".exe";
+#else
+                std::string exeName = consumerConfig->name;
+#endif
+                std::string exePath = (consumerOutputDir / exeName).string();
+
+                project::ProjectBuilder consumerBuilder;
+                auto consumerResult = consumerBuilder.buildExecutable(
+                    *consumerConfig, exePath, launcherPath);
+                require(consumerResult.success, "Consumer exe build failed: " +
+                    (consumerResult.errors.empty() ? "unknown" : consumerResult.errors[0]));
+                require(fs::exists(exePath), "Consumer exe not created");
+
+                // Confirm the duplication scenario actually exists: the sidecar
+                // .mtcLib must have been copied next to the exe. If this fails
+                // the test setup is wrong (no double-load to defend against).
+                fs::path exeLibsDir = consumerOutputDir / "libs";
+                require(fs::exists(exeLibsDir / "StaticFinalLib.mtcLib"),
+                    "StaticFinalLib.mtcLib should be copied to exe's libs/ (otherwise this isn't testing the MYT-325 path)");
+
+                // === Step 5: Run the exe and capture output ===
+                std::string command = "\"" + exePath + "\" 2>&1";
+#ifdef _WIN32
+                FILE* pipe = _popen(command.c_str(), "r");
+#else
+                FILE* pipe = popen(command.c_str(), "r");
+#endif
+                require(pipe != nullptr, "Failed to run consumer exe");
+
+                std::string output;
+                char buffer[256];
+                while (fgets(buffer, sizeof(buffer), pipe)) {
+                    output += buffer;
+                }
+#ifdef _WIN32
+                int exitCode = _pclose(pipe);
+#else
+                int exitCode = pclose(pipe);
+#endif
+
+                // === Step 6: Assert the regression is fixed ===
+                // The bug's signature is this exact error from ObjectExecutor.
+                require(output.find("Cannot assign to final static field") == std::string::npos,
+                    "MYT-325 regressed — static-final initializer ran twice. Output:\n" + output);
+
+                require(exitCode == 0,
+                    "Consumer exe exited with code " + std::to_string(exitCode) + ". Output:\n" + output);
+
+                require(output.find("MYT-325 regression test passed") != std::string::npos,
+                    "Success marker missing. Output:\n" + output);
+
+                // The final-field values must round-trip through both loads.
+                require(output.find("VERTEX=0") != std::string::npos &&
+                        output.find("FRAGMENT=1") != std::string::npos &&
+                        output.find("GEOMETRY=2") != std::string::npos,
+                    "Static final values not preserved across double-load. Output:\n" + output);
+
+                // === Cleanup ===
+                try {
+                    fs::remove(destLib);
+                    fs::remove_all(fs::path(consumerLibsDir));
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
+                    fs::remove_all(consumerOutputDir);
+                } catch (...) {}
+            });
     }
 
     // =========================================================================
