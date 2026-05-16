@@ -9,6 +9,7 @@
 #include "Publish.hpp"
 #include "Sha256.hpp"
 #include "../../project/ProjectConfigParser.hpp"
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -590,6 +591,89 @@ namespace tests::testSuite
 
             if (!config->dependencies.packages.empty())
                 throw std::runtime_error("Expected 0 dependencies for project without Dependencies section");
+        });
+
+        // MYT-323: source globs must not sweep in installed-dep source from
+        // mt_modules/. A `<Include>**/*.mt</Include>` pattern means "my
+        // source", not "my source plus everything mtpm has put on disk".
+        addCallbackTest("ProjectConfig: **/*.mt glob excludes mt_modules/ contents", "", [](services::ScriptAPI&) {
+            fs::path projDir = fs::temp_directory_path() / "_mtype_pcparser_test_mtmod";
+            if (fs::exists(projDir)) fs::remove_all(projDir);
+            fs::create_directories(projDir / "src");
+            fs::create_directories(projDir / "mt_modules" / "@somelib");
+
+            // Project source
+            { std::ofstream f(projDir / "src" / "Main.mt"); f << "// project source\n"; }
+            // Dep package source — must NOT appear in resolvedSourceFiles
+            { std::ofstream f(projDir / "mt_modules" / "@somelib" / "Foo.mt"); f << "// dep source\n"; }
+
+            // Minimal .mtproj with broad glob
+            { std::ofstream f(projDir / "test.mtproj");
+              f << "<Project Name=\"t\" Version=\"1.0.0\">\n"
+                << "  <Source><Include>**/*.mt</Include></Source>\n"
+                << "  <Output Directory=\"build\" />\n"
+                << "</Project>\n"; }
+
+            project::ProjectConfigParser parser;
+            auto config = parser.parse((projDir / "test.mtproj").string());
+
+            auto cleanup = [&]() { fs::remove_all(projDir); };
+
+            bool foundProjectSrc = false;
+            bool foundDepSrc = false;
+            for (const auto& f : config->resolvedSourceFiles)
+            {
+                if (f.find("Main.mt") != std::string::npos) foundProjectSrc = true;
+                if (f.find("Foo.mt") != std::string::npos) foundDepSrc = true;
+            }
+
+            if (!foundProjectSrc)
+            {
+                cleanup();
+                throw std::runtime_error("src/Main.mt should be in resolvedSourceFiles");
+            }
+            if (foundDepSrc)
+            {
+                cleanup();
+                throw std::runtime_error(
+                    "mt_modules/@somelib/Foo.mt must NOT be in resolvedSourceFiles "
+                    "(it should be alias-resolved at import time, not pre-bundled)");
+            }
+            cleanup();
+        });
+
+        addCallbackTest("ProjectConfig: source glob also excludes the output dir", "", [](services::ScriptAPI&) {
+            // A user re-running --build shouldn't have prior-build .mt files
+            // (if any test fixture stages them there) swept back in.
+            fs::path projDir = fs::temp_directory_path() / "_mtype_pcparser_test_outdir";
+            if (fs::exists(projDir)) fs::remove_all(projDir);
+            fs::create_directories(projDir / "src");
+            fs::create_directories(projDir / "build" / "stale");
+
+            { std::ofstream f(projDir / "src" / "Main.mt"); f << "\n"; }
+            { std::ofstream f(projDir / "build" / "stale" / "Old.mt"); f << "\n"; }
+
+            { std::ofstream f(projDir / "test.mtproj");
+              f << "<Project Name=\"t\" Version=\"1.0.0\">\n"
+                << "  <Source><Include>**/*.mt</Include></Source>\n"
+                << "  <Output Directory=\"build\" />\n"
+                << "</Project>\n"; }
+
+            project::ProjectConfigParser parser;
+            auto config = parser.parse((projDir / "test.mtproj").string());
+
+            auto cleanup = [&]() { fs::remove_all(projDir); };
+
+            for (const auto& f : config->resolvedSourceFiles)
+            {
+                if (f.find("Old.mt") != std::string::npos)
+                {
+                    cleanup();
+                    throw std::runtime_error(
+                        "Output-directory .mt files must not be in resolvedSourceFiles");
+                }
+            }
+            cleanup();
         });
 
         // =============================================

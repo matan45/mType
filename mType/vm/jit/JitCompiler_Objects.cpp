@@ -648,6 +648,17 @@ namespace vm::jit
         s.currentIP      = snap.currentIP;
     }
 
+    static void normalizeInlineReturnJoinState(JitEmissionState& s,
+                                               int resultStackIdx,
+                                               size_t callSiteIP)
+    {
+        s.stackDepth = resultStackIdx + 1;
+        s.slotTypes.resize(static_cast<size_t>(resultStackIdx));
+        s.slotTypes.push_back(SlotType::BOXED);
+        s.currentIP = callSiteIP;
+        s.arrayInfoCache.clear();
+    }
+
     // MYT-210: shared bytecode-paste loop for the inliner. The CALL_METHOD
     // path's emitInlinedMethodCallMono / emitInlinedMethodCallPoly push an
     // InlineFrame onto s.inlineStack first, then call this helper to walk
@@ -1149,7 +1160,7 @@ namespace vm::jit
 
         // --- Join ---
         cc.bind(endLabel);
-        s.arrayInfoCache.clear();  // conservative: inlined body may have touched fields
+        normalizeInlineReturnJoinState(s, receiverStackIdx, snap.currentIP);
 
         return true;
     }
@@ -1408,7 +1419,7 @@ namespace vm::jit
         emitCallMethodOpGeneric(s, instr);
 
         cc.bind(endLabel);
-        s.arrayInfoCache.clear();
+        normalizeInlineReturnJoinState(s, receiverStackIdx, snap.currentIP);
 
         return true;
     }

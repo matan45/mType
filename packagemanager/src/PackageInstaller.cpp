@@ -185,6 +185,11 @@ namespace packagemanager
             }
             newLockfile.saveToFile(lockfilePath);
             reportProgress("Lockfile written: mtproj.lock");
+
+            // Note: bytecode (.mtcLib) compilation is intentionally NOT run
+            // here. mType's build path treats packages with mt_modules source
+            // as source-level deps and resolves them via aliases — see
+            // ProjectBuilder::compileToProgram.
         }
         catch (const std::exception& e)
         {

@@ -932,6 +932,329 @@ namespace tests::testSuite
                 require(!result.has_value(), "Should not find nonexistent library");
             });
 
+        // MYT-323: MtcPathResolver must consume the mtpm registry layout
+        // <root>/<name>/<version>/<name>.mtcLib so a versioned .mtcLib is
+        // linkable without requiring a flat libs/ folder.
+        addCallbackTest("MtcPathResolver: registry layout resolves versioned lookup",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                fs::path tempRegistry = fs::temp_directory_path() / "_mtype_resolver_test_registry";
+                if (fs::exists(tempRegistry)) fs::remove_all(tempRegistry);
+                fs::create_directories(tempRegistry / "myt323_demolib" / "1.2.3");
+
+                fs::path artifact = tempRegistry / "myt323_demolib" / "1.2.3" / "myt323_demolib.mtcLib";
+                { std::ofstream f(artifact, std::ios::binary); f << "fake-bytecode"; }
+
+                project::mtclib::MtcPathResolver resolver(".");
+                resolver.addRegistryRoot(tempRegistry.string());
+
+                auto resolved = resolver.resolve("myt323_demolib", "1.2.3");
+                auto cleanup = [&]() { fs::remove_all(tempRegistry); };
+
+                if (!resolved.has_value()) {
+                    cleanup();
+                    throw std::runtime_error("Should resolve myt323_demolib@1.2.3 from registry");
+                }
+                if (fs::canonical(*resolved) != fs::canonical(artifact)) {
+                    cleanup();
+                    throw std::runtime_error("Expected " + artifact.string() + ", got " + *resolved);
+                }
+                cleanup();
+            });
+
+        addCallbackTest("MtcPathResolver: registry layout strips version range prefix",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                fs::path tempRegistry = fs::temp_directory_path() / "_mtype_resolver_test_range";
+                if (fs::exists(tempRegistry)) fs::remove_all(tempRegistry);
+                fs::create_directories(tempRegistry / "myt323_demolib" / "1.2.3");
+
+                fs::path artifact = tempRegistry / "myt323_demolib" / "1.2.3" / "myt323_demolib.mtcLib";
+                { std::ofstream f(artifact, std::ios::binary); f << "fake"; }
+
+                project::mtclib::MtcPathResolver resolver(".");
+                resolver.addRegistryRoot(tempRegistry.string());
+
+                // Real .mtproj files often say "^1.2.3" — without stripping the
+                // caret, resolver would fail to find the exact-version dir.
+                auto resolved = resolver.resolve("myt323_demolib", "^1.2.3");
+                auto cleanup = [&]() { fs::remove_all(tempRegistry); };
+
+                if (!resolved.has_value()) {
+                    cleanup();
+                    throw std::runtime_error("Should resolve through stripped range prefix");
+                }
+                cleanup();
+            });
+
+        addCallbackTest("MtcPathResolver: registry layout picks highest version when unversioned",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                fs::path tempRegistry = fs::temp_directory_path() / "_mtype_resolver_test_highest";
+                if (fs::exists(tempRegistry)) fs::remove_all(tempRegistry);
+
+                // Three versions on disk; resolve() with no constraint should pick 2.0.0
+                for (const auto& v : {"1.0.0", "1.5.0", "2.0.0"}) {
+                    fs::create_directories(tempRegistry / "myt323_demolib" / v);
+                    fs::path artifact = tempRegistry / "myt323_demolib" / v / "myt323_demolib.mtcLib";
+                    std::ofstream f(artifact, std::ios::binary); f << "fake";
+                }
+
+                project::mtclib::MtcPathResolver resolver(".");
+                resolver.addRegistryRoot(tempRegistry.string());
+
+                auto resolved = resolver.resolve("myt323_demolib");
+                auto cleanup = [&]() { fs::remove_all(tempRegistry); };
+
+                if (!resolved.has_value()) {
+                    cleanup();
+                    throw std::runtime_error("Should resolve unversioned myt323_demolib");
+                }
+                if (resolved->find("2.0.0") == std::string::npos) {
+                    cleanup();
+                    throw std::runtime_error("Expected highest version 2.0.0, got " + *resolved);
+                }
+                cleanup();
+            });
+
+        addCallbackTest("MtcPathResolver: flat libs/ dir still works (regression)",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                fs::path tempDir = fs::temp_directory_path() / "_mtype_resolver_test_flat";
+                if (fs::exists(tempDir)) fs::remove_all(tempDir);
+                fs::create_directories(tempDir);
+
+                fs::path artifact = tempDir / "myt323_flatlib.mtcLib";
+                { std::ofstream f(artifact, std::ios::binary); f << "fake"; }
+
+                project::mtclib::MtcPathResolver resolver(".");
+                resolver.addSearchPath(tempDir.string());
+
+                auto resolved = resolver.resolve("myt323_flatlib");
+                auto cleanup = [&]() { fs::remove_all(tempDir); };
+
+                if (!resolved.has_value()) {
+                    cleanup();
+                    throw std::runtime_error("Flat layout regression: should resolve myt323_flatlib");
+                }
+                cleanup();
+            });
+
+        // MYT-323: LibraryLinker is now the .mtcLib code path only.
+        // ProjectBuilder filters out deps that already have mt_modules source
+        // before calling the linker — so reaching the throw means neither
+        // source nor bytecode exists. The error advises both alternatives.
+        addCallbackTest("LibraryLinker: error names library and suggests mtpm install + .mtcLib",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                fs::path tempProject = fs::temp_directory_path() / "_mtype_linker_test_missing";
+                if (fs::exists(tempProject)) fs::remove_all(tempProject);
+                fs::create_directories(tempProject);
+
+                project::mtclib::LibraryLinker linker(tempProject.string());
+                project::ProjectConfig config;
+                config.projectRoot = tempProject.string();
+                project::PackageDependency dep;
+                dep.name = "myt323_newlib";
+                dep.versionRange = "1.0.0";
+                config.dependencies.packages.push_back(dep);
+
+                std::string errMsg;
+                try
+                {
+                    linker.linkDependencies(config);
+                }
+                catch (const std::exception& e)
+                {
+                    errMsg = e.what();
+                }
+
+                auto cleanup = [&]() { fs::remove_all(tempProject); };
+
+                if (errMsg.find("myt323_newlib") == std::string::npos)
+                {
+                    cleanup();
+                    throw std::runtime_error("Error must name the missing library, got: " + errMsg);
+                }
+                if (errMsg.find("mtpm install") == std::string::npos)
+                {
+                    cleanup();
+                    throw std::runtime_error("Expected 'mtpm install' hint, got: " + errMsg);
+                }
+                if (errMsg.find(".mtcLib") == std::string::npos)
+                {
+                    cleanup();
+                    throw std::runtime_error("Error should mention the .mtcLib alternative");
+                }
+                cleanup();
+            });
+
+        // MYT-323: ProjectBuilder must skip LibraryLinker for any <Package>
+        // dep that has source available in mt_modules/. This is the path
+        // that unblocks `mType.exe --build` after `mtpm install` — without
+        // it, the linker errors out trying to find a .mtcLib that mtpm
+        // doesn't produce.
+        addCallbackTest("ProjectBuilder: skips LibraryLinker for deps with mt_modules source",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                fs::path proj = fs::temp_directory_path() / "_mtype_pb_test_mtmod_skip";
+                if (fs::exists(proj)) fs::remove_all(proj);
+                fs::create_directories(proj / "mt_modules" / "@myt323_srcdep");
+                fs::create_directories(proj / "src");
+
+                // Minimal source — empty is fine, ProjectBuilder just needs
+                // SOMETHING to bundle. Parse errors are tolerated; we only
+                // care that the library-not-found error isn't raised.
+                { std::ofstream f(proj / "src" / "Main.mt"); f << ""; }
+
+                // Mark the mt_modules entry as installed per
+                // MtModulesManager::isInstalled — that requires mtpkg.json.
+                {
+                    std::ofstream f(proj / "mt_modules" / "@myt323_srcdep" / "mtpkg.json");
+                    f << R"({"name":"myt323_srcdep","version":"1.0.0"})";
+                }
+
+                project::ProjectConfig config;
+                config.name = "test_skip";
+                config.projectRoot = fs::canonical(proj).string();
+                config.resolvedSourceFiles.push_back(
+                    fs::canonical(proj / "src" / "Main.mt").string());
+                project::PackageDependency dep;
+                dep.name = "myt323_srcdep";
+                dep.versionRange = "1.0.0";
+                config.dependencies.packages.push_back(dep);
+
+                project::ProjectBuilder builder;
+                std::string outputPath = (proj / "out.mtcLib").string();
+                auto result = builder.buildLibrary(config, outputPath);
+
+                auto cleanup = [&]() { fs::remove_all(proj); };
+
+                // KEY assertion: LibraryLinker must NOT have fired for the
+                // mt_modules-backed dep. If it had, the result would carry
+                // "Library 'myt323_srcdep' not found".
+                for (const auto& err : result.errors)
+                {
+                    if (err.find("Library 'myt323_srcdep' not found") != std::string::npos)
+                    {
+                        cleanup();
+                        throw std::runtime_error(
+                            "LibraryLinker fired for dep with mt_modules source: " + err);
+                    }
+                }
+                cleanup();
+            });
+
+        addCallbackTest("ProjectBuilder: still calls LibraryLinker for deps without mt_modules",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                fs::path proj = fs::temp_directory_path() / "_mtype_pb_test_mtmod_miss";
+                if (fs::exists(proj)) fs::remove_all(proj);
+                fs::create_directories(proj / "src");
+                // NO mt_modules → dep falls through to LibraryLinker.
+
+                { std::ofstream f(proj / "src" / "Main.mt"); f << ""; }
+
+                project::ProjectConfig config;
+                config.name = "test_miss";
+                config.projectRoot = fs::canonical(proj).string();
+                config.resolvedSourceFiles.push_back(
+                    fs::canonical(proj / "src" / "Main.mt").string());
+                project::PackageDependency dep;
+                dep.name = "myt323_missingdep";
+                dep.versionRange = "1.0.0";
+                config.dependencies.packages.push_back(dep);
+
+                project::ProjectBuilder builder;
+                auto result = builder.buildLibrary(config, (proj / "out.mtcLib").string());
+
+                auto cleanup = [&]() { fs::remove_all(proj); };
+
+                // Must surface the linker error so the user knows to install.
+                bool foundLinkerError = false;
+                for (const auto& err : result.errors)
+                {
+                    if (err.find("myt323_missingdep") != std::string::npos &&
+                        err.find("not found") != std::string::npos)
+                    {
+                        foundLinkerError = true;
+                        break;
+                    }
+                }
+                if (!foundLinkerError)
+                {
+                    std::string allErrors;
+                    for (const auto& e : result.errors) allErrors += e + "; ";
+                    cleanup();
+                    throw std::runtime_error(
+                        "Expected library-not-found error for dep without mt_modules; got: " + allErrors);
+                }
+                cleanup();
+            });
+
+        addCallbackTest("LibraryLinker: setLockfileVersions overrides declared range",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+                // Layout: tempRegistry/myt323_lockedlib/0.0.1/myt323_lockedlib.mtcLib with valid bytes
+                // declared range = "^1.0.0", lockfile pin = "0.0.1"
+                // Without the pin, resolution would target the range. With the
+                // pin, it lands on 0.0.1 — failure mode at deserialize is OK; we
+                // only need to assert which path was attempted.
+                fs::path tempRegistry = fs::temp_directory_path() / "_mtype_linker_test_pin";
+                if (fs::exists(tempRegistry)) fs::remove_all(tempRegistry);
+                fs::create_directories(tempRegistry / "myt323_lockedlib" / "0.0.1");
+
+                // Empty (invalid) .mtcLib — deserialize will throw, but the
+                // throw comes from MtcLibSerializer (after pathResolver
+                // succeeded), so the error text differs from "not found".
+                fs::path artifact = tempRegistry / "myt323_lockedlib" / "0.0.1" / "myt323_lockedlib.mtcLib";
+                { std::ofstream f(artifact, std::ios::binary); }
+
+                project::mtclib::LibraryLinker linker(".");
+                linker.getPathResolver().addRegistryRoot(tempRegistry.string());
+
+                std::unordered_map<std::string, std::string> pins;
+                pins["myt323_lockedlib"] = "0.0.1";
+                linker.setLockfileVersions(pins);
+
+                project::ProjectConfig config;
+                config.projectRoot = ".";
+                project::PackageDependency dep;
+                dep.name = "myt323_lockedlib";
+                dep.versionRange = "^1.0.0";  // would resolve nowhere without pin
+                config.dependencies.packages.push_back(dep);
+
+                std::string errMsg;
+                try
+                {
+                    linker.linkDependencies(config);
+                }
+                catch (const std::exception& e)
+                {
+                    errMsg = e.what();
+                }
+
+                auto cleanup = [&]() { fs::remove_all(tempRegistry); };
+
+                // The pin should have routed resolution into the registry —
+                // expect a deserialization-style error, NOT "Library not found".
+                if (errMsg.find("not found") != std::string::npos)
+                {
+                    cleanup();
+                    throw std::runtime_error(
+                        "setLockfileVersions did not pin to 0.0.1; got: " + errMsg);
+                }
+                cleanup();
+            });
+
         addCallbackTest("LibrarySymbolProvider registers class stubs from built library",
             "",
             [](ScriptAPI&) {
@@ -1495,6 +1818,260 @@ namespace tests::testSuite
                 // === Cleanup ===
                 try {
                     fs::remove(destLib);
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
+                    fs::remove_all(consumerOutputDir);
+                } catch (...) {}
+            });
+
+        // =====================================================================
+        // MYT-325 regression: --build --exe must not double-execute the static
+        // initializer for a class that lives in BOTH the embedded main bytecode
+        // and a sidecar .mtcLib. Pre-fix this crashes with:
+        //   "Cannot assign to final static field 'ShaderType::VERTEX'"
+        // =====================================================================
+        addCallbackTest("End-to-end exe: Regression: static-final class in both embedded + sidecar (MYT-325)",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+
+                // === Step 1: Build StaticFinalLib .mtcLib ===
+                std::string libMtproj = "mType/tests/testFiles/library/projects/staticfinal-lib/StaticFinalLib.mtproj";
+                require(fs::exists(libMtproj), "StaticFinalLib.mtproj not found");
+
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
+                require(libConfig != nullptr, "Failed to parse StaticFinalLib.mtproj");
+
+                fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
+                std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
+
+                project::ProjectBuilder libBuilder;
+                auto libResult = libBuilder.buildLibrary(*libConfig, libPath);
+                require(libResult.success, "StaticFinalLib build failed: " +
+                    (libResult.errors.empty() ? "unknown" : libResult.errors[0]));
+
+                // === Step 2: Copy .mtcLib to consumer's MtcPathResolver search path ===
+                // Place it where dependency resolution will find it (mirrors mathlib test).
+                std::string consumerLibsDir = "mType/tests/testFiles/library/projects/staticfinal-consumer/libs";
+                fs::create_directories(consumerLibsDir);
+                std::string destLib = consumerLibsDir + "/StaticFinalLib.mtcLib";
+                fs::copy_file(libPath, destLib, fs::copy_options::overwrite_existing);
+
+                // === Step 3: Find launcher binary ===
+#ifdef _WIN32
+                std::string launcherName = "mtype-launcher.exe";
+#else
+                std::string launcherName = "mtype-launcher";
+#endif
+                std::string launcherPath;
+                std::vector<std::string> searchPaths = {
+                    "bin/mType/Debug/x64/" + launcherName,
+                    "bin/mType/Release/x64/" + launcherName,
+                    "bin/mtype-launcher/Debug/x64/" + launcherName,
+                    "bin/mtype-launcher/Release/x64/" + launcherName
+                };
+                for (const auto& candidate : searchPaths) {
+                    if (fs::exists(candidate)) {
+                        launcherPath = candidate;
+                        break;
+                    }
+                }
+                if (launcherPath.empty()) {
+                    throw std::runtime_error("SKIP: mtype-launcher not found (build it first)");
+                }
+
+                // === Step 4: Build consumer exe ===
+                std::string consumerMtproj = "mType/tests/testFiles/library/projects/staticfinal-consumer/StaticFinalConsumer.mtproj";
+                auto consumerConfig = configParser.parse(consumerMtproj);
+                require(consumerConfig != nullptr, "Failed to parse StaticFinalConsumer.mtproj");
+
+                fs::path consumerOutputDir = fs::path(consumerConfig->projectRoot) / consumerConfig->output.directory;
+#ifdef _WIN32
+                std::string exeName = consumerConfig->name + ".exe";
+#else
+                std::string exeName = consumerConfig->name;
+#endif
+                std::string exePath = (consumerOutputDir / exeName).string();
+
+                project::ProjectBuilder consumerBuilder;
+                auto consumerResult = consumerBuilder.buildExecutable(
+                    *consumerConfig, exePath, launcherPath);
+                require(consumerResult.success, "Consumer exe build failed: " +
+                    (consumerResult.errors.empty() ? "unknown" : consumerResult.errors[0]));
+                require(fs::exists(exePath), "Consumer exe not created");
+
+                // Confirm the duplication scenario actually exists: the sidecar
+                // .mtcLib must have been copied next to the exe. If this fails
+                // the test setup is wrong (no double-load to defend against).
+                fs::path exeLibsDir = consumerOutputDir / "libs";
+                require(fs::exists(exeLibsDir / "StaticFinalLib.mtcLib"),
+                    "StaticFinalLib.mtcLib should be copied to exe's libs/ (otherwise this isn't testing the MYT-325 path)");
+
+                // === Step 5: Run the exe and capture output ===
+                std::string command = "\"" + exePath + "\" 2>&1";
+#ifdef _WIN32
+                FILE* pipe = _popen(command.c_str(), "r");
+#else
+                FILE* pipe = popen(command.c_str(), "r");
+#endif
+                require(pipe != nullptr, "Failed to run consumer exe");
+
+                std::string output;
+                char buffer[256];
+                while (fgets(buffer, sizeof(buffer), pipe)) {
+                    output += buffer;
+                }
+#ifdef _WIN32
+                int exitCode = _pclose(pipe);
+#else
+                int exitCode = pclose(pipe);
+#endif
+
+                // === Step 6: Assert the regression is fixed ===
+                // The bug's signature is this exact error from ObjectExecutor.
+                require(output.find("Cannot assign to final static field") == std::string::npos,
+                    "MYT-325 regressed — static-final initializer ran twice. Output:\n" + output);
+
+                require(exitCode == 0,
+                    "Consumer exe exited with code " + std::to_string(exitCode) + ". Output:\n" + output);
+
+                require(output.find("MYT-325 regression test passed") != std::string::npos,
+                    "Success marker missing. Output:\n" + output);
+
+                // The final-field values must round-trip through both loads.
+                require(output.find("VERTEX=0") != std::string::npos &&
+                        output.find("FRAGMENT=1") != std::string::npos &&
+                        output.find("GEOMETRY=2") != std::string::npos,
+                    "Static final values not preserved across double-load. Output:\n" + output);
+
+                // === Cleanup ===
+                try {
+                    fs::remove(destLib);
+                    fs::remove_all(fs::path(consumerLibsDir));
+                    fs::remove(libPath);
+                    fs::remove_all(libOutputDir);
+                    fs::remove_all(consumerOutputDir);
+                } catch (...) {}
+            });
+
+        // =====================================================================
+        // MYT-325 follow-up: ProjectBuilder must mirror native plugin binaries
+        // that live alongside a dependency's .mtcLib into the build output,
+        // preserving their path relative to the project root. Otherwise user
+        // code calling __plugin_load("mt_modules/.../foo.dll") can't find the
+        // DLL once the exe runs from build/.
+        // =====================================================================
+        addCallbackTest("ProjectBuilder: copies native DLLs sibling to .mtcLib (MYT-325 follow-up)",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+
+                // === Step 1: Build StaticFinalLib .mtcLib ===
+                std::string libMtproj = "mType/tests/testFiles/library/projects/staticfinal-lib/StaticFinalLib.mtproj";
+                require(fs::exists(libMtproj), "StaticFinalLib.mtproj not found");
+
+                project::ProjectConfigParser configParser;
+                auto libConfig = configParser.parse(libMtproj);
+                require(libConfig != nullptr, "Failed to parse StaticFinalLib.mtproj");
+
+                fs::path libOutputDir = fs::path(libConfig->projectRoot) / libConfig->output.directory;
+                fs::create_directories(libOutputDir);
+                std::string libPath = (libOutputDir / (libConfig->name + ".mtcLib")).string();
+
+                project::ProjectBuilder libBuilder;
+                auto libResult = libBuilder.buildLibrary(*libConfig, libPath);
+                require(libResult.success, "StaticFinalLib build failed: " +
+                    (libResult.errors.empty() ? "unknown" : libResult.errors[0]));
+
+                // === Step 2: Stage .mtcLib + a fake native binary in consumer/libs/ ===
+                // Use a tiny non-DLL file with .dll extension — ProjectBuilder
+                // selects by extension and copies bytes verbatim, so a real PE
+                // binary isn't needed for the copy test (we're not loading it).
+                std::string consumerLibsDir = "mType/tests/testFiles/library/projects/staticfinal-consumer/libs";
+                fs::create_directories(consumerLibsDir);
+                std::string destLib = consumerLibsDir + "/StaticFinalLib.mtcLib";
+                fs::copy_file(libPath, destLib, fs::copy_options::overwrite_existing);
+
+                std::string fakeNativeName = "staticfinal_fake.dll";
+                std::string fakeNativeSrc = consumerLibsDir + "/" + fakeNativeName;
+                {
+                    std::ofstream out(fakeNativeSrc, std::ios::binary);
+                    require(out.good(), "Failed to write fake native binary");
+                    out << "MYT-325 native copy fixture";
+                }
+
+                // === Step 3: Find launcher ===
+#ifdef _WIN32
+                std::string launcherName = "mtype-launcher.exe";
+#else
+                std::string launcherName = "mtype-launcher";
+#endif
+                std::string launcherPath;
+                std::vector<std::string> searchPaths = {
+                    "bin/mType/Debug/x64/" + launcherName,
+                    "bin/mType/Release/x64/" + launcherName,
+                    "bin/mtype-launcher/Debug/x64/" + launcherName,
+                    "bin/mtype-launcher/Release/x64/" + launcherName
+                };
+                for (const auto& candidate : searchPaths) {
+                    if (fs::exists(candidate)) { launcherPath = candidate; break; }
+                }
+                if (launcherPath.empty()) {
+                    throw std::runtime_error("SKIP: mtype-launcher not found (build it first)");
+                }
+
+                // === Step 4: Build consumer exe ===
+                std::string consumerMtproj = "mType/tests/testFiles/library/projects/staticfinal-consumer/StaticFinalConsumer.mtproj";
+                auto consumerConfig = configParser.parse(consumerMtproj);
+                require(consumerConfig != nullptr, "Failed to parse StaticFinalConsumer.mtproj");
+
+                fs::path consumerOutputDir = fs::path(consumerConfig->projectRoot) / consumerConfig->output.directory;
+#ifdef _WIN32
+                std::string exeName = consumerConfig->name + ".exe";
+#else
+                std::string exeName = consumerConfig->name;
+#endif
+                std::string exePath = (consumerOutputDir / exeName).string();
+
+                project::ProjectBuilder consumerBuilder;
+                auto consumerResult = consumerBuilder.buildExecutable(
+                    *consumerConfig, exePath, launcherPath);
+                require(consumerResult.success, "Consumer exe build failed: " +
+                    (consumerResult.errors.empty() ? "unknown" : consumerResult.errors[0]));
+
+                // === Step 5: Verify the native binary was mirrored ===
+                // staticfinal-consumer/libs/staticfinal_fake.dll → build's
+                // sibling-of-exe relative path is `libs/staticfinal_fake.dll`
+                // because the package's .mtcLib parent dir relative to the
+                // project root is exactly "libs".
+                fs::path expectedDest = consumerOutputDir / "libs" / fakeNativeName;
+                require(fs::exists(expectedDest),
+                    "ProjectBuilder did not mirror native binary to " + expectedDest.string());
+
+                // Content must match — copy, not stub.
+                {
+                    std::ifstream srcIn(fakeNativeSrc, std::ios::binary);
+                    std::ifstream dstIn(expectedDest.string(), std::ios::binary);
+                    std::string srcBytes((std::istreambuf_iterator<char>(srcIn)),
+                                         std::istreambuf_iterator<char>());
+                    std::string dstBytes((std::istreambuf_iterator<char>(dstIn)),
+                                         std::istreambuf_iterator<char>());
+                    require(srcBytes == dstBytes,
+                        "Mirrored native binary content differs from source");
+                }
+
+                // The .mtcLib must still be copied too (regression guard for
+                // the original behavior).
+                require(fs::exists(consumerOutputDir / "libs" / "StaticFinalLib.mtcLib"),
+                    "StaticFinalLib.mtcLib should still be copied alongside the exe");
+
+                // === Cleanup ===
+                try {
+                    fs::remove(destLib);
+                    fs::remove(fakeNativeSrc);
+                    fs::remove_all(fs::path(consumerLibsDir));
                     fs::remove(libPath);
                     fs::remove_all(libOutputDir);
                     fs::remove_all(consumerOutputDir);

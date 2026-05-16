@@ -97,6 +97,10 @@ namespace vm::runtime
         // Multi-program support: loaded library programs (index 0 = main)
         std::vector<const bytecode::BytecodeProgram*> loadedPrograms;
         std::unordered_set<const bytecode::BytecodeProgram*> staticInitializedPrograms;
+        // MYT-325: per-name dedup so the same `<ClassName>::<static_init>$static`
+        // doesn't run twice when a class lives in both the embedded main
+        // bytecode and a sidecar .mtcLib (or any other multi-program scenario).
+        std::unordered_set<std::string> executedStaticInitializers;
 
         // Execution state
         std::shared_ptr<StackManager> stackManager;

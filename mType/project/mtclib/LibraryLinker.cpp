@@ -15,13 +15,25 @@ namespace project::mtclib
         pathResolver.addSearchPath(path);
     }
 
+    void LibraryLinker::setLockfileVersions(
+        const std::unordered_map<std::string, std::string>& versions)
+    {
+        lockedVersions = versions;
+    }
+
     std::vector<MtcLibProgram> LibraryLinker::linkDependencies(const ProjectConfig& config)
     {
         loadedLibraries.clear();
 
-        // Load each declared dependency and its transitive dependencies
+        // Load each declared dependency and its transitive dependencies.
+        // Lockfile-pinned versions override the declared range so the resolver
+        // points at the exact build the user has on disk.
         for (const auto& dep : config.dependencies.packages) {
-            loadLibraryRecursive(dep.name, dep.versionRange);
+            auto lockedIt = lockedVersions.find(dep.name);
+            const std::string& version = (lockedIt != lockedVersions.end())
+                ? lockedIt->second
+                : dep.versionRange;
+            loadLibraryRecursive(dep.name, version);
         }
 
         if (loadedLibraries.empty()) {
@@ -54,19 +66,20 @@ namespace project::mtclib
             return;
         }
 
-        // Resolve path
-        auto libPath = versionConstraint.empty()
+        // Resolve path. Lockfile pinning is applied at the top-level call site
+        // in linkDependencies; transitive deps still flow through the declared
+        // versionConstraint as encoded in the .mtcLib metadata.
+        auto lockedIt = lockedVersions.find(libraryName);
+        std::string effectiveVersion = (lockedIt != lockedVersions.end())
+            ? lockedIt->second
+            : versionConstraint;
+
+        auto libPath = effectiveVersion.empty()
             ? pathResolver.resolve(libraryName)
-            : pathResolver.resolve(libraryName, versionConstraint);
+            : pathResolver.resolve(libraryName, effectiveVersion);
 
         if (!libPath) {
-            std::string searchedPaths;
-            for (const auto& sp : pathResolver.getSearchPaths()) {
-                if (!searchedPaths.empty()) searchedPaths += ", ";
-                searchedPaths += "'" + sp + "'";
-            }
-            throw std::runtime_error(
-                "Library '" + libraryName + "' not found. Searched: " + searchedPaths);
+            throwLibraryNotFound(libraryName);
         }
 
         // Deserialize
@@ -85,5 +98,29 @@ namespace project::mtclib
         for (const auto& dep : loadedLibraries[libraryName].dependencies) {
             loadLibraryRecursive(dep.name, dep.versionConstraint);
         }
+    }
+
+    void LibraryLinker::throwLibraryNotFound(const std::string& libraryName) const
+    {
+        std::string searchedPaths;
+        for (const auto& sp : pathResolver.getSearchPaths()) {
+            if (!searchedPaths.empty()) searchedPaths += ", ";
+            searchedPaths += "'" + sp + "'";
+        }
+        for (const auto& rr : pathResolver.getRegistryRoots()) {
+            if (!searchedPaths.empty()) searchedPaths += ", ";
+            searchedPaths += "'" + rr + "/<version>'";
+        }
+
+        // ProjectBuilder partitions <Package> deps and only routes ones WITHOUT
+        // mt_modules source through here, so reaching this error means the dep
+        // is genuinely missing — neither source nor bytecode is on disk.
+        throw std::runtime_error(
+            "Library '" + libraryName + "' not found.\n"
+            "  Declared as a <Package> dependency but no source (mt_modules/@" +
+            libraryName + "/) or compiled .mtcLib is on disk.\n"
+            "  Run `mtpm install` to fetch the package from its <Source>, or\n"
+            "  place a pre-built " + libraryName + ".mtcLib on a search path.\n"
+            "  Searched: " + searchedPaths);
     }
 }

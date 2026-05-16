@@ -20,6 +20,7 @@
 #include "../runtimeTypes/klass/ClassDefinition.hpp"
 #include "../value/NativeArray.hpp"
 #include "../gc/GC.hpp"
+#include "../plugin/PluginLoader.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -193,6 +194,12 @@ int main(int argc, char* argv[])
         // Read appended bytecode
         std::string exePath = getExecutablePath();
         auto blob = readAppendedBytecode(exePath);
+
+        // Register exeDir as a plugin search root so user code that loads a
+        // plugin via a project-relative path (e.g. "mt_modules/.../foo.dll")
+        // still resolves when CWD differs from the original project root.
+        ::plugin::PluginLoader::instance().addSearchPath(
+            std::filesystem::path(exePath).parent_path().string());
 
         // Deserialize (wrap vector in a streambuf to avoid a second copy)
         struct VectorBuf : std::streambuf {

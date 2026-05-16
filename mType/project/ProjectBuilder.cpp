@@ -8,6 +8,7 @@
 #include "../services/ScriptInterpreter.hpp"
 #include "../services/ImportManager.hpp"
 #include "MtModulesManager.hpp"
+#include "Lockfile.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../parser/Parser.hpp"
 #include "../vm/compiler/BytecodeCompiler.hpp"
@@ -18,6 +19,10 @@
 #include <fstream>
 #include <sstream>
 #include <cstdint>
+#include <array>
+#include <algorithm>
+#include <cctype>
+#include <system_error>
 
 #ifdef _WIN32
 #include <process.h>    // _getpid()
@@ -281,13 +286,119 @@ namespace project
                     linker.addSearchPath(absPath.string());
                 }
 
-                for (const auto& dep : config.dependencies.packages) {
-                    auto resolved = linker.getPathResolver().resolve(dep.name);
-                    if (resolved) {
-                        std::filesystem::path destLib = libsDir / (dep.name + ".mtcLib");
-                        std::filesystem::copy_file(*resolved, destLib,
-                            std::filesystem::copy_options::overwrite_existing);
+                namespace fs = std::filesystem;
+                fs::path projectRootCanonical;
+                {
+                    std::error_code ec;
+                    projectRootCanonical = fs::weakly_canonical(fs::path(config.projectRoot), ec);
+                    if (ec) {
+                        // On symlinked project paths a non-canonical fallback
+                        // can make fs::relative produce wrong relative paths
+                        // (e.g. "../foo" instead of "foo"), which would mirror
+                        // DLLs outside the build dir. Warn so this is debuggable
+                        // instead of producing a quietly broken exe.
+                        std::cerr << "Warning: failed to canonicalize project root '"
+                                  << config.projectRoot << "' (" << ec.message()
+                                  << "). Falling back to the raw path — native "
+                                  << "plugin binaries may be mirrored to the wrong "
+                                  << "directory on systems with symlinks.\n";
+                        projectRootCanonical = fs::path(config.projectRoot);
                     }
+                }
+                fs::path buildRoot = outPath.parent_path();
+
+                // Mirror native plugin binaries from a directory tree into the
+                // build output, preserving each binary's path relative to the
+                // project root. Used for both the .mtcLib sibling-dir case
+                // (binary-distributed dep) and the mt_modules package-root
+                // case (source-distributed dep). Without this, user code that
+                // calls __plugin_load("mt_modules/.../foo.dll") fails at
+                // runtime once the exe is moved out of the project (CWD =
+                // build/), because PluginLoader can't find the DLL.
+                //
+                // Recursive so packages with native binaries under subdirs
+                // (e.g. mt_modules/@mtype-sfml/mt/*.dll) are picked up.
+                // Skipped entirely for trees outside the project root —
+                // registry-installed packages (e.g. ~/.mtype/...) have no
+                // project-relative path to preserve and need a different
+                // scheme, out of scope here.
+                static const std::array<std::string_view, 3> kNativeExtensions = {
+                    ".dll", ".so", ".dylib"
+                };
+                auto mirrorNativeBinaries = [&](const fs::path& packageDir) {
+                    std::error_code ec;
+                    fs::path packageCanonical = fs::weakly_canonical(packageDir, ec);
+                    if (ec) return;
+                    auto relFromProject = fs::relative(packageCanonical, projectRootCanonical, ec);
+                    if (ec || relFromProject.empty() ||
+                        relFromProject.generic_string().rfind("..", 0) == 0) {
+                        return;
+                    }
+                    fs::recursive_directory_iterator walkIt(packageCanonical,
+                        fs::directory_options::skip_permission_denied, ec);
+                    if (ec) return;
+                    for (auto it = walkIt; it != fs::recursive_directory_iterator(); it.increment(ec)) {
+                        if (ec) { ec.clear(); continue; }
+                        // Skip .git noise — fast-forwards through large repos.
+                        if (it->is_directory(ec) &&
+                            it->path().filename() == ".git") {
+                            it.disable_recursion_pending();
+                            continue;
+                        }
+                        if (!it->is_regular_file(ec)) continue;
+                        std::string ext = it->path().extension().string();
+                        std::transform(ext.begin(), ext.end(), ext.begin(),
+                            [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                        bool isNative = false;
+                        for (const auto& nx : kNativeExtensions) {
+                            if (ext == nx) { isNative = true; break; }
+                        }
+                        if (!isNative) continue;
+
+                        // Recompute the file's path relative to projectRoot so
+                        // both `mt_modules/@pkg/mt/foo.dll` and the package
+                        // root case land at their correct mirror locations.
+                        auto fileRel = fs::relative(it->path(), projectRootCanonical, ec);
+                        if (ec || fileRel.empty() ||
+                            fileRel.generic_string().rfind("..", 0) == 0) {
+                            continue;
+                        }
+                        fs::path destNative = buildRoot / fileRel;
+                        fs::create_directories(destNative.parent_path(), ec);
+                        fs::copy_file(it->path(), destNative,
+                            fs::copy_options::overwrite_existing, ec);
+                        // Best-effort; a copy failure shouldn't fail the build.
+                    }
+                };
+
+                packagemanager::MtModulesManager modulesMgr(config.projectRoot);
+
+                for (const auto& dep : config.dependencies.packages) {
+                    // Source-distributed deps live in mt_modules/@<name>/ and
+                    // don't have a .mtcLib — the compiler pulls source in via
+                    // alias-driven imports (see compileToProgram). The native
+                    // binaries the user's code references at runtime still
+                    // need to ship next to the exe.
+                    if (modulesMgr.isInstalled(dep.name)) {
+                        fs::path pkgRoot = fs::path(config.projectRoot)
+                            / "mt_modules" / ("@" + dep.name);
+                        mirrorNativeBinaries(pkgRoot);
+                        continue;
+                    }
+
+                    // Binary-distributed dep: copy the .mtcLib and any native
+                    // binaries that sit alongside it in the package directory.
+                    auto resolved = linker.getPathResolver().resolve(dep.name);
+                    if (!resolved) continue;
+
+                    fs::path destLib = libsDir / (dep.name + ".mtcLib");
+                    fs::copy_file(*resolved, destLib,
+                        fs::copy_options::overwrite_existing);
+
+                    std::error_code ec;
+                    fs::path resolvedCanonical = fs::weakly_canonical(fs::path(*resolved), ec);
+                    if (ec) continue;
+                    mirrorNativeBinaries(resolvedCanonical.parent_path());
                 }
             }
 
@@ -432,14 +543,19 @@ namespace project
     {
         const auto& sourceFiles = config.resolvedSourceFiles;
 
-        // Build virtual source that imports all project files
+        // Build virtual source that imports all project files.
+        // Use generic_string() (forward slashes) — std::filesystem::path::string()
+        // returns the native form, which is backslash-separated on Windows. The
+        // mType lexer interprets backslash inside a string literal as an escape
+        // introducer, so src\render\Foo.mt would be tokenised as `src` + <CR> +
+        // `ender\Foo.mt`, producing the ERROR_INVALID_NAME we saw in MYT-323.
         std::string virtualSource;
         for (const auto& sourceFile : sourceFiles)
         {
             std::filesystem::path srcPath(sourceFile);
             std::filesystem::path projRoot(config.projectRoot);
             std::filesystem::path relativePath = std::filesystem::relative(srcPath, projRoot);
-            virtualSource += "import * from \"" + relativePath.string() + "\";\n";
+            virtualSource += "import * from \"" + relativePath.generic_string() + "\";\n";
         }
 
         // Write virtual source to a uniquely named temp file (PID avoids race conditions)
@@ -496,21 +612,86 @@ namespace project
             environment = envBuilder.build();
         }
 
-        // Resolve library dependencies before compilation
+        // Resolve library dependencies before compilation.
+        //
+        // mType supports two distribution models for <Package> deps:
+        //   (a) Source distribution via mtpm: mtpm install populates
+        //       mt_modules/@<name>/ with aliases pointing at the registry
+        //       source. The user imports through `@<name>/...` and the
+        //       compiler pulls source into the bundle the same way it
+        //       handles local imports. No bytecode artifact is needed.
+        //   (b) Pre-compiled distribution: a <name>.mtcLib file sits on a
+        //       search path; LibraryLinker deserializes it and
+        //       LibrarySymbolProvider registers its classes/interfaces.
+        //
+        // Partition the declared deps: anything with mt_modules source goes
+        // through (a) and we skip it here (the alias-driven import path
+        // does the work). Anything without falls through to (b). This is
+        // what makes `mType.exe --build` succeed after `mtpm install`
+        // without forcing a bytecode compile step — MYT-323's actual cause.
         if (!config.dependencies.packages.empty())
         {
-            mtclib::LibraryLinker linker(config.projectRoot);
+            packagemanager::MtModulesManager modulesMgr(config.projectRoot);
 
-            // Add import search paths as library search paths too
-            for (const auto& sp : absoluteSearchPaths)
+            std::vector<PackageDependency> binaryOnlyDeps;
+            for (const auto& dep : config.dependencies.packages)
             {
-                linker.addSearchPath(sp);
+                if (!modulesMgr.isInstalled(dep.name))
+                {
+                    binaryOnlyDeps.push_back(dep);
+                }
             }
 
-            auto libraries = linker.linkDependencies(config);
-            for (const auto& lib : libraries)
+            if (!binaryOnlyDeps.empty())
             {
-                mtclib::LibrarySymbolProvider::registerLibrarySymbols(lib, environment);
+                ProjectConfig linkerConfig = config;
+                linkerConfig.dependencies.packages = std::move(binaryOnlyDeps);
+
+                mtclib::LibraryLinker linker(config.projectRoot);
+
+                // Add import search paths as library search paths too
+                for (const auto& sp : absoluteSearchPaths)
+                {
+                    linker.addSearchPath(sp);
+                }
+
+                // If the project has a lockfile, prefer its pinned versions over
+                // declared ranges. Without this a .mtproj saying `^0.0.1` will
+                // not find a versioned build at the exact installed version.
+                std::filesystem::path lockPath =
+                    std::filesystem::path(config.projectRoot) / "mtproj.lock";
+                if (std::filesystem::exists(lockPath))
+                {
+                    try
+                    {
+                        auto lockfile = packagemanager::Lockfile::loadFromFile(lockPath.string());
+                        std::unordered_map<std::string, std::string> pins;
+                        for (const auto& [name, locked] : lockfile.packages)
+                        {
+                            pins[name] = locked.version;
+                        }
+                        linker.setLockfileVersions(pins);
+                    }
+                    catch (const std::exception& e)
+                    {
+                        // A corrupt lockfile must not block the build, but
+                        // swallowing the error silently leaves users debugging
+                        // mystery "wrong version picked" issues. Log so the
+                        // failure is visible while still falling back to
+                        // declared ranges. std::bad_alloc / I/O errors will
+                        // also surface here — they're rare enough that the
+                        // log line is the right place to learn about them.
+                        std::cerr << "Warning: failed to load lockfile at '"
+                                  << lockPath.string() << "': " << e.what()
+                                  << ". Falling back to declared version ranges.\n";
+                    }
+                }
+
+                auto libraries = linker.linkDependencies(linkerConfig);
+                for (const auto& lib : libraries)
+                {
+                    mtclib::LibrarySymbolProvider::registerLibrarySymbols(lib, environment);
+                }
             }
         }
 

@@ -499,6 +499,18 @@
     <Filter Include="testFiles\library\projects\mathlib\src">
       <UniqueIdentifier>{FC52C37B-E8A4-9A6B-D1C3-D77BBDB4B354}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\library\projects\staticfinal-consumer">
+      <UniqueIdentifier>{2F773C69-9BB2-9C2C-A4A7-19BC1062215D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\library\projects\staticfinal-consumer\src">
+      <UniqueIdentifier>{C6340E14-3246-B6BA-BB97-48FA27A83FF4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\library\projects\staticfinal-lib">
+      <UniqueIdentifier>{5AEF702C-4657-37FA-AFC2-4B109B494EE6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\library\projects\staticfinal-lib\src">
+      <UniqueIdentifier>{71CAC8CF-5D48-1969-4640-D700325D5B91}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\modifiers">
       <UniqueIdentifier>{E9CE7042-5530-4E50-DE9D-94024AFE840F}</UniqueIdentifier>
     </Filter>
@@ -2620,10 +2632,22 @@
     <None Include="tests\testFiles\benchmarks\function_call_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\function_call_medium_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\function_call_medium_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\function_entry_tier_hot.expected">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\function_entry_tier_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\gc_cycle_churn.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\gc_cycle_churn.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\generic_dispatch_hot.expected">
@@ -2711,12 +2735,6 @@
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\object_alloc_nested.mt">
-      <Filter>testFiles\benchmarks</Filter>
-    </None>
-    <None Include="tests\testFiles\benchmarks\gc_cycle_churn.expected">
-      <Filter>testFiles\benchmarks</Filter>
-    </None>
-    <None Include="tests\testFiles\benchmarks\gc_cycle_churn.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\overload_dispatch_hot.expected">
@@ -9178,6 +9196,12 @@
     <None Include="tests\testFiles\integration\pass\invalidCombinationsHandling.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\jitDirectFunctionDispatch_pass.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\jitDirectFunctionDispatch_pass.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\jitJsonLspStartup_pass.expected">
       <Filter>testFiles\integration\pass</Filter>
     </None>
@@ -9290,6 +9314,12 @@
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\myt314JitFunctionEntryTier_pass.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt324JitCombatTickRegistryLoop.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt324JitCombatTickRegistryLoop.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\namespaceClassNameCollisions.expected">
@@ -11370,6 +11400,12 @@
     </None>
     <None Include="tests\testFiles\library\projects\mathlib\src\Vector2.mt">
       <Filter>testFiles\library\projects\mathlib\src</Filter>
+    </None>
+    <None Include="tests\testFiles\library\projects\staticfinal-consumer\src\Main.mt">
+      <Filter>testFiles\library\projects\staticfinal-consumer\src</Filter>
+    </None>
+    <None Include="tests\testFiles\library\projects\staticfinal-lib\src\ShaderType.mt">
+      <Filter>testFiles\library\projects\staticfinal-lib\src</Filter>
     </None>
     <None Include="tests\testFiles\modifiers\error\interfacePrivateField.mt">
       <Filter>testFiles\modifiers\error</Filter>

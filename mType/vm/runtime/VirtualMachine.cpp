@@ -312,6 +312,17 @@ namespace vm::runtime
         {
             for (const auto& initializerName : initializerNames)
             {
+                // MYT-325: skip duplicates when the same class lives in
+                // multiple loaded programs (e.g. embedded main bytecode plus a
+                // sidecar .mtcLib that also defines the class). The synthetic
+                // name "<ClassName>::<static_init>$static" is identical across
+                // every program carrying that class, so insert-and-check by
+                // name dedups regardless of program identity.
+                if (!executedStaticInitializers.insert(initializerName).second)
+                {
+                    continue;
+                }
+
                 auto* funcMetadata = bytecodeProgram.getFunction(initializerName);
                 if (!funcMetadata)
                 {

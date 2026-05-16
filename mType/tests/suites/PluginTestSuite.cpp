@@ -733,5 +733,77 @@ namespace tests::testSuite
                 require(msg.find("already loaded") != std::string::npos,
                         "exception should mention 'already loaded', got: " + msg);
             });
+
+        /* MYT-325 follow-up: load() must resolve a relative basename via a
+         * registered search root. Mirrors the launcher's exeDir registration:
+         * the launcher passes "mt_modules/.../foo.dll" verbatim, that path
+         * doesn't exist as-is (CWD is `build/`), and resolution falls back to
+         * <searchRoot>/mt_modules/.../foo.dll. */
+        addCallbackTest("Integration: addSearchPath resolves a basename load",
+            "",
+            [fixturePath, baseName](services::ScriptAPI&) {
+                namespace fs = std::filesystem;
+
+                auto env = ::environment::EnvironmentBuilder().build();
+                auto vm = std::make_shared<::vm::runtime::VirtualMachine>(env);
+
+                /* Use the fixture's parent dir as the search root, then load
+                 * by just the leaf filename so the verbatim-exists check fails
+                 * and resolution must consult the search root. */
+                fs::path fixtureAbs = fs::weakly_canonical(fs::path(fixturePath));
+                std::string searchRoot = fixtureAbs.parent_path().string();
+                std::string leaf = fixtureAbs.filename().string();
+
+                /* Sanity: the leaf must NOT exist relative to CWD, otherwise
+                 * the verbatim-exists check would short-circuit the search
+                 * path and the test wouldn't exercise the new behavior. */
+                require(!fs::exists(leaf),
+                    "Test setup invalid: CWD already contains '" + leaf +
+                    "' so the search path won't be exercised");
+
+                ::plugin::PluginLoader::instance().addSearchPath(searchRoot);
+
+                /* load() should find the fixture via the search path. The
+                 * loaded handle is keyed by the absolute resolved path, so
+                 * unload() must use either the absolute path or the same
+                 * relative path (the resolver handles both). */
+                ::plugin::PluginLoader::instance().load(leaf, env, vm);
+                LoadedPluginGuard guard{leaf, env, vm};
+
+                require(::plugin::PluginLoader::instance().isLoaded(fixtureAbs.string()),
+                    "isLoaded(absolute path) should report true after relative load");
+                require(env->getNativeRegistry()->hasNativeFunction("__pt_fixture_plus_seven"),
+                    "fixture native should be registered after resolved load");
+            });
+
+        /* MYT-325 follow-up: bogus path with no matching search root must
+         * still fail with the standard "file not found" message, and must
+         * surface the user-supplied path (not a search-expanded variant) so
+         * the error is actionable. */
+        addCallbackTest("Integration: load throws with original path when no search root matches",
+            "",
+            [](services::ScriptAPI&) {
+                auto env = ::environment::EnvironmentBuilder().build();
+                auto vm = std::make_shared<::vm::runtime::VirtualMachine>(env);
+
+                /* Add an unrelated search path — it must not mask the failure. */
+                ::plugin::PluginLoader::instance().addSearchPath(
+                    "mType/tests/testFiles/plugin");
+
+                const std::string bogus = "some/nonexistent/__never_a_real_plugin_zz.dll";
+                bool threw = false;
+                std::string msg;
+                try {
+                    ::plugin::PluginLoader::instance().load(bogus, env, vm);
+                } catch (const ::errors::RuntimeException& e) {
+                    threw = true;
+                    msg = e.what();
+                }
+                require(threw, "load of unresolvable path should throw");
+                require(msg.find("not found") != std::string::npos,
+                    "error should mention 'not found', got: " + msg);
+                require(msg.find(bogus) != std::string::npos,
+                    "error should echo the user-supplied path, got: " + msg);
+            });
     }
 }
