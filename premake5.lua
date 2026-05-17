@@ -297,8 +297,8 @@ project "mtype-extensions"
    -- premake emits them into <Lib><AdditionalDependencies>, which causes
    -- lib.exe to merge the import libs into mtype-extensions.lib and triggers
    -- a non-suppressible LNK4006 on __NULL_IMPORT_DESCRIPTOR. The libs are
-   -- instead linked by the consuming ConsoleApp projects (mType,
-   -- mtype-launcher), where /IGNORE:4006 on the final link step is honored.
+   -- instead linked by the consuming exe projects (mType, mtype-launcher,
+   -- mtype-launcher-gui), where /IGNORE:4006 on the final link step is honored.
 
    -- On Linux/macOS use libcurl for HTTP, libdl for plugin loading, and
    -- exclude Win-only files.
@@ -426,6 +426,52 @@ project "mtype-launcher"
    filter "system:windows"
       links { "winhttp", "ws2_32" }
       linkoptions { "/ignore:4006" }
+   filter "system:linux or system:macosx"
+      links { "curl" }
+   filter {}
+
+   files {
+      "mType/launcher/**.hpp",
+      "mType/launcher/**.cpp",
+   }
+
+   links {
+      "mtype-extensions",
+      "mtype-jit",
+      "mtype-vm",
+      "mtype-frontend",
+      "mtype-ast",
+      "mtype-core",
+      "mtype-analysis",
+      "mtype-diagnostics",
+      "mtype-errors",
+      "mtype-common",
+   }
+
+
+--------------------------------------------------------------------------------
+-- Executable: mtype-launcher-gui (MYT-326)
+-- Windowed-subsystem variant of mtype-launcher, selected by
+-- `mType --build --exe --gui`. On Windows /SUBSYSTEM:WINDOWS suppresses the
+-- auto-allocated console window when the produced exe is double-clicked from
+-- Explorer; /ENTRY:mainCRTStartup keeps the shared `int main()` in
+-- Launcher.cpp as the entry point (no separate WinMain needed).
+-- On Linux/macOS there's no subsystem concept; this builds as a regular exe
+-- identical in behavior to mtype-launcher (alias).
+--------------------------------------------------------------------------------
+project "mtype-launcher-gui"
+   kind "WindowedApp"
+   location "mType"
+   commonConfig()
+
+   targetdir "bin/mType/%{cfg.buildcfg}/%{cfg.platform}"
+
+   includedirs { "vendor/asmjit", "packagemanager/src" }
+   defines { "ASMJIT_STATIC" }
+
+   filter "system:windows"
+      links { "winhttp", "ws2_32" }
+      linkoptions { "/ignore:4006", "/SUBSYSTEM:WINDOWS", "/ENTRY:mainCRTStartup" }
    filter "system:linux or system:macosx"
       links { "curl" }
    filter {}

@@ -32,6 +32,7 @@ After the build finishes, the executables land under `bin/`:
 - `bin/mtpm/Release/x64/mtpm.exe` — package manager
 - `bin/mtype-language-server/Release/x64/mtype-language-server.exe` — LSP server
 - `bin/mtype-launcher/Release/x64/mtype-launcher.exe` — launcher used by `--build --exe`
+- `bin/mtype-launcher-gui/Release/x64/mtype-launcher-gui.exe` — windowed-subsystem launcher used by `--build --exe --gui` (no console window on Explorer launch)
 
 ## Linux / macOS
 

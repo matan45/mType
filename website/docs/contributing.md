@@ -42,6 +42,7 @@ make
 
 - `bin/mType/Release/x64/mType[.exe]` — main interpreter
 - `bin/mtype-launcher/Release/x64/mtype-launcher[.exe]` — `--build --exe` launcher
+- `bin/mtype-launcher-gui/Release/x64/mtype-launcher-gui[.exe]` — `--build --exe --gui` windowed-subsystem launcher (Windows-only effect; identical to `mtype-launcher` on Linux/macOS)
 - `bin/mtpm/Release/x64/mtpm[.exe]` — package manager
 - `bin/mtype-language-server/Release/x64/mtype-language-server[.exe]` — LSP server
 - `bin/mtype-language-server-tests/Release/x64/mtype-language-server-tests[.exe]` — LSP tests

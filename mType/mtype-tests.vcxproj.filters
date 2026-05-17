@@ -160,6 +160,12 @@
     <Filter Include="testFiles\exe\generics\src">
       <UniqueIdentifier>{FFFF53AC-EB0F-007D-54C9-649B40F8EE15}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\exe\gui-launcher">
+      <UniqueIdentifier>{FC9613AB-E8A6-BF7B-5160-249A3D8FAE14}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\gui-launcher\src">
+      <UniqueIdentifier>{1373DAA8-FF98-A40F-E8DE-29DBD4A3C9DB}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\exe\imports">
       <UniqueIdentifier>{A69FF479-120C-B074-DBFF-47D2472BD2DC}</UniqueIdentifier>
     </Filter>
@@ -6832,6 +6838,12 @@
     <None Include="tests\testFiles\exe\generics\src\Main.mt">
       <Filter>testFiles\exe\generics\src</Filter>
     </None>
+    <None Include="tests\testFiles\exe\gui-launcher\GuiLauncherExe.expected">
+      <Filter>testFiles\exe\gui-launcher</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\gui-launcher\src\Main.mt">
+      <Filter>testFiles\exe\gui-launcher\src</Filter>
+    </None>
     <None Include="tests\testFiles\exe\imports\ImportExe.expected">
       <Filter>testFiles\exe\imports</Filter>
     </None>
@@ -8593,12 +8605,6 @@
     <None Include="tests\testFiles\integration\pass\bitwiseSpecialization.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
-    <None Include="tests\testFiles\integration\pass\myt327BinaryCallArgTypeInference.expected">
-      <Filter>testFiles\integration\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\integration\pass\myt327BinaryCallArgTypeInference.mt">
-      <Filter>testFiles\integration\pass</Filter>
-    </None>
     <None Include="tests\testFiles\integration\pass\circularNamespaceReferences.expected">
       <Filter>testFiles\integration\pass</Filter>
     </None>
@@ -9326,6 +9332,12 @@
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\myt324JitCombatTickRegistryLoop.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt327BinaryCallArgTypeInference.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt327BinaryCallArgTypeInference.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\namespaceClassNameCollisions.expected">
@@ -11408,6 +11420,9 @@
       <Filter>testFiles\library\projects\mathlib\src</Filter>
     </None>
     <None Include="tests\testFiles\library\projects\staticfinal-consumer\src\Main.mt">
+      <Filter>testFiles\library\projects\staticfinal-consumer\src</Filter>
+    </None>
+    <None Include="tests\testFiles\library\projects\staticfinal-consumer\src\ShaderType.mt">
       <Filter>testFiles\library\projects\staticfinal-consumer\src</Filter>
     </None>
     <None Include="tests\testFiles\library\projects\staticfinal-lib\src\ShaderType.mt">

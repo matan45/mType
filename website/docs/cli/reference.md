@@ -34,6 +34,7 @@ Full flag list of the `mType` executable, grouped by purpose. Output is captured
 | `--build [project.mtproj]` | Build a project (compile all files to bytecode). |
 | `--build --lib [.mtproj]` | Build into a single `.mtcLib` library file. |
 | `--build --exe [.mtproj]` | Build a standalone executable with embedded bytecode. |
+| `--build --exe --gui [.mtproj]` | As above, but uses the windowed-subsystem launcher (no console window when launched from Explorer). Windows-only effect; on Linux/macOS behaves the same as `--exe`. |
 | `--clean [project.mtproj]` | Remove compiled bytecode files. |
 
 ## Project

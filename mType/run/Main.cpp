@@ -287,6 +287,7 @@ int main(int argc, char* argv[])
         std::cout << "  " << argv[0] << " --build [project.mtproj]   - Build project (compile all files to bytecode)\n";
         std::cout << "  " << argv[0] << " --build --lib [.mtproj]    - Build project into single .mtcLib file\n";
         std::cout << "  " << argv[0] << " --build --exe [.mtproj]    - Build standalone executable with embedded bytecode\n";
+        std::cout << "  " << argv[0] << " --build --exe --gui [.mtproj] - As above, but windowed-subsystem launcher (no console window on Explorer launch)\n";
         std::cout << "  " << argv[0] << " --clean [project.mtproj]   - Remove compiled bytecode files\n";
         std::cout << "  " << argv[0] << " --deps [project.mtproj]    - Show dependency tree\n";
         std::cout << "  " << argv[0] << " --deps --json [.mtproj]    - Export dependency graph as JSON\n";
@@ -325,6 +326,7 @@ int main(int argc, char* argv[])
         std::string configPath;
         bool buildLib = false;
         bool buildExe = false;
+        bool buildGui = false;
 
         for (int i = 2; i < argc; ++i)
         {
@@ -337,10 +339,20 @@ int main(int argc, char* argv[])
             {
                 buildExe = true;
             }
+            else if (arg == "--gui")
+            {
+                buildGui = true;
+            }
             else if (arg[0] != '-')
             {
                 configPath = arg;
             }
+        }
+
+        if (buildGui && !buildExe)
+        {
+            std::cerr << "Error: --gui requires --exe.\n";
+            return 1;
         }
 
         try
@@ -483,13 +495,20 @@ int main(int argc, char* argv[])
 #endif
                     std::string exePath = (outputDir / exeName).string();
 
-                    // Locate the launcher binary relative to the mType executable
+                    // Locate the launcher binary relative to the mType executable.
+                    // --gui selects the windowed-subsystem variant (MYT-326) so the
+                    // produced exe doesn't pop a console window on Explorer launch.
                     std::filesystem::path mtypePath = std::filesystem::path(argv[0]).parent_path();
 #ifdef _WIN32
-                    std::string launcherPath = (mtypePath / "mtype-launcher.exe").string();
+                    const std::string launcherName = buildGui
+                        ? "mtype-launcher-gui.exe"
+                        : "mtype-launcher.exe";
 #else
-                    std::string launcherPath = (mtypePath / "mtype-launcher").string();
+                    const std::string launcherName = buildGui
+                        ? "mtype-launcher-gui"
+                        : "mtype-launcher";
 #endif
+                    std::string launcherPath = (mtypePath / launcherName).string();
 
                     std::cout << "Building executable: " << exePath << "\n\n";
                     result = builder.buildExecutable(*config, exePath, launcherPath);

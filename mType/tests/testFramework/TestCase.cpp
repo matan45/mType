@@ -93,9 +93,9 @@ namespace tests::testFramework
             return;
         }
 
-        if (type == TestType::EXE_TEST)
+        if (type == TestType::EXE_TEST || type == TestType::EXE_GUI_TEST)
         {
-            executeExeTest();
+            executeExeTest(type == TestType::EXE_GUI_TEST);
             auto endTime = std::chrono::high_resolution_clock::now();
             executionTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
             return;
@@ -335,6 +335,8 @@ namespace tests::testFramework
             return "NATIVE_CALLBACK";
         case TestType::EXE_TEST:
             return "EXE_TEST";
+        case TestType::EXE_GUI_TEST:
+            return "EXE_GUI_TEST";
         default:
             return "UNKNOWN";
         }
@@ -408,23 +410,27 @@ namespace tests::testFramework
         }
     }
 
-    void TestCase::executeExeTest()
+    void TestCase::executeExeTest(bool useGui)
     {
         try
         {
-            // Step 1: Locate the launcher binary in the build output directory
+            // Step 1: Locate the launcher binary in the build output directory.
+            // MYT-326 — when useGui is set, look for mtype-launcher-gui instead
+            // of mtype-launcher so the EXE_GUI_TEST path actually exercises the
+            // windowed-subsystem binary produced by premake.
+            const std::string launcherStem = useGui ? "mtype-launcher-gui" : "mtype-launcher";
 #ifdef _WIN32
-            std::string launcherName = "mtype-launcher.exe";
+            std::string launcherName = launcherStem + ".exe";
 #else
-            std::string launcherName = "mtype-launcher";
+            std::string launcherName = launcherStem;
 #endif
             // Try known build output paths relative to working directory
             std::string launcherPath;
             std::vector<std::string> searchPaths = {
                 "bin/mType/Debug/x64/" + launcherName,
                 "bin/mType/Release/x64/" + launcherName,
-                "bin/mtype-launcher/Debug/x64/" + launcherName,
-                "bin/mtype-launcher/Release/x64/" + launcherName
+                "bin/" + launcherStem + "/Debug/x64/" + launcherName,
+                "bin/" + launcherStem + "/Release/x64/" + launcherName
             };
             for (const auto& candidate : searchPaths)
             {
@@ -438,7 +444,7 @@ namespace tests::testFramework
             {
                 status = TestStatus::SKIPPED;
                 errorMessage = "Launcher binary not found in any search path"
-                               " (build mtype-launcher project first)";
+                               " (build " + launcherStem + " project first)";
                 return;
             }
 
