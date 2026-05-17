@@ -259,6 +259,8 @@ namespace tests::testSuite
         // INT-specialized bitwise opcodes + trySpecializeBitwise promotion.
         addOutputVerificationTest("Bitwise Specialization",
                                   passPath + "bitwiseSpecialization.mt");
+        addOutputVerificationTest("MYT-327 Binary Call Argument Type Inference",
+                                  passPath + "myt327BinaryCallArgTypeInference.mt");
 
         // Lazy re-boxing optimization tests
         addOutputVerificationTest("Lazy Reboxing Chained Arithmetic",

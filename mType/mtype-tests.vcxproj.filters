@@ -8593,6 +8593,12 @@
     <None Include="tests\testFiles\integration\pass\bitwiseSpecialization.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\myt327BinaryCallArgTypeInference.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\myt327BinaryCallArgTypeInference.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\circularNamespaceReferences.expected">
       <Filter>testFiles\integration\pass</Filter>
     </None>
