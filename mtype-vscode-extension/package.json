@@ -35,6 +35,7 @@
     "onCommand:mtype.build",
     "onCommand:mtype.buildLib",
     "onCommand:mtype.buildExe",
+    "onCommand:mtype.buildExeGui",
     "onCommand:mtype.restartLanguageServer",
     "onCommand:mtype.formatDocument",
     "onCommand:mtype.packages.install",
@@ -215,6 +216,11 @@
         "category": "mType"
       },
       {
+        "command": "mtype.buildExeGui",
+        "title": "Build as Executable (GUI / Windowed)",
+        "category": "mType"
+      },
+      {
         "command": "mtype.restartLanguageServer",
         "title": "Restart Language Server",
         "category": "mType"
@@ -284,6 +290,11 @@
           "when": "resourceExtname == '.mtproj'",
           "command": "mtype.buildExe",
           "group": "mtype@3"
+        },
+        {
+          "when": "resourceExtname == '.mtproj'",
+          "command": "mtype.buildExeGui",
+          "group": "mtype@4"
         }
       ],
       "editor/context": [
@@ -311,6 +322,11 @@
           "when": "resourceExtname == '.mtproj'",
           "command": "mtype.buildExe",
           "group": "mtype@3"
+        },
+        {
+          "when": "resourceExtname == '.mtproj'",
+          "command": "mtype.buildExeGui",
+          "group": "mtype@4"
         }
       ],
       "commandPalette": [
@@ -328,6 +344,10 @@
         },
         {
           "command": "mtype.buildExe",
+          "when": "resourceExtname == '.mtproj'"
+        },
+        {
+          "command": "mtype.buildExeGui",
           "when": "resourceExtname == '.mtproj'"
         }
       ]
