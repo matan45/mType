@@ -79,6 +79,14 @@ namespace tests::testSuite
         addExeTest("Exe - Regression: Static Initializers (MYT-290)",
                    basePath + "static-init/StaticInitExe.mtproj");
 
+        // ===== REGRESSION: MYT-326 - --gui builds windowed-subsystem launcher =====
+        // Builds with mtype-launcher-gui (WindowedApp + /SUBSYSTEM:WINDOWS on
+        // Windows). The harness is a console parent, so the child inherits
+        // stdio and print() still flows back through _popen — output match
+        // proves the GUI launcher is wired and functional.
+        addExeGuiTest("Exe - GUI Launcher Subsystem (MYT-326)",
+                      basePath + "gui-launcher/GuiLauncherExe.mtproj");
+
         // ===== REGRESSION: MYT-63 — parent class linking =====
         addExeTest("Exe - Regression: Exception Catch Dispatch (MYT-63)",
                    basePath + "regression-catch/RegressionCatchExe.mtproj");

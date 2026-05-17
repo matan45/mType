@@ -545,6 +545,14 @@ namespace vm::compiler::types
             }
         }
 
+        if ((op == token::TokenType::MODULO ||
+             op == token::TokenType::BITWISE_AND || op == token::TokenType::BITWISE_OR ||
+             op == token::TokenType::BITWISE_XOR || op == token::TokenType::LEFT_SHIFT ||
+             op == token::TokenType::RIGHT_SHIFT) &&
+            leftType == value::ValueType::INT && rightType == value::ValueType::INT) {
+            return value::ValueType::INT;
+        }
+
         // Comparison operations return bool (primitive)
         if (op == token::TokenType::EQUALS || op == token::TokenType::NOT_EQUALS ||
             op == token::TokenType::LESS || op == token::TokenType::GREATER ||

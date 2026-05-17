@@ -94,6 +94,10 @@ function registerCommonCommands(context: vscode.ExtensionContext): void {
     registerBuildCommand(context, 'mtype.build', '');
     registerBuildCommand(context, 'mtype.buildLib', '--lib');
     registerBuildCommand(context, 'mtype.buildExe', '--exe');
+    // MYT-326 — GUI variant: windowed-subsystem launcher (no console window
+    // on Explorer launch). Windows-only effect; on Linux/macOS the produced
+    // exe is identical to plain --exe.
+    registerBuildCommand(context, 'mtype.buildExeGui', '--exe --gui');
 
     // Command to find all references
     context.subscriptions.push(

@@ -48,6 +48,9 @@ namespace tests::testFramework
         void addOutputVerificationTest(const std::string& name, const std::string& filePath);
         void addInteropTest(const std::string& name, const std::string& filePath);
         void addExeTest(const std::string& name, const std::string& mtprojPath);
+        // MYT-326 — like addExeTest, but the produced exe is built with --gui
+        // (windowed-subsystem launcher). Exercises the mtype-launcher-gui binary.
+        void addExeGuiTest(const std::string& name, const std::string& mtprojPath);
 
         // MYT-310 — like addOutputVerificationTest, but ScriptInterpreter
         // walks upward from the script's directory to find an ambient

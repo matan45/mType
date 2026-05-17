@@ -278,18 +278,19 @@ Output appears in the integrated terminal.
 
 ### Project Builds
 
-Compile an `.mtproj` directly from VS Code — no need to drop to a terminal and remember the CLI flags. All three commands invoke `mType.exe` against the project path you right-click on, with the same `mTypeLanguageServer.interpreterPath` setting used by *Run mType File*.
+Compile an `.mtproj` directly from VS Code — no need to drop to a terminal and remember the CLI flags. All four commands invoke `mType.exe` against the project path you right-click on, with the same `mTypeLanguageServer.interpreterPath` setting used by *Run mType File*.
 
 | Command | What it does | CLI equivalent |
 |---------|--------------|----------------|
 | `mType: Build Project` | Build bytecode for the project | `mType.exe --build <path.mtproj>` |
 | `mType: Build as Library (.mtcLib)` | Bundle the project as a reusable `.mtcLib` library | `mType.exe --build --lib <path.mtproj>` |
 | `mType: Build as Executable` | Produce a standalone executable | `mType.exe --build --exe <path.mtproj>` |
+| `mType: Build as Executable (GUI / Windowed)` | Same as *Build as Executable*, but uses the windowed-subsystem launcher so the produced exe doesn't pop a console window when double-clicked from Explorer on Windows. Linux/macOS: same as `--exe`. | `mType.exe --build --exe --gui <path.mtproj>` |
 
 How to invoke:
 
-- **Explorer right-click** on a `.mtproj` file — all three entries appear grouped together at the top.
-- **Editor right-click** when the active editor is a `.mtproj` — same three entries.
+- **Explorer right-click** on a `.mtproj` file — all four entries appear grouped together at the top.
+- **Editor right-click** when the active editor is a `.mtproj` — same four entries.
 - **Command Palette** (Ctrl+Shift+P) — entries are listed under `mType:` and only show when an `.mtproj` is selected/active.
 - **Shift+F5** with a `.mtproj` selected runs the default *Build Project*.
 

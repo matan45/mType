@@ -63,7 +63,12 @@ namespace tests::testFramework
         // Helper methods
         bool verifyOutputAgainstExpected() const;
         void executeNativeCallback();
-        void executeExeTest();
+        // MYT-326 — useGui=true selects the windowed-subsystem
+        // mtype-launcher-gui binary so the EXE_GUI_TEST path actually exercises
+        // it. Output capture works the same: when a WindowedApp child is
+        // launched from a console parent (the test harness), it inherits the
+        // parent's stdio handles, so print() still flows back through _popen.
+        void executeExeTest(bool useGui = false);
         // MYT-38 — after an ERROR_EXPECTED catch block has provisionally set
         // status=PASSED, demote to FAILED if expectedErrorSubstring is set
         // and the thrown exception's message does not contain it.
