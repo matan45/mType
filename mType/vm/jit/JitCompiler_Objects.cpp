@@ -992,9 +992,16 @@ namespace vm::jit
     // by emitInlinedMethodCallPoly.
     static bool emitInlinedMethodCallMono(JitEmissionState& s,
                                            const bytecode::BytecodeProgram::Instruction& instr,
-                                           const ic::MethodInlineCache& cache)
+                                           const ic::MethodInlineCache& cache,
+                                           optimization::InlineDecision entryDecision)
     {
         const auto& entry = cache.entries[0];
+        // MYT-346: value-class write methods inline with a materialised temp
+        // ObjectInstance in local-0. The eligibility analyzer flags this via
+        // INLINE_VALUE_REQUIRES_MATERIALISATION; read-only value-class methods
+        // stay on the cheap raw-memcpy path.
+        const bool materialiseValueReceiver =
+            entryDecision == optimization::InlineDecision::INLINE_VALUE_REQUIRES_MATERIALISATION;
         const auto* callee = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
             entry.funcMetadata);
         const size_t argCount = instr.inlineOperands[1];
@@ -1060,7 +1067,8 @@ namespace vm::jit
         // params are unbox/rebox'd so LOAD_LOCAL in the callee body uses the
         // fast unbox-only path (matching emitArgumentUnboxing's convention
         // for top-level JIT compilation).
-        emitInlineLocalCopy(s, receiverStackIdx, localsBaseSlot, *callee);
+        emitInlineLocalCopy(s, receiverStackIdx, localsBaseSlot, *callee,
+                            materialiseValueReceiver);
 
         // NB: no explicit emitValueDestroy of the caller's operand-stack slots
         // is needed here. The first write to each slot after this point — either
@@ -1166,7 +1174,7 @@ namespace vm::jit
     }
 
     // MYT-165 (Phase F-c) — speculative bytecode-level inlining, POLYMORPHIC
-    // IC state. Emits a chain of shape guards against the N (≤4) cached
+    // IC state. Emits a chain of shape guards against the cached
     // ClassDefinition pointers. Each guard's fall-through enters that shape's
     // inlined body; mismatch jumps to the next shape's guard (or, for the
     // last entry, to the slow-path helper call). Only one shape body
@@ -1194,6 +1202,14 @@ namespace vm::jit
         const size_t argCount = instr.inlineOperands[1];
         const uint8_t entryCount = cache.entryCount;
 
+        // MYT-346: both INLINE and INLINE_VALUE_REQUIRES_MATERIALISATION
+        // emit an inline body. The materialise variant additionally injects a
+        // value-class temp into local-0 before the body runs.
+        auto isInlineableArm = [](optimization::InlineDecision d) {
+            return d == optimization::InlineDecision::INLINE ||
+                   d == optimization::InlineDecision::INLINE_VALUE_REQUIRES_MATERIALISATION;
+        };
+
         // Per-entry argcount sanity + max-localCount computation. Only one
         // shape body runs per call, so the shared locals window is sized
         // to the largest callee (MAX, not SUM). MYT-251 step 3b: same
@@ -1211,7 +1227,7 @@ namespace vm::jit
             const auto* callee = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
                 cache.entries[i].funcMetadata);
             if (callee->parameterCount != argCount + 1) return false;
-            if (perEntryDecisions[i] != optimization::InlineDecision::INLINE)
+            if (!isInlineableArm(perEntryDecisions[i]))
                 continue;
             if (callee->localCount > maxLocalCount)
                 maxLocalCount = callee->localCount;
@@ -1254,7 +1270,7 @@ namespace vm::jit
         std::vector<std::unordered_map<size_t, asmjit::Label>> perEntryJumpLabels(entryCount);
         for (uint8_t i = 0; i < entryCount; ++i)
         {
-            if (perEntryDecisions[i] != optimization::InlineDecision::INLINE)
+            if (!isInlineableArm(perEntryDecisions[i]))
                 continue;
             const auto* callee = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
                 cache.entries[i].funcMetadata);
@@ -1316,7 +1332,7 @@ namespace vm::jit
             // slow path uses. Pre-change a single ineligible entry forfeited
             // the entire site to the helper; now the inlineable shapes pay
             // no IC dispatch overhead.
-            if (perEntryDecisions[i] != optimization::InlineDecision::INLINE)
+            if (!isInlineableArm(perEntryDecisions[i]))
             {
                 // Match the slow-path branch's expectations: restore the
                 // pre-call snapshot, run the generic helper (which pushes a
@@ -1358,7 +1374,14 @@ namespace vm::jit
             // configuration. (Body i-1 drifted these during its emission.)
             restoreEmitStateForInline(s, snap);
 
-            emitInlineLocalCopy(s, receiverStackIdx, localsBaseSlot, *callee);
+            // MYT-346: only materialise the value-class temp for arms whose
+            // callee actually writes its own field(s); read-only value-class
+            // arms stay on the cheap raw-memcpy donation path.
+            const bool materialiseValueReceiver =
+                perEntryDecisions[i] ==
+                optimization::InlineDecision::INLINE_VALUE_REQUIRES_MATERIALISATION;
+            emitInlineLocalCopy(s, receiverStackIdx, localsBaseSlot, *callee,
+                                materialiseValueReceiver);
 
             InlineFrame frame;
             frame.calleeMeta = callee;
@@ -1660,7 +1683,7 @@ namespace vm::jit
         if (!s.usesBoxedTypes) return false;
 
         if (cache.state == ic::ICState::MONOMORPHIC)
-            return emitInlinedMethodCallMono(s, instr, cache);
+            return emitInlinedMethodCallMono(s, instr, cache, perEntryDecisions[0]);
         if (cache.state == ic::ICState::POLYMORPHIC)
             return emitInlinedMethodCallPoly(s, instr, cache, perEntryDecisions);
         return false;
@@ -2328,6 +2351,13 @@ namespace vm::jit
     // interpreter and re-runs through executeAwait's full suspend / throw
     // machinery.
     //
+    // Phase 2a fast path: inline the PROMISE_INT unwrap so the dominant
+    // bench case skips both cc.invoke sites (jit_await + jit_has_pending_
+    // exception). PROMISE_INT and INT share the same payload layout (raw
+    // int64 at offset 8); the unwrap is a single tag-byte rewrite at offset
+    // 0. Any non-PROMISE_INT tag falls through to the helper, which still
+    // handles fulfilled heap promises and the deopt-stash path unchanged.
+    //
     // MYT-268: jit_await stashes OSRDeoptException on ctx->pendingException
     // instead of throwing (the throw form crashed silently on Windows x64
     // — no PE unwind data registered for the asmjit frame). After the
@@ -2353,6 +2383,24 @@ namespace vm::jit
         Gp valueAddr = cc.new_gp64();
         cc.lea(valueAddr, Mem(s.boxedBase, static_cast<int32_t>(stackIdx * valueSize)));
         emitBoxOrCopy(s, valueAddr, stackIdx, valueType);
+
+        Label slowLabel = cc.new_label();
+        Label joinLabel = cc.new_label();
+
+        // Phase 2a inline fast path. Load the tag byte at offset 0 and
+        // compare to PROMISE_INT. Match: rewrite the tag byte to INT in
+        // place — the int64 payload at offset 8 is already the resolved
+        // value, no further mutation required. Miss: fall through to the
+        // helper, which still handles the heap-fulfilled / deopt paths.
+        Gp tagReg = cc.new_gp32();
+        cc.movzx(tagReg, byte_ptr(valueAddr, 0));
+        cc.cmp(tagReg, static_cast<int32_t>(value::ValueType::PROMISE_INT));
+        cc.jne(slowLabel);
+        cc.mov(byte_ptr(valueAddr, 0),
+               static_cast<int32_t>(value::ValueType::INT));
+        cc.jmp(joinLabel);
+
+        cc.bind(slowLabel);
 
         Gp ipReg = cc.new_gp64();
         cc.mov(ipReg, static_cast<int64_t>(s.currentIP));
@@ -2393,6 +2441,8 @@ namespace vm::jit
             cc.test(pendingResult, pendingResult);
             cc.jnz(s.functionDeoptExitLabel);
         }
+
+        cc.bind(joinLabel);
 
         s.slotTypes.push_back(SlotType::BOXED);
         return true;

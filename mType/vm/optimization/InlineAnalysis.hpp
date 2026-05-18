@@ -45,7 +45,17 @@ namespace vm::optimization
         IC_NOT_MONOMORPHIC,
         UNKNOWN_SHAPE,
         VALUE_OBJECT_RECEIVER,       // MYT-167 (F-e): legacy — no longer emitted; kept for log stability
-        VALUE_OBJECT_WRITES_FIELDS,  // MYT-167 (F-e): ValueObject receiver + write-containing callee
+        VALUE_OBJECT_WRITES_FIELDS,  // MYT-167 (F-e): legacy — superseded by INLINE_VALUE_REQUIRES_MATERIALISATION (MYT-346); kept for log stability
+        // MYT-346: value-class receiver whose callee writes its own field(s).
+        // Inlineable, but the emitter MUST first materialise a temp
+        // ObjectInstance into the inlined callee's local-0 so the inlined body's
+        // GET_FIELD / SET_FIELD ops operate on a normal OBJECT-tagged receiver
+        // rather than the VALUE_OBJECT-tagged caller slot. Without
+        // materialisation the inlined SET_FIELD_CACHED routes through
+        // setFieldOnValueObject's CoW path which writes to the operand-stack
+        // slot of the second LOAD_LOCAL, not to local-0 — so subsequent
+        // LOAD_LOCAL 0 reads stale state and the method returns a bogus value.
+        INLINE_VALUE_REQUIRES_MATERIALISATION,
         CALLEE_NATIVE,
         CALLEE_NOT_FOUND,
         // MYT-185: emitted for callee bodies containing opcodes the JIT

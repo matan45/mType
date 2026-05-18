@@ -9,6 +9,7 @@
 #include "../../../ast/nodes/expressions/VariableNode.hpp"
 #include "../../../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"
+#include "../../../ast/nodes/expressions/StringNode.hpp"
 #include "../../../token/TokenType.hpp"
 #include "../validation/ReturnPathValidator.hpp"
 
@@ -425,6 +426,39 @@ namespace vm::compiler::visitors
             }
         }
 
+        std::string collectionClassNameForFastPath =
+            ctx.typeInference.inferExpressionClassName(node->getCollection());
+        std::string collectionBaseClassName = collectionClassNameForFastPath;
+        size_t collectionGenericStart = collectionBaseClassName.find('<');
+        if (collectionGenericStart != std::string::npos) {
+            collectionBaseClassName = collectionBaseClassName.substr(0, collectionGenericStart);
+        }
+        bool isArrayListType = !isArrayType && collectionBaseClassName == "ArrayList";
+
+        if (!isArrayType) {
+            std::string collectionClassName = collectionClassNameForFastPath;
+            if (collectionClassName.empty()) {
+                collectionClassName = "Object";
+            }
+
+            std::string loopVarTypeName;
+            if (varTypeInfo.baseType == value::ValueType::OBJECT && !varTypeInfo.className.empty()) {
+                loopVarTypeName = varTypeInfo.className;
+            } else {
+                loopVarTypeName = varTypeInfo.toString();
+            }
+
+            try {
+                ctx.typeValidator.validateAndExtractIterableElementType(
+                    collectionClassName,
+                    loopVarTypeName,
+                    node->getLocation()
+                );
+            } catch (const errors::TypeException& e) {
+                throw errors::TypeException(e.what(), node->getLocation());
+            }
+        }
+
         if (isArrayType) {
             // === ARRAY FAST PATH ===
             // Use counter-based iteration with ARRAY_GET (existing implementation)
@@ -526,46 +560,100 @@ namespace vm::compiler::visitors
 
             ctx.loopManager.exitLoop();
         }
+        else if (isArrayListType) {
+            // === ARRAYLIST FAST PATH ===
+            // ArrayList.iterator() snapshots (data, count) into ListIterator.
+            // Lower the foreach to that same shape directly: one count/data
+            // snapshot followed by indexed array reads.
+            ctx.variableTracker.declareLocal("__foreach_arraylist__", value::ValueType::OBJECT, collectionClassNameForFastPath);
+            ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+            size_t listSlot = ctx.variableTracker.getNextLocalSlot() - 1;
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(listSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
+
+            size_t dataFieldIndex = ctx.program.getConstantPool().addString("data");
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(listSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::INLINE_GET_FIELD, static_cast<uint64_t>(dataFieldIndex), node);
+
+            ctx.variableTracker.declareLocal("__foreach_arraylist_data__", value::ValueType::ARRAY, "");
+            ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+            size_t dataSlot = ctx.variableTracker.getNextLocalSlot() - 1;
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(dataSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
+
+            size_t countFieldIndex = ctx.program.getConstantPool().addString("count");
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(listSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::INLINE_GET_FIELD, static_cast<uint64_t>(countFieldIndex), node);
+
+            ctx.variableTracker.declareLocal("__foreach_length__", value::ValueType::INT, "");
+            ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+            size_t lengthSlot = ctx.variableTracker.getNextLocalSlot() - 1;
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(lengthSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
+
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT,
+                           static_cast<uint64_t>(ctx.program.getConstantPool().addInteger(0)), node);
+            ctx.variableTracker.declareLocal("__foreach_counter__", value::ValueType::INT, "");
+            ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+            size_t counterSlot = ctx.variableTracker.getNextLocalSlot() - 1;
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(counterSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
+
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_START, node);
+
+            size_t loopStart = ctx.program.getCurrentOffset();
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(counterSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(lengthSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LT, node);
+
+            size_t exitJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
+
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(dataSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(counterSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_GET, node);
+
+            ctx.variableTracker.declareLocal(varName, varType, "");
+            ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+            size_t loopVarSlot = ctx.variableTracker.getNextLocalSlot() - 1;
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(loopVarSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
+
+            size_t continueTarget = ctx.program.getCurrentOffset();
+            ctx.loopManager.enterLoop(loopStart, continueTarget);
+
+            if (node->getBody()) {
+                size_t feBodyOffsetBefore = ctx.program.getCurrentOffset();
+                node->getBody()->accept(ctx.visitor);
+                statementCleanup::emitStatementCleanup(ctx, node->getBody(), feBodyOffsetBefore);
+            }
+
+            size_t incrementStart = ctx.program.getCurrentOffset();
+            for (size_t continueJump : ctx.loopManager.getContinueJumps()) {
+                ctx.program.patchJump(continueJump, static_cast<uint64_t>(incrementStart));
+            }
+
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(counterSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_INT,
+                           static_cast<uint64_t>(ctx.program.getConstantPool().addInteger(1)), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::ADD, node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(counterSlot), node);
+            ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
+
+            ctx.emitter.emitLoop(loopStart);
+
+            ctx.emitter.emitWithLocation(bytecode::OpCode::LOOP_END, node);
+
+            ctx.emitter.patchJump(exitJump);
+
+            for (size_t breakJump : ctx.loopManager.getBreakJumps()) {
+                ctx.emitter.patchJump(breakJump);
+            }
+
+            ctx.loopManager.exitLoop();
+        }
         else {
             // === ITERATOR PATH ===
             // Use GET_ITERATOR, ITERATOR_HAS_NEXT, ITERATOR_NEXT opcodes
-
-            // Validate that collection implements Iterable<T> and element type matches loop variable
-            // Skip validation for array types (they should have been caught by array path detection)
-            std::string collectionClassName = ctx.typeInference.inferExpressionClassName(node->getCollection());
-            if (collectionClassName.empty()) {
-                collectionClassName = "Object";  // Fallback for unknown types
-            }
-
-            // Double-check: arrays should not reach this path, but if they do, skip validation
-            bool skipValidation = (collectionClassName.find("[]") != std::string::npos);
-
-            if (!skipValidation) {
-                // Get loop variable type as string from TypeInfo
-                const auto& varTypeInfo = node->getVariableTypeInfo();
-                std::string loopVarTypeName;
-
-                // For object types, use className (which may include generics like "ArrayList<Int>")
-                // For primitive types, convert ValueType to string representation
-                if (varTypeInfo.baseType == value::ValueType::OBJECT && !varTypeInfo.className.empty()) {
-                    loopVarTypeName = varTypeInfo.className;
-                } else {
-                    // Use toString() method or convert baseType to string for primitives
-                    loopVarTypeName = varTypeInfo.toString();
-                }
-
-                // Perform validation (will throw exception if invalid)
-                try {
-                    ctx.typeValidator.validateAndExtractIterableElementType(
-                        collectionClassName,
-                        loopVarTypeName,
-                        node->getLocation()
-                    );
-                } catch (const errors::TypeException& e) {
-                    // Re-throw with location information
-                    throw errors::TypeException(e.what(), node->getLocation());
-                }
-            }
 
             // Collection is already on the stack from node->getCollection()->accept()
             // Call GET_ITERATOR to get the iterator object
@@ -683,6 +771,100 @@ namespace vm::compiler::visitors
         node->getExpression()->accept(ctx.visitor);  // Will need delegation
 
         const auto& cases = node->getCases();
+
+        bool canUseStringSwitch = true;
+        size_t stringCaseCount = 0;
+        for (const auto& caseNode : cases)
+        {
+            if (dynamic_cast<ast::DefaultCaseNode*>(caseNode.get()))
+            {
+                continue;
+            }
+            auto* regularCase = dynamic_cast<ast::CaseNode*>(caseNode.get());
+            auto* stringValue = regularCase
+                ? dynamic_cast<ast::StringNode*>(regularCase->getValue())
+                : nullptr;
+            if (!stringValue)
+            {
+                canUseStringSwitch = false;
+                break;
+            }
+            ++stringCaseCount;
+        }
+
+        if (canUseStringSwitch && stringCaseCount > 0)
+        {
+            std::vector<size_t> targetOperandByCase(cases.size(), SIZE_MAX);
+            size_t defaultCaseIndex = SIZE_MAX;
+
+            std::vector<uint64_t> operands;
+            operands.reserve(2 + stringCaseCount * 2);
+            operands.push_back(0); // default/end target, patched after bodies.
+            operands.push_back(static_cast<uint64_t>(stringCaseCount));
+
+            size_t stringOrdinal = 0;
+            for (size_t i = 0; i < cases.size(); ++i)
+            {
+                if (dynamic_cast<ast::DefaultCaseNode*>(cases[i].get()))
+                {
+                    defaultCaseIndex = i;
+                    continue;
+                }
+
+                auto* regularCase = dynamic_cast<ast::CaseNode*>(cases[i].get());
+                auto* stringValue = dynamic_cast<ast::StringNode*>(regularCase->getValue());
+                const size_t stringIndex =
+                    ctx.program.getConstantPool().addString(stringValue->getValue());
+                operands.push_back(static_cast<uint64_t>(stringIndex));
+                targetOperandByCase[i] = 3 + stringOrdinal * 2;
+                operands.push_back(0); // case body target, patched below.
+                ++stringOrdinal;
+            }
+
+            const size_t switchOffset = ctx.program.getCurrentOffset();
+            ctx.emitter.emitWithLocation(bytecode::OpCode::SWITCH_STRING, operands, node);
+
+            for (size_t i = 0; i < cases.size(); ++i)
+            {
+                const size_t bodyStart = ctx.program.getCurrentOffset();
+                if (i == defaultCaseIndex)
+                {
+                    auto& switchInstr = ctx.program.getMutableInstruction(switchOffset);
+                    switchInstr.setOperandAt(0, static_cast<uint64_t>(bodyStart));
+                }
+                else if (targetOperandByCase[i] != SIZE_MAX)
+                {
+                    auto& switchInstr = ctx.program.getMutableInstruction(switchOffset);
+                    switchInstr.setOperandAt(targetOperandByCase[i],
+                                             static_cast<uint64_t>(bodyStart));
+                }
+
+                if (auto* defaultCase = dynamic_cast<ast::DefaultCaseNode*>(cases[i].get())) {
+                    for (const auto& stmt : defaultCase->getStatements()) {
+                        stmt->accept(ctx.visitor);
+                    }
+                } else if (auto* regularCase = dynamic_cast<ast::CaseNode*>(cases[i].get())) {
+                    for (const auto& stmt : regularCase->getStatements()) {
+                        stmt->accept(ctx.visitor);
+                    }
+                }
+            }
+
+            const size_t endOffset = ctx.program.getCurrentOffset();
+            if (defaultCaseIndex == SIZE_MAX)
+            {
+                auto& switchInstr = ctx.program.getMutableInstruction(switchOffset);
+                switchInstr.setOperandAt(0, static_cast<uint64_t>(endOffset));
+            }
+
+            for (size_t breakJump : ctx.switchManager.getBreakJumps()) {
+                ctx.emitter.patchJump(breakJump);
+            }
+
+            ctx.switchManager.exitSwitch();
+            return std::monostate{};
+        }
+
         std::vector<size_t> caseBodyStarts;
         size_t defaultBodyStart = SIZE_MAX;
         size_t defaultCaseIndex = SIZE_MAX;

@@ -546,7 +546,8 @@ namespace vm::jit
     // mode. An unboxed-mode caller never emits CALL_METHOD in the first place.
     void emitInlineLocalCopy(JitEmissionState& s, int receiverStackIdx,
                              size_t localsBaseSlot,
-                             const bytecode::BytecodeProgram::FunctionMetadata& callee)
+                             const bytecode::BytecodeProgram::FunctionMetadata& callee,
+                             bool materialiseValueReceiver)
     {
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
@@ -605,15 +606,53 @@ namespace vm::jit
                 Gp src = cc.new_gp64();
                 cc.lea(src, Mem(s.boxedBase,
                                 static_cast<int32_t>(srcSlot * valueSize)));
-                const auto& layout = getInlineShapeLayout();
-                Gp scratch = cc.new_gp64();
-                for (size_t k = 0; k < numQWords; ++k)
+
+                // MYT-346: value-class receiver requires a temp ObjectInstance
+                // in local-0 so the inlined body's GET_FIELD / SET_FIELD
+                // operate on a normal OBJECT-tagged Value. The raw memcpy below
+                // would otherwise donate the VALUE_OBJECT bytes verbatim and
+                // the inlined SET_FIELD_CACHED would route through
+                // setFieldOnValueObject's CoW path (which writes to the
+                // operand-stack slot of LOAD_LOCAL, not to local-0) — see
+                // InlineAnalysis.cpp's INLINE_VALUE_REQUIRES_MATERIALISATION
+                // comment for the long story.
+                //
+                // The donation invariant differs here: the raw-memcpy path
+                // transfers ownership via byte-copy + tag-reset (zero ref
+                // count delta). The materialise path reads the source without
+                // taking ownership, so the source's shared_ptr<ValueObject>
+                // ref count must be released by jit_value_destroy (which also
+                // leaves the slot in monostate, matching the tag-reset's
+                // post-condition).
+                if (materialiseValueReceiver && i == 0)
                 {
-                    cc.mov(scratch, qword_ptr(src, static_cast<int32_t>(k * 8)));
-                    cc.mov(qword_ptr(dst, static_cast<int32_t>(k * 8)), scratch);
+                    InvokeNode* matInv;
+                    cc.invoke(Out(matInv),
+                              reinterpret_cast<uint64_t>(
+                                  jit_materialise_value_receiver_into_local),
+                              FuncSignature::build<void, value::Value*,
+                                                   const value::Value*>());
+                    matInv->set_arg(0, dst);
+                    matInv->set_arg(1, src);
+
+                    InvokeNode* destroyInv;
+                    cc.invoke(Out(destroyInv),
+                              reinterpret_cast<uint64_t>(jit_value_destroy),
+                              FuncSignature::build<void, value::Value*>());
+                    destroyInv->set_arg(0, src);
                 }
-                cc.mov(byte_ptr(src, static_cast<int32_t>(layout.tagOffset)),
-                        static_cast<int32_t>(layout.voidTag));
+                else
+                {
+                    Gp scratch = cc.new_gp64();
+                    for (size_t k = 0; k < numQWords; ++k)
+                    {
+                        cc.mov(scratch, qword_ptr(src, static_cast<int32_t>(k * 8)));
+                        cc.mov(qword_ptr(dst, static_cast<int32_t>(k * 8)), scratch);
+                    }
+                    const auto& layout = getInlineShapeLayout();
+                    cc.mov(byte_ptr(src, static_cast<int32_t>(layout.tagOffset)),
+                            static_cast<int32_t>(layout.voidTag));
+                }
             }
             else
             {

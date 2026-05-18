@@ -71,14 +71,34 @@ namespace vm::optimization
                 case OpCode::INVOKE:
                     return InlineDecision::HAS_NESTED_CALL;
 
-                // MYT-167 (F-e): ValueObject receivers are read-only inline
-                // eligible. Field writes require the COW slot rewrite in
-                // setFieldOnValueObject which cannot be naively lifted into
-                // an inlined body; reject such callees for ValueObject sites.
+                // MYT-167 (F-e) original: ValueObject receivers were read-only
+                // inline eligible because the inlined SET_FIELD path's CoW
+                // rewrite in setFieldOnValueObject targets the operand-stack
+                // slot of LOAD_LOCAL, not the inlined-frame local-0, so the
+                // mutation was silently dropped.
+                //
+                // MYT-346: relaxed. The inliner now materialises a temp
+                // ObjectInstance for value-class receivers (see
+                // jit_materialise_value_receiver_into_local) so local-0 holds
+                // an OBJECT-tagged Value before the body emits. Once
+                // materialised, the inlined GET_FIELD / SET_FIELD opcodes
+                // operate on a normal ObjectInstance and mutation works.
+                //
+                // SET_FIELD_CACHED is the IC-promoted variant that emerges in
+                // the callee body after the first interpreted call (the
+                // temp-instance dispatch populates the field IC and the MONO
+                // promotion rewrites the in-place opcode). This was the actual
+                // bug path — scanCalleeOpcodes previously missed it because it
+                // only watched SET_FIELD / INLINE_SET_FIELD. SET_FIELD_TYPED
+                // and SET_FIELD_FAST are listed defensively (currently emitted
+                // only from ctor inline-init / unused respectively).
                 case OpCode::SET_FIELD:
                 case OpCode::INLINE_SET_FIELD:
+                case OpCode::SET_FIELD_CACHED:
+                case OpCode::SET_FIELD_TYPED:
+                case OpCode::SET_FIELD_FAST:
                     if (isValueObjectReceiver)
-                        return InlineDecision::VALUE_OBJECT_WRITES_FIELDS;
+                        return InlineDecision::INLINE_VALUE_REQUIRES_MATERIALISATION;
                     break;
 
                 // MYT-185: STRING_BUILD has no JIT emitter. The emission loop
@@ -256,7 +276,11 @@ namespace vm::optimization
             if (perEntryDecisions)
                 (*perEntryDecisions)[i] = d;
 
-            if (d == InlineDecision::INLINE)
+            // MYT-346: INLINE_VALUE_REQUIRES_MATERIALISATION counts as
+            // inlineable for the site-level decision — the emitter handles
+            // the value-class temp materialisation per-arm before the body.
+            if (d == InlineDecision::INLINE ||
+                d == InlineDecision::INLINE_VALUE_REQUIRES_MATERIALISATION)
             {
                 anyInlineable = true;
                 const auto* callee = static_cast<const BytecodeProgram::FunctionMetadata*>(
@@ -321,6 +345,7 @@ namespace vm::optimization
             case InlineDecision::UNKNOWN_SHAPE:              return "UNKNOWN_SHAPE";
             case InlineDecision::VALUE_OBJECT_RECEIVER:      return "VALUE_OBJECT_RECEIVER";
             case InlineDecision::VALUE_OBJECT_WRITES_FIELDS: return "VALUE_OBJECT_WRITES_FIELDS";
+            case InlineDecision::INLINE_VALUE_REQUIRES_MATERIALISATION: return "INLINE_VALUE_REQUIRES_MATERIALISATION";
             case InlineDecision::CALLEE_NATIVE:              return "CALLEE_NATIVE";
             case InlineDecision::CALLEE_NOT_FOUND:           return "CALLEE_NOT_FOUND";
             case InlineDecision::HAS_UNSUPPORTED_OPCODE:     return "HAS_UNSUPPORTED_OPCODE";

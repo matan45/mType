@@ -49,7 +49,8 @@ namespace vm::runtime
             const bytecode::BytecodeProgram::Instruction& instr,
             const bytecode::BytecodeProgram::CachedInstructionState& state);
 
-        // MYT-203: CALL_METHOD_POLY_CACHED fast path. Linear-scans up to 4
+        // MYT-203: CALL_METHOD_POLY_CACHED fast path. Linear-scans the
+        // inline POLY entries.
         // embedded shapes from the side table; on hit, dispatches directly
         // (no icTable hashmap probe, no per-entry scan over the IC table).
         // On miss after all snapshotted entries fail, deopts via
@@ -243,7 +244,7 @@ namespace vm::runtime
             const vm::jit::ic::MethodICEntry& entry);
 
         // MYT-203: shape miss on a POLY_CACHED site (linear-scan exhausted)
-        // OR POLY→MEGA transition (5th shape). Rewrites the opcode back to
+        // OR POLY→MEGA transition. Rewrites the opcode back to
         // CALL_METHOD, zeroes polyEntryCount (entries themselves left
         // stale), bumps polyCachedDeoptCount, and re-dispatches through
         // handleCallMethodIC. Mirrors deoptAndReprocess but for the POLY

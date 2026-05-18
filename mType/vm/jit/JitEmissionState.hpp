@@ -328,9 +328,15 @@ namespace vm::jit
     // MYT-163 Phase F-a inline-emission helpers.
     void emitInlineShapeGuard(JitEmissionState& s, int receiverStackIdx,
                               const void* expectedShape, asmjit::Label slowLabel);
+    // MYT-346: when `materialiseValueReceiver` is true, the receiver param
+    // (i == 0) is materialised from a VALUE_OBJECT source into a fresh temp
+    // ObjectInstance written to local-0 via jit_materialise_value_receiver_into_local.
+    // The donation tag-reset on the caller's slot still fires. All other
+    // parameters take the standard raw-memcpy / primitive-box path.
     void emitInlineLocalCopy(JitEmissionState& s, int receiverStackIdx,
                              size_t localsBaseSlot,
-                             const bytecode::BytecodeProgram::FunctionMetadata& callee);
+                             const bytecode::BytecodeProgram::FunctionMetadata& callee,
+                             bool materialiseValueReceiver = false);
 
     // MYT-169 (Phase F-a follow-up) Fix B: destroy the boxed inline-local
     // slots that emitInlineLocalCopy aliased via raw memcpy. Emitted at each

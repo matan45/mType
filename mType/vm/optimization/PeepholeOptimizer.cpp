@@ -388,6 +388,40 @@ namespace vm::optimization
                     }
                 }
             }
+
+            if (instr.opcode == bytecode::OpCode::SWITCH_STRING && instr.numOperands() >= 2)
+            {
+                auto updateSwitchTarget = [&](size_t operandIndex)
+                {
+                    uint32_t target = static_cast<uint32_t>(instr.operandAt(operandIndex));
+                    if (target < replacementEndOffset)
+                    {
+                        return;
+                    }
+
+                    int newTarget = static_cast<int>(target) + delta;
+                    if (newTarget >= 0 && newTarget < static_cast<int>(program.getInstructionCount()))
+                    {
+                        instr.setOperandAt(operandIndex, static_cast<uint32_t>(newTarget));
+                        return;
+                    }
+
+                    throw std::runtime_error(
+                        "Peephole optimization error: SWITCH_STRING target update resulted in invalid target. "
+                        "Instruction: " + std::to_string(i) +
+                        ", Old target: " + std::to_string(target) +
+                        ", New target: " + std::to_string(newTarget) +
+                        ", Instruction count: " + std::to_string(program.getInstructionCount()) +
+                        ". This indicates a bug in the optimizer.");
+                };
+
+                updateSwitchTarget(0);
+                const size_t caseCount = static_cast<size_t>(instr.inlineOperands[1]);
+                for (size_t c = 0; c < caseCount; ++c)
+                {
+                    updateSwitchTarget(3 + c * 2);
+                }
+            }
         }
     }
 

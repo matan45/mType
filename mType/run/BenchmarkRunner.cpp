@@ -32,7 +32,7 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 49> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 60> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -159,6 +159,26 @@ namespace
         "linked_list_nested_hot.mt",
         "method_chain_hot.mt",
         "string_build_call_hot.mt",
+        // Phase 1: additional coverage for runtime-perf work driven by
+        // docs/bench-baseline.md. Each measures a hot shape that the previous
+        // 49-script set under-covered. See IntegrationTestSuite.cpp for the
+        // matching .expected JIT-correctness pairs.
+        "deep_inheritance_hot.mt",
+        "interface_dispatch_collections_hot.mt",
+        "cast_miss_hot.mt",
+        "exception_throw_hot.mt",
+        "ic_transition_hot.mt",
+        "switch_on_string_hot.mt",
+        "substring_hot.mt",
+        "gc_churn_intense_hot.mt",
+        "array_literal_alloc_hot.mt",
+        // MYT-346: value_class_mut_hot currently fails under --jit (OSR
+        // diverges from interpreter on value-class write methods past the
+        // OSR threshold). Retained in the canonical list so --benchmark
+        // reports wall-time on both paths; the integration suite uses it as
+        // a regression canary.
+        "value_class_mut_hot.mt",
+        "int_only_arith_hot.mt",
     };
 
     constexpr const char* BENCHMARKS_REL = "mType/tests/testFiles/benchmarks";

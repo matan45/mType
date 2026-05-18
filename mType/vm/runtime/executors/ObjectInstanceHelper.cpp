@@ -297,6 +297,14 @@ namespace vm::runtime
         runtimeTypes::klass::ObjectInstance* instance,
         std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef)
     {
+        // Phase 3b: if every own non-final field is in skipDefaultInitFields
+        // (and the parent chain is similarly trivial), the entire init pass
+        // is a no-op. Skip the hierarchy walk, vector allocation, reverse,
+        // and per-field unordered_map iteration. For tiny short-lived classes
+        // like Point (constructor assigns every field, no inheritance) this
+        // is the dominant alloc-path cost.
+        if (classDef && classDef->isInitTriviallySkippable()) return;
+
         std::vector<std::shared_ptr<runtimeTypes::klass::ClassDefinition>> hierarchy;
         auto current = classDef;
         int depth = 0;

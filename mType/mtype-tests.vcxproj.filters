@@ -1042,6 +1042,9 @@
     <None Include="tests\testFiles\annotation\error\script_annotation_wrong_update_signature_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\error\script_on_function_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\error\throw_duplicate_annotation_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
@@ -2743,6 +2746,12 @@
     <None Include="tests\testFiles\benchmarks\arithmetic_tight_loop.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\array_literal_alloc_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\array_literal_alloc_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\array_multi_alloc.expected">
       <Filter>testFiles\benchmarks</Filter>
     </None>
@@ -2797,6 +2806,12 @@
     <None Include="tests\testFiles\benchmarks\cast_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\cast_miss_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\cast_miss_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\collections_hash_hot.expected">
       <Filter>testFiles\benchmarks</Filter>
     </None>
@@ -2813,6 +2828,18 @@
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\collections_hashset_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\deep_inheritance_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\deep_inheritance_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\exception_throw_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\exception_throw_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\field_read_hot.expected">
@@ -2851,6 +2878,12 @@
     <None Include="tests\testFiles\benchmarks\function_entry_tier_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\gc_churn_intense_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\gc_churn_intense_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\gc_cycle_churn.expected">
       <Filter>testFiles\benchmarks</Filter>
     </None>
@@ -2861,6 +2894,12 @@
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\generic_dispatch_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\ic_transition_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\ic_transition_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\inline_branching.expected">
@@ -2891,6 +2930,18 @@
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\inline_value_object_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\int_only_arith_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\int_only_arith_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\interface_dispatch_collections_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\interface_dispatch_collections_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\lambda_call_hot.expected">
@@ -3016,16 +3067,34 @@
     <None Include="tests\testFiles\benchmarks\string_ops.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\substring_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\substring_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\switch_dispatch_hot.expected">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\switch_dispatch_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\switch_on_string_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\switch_on_string_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\try_catch_finally_hot.expected">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\benchmarks\try_catch_finally_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\value_class_mut_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\value_class_mut_hot.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
     <None Include="tests\testFiles\bugs\infiniteLoopHangs.mt">
@@ -9433,6 +9502,18 @@
     <None Include="tests\testFiles\integration\pass\inlining\inline_value_object_readonly.mt">
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_value_object_write_osr.expected">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_value_object_write_osr.mt">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_value_object_write_poly.expected">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_value_object_write_poly.mt">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\inlining\inline_value_object_write_skip.expected">
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
@@ -11908,13 +11989,7 @@
     <None Include="tests\testFiles\nullSafety\error\nullableSuperUnchecked_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
-    <None Include="tests\testFiles\nullSafety\error\objFieldNarrowingUnsupported_error.mt">
-      <Filter>testFiles\nullSafety\error</Filter>
-    </None>
     <None Include="tests\testFiles\nullSafety\error\returnNullFromNonNull_error.mt">
-      <Filter>testFiles\nullSafety\error</Filter>
-    </None>
-    <None Include="tests\testFiles\nullSafety\error\thisFieldNarrowingUnsupported_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\arrayElementNullThenReassign.expected">

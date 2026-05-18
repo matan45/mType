@@ -159,11 +159,11 @@ namespace vm::bytecode
         // file containing it is malformed or tampered.
         CALL_METHOD_CACHED,
         // MYT-203: IC-stable polymorphic specialization of CALL_METHOD. Side
-        // table holds up to 4 (shape, funcMeta, program, programIndex,
+        // table holds up to IC_MAX_POLYMORPHIC_ENTRIES (shape, funcMeta, program, programIndex,
         // qualifiedName, definingClassName) tuples; hot path linear-scans
         // 2-4 shape compares, no icTable hashmap probe. Promoted on MONO→POLY
         // IC transition (independent sticky polyCachedDeoptCount). Demoted to
-        // CALL_METHOD on the POLY→MEGA transition (5th shape). Same RUNTIME-
+        // CALL_METHOD on the POLY→MEGA transition. Same RUNTIME-
         // ONLY invariant as CALL_METHOD_CACHED.
         CALL_METHOD_POLY_CACHED,
         // MYT-194: IC-stable specialization of GET_FIELD / SET_FIELD. Embedded
@@ -333,6 +333,10 @@ namespace vm::bytecode
 
         // === String Operations (160) ===
         STRING_BUILD,           // Build string from N segments on stack (operand: count)
+        // Pops a string discriminant and jumps to a matching string literal
+        // case target. operands: [defaultTarget, caseCount,
+        // caseStringIdx0, target0, caseStringIdx1, target1, ...].
+        SWITCH_STRING,
 
         // === Reserved for Future Use (161-255) ===
         // Opcodes reserved for future extensions
@@ -656,6 +660,7 @@ namespace vm::bytecode
             case OpCode::OBJECT_TO_VALUE: return "OBJECT_TO_VALUE";
 
             case OpCode::STRING_BUILD: return "STRING_BUILD";
+            case OpCode::SWITCH_STRING: return "SWITCH_STRING";
 
             case OpCode::ADD_INT_CONST: return "ADD_INT_CONST";
             case OpCode::LOAD_LOCAL_CALL_CACHED: return "LOAD_LOCAL_CALL_CACHED";

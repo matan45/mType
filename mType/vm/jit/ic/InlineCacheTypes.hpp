@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <array>
+#include <memory>
 #include <string>
 
 // Forward declarations
@@ -10,7 +11,7 @@ namespace vm::bytecode { class BytecodeProgram; }
 
 namespace vm::jit::ic
 {
-    constexpr size_t IC_MAX_POLYMORPHIC_ENTRIES = 4;
+    constexpr size_t IC_MAX_POLYMORPHIC_ENTRIES = 8;
 
     enum class ICState : uint8_t
     {
@@ -137,11 +138,92 @@ namespace vm::jit::ic
         const void* cachedJit = nullptr;
     };
 
+    // Phase 2c wider mega-IC tier. Once the inline POLY cache overflows we
+    // promote new entries here instead of declaring MEGAMORPHIC dead. A small
+    // open-addressed table absorbs 5-16 shapes; mega-tier hits still pay only
+    // ~1-2 probe comparisons before dispatch, vs. a full runtime method
+    // resolution. The POLY array remains the hot first-hit cache.
+    struct WideMethodICTable
+    {
+        static constexpr size_t WIDE_CAPACITY = 16;
+        static_assert((WIDE_CAPACITY & (WIDE_CAPACITY - 1)) == 0,
+                      "WIDE_CAPACITY must be a power of two for the mask probe");
+
+        std::array<MethodICEntry, WIDE_CAPACITY> entries{};
+        uint8_t count = 0;
+
+        static size_t hashShape(const runtimeTypes::klass::ClassDefinition* shape) noexcept
+        {
+            // ClassDefinition* alignment guarantees the low bits are zero;
+            // shift them off so the index entropy comes from the meaningful
+            // pointer bits.
+            return (reinterpret_cast<uintptr_t>(shape) >> 4)
+                   & static_cast<uintptr_t>(WIDE_CAPACITY - 1);
+        }
+
+        const MethodICEntry* lookup(const runtimeTypes::klass::ClassDefinition* shape) const noexcept
+        {
+            if (!shape || count == 0) return nullptr;
+            const size_t mask = WIDE_CAPACITY - 1;
+            const size_t home = hashShape(shape);
+            for (size_t step = 0; step < WIDE_CAPACITY; ++step)
+            {
+                const size_t idx = (home + step) & mask;
+                const MethodICEntry& e = entries[idx];
+                if (e.shape == shape) return &e;
+                if (e.shape == nullptr) return nullptr;
+            }
+            return nullptr;
+        }
+
+        bool addEntry(const MethodICEntry& entry) noexcept
+        {
+            if (!entry.shape || count >= WIDE_CAPACITY) return false;
+            const size_t mask = WIDE_CAPACITY - 1;
+            const size_t home = hashShape(entry.shape);
+            for (size_t step = 0; step < WIDE_CAPACITY; ++step)
+            {
+                const size_t idx = (home + step) & mask;
+                MethodICEntry& slot = entries[idx];
+                if (slot.shape == entry.shape)
+                {
+                    slot = entry;
+                    return true;
+                }
+                if (slot.shape == nullptr)
+                {
+                    slot = entry;
+                    ++count;
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        void invalidate() noexcept
+        {
+            for (auto& e : entries) e = MethodICEntry{};
+            count = 0;
+        }
+
+        void clearCachedJitForFunction(const void* evictedJit) noexcept
+        {
+            if (!evictedJit) return;
+            for (auto& e : entries)
+            {
+                if (e.shape && e.cachedJit == evictedJit) e.cachedJit = nullptr;
+            }
+        }
+    };
+
     struct MethodInlineCache
     {
         ICState state = ICState::UNINITIALIZED;
         uint8_t entryCount = 0;
         std::array<MethodICEntry, IC_MAX_POLYMORPHIC_ENTRIES> entries{};
+        // Phase 2c: lazily allocated when POLY overflows. Null until the next
+        // distinct shape arrives; consulted only when state==MEGAMORPHIC.
+        std::unique_ptr<WideMethodICTable> wide;
 
         const MethodICEntry* lookup(const runtimeTypes::klass::ClassDefinition* shape) const
         {
@@ -152,6 +234,7 @@ namespace vm::jit::ic
                     return &entries[i];
                 }
             }
+            if (wide) return wide->lookup(shape);
             return nullptr;
         }
 
@@ -165,8 +248,13 @@ namespace vm::jit::ic
 
             if (entryCount >= IC_MAX_POLYMORPHIC_ENTRIES)
             {
+                // Phase 2c: route to the wide tier instead of capitulating.
+                // State remains MEGAMORPHIC so the dispatcher knows to take
+                // the wide-probe path, but the entry is preserved and future
+                // calls of the same shape still hit a fast cached dispatch.
                 state = ICState::MEGAMORPHIC;
-                return false;
+                if (!wide) wide = std::make_unique<WideMethodICTable>();
+                return wide->addEntry(entry);
             }
 
             entries[entryCount] = entry;

@@ -44,6 +44,10 @@ namespace vm::jit::ic
         {
             cache.state = ICState::UNINITIALIZED;
             cache.entryCount = 0;
+            // Phase 2c: drop the wide tier on bulk invalidation. The
+            // unique_ptr release is fine — any IC re-fill recreates it on
+            // demand.
+            cache.wide.reset();
         }
         for (auto& [offset, feedback] : typeFeedbackMap)
         {
@@ -66,6 +70,8 @@ namespace vm::jit::ic
                     cache.entries[i].cachedJit = nullptr;
                 }
             }
+            // Phase 2c: walk the wide tier for the evicted JitFunction too.
+            if (cache.wide) cache.wide->clearCachedJitForFunction(evictedJit);
         }
     }
 

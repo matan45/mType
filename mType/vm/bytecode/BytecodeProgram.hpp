@@ -175,6 +175,14 @@ namespace vm::bytecode
                 inlineOperands[0] = v;
             }
 
+            void setOperandAt(size_t i, uint64_t v) noexcept {
+                if (i < 3) {
+                    inlineOperands[i] = v;
+                } else {
+                    overflow[i - 3] = v;
+                }
+            }
+
             // Load `count` operands from a contiguous source buffer (deserialize
             // path). Allocates overflow only if count > 3.
             void loadOperands(const uint64_t* src, size_t count);

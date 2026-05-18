@@ -286,11 +286,20 @@ namespace tests::testSuite
         addOutputVerificationTest("Inline Self-Recursive Guard",
                                   passPath + "inlining/inline_recursive_guard.mt");
         // MYT-167 Phase F-e: value-object receivers inline for read-only methods;
-        // write-containing callees still fall through.
+        // write-containing callees originally fell through (now materialise — see
+        // MYT-346 below).
         addOutputVerificationTest("Inline Value Object Read-Only",
                                   passPath + "inlining/inline_value_object_readonly.mt");
         addOutputVerificationTest("Inline Value Object Write Skip",
                                   passPath + "inlining/inline_value_object_write_skip.mt");
+        // MYT-346: value-class write methods now inline via a materialised
+        // temp ObjectInstance in local-0. _osr exercises the MONO path past
+        // the OSR threshold; _poly exercises the per-arm materialise in the
+        // POLYMORPHIC inliner.
+        addOutputVerificationTest("Inline Value Object Write OSR",
+                                  passPath + "inlining/inline_value_object_write_osr.mt");
+        addOutputVerificationTest("Inline Value Object Write Poly",
+                                  passPath + "inlining/inline_value_object_write_poly.mt");
 
         // MYT-164 Phase F-b: internal jumps + nested inlining.
         addOutputVerificationTest("Inline With If/Else Branches",
@@ -623,6 +632,49 @@ namespace tests::testSuite
                                   benchmarkPath + "switch_dispatch_hot.mt");
         addOutputVerificationTest("Benchmark: try_catch_finally_hot",
                                   benchmarkPath + "try_catch_finally_hot.mt");
+
+        // ====================================
+        // Phase 1: additional benchmark coverage for runtime-perf work
+        //   - deep_inheritance_hot          : 6-level chain, inherited-method dispatch
+        //   - interface_dispatch_collections_hot : interface dispatch through ArrayList iterator
+        //   - cast_miss_hot                 : isClassOf failure path
+        //   - exception_throw_hot           : throw-dominant try/catch loop
+        //   - ic_transition_hot             : mono -> poly -> mega IC promotion at one site
+        //   - switch_on_string_hot          : string-keyed switch dispatch
+        //   - substring_hot                 : substring allocation hot path
+        //   - gc_churn_intense_hot          : sustained allocation pressure
+        //   - array_literal_alloc_hot       : NEW_ARRAY literal inside loop body
+        //   - value_class_mut_hot           : value-class write-skip path
+        //   - int_only_arith_hot            : pure-INT arithmetic (companion to mixed loop)
+        //
+        // MYT-346: value_class_mut_hot currently FAILS under --jit (the OSR-
+        // compiled body diverges from the interpreter on value-class write
+        // methods past the OSR threshold — JIT prints total=500 vs the
+        // correct interpreter result total=2000000). Kept in the suite as a
+        // regression canary that will pass once the OSR path is fixed.
+        // ====================================
+        addOutputVerificationTest("Benchmark: deep_inheritance_hot",
+                                  benchmarkPath + "deep_inheritance_hot.mt");
+        addOutputVerificationTest("Benchmark: interface_dispatch_collections_hot",
+                                  benchmarkPath + "interface_dispatch_collections_hot.mt");
+        addOutputVerificationTest("Benchmark: cast_miss_hot",
+                                  benchmarkPath + "cast_miss_hot.mt");
+        addOutputVerificationTest("Benchmark: exception_throw_hot",
+                                  benchmarkPath + "exception_throw_hot.mt");
+        addOutputVerificationTest("Benchmark: ic_transition_hot",
+                                  benchmarkPath + "ic_transition_hot.mt");
+        addOutputVerificationTest("Benchmark: switch_on_string_hot",
+                                  benchmarkPath + "switch_on_string_hot.mt");
+        addOutputVerificationTest("Benchmark: substring_hot",
+                                  benchmarkPath + "substring_hot.mt");
+        addOutputVerificationTest("Benchmark: gc_churn_intense_hot",
+                                  benchmarkPath + "gc_churn_intense_hot.mt");
+        addOutputVerificationTest("Benchmark: array_literal_alloc_hot",
+                                  benchmarkPath + "array_literal_alloc_hot.mt");
+        addOutputVerificationTest("Benchmark: value_class_mut_hot",
+                                  benchmarkPath + "value_class_mut_hot.mt");
+        addOutputVerificationTest("Benchmark: int_only_arith_hot",
+                                  benchmarkPath + "int_only_arith_hot.mt");
 
         // ====================================
         // COMMENTED OUT - Test files were not created

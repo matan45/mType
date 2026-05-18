@@ -796,8 +796,14 @@ namespace vm::jit
 
             ic::MethodInlineCache& cache = ctx->icTable->getMethodIC(bytecodeOffset);
 
-            // Fast path: monomorphic / polymorphic shape match.
-            if (cache.state == ic::ICState::MONOMORPHIC || cache.state == ic::ICState::POLYMORPHIC)
+            // Fast path: monomorphic / polymorphic / wide-tier shape match.
+            // Phase 2c: MEGAMORPHIC also consults the cache; lookup() walks
+            // the wide tier on top of the inline POLY array, so overflow shapes
+            // 5..16 still get a cached dispatch from this JIT helper instead
+            // of falling through to the runtime method resolver.
+            if (cache.state == ic::ICState::MONOMORPHIC ||
+                cache.state == ic::ICState::POLYMORPHIC ||
+                cache.state == ic::ICState::MEGAMORPHIC)
             {
                 const ic::MethodICEntry* entry = cache.lookup(classDef);
                 if (entry && entry->protocolFastKind != ic::MethodProtocolFastKind::NONE)
@@ -887,14 +893,15 @@ namespace vm::jit
                 }
             }
 
-            // Miss / UNINITIALIZED / MEGAMORPHIC — defer to the generic helper.
+            // Miss — defer to the generic helper.
             jit_call_method(ctx, methodNameIndex, argCount);
             if (ctx->pendingException)
                 return;
 
-            // Populate cache for future iterations (skip MEGAMORPHIC: addEntry will
-            // no-op once the slot count is exceeded, but we save a hash hit + lookup).
-            if (cache.state != ic::ICState::MEGAMORPHIC)
+            // Phase 2c: populate the cache on every state including
+            // MEGAMORPHIC. addEntry routes shapes past the inline POLY tier into the wide
+            // tier; the next call of that shape will hit the cached
+            // dispatch above instead of repeating the runtime resolution.
             {
                 const std::string& rawMethodName =
                     ctx->program->getConstantPool().getString(methodNameIndex);
@@ -1585,6 +1592,38 @@ namespace vm::jit
         validateFieldAccessIfNeeded(instance, fieldName, classDef, ctx);
 
         *dest = instance->getFieldValue(fieldName);
+    }
+
+    // MYT-346: see JitHelpers.hpp for the contract. Mirrors
+    // VirtualMachine::callMethodFromJitDirect(const Value&,...) (VirtualMachineJit.cpp:505-518)
+    // — acquire from the pool, batch-load fields, wrap in OBJECT-tagged Value.
+    // Non-VALUE_OBJECT receivers (defensive: shape guard already filtered) get
+    // a plain byte copy so the emitter has a single code path.
+    void jit_materialise_value_receiver_into_local(value::Value* destLocal,
+                                                    const value::Value* sourceReceiver)
+    {
+        if (!value::isValueObject(*sourceReceiver))
+        {
+            *destLocal = *sourceReceiver;
+            return;
+        }
+
+        const auto& valueObj = value::asValueObject(*sourceReceiver);
+        if (!valueObj || !valueObj->getClassDefinition())
+        {
+            // Receiver claims VALUE_OBJECT tag but the bridge is null —
+            // shouldn't happen post-shape-guard, but fail safe by donating
+            // the source byte pattern. The inlined body will then fault on
+            // the first field access, which is the same outcome the slow
+            // path would produce via runJitMiniInterpret.
+            *destLocal = *sourceReceiver;
+            return;
+        }
+
+        auto tempInstance =
+            value::ObjectInstancePool::getInstance().acquire(valueObj->getClassDefinition());
+        tempInstance->loadFromValueObject(*valueObj);
+        *destLocal = value::Value(tempInstance);
     }
 
     static bool setFieldOnValueObject(value::Value* destValue,
