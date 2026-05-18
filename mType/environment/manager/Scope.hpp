@@ -1,5 +1,5 @@
 #pragma once
-#include "../../runtimeTypes/global/VariableDefinition.hpp"
+#include "../../environment/registry/VariableDefinition.hpp"
 #include <cstddef>
 #include <unordered_map>
 #include <memory>

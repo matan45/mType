@@ -3,17 +3,18 @@
 #include "../../ast/AccessModifier.hpp"
 #include "../../ast/nodes/annotations/AnnotationNode.hpp"
 #include "../../types/UnifiedType.hpp"
-#include "../Definition.hpp"
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace runtimeTypes::klass
 {
     using namespace value;
 
-    class FieldDefinition : public Definition
+    class FieldDefinition
     {
     private:
+        std::string name;
         ValueType type;
         Value value;
         bool isStaticField;
@@ -28,11 +29,13 @@ namespace runtimeTypes::klass
         std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> annotations;
 
     public:
+        const std::string& getName() const { return name; }
+
         // Legacy constructor for backward compatibility
         explicit FieldDefinition(const std::string& n, ValueType t, const Value& v = {},
                         bool stat = false, bool fin = false,
                         ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
-            : Definition(n), type(t), value(v),
+            : name(n), type(t), value(v),
               isStaticField(stat), isFinalField(fin), isInitializedField(false), accessModifier(modifier),
               unifiedType(nullptr)
         {
@@ -44,7 +47,7 @@ namespace runtimeTypes::klass
                         const Value& v = {},
                         bool stat = false, bool fin = false,
                         ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
-            : Definition(n), type(t), value(v),
+            : name(n), type(t), value(v),
               isStaticField(stat), isFinalField(fin), isInitializedField(false), accessModifier(modifier),
               unifiedType(std::move(uType))
         {

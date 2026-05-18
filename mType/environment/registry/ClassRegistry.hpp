@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "Registry.hpp"
 #include "InheritanceTracker.hpp"
-#include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "ClassDefinition.hpp"
 #include "../../types/ReifiedTypeRegistry.hpp"
 #include <memory>
 #include <string>

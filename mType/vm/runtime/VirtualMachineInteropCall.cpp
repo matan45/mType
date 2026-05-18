@@ -10,9 +10,9 @@
 #include "../../errors/ScriptException.hpp"
 #include "../../errors/UserException.hpp"
 #include "utils/ExceptionHandler.hpp"
-#include "../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../../runtimeTypes/klass/MethodDefinition.hpp"
+#include "../../value/ObjectInstance.hpp"
+#include "../../environment/registry/ClassDefinition.hpp"
+#include "../../environment/registry/MethodDefinition.hpp"
 #include "../../value/AsyncPromiseValue.hpp"
 #include "../../value/PromiseValue.hpp"
 

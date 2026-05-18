@@ -3,7 +3,7 @@
 #include "../../../ast/nodes/classes/InterfaceNode.hpp"
 #include "../../../errors/SourceLocation.hpp"
 #include "../../../environment/Environment.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
 #include "../../../types/TypeSubstitutionService.hpp"
 #include <memory>
 #include <string>

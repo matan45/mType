@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../value/ObjectInstance.hpp"
 
 namespace value {
 

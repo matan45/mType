@@ -2,8 +2,8 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "../../value/ValueType.hpp"
-#include "../../environment/Environment.hpp"
+#include "../../../value/ValueType.hpp"
+#include "../../Environment.hpp"
 
 namespace runtimeTypes::global
 {

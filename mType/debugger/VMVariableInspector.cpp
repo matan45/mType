@@ -4,7 +4,7 @@
 #include "../vm/runtime/stack/StackManager.hpp"
 #include "../vm/runtime/context/ExecutionContext.hpp"
 #include "../vm/bytecode/BytecodeProgram.hpp"
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../value/ObjectInstance.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/FlatMultiArray.hpp"
 #include "../value/SparseMultiArray.hpp"

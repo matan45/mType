@@ -12,7 +12,7 @@
 #include "../utils/NullCheckUtils.hpp"
 #include "../utils/MethodResolver.hpp"
 #include "../validation/AccessValidator.hpp"
-#include "../../../runtimeTypes/klass/SignatureUtils.hpp"
+#include "../../../environment/registry/SignatureUtils.hpp"
 #include "../../../value/ValueShim.hpp"
 #include "../../../value/SmallArgsBuffer.hpp"
 #include "../../../value/PrimitiveTypeTag.hpp"

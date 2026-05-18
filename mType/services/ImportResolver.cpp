@@ -4,8 +4,8 @@
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
 #include "../ast/nodes/classes/ClassNode.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../runtimeTypes/global/FunctionDefinition.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
+#include "../environment/registry/FunctionDefinition.hpp"
 #include <stdexcept>
 
 namespace services

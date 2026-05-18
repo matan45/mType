@@ -3,7 +3,7 @@
 #include "../../MethodSignature.hpp"
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/EnvironmentException.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include <iostream>
 namespace vm::compiler::validation

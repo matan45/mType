@@ -4,7 +4,7 @@
 #include "../../../value/ValueObject.hpp"
 #include "../../../environment/Environment.hpp"
 #include "../../../errors/RuntimeException.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
 #include <memory>
 #include <span>
 #include <string>

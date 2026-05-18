@@ -2,8 +2,8 @@
 #include "../../../errors/UserException.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../value/ObjectInstancePool.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../value/ObjectInstance.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
 #include "../../../environment/Environment.hpp"
 #include "../../../environment/registry/ClassRegistry.hpp"
 

@@ -11,9 +11,9 @@
 #include "../../value/ValueShim.hpp"
 #include "../../value/InternedString.hpp"
 #include "../../value/NativeArray.hpp"
-#include "../../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../../runtimeTypes/klass/FieldDefinition.hpp"
-#include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../environment/registry/ClassDefinition.hpp"
+#include "../../environment/registry/FieldDefinition.hpp"
+#include "../../value/ObjectInstance.hpp"
 #include "../../services/ScriptAPI.hpp"
 #include "../../errors/RuntimeException.hpp"
 

@@ -20,7 +20,7 @@
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/UserException.hpp"
 #include "../../errors/SourceLocation.hpp"
-#include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../value/ObjectInstance.hpp"
 #include "../../value/PromiseValue.hpp"
 #include "../../value/ValueShim.hpp"
 #include "../../debugger/DebugContext.hpp"

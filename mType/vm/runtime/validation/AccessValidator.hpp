@@ -1,10 +1,10 @@
 #pragma once
 #include "../../../ast/AccessModifier.hpp"
 #include "../../../errors/AccessViolationException.hpp"
-#include "../../../runtimeTypes/klass/FieldDefinition.hpp"
-#include "../../../runtimeTypes/klass/MethodDefinition.hpp"
-#include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../environment/registry/FieldDefinition.hpp"
+#include "../../../environment/registry/MethodDefinition.hpp"
+#include "../../../environment/registry/ConstructorDefinition.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
 #include <string>
 #include <memory>
 

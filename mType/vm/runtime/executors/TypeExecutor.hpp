@@ -4,8 +4,8 @@
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../value/StringPool.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../value/ObjectInstance.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
 #include "../../../value/ValueObject.hpp"
 #include <functional>
 #include <unordered_set>

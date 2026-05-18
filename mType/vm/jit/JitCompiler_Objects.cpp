@@ -9,7 +9,7 @@
 #include "ic/TypeFeedbackCollector.hpp"
 #include "../optimization/InlineAnalysis.hpp"
 #include "../optimization/analysis/DataFlowAnalyzer.hpp"  // MYT-251: per-opcode stack effect for callee peak pre-scan
-#include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../environment/registry/ClassDefinition.hpp"
 #include <asmjit/x86.h>
 #include <cassert>
 #include <cstdlib>  // MYT-252: getenv for MTYPE_DISABLE_INLINE_FIELD_GET/SET (still scoped)

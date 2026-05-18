@@ -6,7 +6,7 @@
 #include "../environment/manager/VariableManager.hpp"
 #include "../environment/registry/ClassRegistry.hpp"
 #include "../environment/registry/FunctionRegistry.hpp"
-#include "../runtimeTypes/klass/InterfaceRegistry.hpp"
+#include "../environment/registry/InterfaceRegistry.hpp"
 
 #include <algorithm>
 

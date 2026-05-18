@@ -9,7 +9,7 @@
 #include "../../../value/ValueShim.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../errors/UserException.hpp"
-#include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
+#include "../../../environment/registry/InterfaceDefinition.hpp"
 #include <sstream>
 #include <iostream>
 #include <cctype>

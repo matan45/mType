@@ -1,6 +1,6 @@
 #include "NativeFunctionRegistry.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../runtimeTypes/global/VariableDefinition.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
+#include "../environment/registry/VariableDefinition.hpp"
 #include "../environment/registry/NativeRegistry.hpp"
 #include "../value/ValueTypeUtils.hpp"
 

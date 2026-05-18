@@ -3,8 +3,8 @@
 #include "AnnotationUsageValidator.hpp"
 #include "../errors/InheritanceException.hpp"
 #include "../errors/TypeException.hpp"
-#include "../runtimeTypes/klass/InterfaceDefinition.hpp"
-#include "../runtimeTypes/klass/InterfaceRegistry.hpp"
+#include "../environment/registry/InterfaceDefinition.hpp"
+#include "../environment/registry/InterfaceRegistry.hpp"
 #include "../value/ValueType.hpp"
 #include "../constants/ExceptionConstants.hpp"
 #include <sstream>

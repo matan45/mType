@@ -14,7 +14,7 @@
 #include "../../../value/SparseMultiArray.hpp"
 #include "../../../value/ValueShim.hpp"
 #include "../../../value/ValueObject.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../value/ObjectInstance.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../utils/ArrayBoundsChecker.hpp"
 

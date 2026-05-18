@@ -30,11 +30,11 @@ Domain vocabulary used by the `/improve-codebase-architecture` skill and other p
 
 ## Types
 
-- A type in mType has three representations, with one runtime catalog owning the live metadata:
+- A type in mType has two representations, with one runtime catalog owning the live metadata:
   - **GenericType (AST)** — parse-time descriptor with raw type strings.
-  - **Definition (runtimeTypes/)** — runtime metadata base class (methods, fields).
-  - **ClassDefinition** — `Definition` specialized for user-defined classes; lifecycle owned by the catalog.
+  - **ClassDefinition** (and its sibling `MethodDefinition`, `FieldDefinition`, `ConstructorDefinition`, `InterfaceDefinition`, `AnnotationDefinition`, `FunctionDefinition`, `VariableDefinition`) — runtime metadata, each owning its own `std::string name` field. There is no shared base class; each definition is concrete. Lifecycle is owned by the catalog.
 - **TypeCatalog** (`environment/registry/`) is the single runtime home for everything the compiler and VM ask about a type: class lifecycle, inheritance graph, primitive / Box mapping, generic-parameter lists, collection/array metadata, subtype queries, and reified generic-instance interning. It inherits `ClassRegistry`, so legacy `env->getClassRegistry()->X()` call sites still resolve to TypeCatalog by Liskov substitution; new code uses `env->getTypeCatalog()`. The former `types::TypeRegistry` global singleton was absorbed; standalone helpers (`ExtendedTypeInfo`, `ArrayTypeParser`, `GenericInstantiationParser`, `InheritanceChainTraverser`) now live in `types/TypeDescriptors.hpp`.
+- Definition headers live next to their registries in `environment/registry/`. The former `runtimeTypes/` directory was dissolved when the `runtimeTypes::Definition` base class (which contributed only `getName()`) was removed. `ObjectInstance` moved to `value/` since it's a runtime instance, not a definition. `ArrayOperationsNative` moved to `environment/registry/builtin/` alongside other builtin registrars. Namespace identifiers (`runtimeTypes::klass::X`, `runtimeTypes::global::X`) are preserved for now to limit the rename surface; a follow-up commit can align namespaces to the new folder.
 
 ## Plugins & native code
 

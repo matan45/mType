@@ -3,7 +3,7 @@
 #include <cstddef>
 #include "../../../value/ValueShim.hpp"
 #include "../../../errors/NullPointerException.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../value/ObjectInstance.hpp"
 #include "../../../value/ValueObject.hpp"
 #include "../context/ExecutionContext.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"

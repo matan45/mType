@@ -1,6 +1,6 @@
 #include "DebugExpressionEvaluator.hpp"
 #include "VMVariableInspector.hpp"
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../value/ObjectInstance.hpp"
 #include "../value/FlatMultiArray.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/SparseMultiArray.hpp"

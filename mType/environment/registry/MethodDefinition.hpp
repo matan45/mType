@@ -12,7 +12,7 @@
 #include "../../ast/GenericTypeParameter.hpp"
 #include "../../ast/nodes/annotations/AnnotationNode.hpp"
 #include "../../errors/SourceLocation.hpp"
-#include "../Definition.hpp"
+#include <string>
 
 // Forward declarations to avoid circular dependency
 namespace value
@@ -31,9 +31,10 @@ namespace runtimeTypes::klass
     using namespace value;
     using namespace ast;
 
-    class MethodDefinition : public Definition
+    class MethodDefinition
     {
     private:
+        std::string name;
         ValueType returnType;
         std::vector<std::pair<std::string, ParameterType>> parameters;
         std::shared_ptr<ASTNode> body;
@@ -78,12 +79,14 @@ namespace runtimeTypes::klass
         void validateGenericTypeRecursive(const ::types::UnifiedTypePtr& type, const std::string& context) const;
 
     public:
+        const std::string& getName() const { return name; }
+
         // Legacy constructor for backward compatibility with ValueType
         explicit MethodDefinition(const std::string& n, ValueType rt,
                                   const std::vector<std::pair<std::string, ValueType>>& params,
                                   std::shared_ptr<ASTNode> b, bool s,
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
-            : Definition(n), returnType(rt), parameters(ParameterTypeConverter::fromValueTypeVector(params)),
+            : name(n), returnType(rt), parameters(ParameterTypeConverter::fromValueTypeVector(params)),
               body(b), isStaticMethod(s), accessModifier(modifier),
               lambdaImplementation(nullptr), lambdaNode(), unifiedReturnType(nullptr), unifiedParameters(),
               typeSubstitutionMap(), isAsync(false), abstractMethod(false), finalMethod(false)
@@ -95,7 +98,7 @@ namespace runtimeTypes::klass
                                   const std::vector<std::pair<std::string, ParameterType>>& params,
                                   std::shared_ptr<ASTNode> b, bool s,
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
-            : Definition(n), returnType(rt), parameters(params), body(b), isStaticMethod(s),
+            : name(n), returnType(rt), parameters(params), body(b), isStaticMethod(s),
               accessModifier(modifier), lambdaImplementation(nullptr), lambdaNode(), unifiedReturnType(nullptr),
               unifiedParameters(), typeSubstitutionMap(), isAsync(false), abstractMethod(false), finalMethod(false)
         {
@@ -111,7 +114,7 @@ namespace runtimeTypes::klass
                                   const std::vector<ast::GenericTypeParameter>& genTypeParams = {},
                                   const std::unordered_map<std::string, std::string>& substitutions = {},
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
-            : Definition(n), returnType(rt), parameters(ParameterTypeConverter::fromValueTypeVector(params)),
+            : name(n), returnType(rt), parameters(ParameterTypeConverter::fromValueTypeVector(params)),
               body(b), isStaticMethod(s), accessModifier(modifier),
               lambdaImplementation(nullptr), lambdaNode(), unifiedReturnType(std::move(uRetType)), unifiedParameters(uParams),
               genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions), isAsync(false), abstractMethod(false), finalMethod(false)
@@ -130,7 +133,7 @@ namespace runtimeTypes::klass
                                   const std::vector<ast::GenericTypeParameter>& genTypeParams = {},
                                   const std::unordered_map<std::string, std::string>& substitutions = {},
                                   ast::AccessModifier modifier = ast::AccessModifier::PRIVATE)
-            : Definition(n), returnType(rt), parameters(params), body(b), isStaticMethod(s),
+            : name(n), returnType(rt), parameters(params), body(b), isStaticMethod(s),
               accessModifier(modifier), lambdaImplementation(nullptr), lambdaNode(), unifiedReturnType(std::move(uRetType)),
               unifiedParameters(uParams), genericTypeParameters(genTypeParams), typeSubstitutionMap(substitutions),
               isAsync(false), abstractMethod(false), finalMethod(false)

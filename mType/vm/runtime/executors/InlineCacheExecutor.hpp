@@ -3,8 +3,8 @@
 #include <cstddef>
 #include "../../jit/ic/InlineCacheTable.hpp"
 #include "../../jit/ic/InlineCacheTypes.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../value/ObjectInstance.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/NullPointerException.hpp"
 #include "../../../errors/FieldNotFoundException.hpp"

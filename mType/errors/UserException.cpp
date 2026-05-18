@@ -1,5 +1,5 @@
 #include "UserException.hpp"
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../value/ObjectInstance.hpp"
 #include "../value/ValueShim.hpp"
 
 namespace errors

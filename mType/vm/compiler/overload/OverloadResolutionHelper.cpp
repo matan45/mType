@@ -1,7 +1,7 @@
 #include "OverloadResolutionHelper.hpp"
 #include <cstddef>
 #include "OverloadResolver.hpp"
-#include "../../../runtimeTypes/klass/SignatureUtils.hpp"
+#include "../../../environment/registry/SignatureUtils.hpp"
 #include "../../../errors/NoMatchingOverloadException.hpp"
 #include "../../../errors/AmbiguousCallException.hpp"
 #include "../../../types/TypeConversionUtils.hpp"

@@ -4,7 +4,7 @@
 #include "JitCodeCache.hpp"
 #include "../bytecode/OpCode.hpp"
 #include "../optimization/InlineAnalysis.hpp"  // MYT-316: INLINE_SIZE_LIMIT
-#include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../value/ObjectInstance.hpp"
 #include "../../value/ValueObject.hpp"
 #include "../../value/ValueBridge.hpp"
 #include <asmjit/x86.h>

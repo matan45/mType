@@ -1,7 +1,7 @@
 #include "FlatMultiObjectArray.hpp"
 #include <cstddef>
 #include <cstdint>
-#include "../../../runtimeTypes/klass/FieldDefinition.hpp"
+#include "../../../environment/registry/FieldDefinition.hpp"
 #include "../../ValueShim.hpp"
 
 namespace mType

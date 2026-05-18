@@ -5,7 +5,7 @@
 #include "ValuePrinter.hpp"
 #include "../NativeBinder.hpp"
 #include "../../NativeContext.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../value/ObjectInstance.hpp"
 #include "../../../value/AsyncPromiseValue.hpp"
 #include "../../../value/PromiseValue.hpp"
 #include "../../../value/ValueShim.hpp"

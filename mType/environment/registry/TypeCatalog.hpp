@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "ClassRegistry.hpp"
-#include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "ClassDefinition.hpp"
 #include "../../types/TypeDescriptors.hpp"
 #include "../../types/UnifiedType.hpp"
 #include "../../value/ValueType.hpp"

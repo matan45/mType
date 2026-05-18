@@ -6,7 +6,7 @@
 #include "guards/DeoptimizationHandler.hpp"
 #include "../bytecode/OpCode.hpp"
 #include "../runtime/VirtualMachine.hpp"
-#include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../value/ObjectInstance.hpp"
 #include "../../value/NativeArray.hpp"
 #include "../../value/StringPool.hpp"
 #include <iostream>      // MYT-248/249/250: cerr in catch handler diagnostic

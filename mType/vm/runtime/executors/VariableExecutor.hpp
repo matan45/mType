@@ -9,7 +9,7 @@
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../value/ValueType.hpp"
 #include "../../../value/ValueShim.hpp"
-#include "../../../runtimeTypes/global/VariableDefinition.hpp"
+#include "../../../environment/registry/VariableDefinition.hpp"
 #include "../../../constants/SecurityConstants.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 

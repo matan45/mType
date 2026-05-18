@@ -1,7 +1,6 @@
 #pragma once
 
 #include "AnnotationParamSchema.hpp"
-#include "../Definition.hpp"
 #include "../../ast/nodes/annotations/AnnotationNode.hpp"
 #include <memory>
 #include <string>
@@ -14,11 +13,13 @@ namespace runtimeTypes::klass
     /// Runtime form of a user-declared `annotation Foo { ... }` type.
     /// Carries the ordered parameter schema plus a flag for built-ins that
     /// take a fixed, hard-coded validator path (Override, Script, EntryPoint, Throw).
-    class AnnotationDefinition : public Definition
+    class AnnotationDefinition
     {
     public:
-        explicit AnnotationDefinition(const std::string& name, bool builtin = false)
-            : Definition(name), builtin_(builtin) {}
+        explicit AnnotationDefinition(const std::string& n, bool builtin = false)
+            : name_(n), builtin_(builtin) {}
+
+        const std::string& getName() const { return name_; }
 
         bool isBuiltin() const { return builtin_; }
 
@@ -58,6 +59,7 @@ namespace runtimeTypes::klass
         }
 
     private:
+        std::string name_;
         std::vector<AnnotationParamSchema> params_;
         bool builtin_;
         std::shared_ptr<ClassDefinition> syntheticClass_;

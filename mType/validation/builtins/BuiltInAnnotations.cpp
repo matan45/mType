@@ -1,6 +1,6 @@
 #include "BuiltInAnnotations.hpp"
-#include "../../runtimeTypes/klass/AnnotationDefinition.hpp"
-#include "../../runtimeTypes/klass/AnnotationParamSchema.hpp"
+#include "../../environment/registry/AnnotationDefinition.hpp"
+#include "../../environment/registry/AnnotationParamSchema.hpp"
 
 namespace validation::builtins
 {

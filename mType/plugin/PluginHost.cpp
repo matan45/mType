@@ -7,8 +7,8 @@
 #include "../value/ValueShim.hpp"
 #include "../value/InternedString.hpp"
 #include "../value/NativeArray.hpp"
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../value/ObjectInstance.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
 #include "../errors/RuntimeException.hpp"
 

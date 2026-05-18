@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <array>
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../value/ObjectInstance.hpp"
 
 namespace value {
 

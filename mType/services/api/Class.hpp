@@ -4,8 +4,8 @@
 #include <variant>
 #include "../../value/ValueType.hpp"
 #include "../../value/ValueShim.hpp"
-#include "../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../value/ObjectInstance.hpp"
+#include "../../environment/registry/ClassDefinition.hpp"
 #include "../../errors/ObjectException.hpp"
 
 namespace services::api

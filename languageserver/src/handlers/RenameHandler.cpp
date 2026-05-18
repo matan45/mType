@@ -8,7 +8,7 @@
 #include <unordered_set>
 
 #include "../../../mType/environment/registry/ClassRegistry.hpp"
-#include "../../../mType/runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../mType/environment/registry/ClassDefinition.hpp"
 #include "../../../mType/token/TokenType.hpp"
 #include "../utils/LSPUtils.hpp"
 

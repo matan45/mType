@@ -1,9 +1,9 @@
 #include "FunctionExecutor.hpp"
 #include <cstddef>
 #include "../../../errors/SourceLocation.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
+#include "../../../value/ObjectInstance.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
+#include "../../../environment/registry/InterfaceDefinition.hpp"
 #include "../../../constants/LambdaConstants.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../profiler/ProfilerHookHelper.hpp"

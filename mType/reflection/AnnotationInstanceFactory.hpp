@@ -1,8 +1,8 @@
 #pragma once
 
 #include "../ast/nodes/annotations/AnnotationNode.hpp"
-#include "../runtimeTypes/klass/AnnotationDefinition.hpp"
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../environment/registry/AnnotationDefinition.hpp"
+#include "../value/ObjectInstance.hpp"
 #include <memory>
 
 namespace reflection

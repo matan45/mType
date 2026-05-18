@@ -1,10 +1,10 @@
 #include "ExceptionExecutor.hpp"
 #include <cstddef>
 #include <sstream>
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../value/ObjectInstance.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
 #include "../../../value/ValueShim.hpp"
-#include "../../../runtimeTypes/global/VariableDefinition.hpp"
+#include "../../../environment/registry/VariableDefinition.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../VirtualMachine.hpp"
 

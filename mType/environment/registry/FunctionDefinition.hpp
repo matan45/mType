@@ -2,21 +2,22 @@
 #include <vector>
 #include <cstddef>
 #include <memory>
+#include <string>
 #include "../../value/ValueType.hpp"
 #include "../../value/ParameterType.hpp"
 #include "../../ast/ASTNode.hpp"
 #include "../../ast/GenericTypeParameter.hpp"
 #include "../../ast/nodes/annotations/AnnotationNode.hpp"
-#include "../Definition.hpp"
 
 namespace runtimeTypes::global
 {
     using namespace value;
     using namespace ast;
 
-    class FunctionDefinition : public Definition
+    class FunctionDefinition
     {
     private:
+        std::string name;
         ValueType returnType;
         std::string returnClassName;  // For object return types, stores the class/interface name
         std::vector<std::pair<std::string, ParameterType>> parameters;
@@ -29,18 +30,20 @@ namespace runtimeTypes::global
         std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>> parameterAnnotations;
 
     public:
-        explicit FunctionDefinition(const std::string& name) : Definition(name), returnType(ValueType::VOID), returnClassName(""), body(nullptr), isAsync(false) {}
+        const std::string& getName() const { return name; }
 
-        explicit FunctionDefinition(const std::string& name, ValueType retType, const std::vector<std::pair<std::string, ParameterType>>& params)
-            : Definition(name), returnType(retType), returnClassName(""), parameters(params), body(nullptr), isAsync(false) {}
+        explicit FunctionDefinition(const std::string& n) : name(n), returnType(ValueType::VOID), returnClassName(""), body(nullptr), isAsync(false) {}
+
+        explicit FunctionDefinition(const std::string& n, ValueType retType, const std::vector<std::pair<std::string, ParameterType>>& params)
+            : name(n), returnType(retType), returnClassName(""), parameters(params), body(nullptr), isAsync(false) {}
 
         // Constructor with return class name support
-        explicit FunctionDefinition(const std::string& name, ValueType retType, const std::string& retClassName, const std::vector<std::pair<std::string, ParameterType>>& params)
-            : Definition(name), returnType(retType), returnClassName(retClassName), parameters(params), body(nullptr), isAsync(false) {}
+        explicit FunctionDefinition(const std::string& n, ValueType retType, const std::string& retClassName, const std::vector<std::pair<std::string, ParameterType>>& params)
+            : name(n), returnType(retType), returnClassName(retClassName), parameters(params), body(nullptr), isAsync(false) {}
 
         // Backward compatibility constructor for old ValueType parameters
-        explicit FunctionDefinition(const std::string& name, ValueType retType, const std::vector<std::pair<std::string, ValueType>>& params)
-            : Definition(name), returnType(retType), returnClassName(""), parameters(ParameterTypeConverter::fromValueTypeVector(params)), body(nullptr), isAsync(false) {}
+        explicit FunctionDefinition(const std::string& n, ValueType retType, const std::vector<std::pair<std::string, ValueType>>& params)
+            : name(n), returnType(retType), returnClassName(""), parameters(ParameterTypeConverter::fromValueTypeVector(params)), body(nullptr), isAsync(false) {}
 
         ValueType getReturnType() const { return returnType; }
         void setReturnType(ValueType type) { returnType = type; }

@@ -9,10 +9,10 @@
 #include "manager/VariableManager.hpp"
 #include "manager/ScopeManager.hpp"
 
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../runtimeTypes/klass/InterfaceRegistry.hpp"
-#include "../runtimeTypes/global/FunctionDefinition.hpp"
-#include "../runtimeTypes/global/VariableDefinition.hpp"
+#include "registry/ClassDefinition.hpp"
+#include "registry/InterfaceRegistry.hpp"
+#include "registry/FunctionDefinition.hpp"
+#include "registry/VariableDefinition.hpp"
 #include "../circularDependency/CircularDependencyDetector.hpp"
 #include <memory>
 #include <string>

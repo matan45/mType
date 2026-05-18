@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include "../../runtimeTypes/global/VariableDefinition.hpp"
+#include "../../environment/registry/VariableDefinition.hpp"
 
 namespace environment::manager
 {

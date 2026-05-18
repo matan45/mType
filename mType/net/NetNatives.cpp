@@ -42,8 +42,8 @@
 #include "HashMapMarshal.hpp"
 
 #include "../runtime/EventLoop.hpp"
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../value/ObjectInstance.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
 #include "../value/AsyncPromiseValue.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/ObjectInstancePool.hpp"

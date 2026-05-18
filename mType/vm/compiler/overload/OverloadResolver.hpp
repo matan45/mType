@@ -6,8 +6,8 @@
 #include <optional>
 #include "../../../value/ParameterType.hpp"
 #include "../../../value/ValueType.hpp"
-#include "../../../runtimeTypes/klass/MethodDefinition.hpp"
-#include "../../../runtimeTypes/global/FunctionDefinition.hpp"
+#include "../../../environment/registry/MethodDefinition.hpp"
+#include "../../../environment/registry/FunctionDefinition.hpp"
 #include "../../../errors/SourceLocation.hpp"
 
 namespace environment::registry { class TypeCatalog; }

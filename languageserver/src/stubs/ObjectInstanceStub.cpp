@@ -1,5 +1,5 @@
 // ObjectInstance stub for language server - LSP doesn't need runtime object instances
-#include "../../../mType/runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../mType/value/ObjectInstance.hpp"
 
 namespace runtimeTypes::klass
 {

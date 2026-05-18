@@ -1,6 +1,6 @@
 #pragma once
-#include "../Definition.hpp"
 #include <cstddef>
+#include <string>
 #include "../../ast/GenericTypeParameter.hpp"
 #include "../../types/UnifiedType.hpp"
 #include "../../value/ValueType.hpp"
@@ -27,8 +27,9 @@ namespace runtimeTypes::klass {
         std::vector<ast::GenericTypeParameter> genericParameters;
     };
     
-    class InterfaceDefinition : public Definition {
+    class InterfaceDefinition {
     private:
+        std::string name;
         std::vector<MethodSignature> methodSignatures;
         std::vector<ast::GenericTypeParameter> genericParameters;
         std::vector<std::string> extendsInterfaces; // Interface inheritance
@@ -36,10 +37,12 @@ namespace runtimeTypes::klass {
         bool finalInterface; // NEW: Final modifier to prevent extension
 
     public:
-        InterfaceDefinition(const std::string& name,
+        const std::string& getName() const { return name; }
+
+        InterfaceDefinition(const std::string& n,
                            const std::vector<ast::GenericTypeParameter>& generics = {},
                            const std::vector<std::string>& extendedInterfaces = {})
-            : Definition(name), genericParameters(generics), extendsInterfaces(extendedInterfaces),
+            : name(n), genericParameters(generics), extendsInterfaces(extendedInterfaces),
               isGenericInterface(!generics.empty()), finalInterface(false) {}
 
         void addMethodSignature(const MethodSignature& signature) {

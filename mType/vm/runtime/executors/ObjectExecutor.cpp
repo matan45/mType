@@ -11,7 +11,7 @@
 #include "../utils/NullCheckUtils.hpp"
 #include "../../../errors/SourceLocation.hpp"
 #include "../../../errors/TypeException.hpp"
-#include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
+#include "../../../environment/registry/InterfaceDefinition.hpp"
 #include "../../../constants/LambdaConstants.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../profiler/ProfilerHookHelper.hpp"
@@ -24,7 +24,7 @@
 #include "../context/SharedStackFramePool.hpp"
 #include "../utils/BoxingUtils.hpp"
 #include "../utils/MethodResolver.hpp"
-#include "../../../runtimeTypes/klass/SignatureUtils.hpp"
+#include "../../../environment/registry/SignatureUtils.hpp"
 #include <algorithm>
 
 using vm::runtime::utils::autoBoxPrimitive;

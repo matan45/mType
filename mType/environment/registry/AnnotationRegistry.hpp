@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Registry.hpp"
-#include "../../runtimeTypes/klass/AnnotationDefinition.hpp"
+#include "AnnotationDefinition.hpp"
 
 namespace environment::registry
 {

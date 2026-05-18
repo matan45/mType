@@ -11,7 +11,6 @@
 #include "ConstructorDefinition.hpp"
 #include "FieldDefinition.hpp"
 #include "MethodDefinition.hpp"
-#include "../Definition.hpp"
 #include "../../ast/GenericTypeParameter.hpp"
 #include "../../ast/nodes/annotations/AnnotationNode.hpp"
 #include "../../types/UnifiedType.hpp"
@@ -28,9 +27,10 @@ namespace runtimeTypes::klass
 
 namespace runtimeTypes::klass
 {
-    class ClassDefinition : public Definition
+    class ClassDefinition
     {
     private:
+        std::string name;
         // Instance members
         std::unordered_map<std::string, std::shared_ptr<FieldDefinition>> instanceFields;
         std::vector<std::string> instanceFieldOrder;
@@ -96,14 +96,16 @@ namespace runtimeTypes::klass
         std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>> annotations;
 
     public:
+        const std::string& getName() const { return name; }
+
         explicit ClassDefinition(const std::string& n)
-            : Definition(n), isGenericClass(false), finalClass(false), abstractClass(false), valueClass(false)
+            : name(n), isGenericClass(false), finalClass(false), abstractClass(false), valueClass(false)
         {
         }
 
         // NEW: Constructor with generic parameters
         explicit ClassDefinition(const std::string& n, const std::vector<ast::GenericTypeParameter>& generics)
-            : Definition(n), genericParameters(generics), isGenericClass(!generics.empty()), finalClass(false),
+            : name(n), genericParameters(generics), isGenericClass(!generics.empty()), finalClass(false),
               abstractClass(false), valueClass(false)
         {
         }

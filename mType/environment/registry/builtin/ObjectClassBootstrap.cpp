@@ -1,7 +1,7 @@
 #include "ObjectClassBootstrap.hpp"
 #include "../../Environment.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../../../runtimeTypes/klass/MethodDefinition.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
+#include "../../../environment/registry/MethodDefinition.hpp"
 #include "../../../value/ParameterType.hpp"
 #include "../../../ast/AccessModifier.hpp"
 #include <stdexcept>

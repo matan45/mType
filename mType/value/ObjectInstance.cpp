@@ -1,9 +1,9 @@
 #include "ObjectInstance.hpp"
 #include <cstdint>
-#include "../../gc/GC.hpp"
-#include "../../value/ValueShim.hpp"
-#include "../../value/ValueBridge.hpp"
-#include "../../value/ValueObject.hpp"
+#include "../gc/GC.hpp"
+#include "ValueShim.hpp"
+#include "ValueBridge.hpp"
+#include "ValueObject.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cstddef>

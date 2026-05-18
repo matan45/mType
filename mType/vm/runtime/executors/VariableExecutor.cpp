@@ -1,8 +1,8 @@
 #include "VariableExecutor.hpp"
 #include <cstddef>
 #include <cstdint>
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../value/ObjectInstance.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
 #include "../../../value/ValueTypeUtils.hpp"
 
 namespace vm::runtime

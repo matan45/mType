@@ -23,7 +23,7 @@
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/ScriptException.hpp"
 #include "../../errors/UserException.hpp"
-#include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../value/ObjectInstance.hpp"
 #include "../../runtime/EventLoop.hpp"
 #include "../../constants/ExecutionMode.hpp"
 #include "../../gc/GC.hpp"

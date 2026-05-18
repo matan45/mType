@@ -6,8 +6,8 @@
 #include "../../errors/FieldNotFoundException.hpp"
 #include "../../errors/NullPointerException.hpp"
 #include "../../errors/ScriptException.hpp"
-#include "../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../value/ObjectInstance.hpp"
+#include "../../environment/registry/ClassDefinition.hpp"
 #include "utils/InteropExceptionDecorator.hpp"
 
 namespace vm::runtime

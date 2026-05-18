@@ -1,6 +1,6 @@
 #include "EnvironmentBuilder.hpp"
 #include "registry/TypeCatalog.hpp"
-#include "../runtimeTypes/global/ArrayOperationsNative.hpp"
+#include "registry/builtin/ArrayOperationsNative.hpp"
 #include "../reflection/ReflectionNatives.hpp"
 #include "../json/JsonNatives.hpp"
 #include "../net/NetNatives.hpp"

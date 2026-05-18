@@ -14,7 +14,7 @@
 #include "../../../ast/nodes/classes/SuperConstructorCallNode.hpp"
 #include "../../../ast/nodes/classes/SuperMethodCallNode.hpp"
 #include "../../../value/ValueType.hpp"
-#include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"
+#include "../../../environment/registry/ConstructorDefinition.hpp"
 #include <memory>
 #include <unordered_map>
 

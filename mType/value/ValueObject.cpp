@@ -1,5 +1,5 @@
 #include "ValueObject.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
 #include <cstddef>
 
 namespace value

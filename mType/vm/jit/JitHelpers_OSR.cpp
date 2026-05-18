@@ -4,7 +4,7 @@
 #include "guards/DeoptimizationHandler.hpp"
 #include "../bytecode/OpCode.hpp"
 #include "../../value/ValueShim.hpp"
-#include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../value/ObjectInstance.hpp"
 
 namespace vm::jit
 {

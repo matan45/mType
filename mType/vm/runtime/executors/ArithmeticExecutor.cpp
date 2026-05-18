@@ -3,8 +3,8 @@
 #include <cstdint>
 #include <sstream>
 #include "../../../value/StringPool.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../value/ObjectInstance.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
 #include "../../../value/ValueObject.hpp"
 #include "../../../value/NativeArray.hpp"
 #include "../../../value/FlatMultiArray.hpp"

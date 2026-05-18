@@ -7,7 +7,7 @@
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../value/IntegerCache.hpp"
 #include "../../../value/ValueShim.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../value/ObjectInstance.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 
 namespace vm::runtime {

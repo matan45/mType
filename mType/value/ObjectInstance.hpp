@@ -3,11 +3,11 @@
 #include <cstddef>
 #include <unordered_map>
 #include <string>
-#include "../../value/ValueType.hpp"
-#include "../../value/PrimitiveTypeTag.hpp"
-#include "../../value/SpecializedCollections.hpp"
-#include "ClassDefinition.hpp"
-#include "FieldDefinition.hpp"
+#include "ValueType.hpp"
+#include "PrimitiveTypeTag.hpp"
+#include "SpecializedCollections.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
+#include "../environment/registry/FieldDefinition.hpp"
 
 namespace runtimeTypes::klass
 {

@@ -18,7 +18,7 @@
 //
 
 #include "ValueType.hpp"
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../value/ObjectInstance.hpp"
 #include "../vm/runtime/context/ExecutionContext.hpp"
 #include "ValueObject.hpp"
 #include "NativeArray.hpp"

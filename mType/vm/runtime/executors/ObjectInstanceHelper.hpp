@@ -2,8 +2,8 @@
 #include "../context/ExecutionContext.hpp"
 #include "../../../environment/Environment.hpp"
 #include "../validation/AccessValidator.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../value/ObjectInstance.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"
 #include <span>
 #include <vector>

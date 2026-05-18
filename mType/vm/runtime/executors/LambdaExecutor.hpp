@@ -6,8 +6,8 @@
 #include "../context/ExecutionContext.hpp"
 #include "../context/SharedStackFramePool.hpp"
 #include "../../../errors/RuntimeException.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../value/ObjectInstance.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
 #include "../../../value/ValueObject.hpp"
 #include "../../../value/ValueShim.hpp"
 

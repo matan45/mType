@@ -1,7 +1,7 @@
 #include "PrimitiveMethodExecutor.hpp"
 #include <cstdint>
 #include <cassert>
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
 #include "../../../value/ValueObject.hpp"
 #include "../../../value/ObjectInstancePool.hpp"
 #include "../../../value/StringPool.hpp"

@@ -10,7 +10,7 @@
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/InheritanceException.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
-#include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
+#include "../../../environment/registry/InterfaceDefinition.hpp"
 #include "../../../types/TypeConversionBridge.hpp"
 #include <stdexcept>
 #include <algorithm>

@@ -1,6 +1,6 @@
 #include "AnnotationInstanceFactory.hpp"
-#include "../runtimeTypes/klass/FieldDefinition.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../environment/registry/FieldDefinition.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
 #include "../value/ObjectInstancePool.hpp"
 
 namespace reflection

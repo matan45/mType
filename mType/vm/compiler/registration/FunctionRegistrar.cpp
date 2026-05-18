@@ -10,7 +10,7 @@
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/DuplicateSignatureException.hpp"
-#include "../../../runtimeTypes/klass/SignatureUtils.hpp"
+#include "../../../environment/registry/SignatureUtils.hpp"
 #include "../types/GenericPatternAnalyzer.hpp"
 #include <stdexcept>
 namespace vm::compiler::registration

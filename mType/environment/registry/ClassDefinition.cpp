@@ -108,7 +108,7 @@ namespace runtimeTypes::klass
     // Getter methods for AST node integration
     const std::string& ClassDefinition::getClassName() const
     {
-        return getName(); // From base Definition class
+        return getName();
     }
 
     const std::unordered_map<std::string, std::shared_ptr<FieldDefinition>>& ClassDefinition::getInstanceFields() const

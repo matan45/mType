@@ -16,15 +16,6 @@
     <Filter Include="errors">
       <UniqueIdentifier>{4260C7FB-2E02-F2D1-17BD-052603FE7822}</UniqueIdentifier>
     </Filter>
-    <Filter Include="runtimeTypes">
-      <UniqueIdentifier>{1E45A83C-0AA8-37E1-B32D-70979F6F0364}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="runtimeTypes\global">
-      <UniqueIdentifier>{DEF9D4F7-4A5B-B205-D3C8-F8B73F29E9C4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="runtimeTypes\klass">
-      <UniqueIdentifier>{EBBBCA07-D79F-8B5D-4000-86B02C0376DF}</UniqueIdentifier>
-    </Filter>
     <Filter Include="types">
       <UniqueIdentifier>{5A5E7610-C672-9EC1-8FF4-4121FBC79AF2}</UniqueIdentifier>
     </Filter>
@@ -75,19 +66,46 @@
     <ClInclude Include="environment\manager\VariableManager.hpp">
       <Filter>environment\manager</Filter>
     </ClInclude>
+    <ClInclude Include="environment\registry\AnnotationDefinition.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\AnnotationParamSchema.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
     <ClInclude Include="environment\registry\AnnotationRegistry.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\ClassDefinition.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
     <ClInclude Include="environment\registry\ClassRegistry.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
+    <ClInclude Include="environment\registry\ConstructorDefinition.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
     <ClInclude Include="environment\registry\ExportRegistry.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\FieldDefinition.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\FunctionDefinition.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
     <ClInclude Include="environment\registry\FunctionRegistry.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
     <ClInclude Include="environment\registry\InheritanceTracker.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\InterfaceDefinition.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\InterfaceRegistry.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\MethodDefinition.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
     <ClInclude Include="environment\registry\NativeBinder.hpp">
@@ -102,8 +120,17 @@
     <ClInclude Include="environment\registry\Registry.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
+    <ClInclude Include="environment\registry\SignatureUtils.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
     <ClInclude Include="environment\registry\TypeCatalog.hpp">
       <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\VariableDefinition.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
+    <ClInclude Include="environment\registry\builtin\ArrayOperationsNative.hpp">
+      <Filter>environment\registry\builtin</Filter>
     </ClInclude>
     <ClInclude Include="environment\registry\builtin\BuiltinNatives.hpp">
       <Filter>environment\registry\builtin</Filter>
@@ -116,48 +143,6 @@
     </ClInclude>
     <ClInclude Include="errors\UserException.hpp">
       <Filter>errors</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\Definition.hpp">
-      <Filter>runtimeTypes</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\global\ArrayOperationsNative.hpp">
-      <Filter>runtimeTypes\global</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\global\FunctionDefinition.hpp">
-      <Filter>runtimeTypes\global</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\global\VariableDefinition.hpp">
-      <Filter>runtimeTypes\global</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\klass\AnnotationDefinition.hpp">
-      <Filter>runtimeTypes\klass</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\klass\AnnotationParamSchema.hpp">
-      <Filter>runtimeTypes\klass</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\klass\ClassDefinition.hpp">
-      <Filter>runtimeTypes\klass</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\klass\ConstructorDefinition.hpp">
-      <Filter>runtimeTypes\klass</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\klass\FieldDefinition.hpp">
-      <Filter>runtimeTypes\klass</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\klass\InterfaceDefinition.hpp">
-      <Filter>runtimeTypes\klass</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\klass\InterfaceRegistry.hpp">
-      <Filter>runtimeTypes\klass</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\klass\MethodDefinition.hpp">
-      <Filter>runtimeTypes\klass</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\klass\ObjectInstance.hpp">
-      <Filter>runtimeTypes\klass</Filter>
-    </ClInclude>
-    <ClInclude Include="runtimeTypes\klass\SignatureUtils.hpp">
-      <Filter>runtimeTypes\klass</Filter>
     </ClInclude>
     <ClInclude Include="types\ReifiedTypeRegistry.hpp">
       <Filter>types</Filter>
@@ -223,6 +208,9 @@
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\NativeArray.hpp">
+      <Filter>value</Filter>
+    </ClInclude>
+    <ClInclude Include="value\ObjectInstance.hpp">
       <Filter>value</Filter>
     </ClInclude>
     <ClInclude Include="value\ObjectInstancePool.hpp">
@@ -329,10 +317,22 @@
     <ClCompile Include="environment\manager\VariableManager.cpp">
       <Filter>environment\manager</Filter>
     </ClCompile>
+    <ClCompile Include="environment\registry\ClassDefinition.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
     <ClCompile Include="environment\registry\ClassRegistry.cpp">
       <Filter>environment\registry</Filter>
     </ClCompile>
+    <ClCompile Include="environment\registry\ConstructorDefinition.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
     <ClCompile Include="environment\registry\ExportRegistry.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\FieldDefinition.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\FunctionDefinition.cpp">
       <Filter>environment\registry</Filter>
     </ClCompile>
     <ClCompile Include="environment\registry\FunctionRegistry.cpp">
@@ -341,11 +341,29 @@
     <ClCompile Include="environment\registry\InheritanceTracker.cpp">
       <Filter>environment\registry</Filter>
     </ClCompile>
+    <ClCompile Include="environment\registry\InterfaceDefinition.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\InterfaceRegistry.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\MethodDefinition.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
     <ClCompile Include="environment\registry\NativeRegistry.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\SignatureUtils.cpp">
       <Filter>environment\registry</Filter>
     </ClCompile>
     <ClCompile Include="environment\registry\TypeCatalog.cpp">
       <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\VariableDefinition.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\builtin\ArrayOperationsNative.cpp">
+      <Filter>environment\registry\builtin</Filter>
     </ClCompile>
     <ClCompile Include="environment\registry\builtin\BuiltinNatives.cpp">
       <Filter>environment\registry\builtin</Filter>
@@ -358,42 +376,6 @@
     </ClCompile>
     <ClCompile Include="errors\UserException.cpp">
       <Filter>errors</Filter>
-    </ClCompile>
-    <ClCompile Include="runtimeTypes\Definition.cpp">
-      <Filter>runtimeTypes</Filter>
-    </ClCompile>
-    <ClCompile Include="runtimeTypes\global\ArrayOperationsNative.cpp">
-      <Filter>runtimeTypes\global</Filter>
-    </ClCompile>
-    <ClCompile Include="runtimeTypes\global\FunctionDefinition.cpp">
-      <Filter>runtimeTypes\global</Filter>
-    </ClCompile>
-    <ClCompile Include="runtimeTypes\global\VariableDefinition.cpp">
-      <Filter>runtimeTypes\global</Filter>
-    </ClCompile>
-    <ClCompile Include="runtimeTypes\klass\ClassDefinition.cpp">
-      <Filter>runtimeTypes\klass</Filter>
-    </ClCompile>
-    <ClCompile Include="runtimeTypes\klass\ConstructorDefinition.cpp">
-      <Filter>runtimeTypes\klass</Filter>
-    </ClCompile>
-    <ClCompile Include="runtimeTypes\klass\FieldDefinition.cpp">
-      <Filter>runtimeTypes\klass</Filter>
-    </ClCompile>
-    <ClCompile Include="runtimeTypes\klass\InterfaceDefinition.cpp">
-      <Filter>runtimeTypes\klass</Filter>
-    </ClCompile>
-    <ClCompile Include="runtimeTypes\klass\InterfaceRegistry.cpp">
-      <Filter>runtimeTypes\klass</Filter>
-    </ClCompile>
-    <ClCompile Include="runtimeTypes\klass\MethodDefinition.cpp">
-      <Filter>runtimeTypes\klass</Filter>
-    </ClCompile>
-    <ClCompile Include="runtimeTypes\klass\ObjectInstance.cpp">
-      <Filter>runtimeTypes\klass</Filter>
-    </ClCompile>
-    <ClCompile Include="runtimeTypes\klass\SignatureUtils.cpp">
-      <Filter>runtimeTypes\klass</Filter>
     </ClCompile>
     <ClCompile Include="types\ReifiedTypeRegistry.cpp">
       <Filter>types</Filter>
@@ -432,6 +414,9 @@
       <Filter>value</Filter>
     </ClCompile>
     <ClCompile Include="value\InternedString.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
+    <ClCompile Include="value\ObjectInstance.cpp">
       <Filter>value</Filter>
     </ClCompile>
     <ClCompile Include="value\ObjectInstancePool.cpp">

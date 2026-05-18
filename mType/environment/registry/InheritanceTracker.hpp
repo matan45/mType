@@ -6,7 +6,7 @@
 #include <vector>
 #include <queue>
 #include <functional>
-#include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "ClassDefinition.hpp"
 
 namespace environment::registry
 {

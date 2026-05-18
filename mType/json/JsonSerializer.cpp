@@ -1,15 +1,15 @@
 #include "JsonSerializer.hpp"
 #include <cstddef>
 #include <cstdint>
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../runtimeTypes/klass/FieldDefinition.hpp"
+#include "../value/ObjectInstance.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
+#include "../environment/registry/FieldDefinition.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/ValueObject.hpp"
 #include "../value/FlatMultiArray.hpp"
 #include "../value/SparseMultiArray.hpp"
 #include "../value/ValueShim.hpp"
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../value/ObjectInstance.hpp"
 #include "../errors/RuntimeException.hpp"
 #include <stdexcept>
 

@@ -12,16 +12,16 @@
 #include "../../types/UnifiedType.hpp"
 #include "../../ast/nodes/classes/SuperConstructorCallNode.hpp"
 #include "../../ast/nodes/annotations/AnnotationNode.hpp"
-#include "../Definition.hpp"
 
 namespace runtimeTypes::klass
 {
     using namespace value;
     using namespace ast;
 
-    class ConstructorDefinition : public Definition
+    class ConstructorDefinition
     {
     private:
+        std::string name;
         std::vector<std::pair<std::string, ParameterType>> parametersWithTypes;
         std::shared_ptr<ASTNode> body;
         std::shared_ptr<ASTNode> initializerList;  // For member initialization
@@ -74,6 +74,8 @@ namespace runtimeTypes::klass
         std::vector<std::pair<size_t, size_t>> trivialFieldIndexAssignments;
 
       public:
+        const std::string& getName() const { return name; }
+
         CallSiteCache& getCallSiteCache() const { return callSiteCache; }
 
         bool isTrivialConstructor() const { return trivialConstructor; }
@@ -96,7 +98,7 @@ namespace runtimeTypes::klass
        explicit ConstructorDefinition(const std::vector<std::pair<std::string, ParameterType>>& params,
                              std::shared_ptr<ASTNode> b,
                              ast::AccessModifier modifier = ast::AccessModifier::PUBLIC)
-            : Definition("constructor"), parametersWithTypes(params), body(b),
+            : name("constructor"), parametersWithTypes(params), body(b),
               initializerList(nullptr), superInitializer(nullptr), accessModifier(modifier), unifiedParameters() {}
 
        // Constructor with unified type parameter information
@@ -104,7 +106,7 @@ namespace runtimeTypes::klass
                              std::shared_ptr<ASTNode> b,
                              const std::vector<std::pair<std::string, ::types::UnifiedTypePtr>>& uParams,
                              ast::AccessModifier modifier = ast::AccessModifier::PUBLIC)
-            : Definition("constructor"), parametersWithTypes(params), body(b),
+            : name("constructor"), parametersWithTypes(params), body(b),
               initializerList(nullptr), superInitializer(nullptr), accessModifier(modifier), unifiedParameters(uParams) {}
 
         bool matchesArgCount(size_t argCount) const;

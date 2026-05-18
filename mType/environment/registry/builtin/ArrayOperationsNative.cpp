@@ -1,9 +1,9 @@
 #include "ArrayOperationsNative.hpp"
-#include "../../value/operations/ArrayOperations.hpp"
-#include "../../value/NativeArray.hpp"
-#include "../../value/ValueShim.hpp"
-#include "../../errors/RuntimeException.hpp"
-#include "../../environment/registry/NativeBinder.hpp"
+#include "../../../value/operations/ArrayOperations.hpp"
+#include "../../../value/NativeArray.hpp"
+#include "../../../value/ValueShim.hpp"
+#include "../../../errors/RuntimeException.hpp"
+#include "../NativeBinder.hpp"
 
 namespace runtimeTypes::global
 {

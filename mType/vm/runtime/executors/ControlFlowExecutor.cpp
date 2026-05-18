@@ -4,7 +4,7 @@
 #include "../../../value/ValueObject.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../profiler/ProfilerHookHelper.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../value/ObjectInstance.hpp"
 #include "../../jit/OSRManager.hpp"
 #include "../VirtualMachine.hpp"
 

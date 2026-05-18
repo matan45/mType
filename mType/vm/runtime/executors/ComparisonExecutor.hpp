@@ -2,7 +2,7 @@
 #include <cstddef>
 #include "../context/ExecutionContext.hpp"
 #include "../../../errors/RuntimeException.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../value/ObjectInstance.hpp"
 #include "../../../value/ValueObject.hpp"
 #include "../../../value/ValueShim.hpp"
 #include "../utils/NullCheckUtils.hpp"

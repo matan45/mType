@@ -7,7 +7,7 @@
 #include "AsyncPromiseValue.hpp"
 #include "ValueObject.hpp"
 #include "arrays/object/FlatMultiObjectArray.hpp"
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../value/ObjectInstance.hpp"
 #include "PromiseValue.hpp"
 #include "BridgeArena.hpp"
 #include <cassert>
