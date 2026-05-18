@@ -1594,6 +1594,38 @@ namespace vm::jit
         *dest = instance->getFieldValue(fieldName);
     }
 
+    // MYT-346: see JitHelpers.hpp for the contract. Mirrors
+    // VirtualMachine::callMethodFromJitDirect(const Value&,...) (VirtualMachineJit.cpp:505-518)
+    // — acquire from the pool, batch-load fields, wrap in OBJECT-tagged Value.
+    // Non-VALUE_OBJECT receivers (defensive: shape guard already filtered) get
+    // a plain byte copy so the emitter has a single code path.
+    void jit_materialise_value_receiver_into_local(value::Value* destLocal,
+                                                    const value::Value* sourceReceiver)
+    {
+        if (!value::isValueObject(*sourceReceiver))
+        {
+            *destLocal = *sourceReceiver;
+            return;
+        }
+
+        const auto& valueObj = value::asValueObject(*sourceReceiver);
+        if (!valueObj || !valueObj->getClassDefinition())
+        {
+            // Receiver claims VALUE_OBJECT tag but the bridge is null —
+            // shouldn't happen post-shape-guard, but fail safe by donating
+            // the source byte pattern. The inlined body will then fault on
+            // the first field access, which is the same outcome the slow
+            // path would produce via runJitMiniInterpret.
+            *destLocal = *sourceReceiver;
+            return;
+        }
+
+        auto tempInstance =
+            value::ObjectInstancePool::getInstance().acquire(valueObj->getClassDefinition());
+        tempInstance->loadFromValueObject(*valueObj);
+        *destLocal = value::Value(tempInstance);
+    }
+
     static bool setFieldOnValueObject(value::Value* destValue,
                                       const value::Value* object,
                                       const value::Value* newValue,

@@ -6,12 +6,12 @@
 // each call always returns 1 (bumps a fresh 0 -> 1). This isolates the
 // ValueObject materialise-and-discard cost from the read-only inline path.
 //
-// MYT-346: this benchmark currently FAILS under --jit. The --no-jit reference
-// produces total=2000000 (correct, matches the existing N=200
-// inline_value_object_write_skip.mt). JIT-on produces total=500 — the OSR-
-// compiled loop body diverges from the interpreter on value-class write
-// methods past the OSR threshold. Kept in the suite as a regression canary
-// until the OSR path is fixed.
+// MYT-346: pre-fix this produced total=500 under --jit (the OSR threshold);
+// the inliner inlined the body against a VALUE_OBJECT-tagged local-0 and
+// SET_FIELD_CACHED's CoW path wrote to the wrong slot. Fixed by teaching the
+// inliner to materialise a temp ObjectInstance into local-0 for value-class
+// write methods (INLINE_VALUE_REQUIRES_MATERIALISATION eligibility variant).
+// Kept as both a perf benchmark and a regression canary.
 
 value class Counter {
     public int n;

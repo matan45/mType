@@ -353,6 +353,24 @@ namespace vm::jit
                           JitContext* ctx, size_t bytecodeOffset,
                           uint32_t fieldNameIndex, uint8_t flags = 0);
 
+    // MYT-346: speculative-inline value-class temp materialisation. Used by
+    // emitInlineLocalCopy when the inlined callee body writes its own field(s)
+    // and the receiver is a VALUE_OBJECT (eligibility variant
+    // INLINE_VALUE_REQUIRES_MATERIALISATION). Acquires a fresh ObjectInstance
+    // from the pool, batch-loads the value-class fields via loadFromValueObject,
+    // and writes an OBJECT-tagged Value into destLocal — mirroring
+    // VirtualMachine::callMethodFromJitDirect(const Value&,...). The inlined
+    // body's subsequent LOAD_LOCAL 0 / GET_FIELD / SET_FIELD then operate on a
+    // normal ObjectInstance; mutation works and is discarded when the inlined
+    // frame's local slot destructs via the existing emitInlineLocalDestroy path
+    // (ObjectInstancePool::SlotDeleter recycles the instance).
+    //
+    // Defensive non-VALUE_OBJECT sources (OBJECT / STACK_OBJECT) get a plain
+    // byte copy: the shape guard already filtered, but the helper handles them
+    // so the emitter has a single code path.
+    void jit_materialise_value_receiver_into_local(value::Value* destLocal,
+                                                    const value::Value* sourceReceiver);
+
     int64_t jit_array_get_int(const value::Value* array, int64_t index);
     void jit_array_set_int(const value::Value* array, int64_t index,
                            int64_t val);

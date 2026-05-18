@@ -286,11 +286,20 @@ namespace tests::testSuite
         addOutputVerificationTest("Inline Self-Recursive Guard",
                                   passPath + "inlining/inline_recursive_guard.mt");
         // MYT-167 Phase F-e: value-object receivers inline for read-only methods;
-        // write-containing callees still fall through.
+        // write-containing callees originally fell through (now materialise — see
+        // MYT-346 below).
         addOutputVerificationTest("Inline Value Object Read-Only",
                                   passPath + "inlining/inline_value_object_readonly.mt");
         addOutputVerificationTest("Inline Value Object Write Skip",
                                   passPath + "inlining/inline_value_object_write_skip.mt");
+        // MYT-346: value-class write methods now inline via a materialised
+        // temp ObjectInstance in local-0. _osr exercises the MONO path past
+        // the OSR threshold; _poly exercises the per-arm materialise in the
+        // POLYMORPHIC inliner.
+        addOutputVerificationTest("Inline Value Object Write OSR",
+                                  passPath + "inlining/inline_value_object_write_osr.mt");
+        addOutputVerificationTest("Inline Value Object Write Poly",
+                                  passPath + "inlining/inline_value_object_write_poly.mt");
 
         // MYT-164 Phase F-b: internal jumps + nested inlining.
         addOutputVerificationTest("Inline With If/Else Branches",

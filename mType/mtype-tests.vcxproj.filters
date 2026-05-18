@@ -9502,6 +9502,18 @@
     <None Include="tests\testFiles\integration\pass\inlining\inline_value_object_readonly.mt">
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_value_object_write_osr.expected">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_value_object_write_osr.mt">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_value_object_write_poly.expected">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\inlining\inline_value_object_write_poly.mt">
+      <Filter>testFiles\integration\pass\inlining</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\inlining\inline_value_object_write_skip.expected">
       <Filter>testFiles\integration\pass\inlining</Filter>
     </None>
