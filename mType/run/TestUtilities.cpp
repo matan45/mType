@@ -38,6 +38,7 @@
 #include "../tests/suites/EscapeAnalysisTestSuite.hpp"
 #include "../tests/suites/PluginTestSuite.hpp"
 #include "../tests/suites/ExecutorIsolationTestSuite.hpp"
+#include "../tests/suites/BytecodeOptimizationTestSuite.hpp"
 
 #include "../gc/GC.hpp"
 #include "../services/ScriptInterpreter.hpp"
@@ -209,6 +210,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<ExecutorIsolationTestSuite>();
     }
+    else if (suiteName == "bytecode-opt" || suiteName == "bytecode-optimization")
+    {
+        return std::make_unique<BytecodeOptimizationTestSuite>();
+    }
     return nullptr;
 }
 
@@ -253,6 +258,7 @@ void printAvailableTestSuites()
     std::cout << "  escape       - Escape Analysis Test Suite (MYT-134)\n";
     std::cout << "  plugin       - Native Plugin Loader Test Suite (MYT-289)\n";
     std::cout << "  executor     - Executor Isolation Test Suite (ExecutionContext deepening)\n";
+    std::cout << "  bytecode-opt - Bytecode Optimization Pass Pipeline Test Suite\n";
 }
 
 int runSpecificTestSuite(const std::string& suiteName,
@@ -340,6 +346,7 @@ int runAllTests(constants::ExecutionMode execMode, bool jitEnabled)
     suites.push_back(std::make_unique<EscapeAnalysisTestSuite>());
     suites.push_back(std::make_unique<PluginTestSuite>());
     suites.push_back(std::make_unique<ExecutorIsolationTestSuite>());
+    suites.push_back(std::make_unique<BytecodeOptimizationTestSuite>());
 
     int totalFailures = 0;
     int totalErrors   = 0;

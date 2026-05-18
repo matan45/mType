@@ -16,8 +16,9 @@ Domain vocabulary used by the `/improve-codebase-architecture` skill and other p
 ## Compilation pipeline
 
 - **Bytecode** — `vm::bytecode::BytecodeProgram` is the post-compile artifact (`.mtc` files). Holds an `Instruction` stream + constant pool + class metadata.
-- **BytecodeCompiler** — walks AST and emits `Instruction`s. Currently fragmented across `vm/compiler/visitors/` and `vm/compiler/registration/` (deepening candidate).
+- **BytecodeCompiler** — walks AST and emits `Instruction`s. Implementation fragmented across `vm/compiler/visitors/` and `vm/compiler/registration/` — that fragmentation is internal seams behind a small `compile(root) → BytecodeProgram` interface, not interface leakage.
 - **OptimizationService** — owns AST optimization passes (constant folding, dead-code elimination, unused-declaration elimination). Runs between Parser and BytecodeCompiler when `-release` is set.
+- **BytecodeOptimizationService** — owns post-AST bytecode passes (LoopOptimization, Peephole, TrivialSetterInlining, TrivialGetterInlining, LocalArrayFusion). Runs at the end of `BytecodeCompiler::compile()`, mutating the `BytecodeProgram` in place. Mirrors `OptimizationService`'s structure: each pass extends `vm::optimization::base::BytecodePass`, registration order is fixed, gating via `BytecodeOptimizationConfig` flags. Passes are individually testable against a hand-crafted `BytecodeProgram` (no source compile needed).
 
 ## Runtime
 
