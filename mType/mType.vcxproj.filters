@@ -103,15 +103,6 @@
     <Filter Include="runtime">
       <UniqueIdentifier>{692D2264-D50C-A1FF-DE24-2CD64A830761}</UniqueIdentifier>
     </Filter>
-    <Filter Include="runtimeTypes">
-      <UniqueIdentifier>{1E45A83C-0AA8-37E1-B32D-70979F6F0364}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="runtimeTypes\global">
-      <UniqueIdentifier>{DEF9D4F7-4A5B-B205-D3C8-F8B73F29E9C4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="runtimeTypes\klass">
-      <UniqueIdentifier>{EBBBCA07-D79F-8B5D-4000-86B02C0376DF}</UniqueIdentifier>
-    </Filter>
     <Filter Include="services">
       <UniqueIdentifier>{C98C7E0E-B559-D919-DE72-C7C1CA9E0EA8}</UniqueIdentifier>
     </Filter>

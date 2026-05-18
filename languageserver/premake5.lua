@@ -187,6 +187,7 @@ project "mtype-language-server-lib"
         "../mType/environment/registry/ExportRegistry.cpp",
         "../mType/environment/registry/FunctionRegistry.cpp",
         "../mType/environment/registry/InheritanceTracker.cpp",
+        "../mType/environment/registry/TypeCatalog.cpp",
         -- Note: Excluding NativeRegistry.cpp to avoid runtime builtin function dependencies
 
         -- Services
@@ -195,7 +196,7 @@ project "mtype-language-server-lib"
 
         -- Type system
         "../mType/types/TypeConversionUtils.cpp",
-        "../mType/types/TypeRegistry.cpp",
+        "../mType/types/TypeDescriptors.cpp",
         "../mType/types/UnifiedType.cpp",
         "../mType/types/ReifiedTypeRegistry.cpp",
         "../mType/types/TypeSubstitutionService.cpp",
@@ -204,17 +205,16 @@ project "mtype-language-server-lib"
         "../mType/vm/MethodSignature.cpp",
 
         -- Runtime types (for class/function definitions - minimal set for LSP)
-        "../mType/runtimeTypes/Definition.cpp",
-        "../mType/runtimeTypes/global/FunctionDefinition.cpp",
-        "../mType/runtimeTypes/global/VariableDefinition.cpp",
+        "../mType/environment/registry/FunctionDefinition.cpp",
+        "../mType/environment/registry/VariableDefinition.cpp",
         -- Note: Excluding ArrayOperationsNative.cpp to avoid SIMD dependencies
-        "../mType/runtimeTypes/klass/ClassDefinition.cpp",
-        "../mType/runtimeTypes/klass/ConstructorDefinition.cpp",
-        "../mType/runtimeTypes/klass/FieldDefinition.cpp",
-        "../mType/runtimeTypes/klass/InterfaceDefinition.cpp",
-        "../mType/runtimeTypes/klass/InterfaceRegistry.cpp",
-        "../mType/runtimeTypes/klass/MethodDefinition.cpp",
-        "../mType/runtimeTypes/klass/SignatureUtils.cpp",
+        "../mType/environment/registry/ClassDefinition.cpp",
+        "../mType/environment/registry/ConstructorDefinition.cpp",
+        "../mType/environment/registry/FieldDefinition.cpp",
+        "../mType/environment/registry/InterfaceDefinition.cpp",
+        "../mType/environment/registry/InterfaceRegistry.cpp",
+        "../mType/environment/registry/MethodDefinition.cpp",
+        "../mType/environment/registry/SignatureUtils.cpp",
         -- Note: ObjectInstance.cpp excluded - using stub in src/stubs/ObjectInstanceStub.cpp
 
         -- Annotation parsing/registration (compile-time only — no runtime deps)

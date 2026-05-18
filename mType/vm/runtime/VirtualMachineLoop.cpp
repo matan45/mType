@@ -20,7 +20,7 @@
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/UserException.hpp"
 #include "../../errors/SourceLocation.hpp"
-#include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../value/ObjectInstance.hpp"
 #include "../../value/PromiseValue.hpp"
 #include "../../value/ValueShim.hpp"
 #include "../../debugger/DebugContext.hpp"
@@ -41,29 +41,26 @@ namespace vm::runtime
         // so that executors holding a reference to it remain valid across calls.
         executionCtx = std::make_unique<ExecutionContext>(
             program, instructionPointer, callStack, maxCallStackSize,
-            environment, stackManager, stats, executionStart,
-            debuggingEnabled, currentSourceFile, currentSourceLine, this);
-
-        // Wire up loaded library programs for cross-program function resolution
-        executionCtx->loadedPrograms = &loadedPrograms;
+            stackManager, stats, executionStart,
+            debuggingEnabled, currentSourceFile, currentSourceLine);
 
         stackOpsExecutor = std::make_unique<StackOperationsExecutor>(*executionCtx);
         comparisonExecutor = std::make_unique<ComparisonExecutor>(*executionCtx);
         logicalExecutor = std::make_unique<LogicalExecutor>(*executionCtx);
         arithmeticExecutor = std::make_unique<ArithmeticExecutor>(*executionCtx);
         bitwiseExecutor = std::make_unique<BitwiseExecutor>(*executionCtx);
-        controlFlowExecutor = std::make_unique<ControlFlowExecutor>(*executionCtx);
+        controlFlowExecutor = std::make_unique<ControlFlowExecutor>(*executionCtx, this);
         if (jitEnabled && osrManager) {
             controlFlowExecutor->setOSRManager(osrManager.get());
         }
-        variableExecutor = std::make_unique<VariableExecutor>(*executionCtx);
-        functionExecutor = std::make_unique<FunctionExecutor>(*executionCtx);
-        typeExecutor = std::make_unique<TypeExecutor>(*executionCtx);
-        arrayExecutor = std::make_unique<ArrayExecutor>(*executionCtx);
-        objectExecutor = std::make_unique<ObjectExecutor>(*executionCtx);
+        variableExecutor = std::make_unique<VariableExecutor>(*executionCtx, environment);
+        functionExecutor = std::make_unique<FunctionExecutor>(*executionCtx, environment, this);
+        typeExecutor = std::make_unique<TypeExecutor>(*executionCtx, environment);
+        arrayExecutor = std::make_unique<ArrayExecutor>(*executionCtx, environment);
+        objectExecutor = std::make_unique<ObjectExecutor>(*executionCtx, environment, this);
         lambdaExecutor = std::make_unique<LambdaExecutor>(*executionCtx);
-        exceptionExecutor = std::make_unique<ExceptionExecutor>(*executionCtx);
-        primitiveMethodExecutor = std::make_unique<PrimitiveMethodExecutor>(*executionCtx);
+        exceptionExecutor = std::make_unique<ExceptionExecutor>(*executionCtx, this);
+        primitiveMethodExecutor = std::make_unique<PrimitiveMethodExecutor>(*executionCtx, environment);
 
         // Set function executor reference in object executor for lambda-to-interface conversion
         objectExecutor->setFunctionExecutor(functionExecutor.get());
@@ -71,7 +68,7 @@ namespace vm::runtime
         // Phase 6: Initialize inline cache executor
         if (icEnabled && inlineCacheTable)
         {
-            inlineCacheExecutor = std::make_unique<InlineCacheExecutor>(*executionCtx, *inlineCacheTable);
+            inlineCacheExecutor = std::make_unique<InlineCacheExecutor>(*executionCtx, this, *inlineCacheTable);
             inlineCacheExecutor->setObjectExecutor(objectExecutor.get());
             inlineCacheExecutor->setFunctionExecutor(functionExecutor.get());
         }
@@ -79,7 +76,7 @@ namespace vm::runtime
         // Initialize exception handler — pass executionCtx->program by reference so it
         // tracks cross-library program switches during exception handling
         exceptionHandler = std::make_unique<utils::ExceptionHandler>(
-            executionCtx->program, stackManager, callStack, executionCtx->loadedPrograms);
+            executionCtx->program, stackManager, callStack, &loadedPrograms);
     }
 
     value::Value VirtualMachine::interpretLoop()

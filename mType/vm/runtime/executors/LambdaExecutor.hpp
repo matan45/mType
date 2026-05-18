@@ -6,8 +6,8 @@
 #include "../context/ExecutionContext.hpp"
 #include "../context/SharedStackFramePool.hpp"
 #include "../../../errors/RuntimeException.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../value/ObjectInstance.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
 #include "../../../value/ValueObject.hpp"
 #include "../../../value/ValueShim.hpp"
 
@@ -91,7 +91,7 @@ namespace vm::runtime
                     // interned frame names.
                     lambda->creatingClassName = currentFrame.definingClassName;
                 } else {
-                    const std::string& funcName = context.frameName(currentFrame);
+                    const std::string& funcName = context.program->getFrameName(currentFrame.functionName);
                     size_t colonPos = funcName.find("::");
                     if (colonPos != std::string::npos) {
                         lambda->creatingClassName = funcName.substr(0, colonPos);

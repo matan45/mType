@@ -6,7 +6,7 @@
 #include "../../services/ScriptInterpreter.hpp"
 #include "../../services/ScriptAPI.hpp"
 #include "../../environment/registry/ClassRegistry.hpp"
-#include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../environment/registry/ClassDefinition.hpp"
 #include "../../vm/runtime/VirtualMachine.hpp"
 #include "../../vm/bytecode/BytecodeProgram.hpp"
 #include "../../runtime/EventLoop.hpp"

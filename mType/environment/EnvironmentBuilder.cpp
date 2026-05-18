@@ -1,5 +1,6 @@
 #include "EnvironmentBuilder.hpp"
-#include "../runtimeTypes/global/ArrayOperationsNative.hpp"
+#include "registry/TypeCatalog.hpp"
+#include "registry/builtin/ArrayOperationsNative.hpp"
 #include "../reflection/ReflectionNatives.hpp"
 #include "../json/JsonNatives.hpp"
 #include "../net/NetNatives.hpp"
@@ -46,7 +47,7 @@ namespace environment
     EnvironmentBuilder& EnvironmentBuilder::withDefaults()
     {
         if (!classRegistry)
-            classRegistry = std::make_shared<ClassRegistry>();
+            classRegistry = std::make_shared<TypeCatalog>();
         if (!functionRegistry)
             functionRegistry = std::make_shared<FunctionRegistry>();
         if (!variableManager)

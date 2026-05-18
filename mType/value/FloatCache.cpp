@@ -1,6 +1,6 @@
 #include "FloatCache.hpp"
 #include <cstddef>
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
 #include <cstring>
 
 namespace value

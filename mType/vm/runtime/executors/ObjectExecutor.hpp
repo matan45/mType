@@ -1,13 +1,14 @@
 #pragma once
 #include "../context/ExecutionContext.hpp"
+#include "../../../environment/Environment.hpp"
 #include <cstddef>
 #include "../validation/AccessValidator.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/NullPointerException.hpp"
 #include "../../../errors/FieldNotFoundException.hpp"
 #include "../../../errors/AccessViolationException.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../value/ObjectInstance.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
 #include "../../../value/ValueObject.hpp"
 #include "../../../value/ValueShim.hpp"
 #include "../../../ast/AccessModifier.hpp"
@@ -22,6 +23,7 @@ namespace vm::runtime
 {
     // Forward declarations
     class FunctionExecutor;
+    class VirtualMachine;
     class ObjectInstanceHelper;
 
     /**
@@ -32,7 +34,9 @@ namespace vm::runtime
     class ObjectExecutor
     {
     public:
-        explicit ObjectExecutor(ExecutionContext& ctx);
+        ObjectExecutor(ExecutionContext& ctx,
+                       std::shared_ptr<environment::Environment> env,
+                       VirtualMachine* vmPtr);
         ~ObjectExecutor();
 
         // Set FunctionExecutor reference for lambda-to-interface conversion
@@ -61,10 +65,10 @@ namespace vm::runtime
                 value::isFloat(objectValue) ||
                 value::isBool(objectValue) ||
                 value::isAnyString(objectValue)) {
-                objectValue = utils::autoBoxPrimitive(objectValue, context.environment);
+                objectValue = utils::autoBoxPrimitive(objectValue, environment);
             }
 
-            utils::checkNullReceiver(instr, objectValue, context, "access field", fieldName);
+            utils::checkNullReceiver(instr, objectValue, context, environment, "access field", fieldName);
 
             // Handle ValueObject (value types)
             if (value::isValueObject(objectValue)) {
@@ -127,7 +131,7 @@ namespace vm::runtime
             value::Value newValue = context.stackManager->pop();
             value::Value objectValue = context.stackManager->pop();
 
-            utils::checkNullReceiver(instr, objectValue, context, "set field", fieldName);
+            utils::checkNullReceiver(instr, objectValue, context, environment, "set field", fieldName);
 
             // Handle ValueObject (value types) — deep copy before mutation for value semantics.
             if (value::isValueObject(objectValue)) {
@@ -226,7 +230,7 @@ namespace vm::runtime
                 context.stackManager->push(valueObj->getFieldValue(fieldName));
             } else {
                 // Fallback: auto-box primitive and read field
-                objectValue = utils::autoBoxPrimitive(objectValue, context.environment);
+                objectValue = utils::autoBoxPrimitive(objectValue, environment);
                 if (value::isAnyObject(objectValue)) {
                     auto* instance = value::asObjectInstanceRaw(objectValue);
                     context.stackManager->push(instance->getFieldValue(fieldName));
@@ -273,6 +277,8 @@ namespace vm::runtime
 
     private:
         ExecutionContext& context;
+        std::shared_ptr<environment::Environment> environment;
+        VirtualMachine* vm;
         FunctionExecutor* functionExecutor = nullptr;
         std::unique_ptr<ObjectInstanceHelper> instanceHelper;
 

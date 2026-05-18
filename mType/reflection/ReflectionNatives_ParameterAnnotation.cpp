@@ -5,8 +5,8 @@
 #include "../value/NativeArray.hpp"
 #include "../value/InternedString.hpp"
 #include "../errors/RuntimeException.hpp"
-#include "../runtimeTypes/klass/MethodDefinition.hpp"
-#include "../runtimeTypes/klass/ConstructorDefinition.hpp"
+#include "../environment/registry/MethodDefinition.hpp"
+#include "../environment/registry/ConstructorDefinition.hpp"
 
 // MYT-110: parameter-level annotation reflection. Mirrors the method/ctor
 // singular-annotation natives in ReflectionNatives_TypedAnnotation.cpp but

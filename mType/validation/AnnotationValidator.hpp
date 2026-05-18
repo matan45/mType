@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../runtimeTypes/klass/MethodDefinition.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
+#include "../environment/registry/MethodDefinition.hpp"
 #include "../errors/SourceLocation.hpp"
 #include "../environment/Environment.hpp"
 #include "../ast/nodes/annotations/AnnotationNode.hpp"

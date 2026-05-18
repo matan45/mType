@@ -2,8 +2,8 @@
 #include "../analysis/WorkspaceSymbolIndex.hpp"
 #include "../utils/ImportUtils.hpp"
 #include "../utils/UriUtils.hpp"
-#include "../../../mType/runtimeTypes/klass/InterfaceDefinition.hpp"
-#include "../../../mType/runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../mType/environment/registry/InterfaceDefinition.hpp"
+#include "../../../mType/environment/registry/ClassDefinition.hpp"
 #include "../../../mType/util/ImportScan.hpp"
 #include <cctype>
 #include <sstream>

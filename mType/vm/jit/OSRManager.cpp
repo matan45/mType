@@ -6,7 +6,7 @@
 #include "guards/DeoptimizationHandler.hpp"
 #include "../bytecode/OpCode.hpp"
 #include "../runtime/VirtualMachine.hpp"
-#include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../value/ObjectInstance.hpp"
 #include "../../value/NativeArray.hpp"
 #include "../../value/StringPool.hpp"
 #include <iostream>      // MYT-248/249/250: cerr in catch handler diagnostic
@@ -341,7 +341,7 @@ namespace vm::jit
         jitCtx.hasReturnValue = false;
         jitCtx.program = &program;
         jitCtx.stackManager = context.stackManager.get();
-        jitCtx.environment = context.environment.get();
+        jitCtx.environment = vm.getEnvironment().get();
         jitCtx.vm = &vm;
         jitCtx.jitCodeCache = &codeCache;
         jitCtx.icTable = vm.getInlineCacheTable();

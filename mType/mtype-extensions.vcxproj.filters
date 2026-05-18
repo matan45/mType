@@ -267,6 +267,9 @@
     <ClInclude Include="services\BytecodeExecutor.hpp">
       <Filter>services</Filter>
     </ClInclude>
+    <ClInclude Include="services\BytecodeOptimizationService.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
     <ClInclude Include="services\BytecodeService.hpp">
       <Filter>services</Filter>
     </ClInclude>
@@ -507,6 +510,9 @@
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="services\BytecodeExecutor.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\BytecodeOptimizationService.cpp">
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="services\BytecodeService.cpp">

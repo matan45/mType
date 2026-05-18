@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "../context/ExecutionContext.hpp"
+#include "../../../environment/Environment.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../value/NativeArray.hpp"
@@ -13,7 +14,7 @@
 #include "../../../value/SparseMultiArray.hpp"
 #include "../../../value/ValueShim.hpp"
 #include "../../../value/ValueObject.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../value/ObjectInstance.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../utils/ArrayBoundsChecker.hpp"
 
@@ -38,7 +39,9 @@ namespace vm::runtime
     class ArrayExecutor
     {
     public:
-        explicit ArrayExecutor(ExecutionContext& ctx) : context(ctx) {}
+        ArrayExecutor(ExecutionContext& ctx,
+                      std::shared_ptr<environment::Environment> env)
+            : context(ctx), environment(std::move(env)) {}
         ~ArrayExecutor() = default;
 
         // Out-of-line: creation paths.
@@ -168,7 +171,7 @@ namespace vm::runtime
             value::Value arrayVal = context.stackManager->pop();
             auto array = value::asNativeArray(arrayVal);
 
-            utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), array->size(), "Array");
+            utils::ArrayBoundsChecker::checkBounds(context, environment, static_cast<int>(index), array->size(), "Array");
 
             size_t arrayIndex = static_cast<size_t>(index);
 
@@ -209,7 +212,7 @@ namespace vm::runtime
             value::Value arrayVal = context.stackManager->pop();
             auto array = value::asNativeArray(arrayVal);
 
-            utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), array->size(), "Array");
+            utils::ArrayBoundsChecker::checkBounds(context, environment, static_cast<int>(index), array->size(), "Array");
 
             size_t arrayIndex = static_cast<size_t>(index);
 
@@ -292,6 +295,7 @@ namespace vm::runtime
 
     private:
         ExecutionContext& context;
+        std::shared_ptr<environment::Environment> environment;
 
         // Array creation helpers (out-of-line).
         std::shared_ptr<value::NativeArray> createJaggedArray(
@@ -314,7 +318,7 @@ namespace vm::runtime
 
         // Inlined helpers for the hot GET/SET dispatch paths.
         inline void getNativeArrayElement(const std::shared_ptr<value::NativeArray>& array, int64_t index, bool alias) {
-            utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), array->size(), "Array");
+            utils::ArrayBoundsChecker::checkBounds(context, environment, static_cast<int>(index), array->size(), "Array");
 
             // MYT-303: a full object element load only escapes into a named local
             // when the consumer stores it. For transient consumers we keep SoA
@@ -337,7 +341,7 @@ namespace vm::runtime
         }
 
         inline void getFlatMultiArrayElement(const std::shared_ptr<value::FlatMultiArray>& flatArray, int64_t index) {
-            utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), flatArray->size(), "FlatMultiArray");
+            utils::ArrayBoundsChecker::checkBounds(context, environment, static_cast<int>(index), flatArray->size(), "FlatMultiArray");
 
             // For multi-dimensional arrays, return sub-array; for 1D, return element.
             if (flatArray->getRank() > 1) {
@@ -348,7 +352,7 @@ namespace vm::runtime
         }
 
         inline void getSparseMultiArrayElement(const std::shared_ptr<value::SparseMultiArray>& sparseArray, int64_t index) {
-            utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), sparseArray->size(), "SparseMultiArray");
+            utils::ArrayBoundsChecker::checkBounds(context, environment, static_cast<int>(index), sparseArray->size(), "SparseMultiArray");
 
             if (sparseArray->getRank() > 1) {
                 context.stackManager->push(value::Value(sparseArray->getSubArray(static_cast<size_t>(index))));
@@ -363,7 +367,7 @@ namespace vm::runtime
         void setNativeArrayElement(const std::shared_ptr<value::NativeArray>& array, int64_t index, const value::Value& valueToSet);
 
         inline void setFlatMultiArrayElement(const std::shared_ptr<value::FlatMultiArray>& flatArray, int64_t index, const value::Value& valueToSet) {
-            utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), flatArray->size(), "FlatMultiArray");
+            utils::ArrayBoundsChecker::checkBounds(context, environment, static_cast<int>(index), flatArray->size(), "FlatMultiArray");
 
             if (flatArray->getRank() == 1) {
                 flatArray->set(static_cast<size_t>(index), valueToSet);
@@ -375,7 +379,7 @@ namespace vm::runtime
         }
 
         inline void setSparseMultiArrayElement(const std::shared_ptr<value::SparseMultiArray>& sparseArray, int64_t index, const value::Value& valueToSet) {
-            utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), sparseArray->size(), "SparseMultiArray");
+            utils::ArrayBoundsChecker::checkBounds(context, environment, static_cast<int>(index), sparseArray->size(), "SparseMultiArray");
 
             if (sparseArray->getRank() == 1) {
                 std::vector<size_t> indices = {static_cast<size_t>(index)};

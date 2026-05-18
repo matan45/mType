@@ -1,5 +1,5 @@
 // Minimal stub for ArrayOperationsNative - LSP doesn't need SIMD operations
-#include "../../../mType/runtimeTypes/global/ArrayOperationsNative.hpp"
+#include "../../../mType/environment/registry/builtin/ArrayOperationsNative.hpp"
 #include "../../../mType/environment/Environment.hpp"
 
 namespace runtimeTypes::global {

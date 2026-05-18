@@ -5,7 +5,7 @@
 #include "guards/DeoptimizationHandler.hpp"
 #include "../../value/ValueShim.hpp"
 #include "../../value/ValueObject.hpp"
-#include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../value/ObjectInstance.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../environment/Environment.hpp"
 #include "../../environment/NativeContext.hpp"

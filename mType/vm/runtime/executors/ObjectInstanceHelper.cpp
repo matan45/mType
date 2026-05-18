@@ -1,11 +1,11 @@
 #include "ObjectInstanceHelper.hpp"
+#include "../VirtualMachine.hpp"
 #include <cstddef>
 #include <cstdint>
 #include "../../MethodSignature.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/TypeException.hpp"
-#include "../../../types/TypeRegistry.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../profiler/ProfilerHookHelper.hpp"
 #include "../../../value/IntegerCache.hpp"
@@ -196,8 +196,12 @@ namespace vm::runtime
         }
     }
 
-    ObjectInstanceHelper::ObjectInstanceHelper(ExecutionContext& ctx)
+    ObjectInstanceHelper::ObjectInstanceHelper(ExecutionContext& ctx,
+                                               std::shared_ptr<environment::Environment> env,
+                                               VirtualMachine* vmPtr)
         : context(ctx)
+        , environment(std::move(env))
+        , vm(vmPtr)
     {
     }
 
@@ -224,7 +228,6 @@ namespace vm::runtime
         std::vector<std::string> typeArgs = parseTypeArguments(typeArgsStr);
 
         // Validate type arguments
-        auto& typeRegistry = types::getGlobalTypeRegistry();
         for (const auto& typeArg : typeArgs) {
             if (typeArg.empty()) {
                 throw errors::TypeException("Invalid empty type argument for generic class '" + baseClassName + "'");
@@ -241,11 +244,11 @@ namespace vm::runtime
 
         // Map generic parameters to concrete types
         // Get the class definition to access generic parameters
-        if (!context.environment) {
+        if (!environment) {
             throw errors::RuntimeException("Environment not available when parsing generic type arguments for class: " + baseClassName);
         }
 
-        auto classRegistry = context.environment->getClassRegistry();
+        auto classRegistry = environment->getClassRegistry();
         if (!classRegistry) {
             throw errors::RuntimeException("Class registry not available when parsing generic type arguments for class: " + baseClassName);
         }
@@ -269,7 +272,7 @@ namespace vm::runtime
         const std::string& baseClassName,
         const std::unordered_map<std::string, std::string>& genericTypeBindings)
     {
-        auto classRegistry = context.environment->getClassRegistry();
+        auto classRegistry = environment->getClassRegistry();
         if (!classRegistry) {
             throw errors::RuntimeException("Class registry not available");
         }
@@ -398,7 +401,7 @@ namespace vm::runtime
         // IMPORTANT: Use the current class name from the operand, NOT the instance's class!
         // The instance might be a subclass (e.g., Dog), but we're in the Mammal constructor
         // and need to call Mammal's parent (Animal), not Dog's parent (Mammal).
-        auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
+        auto classDef = environment->getClassRegistry()->findClass(currentClassName);
         if (!classDef) {
             throw errors::RuntimeException("Current class not found: " + currentClassName);
         }
@@ -417,7 +420,7 @@ namespace vm::runtime
             baseParentClassName = parentClassName.substr(0, genericStart);
         }
 
-        auto parentClass = context.environment->getClassRegistry()->findClass(baseParentClassName);
+        auto parentClass = environment->getClassRegistry()->findClass(baseParentClassName);
         if (!parentClass) {
             throw errors::RuntimeException("Parent class not found: " + baseParentClassName);
         }
@@ -441,13 +444,14 @@ namespace vm::runtime
         const bytecode::BytecodeProgram* targetProgram = context.program;
 
         // If not found in current program, search loaded library programs
-        if (!funcMetadata && context.loadedPrograms) {
-            for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
-                auto libFunc = (*context.loadedPrograms)[i]->getFunction(constructorName);
+        if (!funcMetadata) {
+            const auto& loaded = vm->getLoadedPrograms();
+            for (size_t i = 0; i < loaded.size(); ++i) {
+                auto libFunc = loaded[i]->getFunction(constructorName);
                 if (libFunc) {
                     funcMetadata = libFunc;
                     targetProgramIndex = i;
-                    targetProgram = (*context.loadedPrograms)[i];
+                    targetProgram = loaded[i];
                     break;
                 }
             }
@@ -542,7 +546,7 @@ namespace vm::runtime
         auto* instanceRaw = currentFrame.getThisInstanceRaw();
 
         // Find the current class
-        auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
+        auto classDef = environment->getClassRegistry()->findClass(currentClassName);
         if (!classDef) {
             throw errors::RuntimeException("Current class not found: " + currentClassName);
         }
@@ -566,13 +570,14 @@ namespace vm::runtime
         const bytecode::BytecodeProgram* targetProgram = context.program;
 
         // If not found in current program, search loaded library programs
-        if (!funcMetadata && context.loadedPrograms) {
-            for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
-                auto libFunc = (*context.loadedPrograms)[i]->getFunction(constructorName);
+        if (!funcMetadata) {
+            const auto& loaded = vm->getLoadedPrograms();
+            for (size_t i = 0; i < loaded.size(); ++i) {
+                auto libFunc = loaded[i]->getFunction(constructorName);
                 if (libFunc) {
                     funcMetadata = libFunc;
                     targetProgramIndex = i;
-                    targetProgram = (*context.loadedPrograms)[i];
+                    targetProgram = loaded[i];
                     break;
                 }
             }
@@ -667,7 +672,7 @@ namespace vm::runtime
         // IMPORTANT: Use currentClassName from operand, NOT instance->getClassDefinition()
         // This prevents infinite recursion in multi-level inheritance
         // (e.g., AdvancedService -> DerivedService -> BaseService)
-        auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
+        auto classDef = environment->getClassRegistry()->findClass(currentClassName);
         if (!classDef) {
             throw errors::RuntimeException("Current class not found: " + currentClassName);
         }
@@ -686,7 +691,7 @@ namespace vm::runtime
             baseParentClassName = parentClassName.substr(0, genericStart);
         }
 
-        auto parentClass = context.environment->getClassRegistry()->findClass(baseParentClassName);
+        auto parentClass = environment->getClassRegistry()->findClass(baseParentClassName);
         if (!parentClass) {
             throw errors::RuntimeException("Parent class not found: " + baseParentClassName);
         }
@@ -709,13 +714,14 @@ namespace vm::runtime
         const bytecode::BytecodeProgram* targetProgram = context.program;
 
         // If not found in current program, search loaded library programs
-        if (!funcMetadata && context.loadedPrograms) {
-            for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
-                auto libFunc = (*context.loadedPrograms)[i]->getFunction(qualifiedName);
+        if (!funcMetadata) {
+            const auto& loaded = vm->getLoadedPrograms();
+            for (size_t i = 0; i < loaded.size(); ++i) {
+                auto libFunc = loaded[i]->getFunction(qualifiedName);
                 if (libFunc) {
                     funcMetadata = libFunc;
                     targetProgramIndex = i;
-                    targetProgram = (*context.loadedPrograms)[i];
+                    targetProgram = loaded[i];
                     break;
                 }
             }
@@ -796,7 +802,7 @@ namespace vm::runtime
         auto* instance = context.callStack.back().getThisInstanceRaw();
 
         // Get the current class definition
-        auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
+        auto classDef = environment->getClassRegistry()->findClass(currentClassName);
         if (!classDef) {
             throw errors::RuntimeException("Current class not found: " + currentClassName);
         }
@@ -849,7 +855,7 @@ namespace vm::runtime
         auto* instance = context.callStack.back().getThisInstanceRaw();
 
         // Get the current class definition
-        auto classDef = context.environment->getClassRegistry()->findClass(currentClassName);
+        auto classDef = environment->getClassRegistry()->findClass(currentClassName);
         if (!classDef) {
             throw errors::RuntimeException("Current class not found: " + currentClassName);
         }
@@ -896,7 +902,7 @@ namespace vm::runtime
         // tag) and so we tag-branch the new CallFrame.
         auto* instance = value::asObjectInstanceRaw(receiverValue);
         size_t argCount = args.size();
-        auto classRegistry = context.environment->getClassRegistry();
+        auto classRegistry = environment->getClassRegistry();
         auto classDef = classRegistry->findClass(baseClassName);
 
         // Use type-aware constructor lookup for overload resolution
@@ -957,13 +963,14 @@ namespace vm::runtime
         const bytecode::BytecodeProgram* targetProgram = context.program;
 
         // If not found in current program, search loaded library programs
-        if (!funcMetadata && context.loadedPrograms) {
-            for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
-                auto libFunc = (*context.loadedPrograms)[i]->getFunction(constructorName);
+        if (!funcMetadata) {
+            const auto& loaded = vm->getLoadedPrograms();
+            for (size_t i = 0; i < loaded.size(); ++i) {
+                auto libFunc = loaded[i]->getFunction(constructorName);
                 if (libFunc) {
                     funcMetadata = libFunc;
                     targetProgramIndex = i;
-                    targetProgram = (*context.loadedPrograms)[i];
+                    targetProgram = loaded[i];
                     break;
                 }
             }
@@ -1059,7 +1066,7 @@ namespace vm::runtime
             // Check if value is cacheable
             if (value::IntegerCache::isCacheable(intValue)) {
                 // Get Int class definition for cache
-                auto classRegistry = context.environment->getClassRegistry();
+                auto classRegistry = environment->getClassRegistry();
                 auto intClassDef = classRegistry ? classRegistry->findClass("Int") : nullptr;
 
                 if (intClassDef) {
@@ -1079,7 +1086,7 @@ namespace vm::runtime
 
         // Bool caching: only two values, so cache hit rate is 100%.
         if (baseClassName == "Bool" && argCount == 1 && value::isBool(args[0])) {
-            auto classRegistry = context.environment->getClassRegistry();
+            auto classRegistry = environment->getClassRegistry();
             auto boolClassDef = classRegistry ? classRegistry->findClass("Bool") : nullptr;
             if (boolClassDef) {
                 auto cachedInstance = value::BoolCache::getBool(value::asBool(args[0]), boolClassDef);
@@ -1097,7 +1104,7 @@ namespace vm::runtime
         if (baseClassName == "Float" && argCount == 1 && value::isFloat(args[0])) {
             double floatValue = value::asFloat(args[0]);
             if (value::FloatCache::isCacheable(floatValue)) {
-                auto classRegistry = context.environment->getClassRegistry();
+                auto classRegistry = environment->getClassRegistry();
                 auto floatClassDef = classRegistry ? classRegistry->findClass("Float") : nullptr;
                 if (floatClassDef) {
                     auto cachedInstance = value::FloatCache::getFloat(floatValue, floatClassDef);
@@ -1122,7 +1129,7 @@ namespace vm::runtime
                 gotString = true;
             }
             if (gotString) {
-                auto classRegistry = context.environment->getClassRegistry();
+                auto classRegistry = environment->getClassRegistry();
                 auto stringClassDef = classRegistry ? classRegistry->findClass("String") : nullptr;
                 if (stringClassDef) {
                     auto cachedInstance = value::StringCache::getString(strValue, stringClassDef);
@@ -1148,7 +1155,7 @@ namespace vm::runtime
             baseClassName,
             genericTypeBindings,
             collectionInitialCapacity,
-            context.environment->getClassRegistry());
+            environment->getClassRegistry());
 
         // Invoke constructor using the class definition's actual name
         // (handles aliases: "MyInt" resolves to same ClassDef as "Int",
@@ -1174,7 +1181,7 @@ namespace vm::runtime
             args[i - 1] = context.stackManager->pop();
         }
 
-        auto classRegistry = context.environment->getClassRegistry();
+        auto classRegistry = environment->getClassRegistry();
         if (!classRegistry) {
             throw errors::RuntimeException("Class registry not available");
         }
@@ -1257,7 +1264,7 @@ namespace vm::runtime
             if (!context.callStack.back().definingClassName.empty()) {
                 return context.callStack.back().definingClassName;
             }
-            const std::string& funcName = context.frameName(context.callStack.back());
+            const std::string& funcName = vm->frameName(context.callStack.back());
             size_t colonPos = funcName.find("::");
             if (colonPos != std::string::npos) {
                 std::string className = funcName.substr(0, colonPos);
@@ -1269,7 +1276,7 @@ namespace vm::runtime
 
     bool ObjectInstanceHelper::isSubclass(const std::string& derivedClass, const std::string& baseClass) {
         if (derivedClass.empty()) return false;
-        auto currentClass = context.environment->getClassRegistry()->findClass(derivedClass);
+        auto currentClass = environment->getClassRegistry()->findClass(derivedClass);
         while (currentClass && currentClass->hasParentClass()) {
             std::string parentClassName = currentClass->getParentClassName();
 
@@ -1283,7 +1290,7 @@ namespace vm::runtime
             if (baseParentClassName == baseClass) {
                 return true;
             }
-            auto parentClass = context.environment->getClassRegistry()->findClass(baseParentClassName);
+            auto parentClass = environment->getClassRegistry()->findClass(baseParentClassName);
             currentClass = parentClass;
         }
         return false;

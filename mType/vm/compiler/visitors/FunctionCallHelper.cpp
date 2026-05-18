@@ -3,7 +3,7 @@
 #include <cstdint>
 #include "GenericScopeHelper.hpp"
 #include "../validation/CompileTimeValidator.hpp"
-#include "../../../runtimeTypes/klass/SignatureUtils.hpp"
+#include "../../../environment/registry/SignatureUtils.hpp"
 #include "../../../errors/TypeException.hpp"
 #include "../../../errors/EnvironmentException.hpp"
 #include "../../../ast/nodes/expressions/NullNode.hpp"

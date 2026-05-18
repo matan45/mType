@@ -3,73 +3,34 @@
 #include "TypeRegistry.hpp"
 #include "ParserContextState.hpp"
 #include <memory>
-#include <optional>
-#include <functional>
 #include <string>
 #include <vector>
 
 namespace parser
 {
-    class StatementParser;
-    class ExpressionParser;
-    class ClassParser;
-    class InterfaceParser;
-    class AnnotationDeclarationParser;
-    class TokenStream;
+    class Parser;
 
     using namespace ast;
 
-    /// @brief Facade for inter-parser communication without circular dependencies
-    /// Coordinates between parsers using TypeRegistry and ParserContextState
     class ParseContext
     {
     private:
-        std::optional<std::reference_wrapper<StatementParser>> statementParser;
-        std::optional<std::reference_wrapper<ExpressionParser>> expressionParser;
-        std::optional<std::reference_wrapper<ClassParser>> classParser;
-        std::optional<std::reference_wrapper<InterfaceParser>> interfaceParser;
-        std::optional<std::reference_wrapper<AnnotationDeclarationParser>> annotationDeclarationParser;
-        std::optional<std::reference_wrapper<TokenStream>> tokenStream;
+        Parser* parser = nullptr;
 
-        // Composed components following SRP
         TypeRegistry typeRegistry;
         ParserContextState contextState;
 
     public:
-        /// @brief Default constructor for delayed initialization
-        explicit ParseContext() = default;
-
-        /// @brief Constructor with immediate initialization
-        explicit ParseContext(StatementParser& stmt, ExpressionParser& expr, ClassParser& cls, InterfaceParser& iface,
-                              TokenStream& stream);
+        explicit ParseContext(Parser* p) : parser(p) {}
 
         ~ParseContext() = default;
 
-        /// @brief Parse a statement using StatementParser
         [[nodiscard]] std::unique_ptr<ASTNode> parseStatement();
-
-        /// @brief Parse an expression using ExpressionParser
         [[nodiscard]] std::unique_ptr<ASTNode> parseExpression();
-
-        /// @brief Parse a class using ClassParser
         [[nodiscard]] std::unique_ptr<ASTNode> parseClass();
-
-        /// @brief Parse an interface using InterfaceParser
         [[nodiscard]] std::unique_ptr<ASTNode> parseInterface();
-
-        /// @brief Parse an annotation type declaration using AnnotationDeclarationParser
         [[nodiscard]] std::unique_ptr<ASTNode> parseAnnotationDeclaration();
-
-        /// @brief Parse a new expression using ClassParser
         [[nodiscard]] std::unique_ptr<ASTNode> parseNewExpression();
-
-        // Setters for delayed initialization with memory-safe references
-        void setStatementParser(StatementParser& parser);
-        void setExpressionParser(ExpressionParser& parser);
-        void setClassParser(ClassParser& parser);
-        void setInterfaceParser(InterfaceParser& parser);
-        void setAnnotationDeclarationParser(AnnotationDeclarationParser& parser);
-        void setTokenStream(TokenStream& stream);
 
         // Context state delegation (delegates to ParserContextState)
         [[nodiscard]] bool isInsideAsyncFunction() const { return contextState.isInsideAsyncFunction(); }

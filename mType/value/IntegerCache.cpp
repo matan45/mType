@@ -2,7 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include "../environment/Environment.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
 
 namespace value {
 

@@ -1,7 +1,7 @@
 #pragma once
 #include "Registry.hpp"
 #include <cstddef>
-#include "../../runtimeTypes/global/FunctionDefinition.hpp"
+#include "FunctionDefinition.hpp"
 #include <memory>
 #include <string>
 

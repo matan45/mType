@@ -22,35 +22,19 @@ namespace parser
     using namespace ast;
     using namespace token;
 
-    // Helper for atomic initialization
-    struct ParserComponents
-    {
-        std::unique_ptr<TokenStream> tokenStream;
-        std::unique_ptr<StatementParser> statementParser;
-        std::unique_ptr<ExpressionParser> expressionParser;
-        std::unique_ptr<ClassParser> classParser;
-        std::unique_ptr<InterfaceParser> interfaceParser;
-        std::unique_ptr<AnnotationDeclarationParser> annotationDeclarationParser;
-        std::unique_ptr<ParseContext> context;
-    };
-
     class Parser
     {
     private:
         std::unique_ptr<services::ImportManager> importManager;
 
-        // New architecture components
         std::unique_ptr<TokenStream> tokenStream;
         std::unique_ptr<ParseContext> context;
 
-        // Subparsers
         std::unique_ptr<StatementParser> statementParser;
         std::unique_ptr<ExpressionParser> expressionParser;
         std::unique_ptr<ClassParser> classParser;
         std::unique_ptr<InterfaceParser> interfaceParser;
         std::unique_ptr<AnnotationDeclarationParser> annotationDeclarationParser;
-
-        static ParserComponents createComponents(Lexer& lex);
 
     public:
         explicit Parser(Lexer& lex, std::unique_ptr<services::ImportManager> manager);
@@ -61,5 +45,9 @@ namespace parser
         std::unique_ptr<ASTNode> parseProgram();
         std::unique_ptr<ASTNode> parseStatement();
         std::unique_ptr<ASTNode> parseExpression();
+        std::unique_ptr<ASTNode> parseClass();
+        std::unique_ptr<ASTNode> parseInterface();
+        std::unique_ptr<ASTNode> parseAnnotationDeclaration();
+        std::unique_ptr<ASTNode> parseNewExpression();
     };
 }

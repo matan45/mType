@@ -7,10 +7,10 @@
 #include <atomic>
 #include <vector>
 #include <cstdint>
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../runtimeTypes/klass/FieldDefinition.hpp"
-#include "../runtimeTypes/klass/MethodDefinition.hpp"
-#include "../runtimeTypes/klass/ConstructorDefinition.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
+#include "../environment/registry/FieldDefinition.hpp"
+#include "../environment/registry/MethodDefinition.hpp"
+#include "../environment/registry/ConstructorDefinition.hpp"
 #include "../ast/nodes/annotations/AnnotationNode.hpp"
 #include "../types/UnifiedType.hpp"
 

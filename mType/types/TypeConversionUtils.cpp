@@ -1,4 +1,5 @@
 #include "TypeConversionUtils.hpp"
+#include "../environment/registry/TypeCatalog.hpp"
 #include <cstddef>
 #include <algorithm>
 #include <cctype>
@@ -11,7 +12,7 @@ namespace types {
     value::ValueType TypeConversionUtils::handleGenericParameter(
         const UnifiedTypePtr& type,
         const std::unordered_map<std::string, std::string>& substitutionMap,
-        TypeRegistry& registry) {
+        environment::registry::TypeCatalog& catalog) {
 
         std::string typeName = type->getName();
 
@@ -20,8 +21,8 @@ namespace types {
             std::string substitutedType = it->second;
 
             // Validate the substituted type
-            if (!registry.hasType(substitutedType)) {
-                auto suggestions = getTypeSuggestions(substitutedType);
+            if (!catalog.hasType(substitutedType)) {
+                auto suggestions = getTypeSuggestions(substitutedType, catalog);
                 std::string message = "Substituted type '" + substitutedType + "' is not registered";
                 if (!suggestions.empty()) {
                     message += ". Did you mean: " + suggestions[0] + "?";
@@ -29,11 +30,11 @@ namespace types {
                 throw errors::TypeConversionException(message, substitutedType, "unknown");
             }
 
-            if (registry.isArrayType(substitutedType)) {
+            if (catalog.isArrayType(substitutedType)) {
                 return value::ValueType::ARRAY;
             }
 
-            return registry.getValueType(substitutedType);
+            return catalog.getValueType(substitutedType);
         }
 
         // Generic parameter without substitution - treat as OBJECT
@@ -42,15 +43,15 @@ namespace types {
 
     value::ValueType TypeConversionUtils::handleConcreteType(
         const UnifiedTypePtr& type,
-        TypeRegistry& registry) {
+        environment::registry::TypeCatalog& catalog) {
 
         try {
             return type->toValueType();
         } catch (...) {
             std::string typeName = type->getName();
 
-            if (!registry.hasType(typeName)) {
-                auto suggestions = getTypeSuggestions(typeName);
+            if (!catalog.hasType(typeName)) {
+                auto suggestions = getTypeSuggestions(typeName, catalog);
                 std::string message = "Type '" + typeName + "' is not registered";
                 if (!suggestions.empty()) {
                     message += ". Did you mean: " + suggestions[0] + "?";
@@ -58,21 +59,21 @@ namespace types {
                 throw errors::TypeConversionException(message, typeName, "unknown");
             }
 
-            return registry.getValueType(typeName);
+            return catalog.getValueType(typeName);
         }
     }
 
     value::ValueType TypeConversionUtils::handleParameterizedType(
         const UnifiedTypePtr& type,
-        TypeRegistry& registry) {
+        environment::registry::TypeCatalog& catalog) {
 
         std::string baseTypeName = type->getName();
 
-        if (baseTypeName == "Array" || registry.isArrayType(baseTypeName)) {
+        if (baseTypeName == "Array" || catalog.isArrayType(baseTypeName)) {
             return value::ValueType::ARRAY;
         }
 
-        if (registry.isCollectionType(baseTypeName)) {
+        if (catalog.isCollectionType(baseTypeName)) {
             // Validate type arguments
             const auto& typeArgs = type->getTypeArguments();
             std::vector<std::string> typeArgStrings;
@@ -82,7 +83,7 @@ namespace types {
             }
 
             std::string errorMessage;
-            if (!validateGenericInstantiation(baseTypeName, typeArgStrings, errorMessage)) {
+            if (!validateGenericInstantiation(baseTypeName, typeArgStrings, errorMessage, catalog)) {
                 throw errors::TypeConversionException(errorMessage, baseTypeName, "object");
             }
 
@@ -96,27 +97,26 @@ namespace types {
     value::ValueType TypeConversionUtils::convertWithContext(
         const UnifiedTypePtr& type,
         const std::unordered_map<std::string, std::string>& substitutionMap,
+        environment::registry::TypeCatalog& catalog,
         const TypeConversionContext& context) {
 
         if (!type) {
             throw errors::TypeConversionException("Cannot convert null type", "null", "unknown");
         }
 
-        auto& registry = getGlobalTypeRegistry();
-
         try {
             // Handle generic parameters with substitution
             if (type->isGenericParameter()) {
-                return handleGenericParameter(type, substitutionMap, registry);
+                return handleGenericParameter(type, substitutionMap, catalog);
             }
 
             // Handle parameterized types
             if (type->isParameterized()) {
-                return handleParameterizedType(type, registry);
+                return handleParameterizedType(type, catalog);
             }
 
             // Handle concrete types
-            return handleConcreteType(type, registry);
+            return handleConcreteType(type, catalog);
 
             return value::ValueType::OBJECT;
 
@@ -167,12 +167,13 @@ namespace types {
         return false;
     }
 
-    std::vector<std::string> TypeConversionUtils::getTypeSuggestions(const std::string& unknownType) {
+    std::vector<std::string> TypeConversionUtils::getTypeSuggestions(
+        const std::string& unknownType,
+        environment::registry::TypeCatalog& catalog) {
         constexpr double SIMILARITY_THRESHOLD = 0.3;  // Minimum similarity to be considered relevant
         constexpr size_t MAX_SUGGESTIONS = 5;         // Maximum number of suggestions to return
 
-        auto& registry = getGlobalTypeRegistry();
-        auto allTypes = registry.getAllTypeNames();
+        auto allTypes = catalog.getAllTypeNames();
 
         std::vector<std::pair<std::string, double>> scoredSuggestions;
         scoredSuggestions.reserve(allTypes.size() / 2);  // Reserve space for performance
@@ -202,15 +203,15 @@ namespace types {
 
     bool TypeConversionUtils::validateArrayType(const std::string& typeName,
                                               std::string& elementType,
-                                              int& dimensions) {
-        auto [parsedElementType, parsedDimensions] = TypeRegistry::parseArrayTypeName(typeName);
+                                              int& dimensions,
+                                              environment::registry::TypeCatalog& catalog) {
+        auto [parsedElementType, parsedDimensions] = ArrayTypeParser::parseArrayTypeName(typeName);
 
         if (parsedDimensions <= 0) {
             return false;
         }
 
-        auto& registry = getGlobalTypeRegistry();
-        if (!registry.hasType(parsedElementType)) {
+        if (!catalog.hasType(parsedElementType)) {
             return false;
         }
 
@@ -221,15 +222,14 @@ namespace types {
 
     bool TypeConversionUtils::validateGenericInstantiation(const std::string& genericType,
                                                           const std::vector<std::string>& typeArguments,
-                                                          std::string& errorMessage) {
-        auto& registry = getGlobalTypeRegistry();
-
-        if (!registry.isGenericType(genericType)) {
+                                                          std::string& errorMessage,
+                                                          environment::registry::TypeCatalog& catalog) {
+        if (!catalog.isGenericType(genericType)) {
             errorMessage = "'" + genericType + "' is not a generic type";
             return false;
         }
 
-        auto expectedParams = registry.getGenericTypeParameters(genericType);
+        auto expectedParams = catalog.getGenericTypeParameters(genericType);
         if (typeArguments.size() != expectedParams.size()) {
             errorMessage = "Expected " + std::to_string(expectedParams.size()) +
                           " type arguments, got " + std::to_string(typeArguments.size());
@@ -239,7 +239,7 @@ namespace types {
         // Validate each type argument
         for (size_t i = 0; i < typeArguments.size(); ++i) {
             const auto& typeArg = typeArguments[i];
-            if (!registry.hasType(typeArg) && !TypeRegistry::isGenericParameter(typeArg)) {
+            if (!catalog.hasType(typeArg) && !environment::registry::TypeCatalog::isGenericParameter(typeArg)) {
                 errorMessage = "Type argument '" + typeArg + "' is not a valid type";
                 return false;
             }

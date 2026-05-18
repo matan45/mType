@@ -5,7 +5,7 @@
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../services/ScriptInterpreter.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
 #include "../reflection/ReflectionNatives.hpp"
 #include "../json/JsonNatives.hpp"
 

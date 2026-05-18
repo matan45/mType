@@ -19,15 +19,15 @@
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../types/TypeSubstitutionService.hpp"
 #include "../../../types/TypeConversionBridge.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../../../runtimeTypes/klass/MethodDefinition.hpp"
-#include "../../../runtimeTypes/klass/SignatureUtils.hpp"
-#include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"
-#include "../../../runtimeTypes/klass/FieldDefinition.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
+#include "../../../environment/registry/MethodDefinition.hpp"
+#include "../../../environment/registry/SignatureUtils.hpp"
+#include "../../../environment/registry/ConstructorDefinition.hpp"
+#include "../../../environment/registry/FieldDefinition.hpp"
 #include "../../../validation/AnnotationValidator.hpp"
 #include "../../../ast/nodes/annotations/TypedAnnotationValue.hpp"
 #include "../../../environment/registry/AnnotationRegistry.hpp"
-#include "../../../runtimeTypes/klass/AnnotationDefinition.hpp"
+#include "../../../environment/registry/AnnotationDefinition.hpp"
 #include <stdexcept>
 
 namespace vm::compiler::registration

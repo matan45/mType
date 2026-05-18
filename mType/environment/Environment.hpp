@@ -5,13 +5,14 @@
 #include "registry/NativeRegistry.hpp"
 #include "registry/ExportRegistry.hpp"
 #include "registry/AnnotationRegistry.hpp"
+#include "registry/TypeCatalog.hpp"
 #include "manager/VariableManager.hpp"
 #include "manager/ScopeManager.hpp"
 
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../runtimeTypes/klass/InterfaceRegistry.hpp"
-#include "../runtimeTypes/global/FunctionDefinition.hpp"
-#include "../runtimeTypes/global/VariableDefinition.hpp"
+#include "registry/ClassDefinition.hpp"
+#include "registry/InterfaceRegistry.hpp"
+#include "registry/FunctionDefinition.hpp"
+#include "registry/VariableDefinition.hpp"
 #include "../circularDependency/CircularDependencyDetector.hpp"
 #include <memory>
 #include <string>
@@ -34,6 +35,10 @@ namespace environment
     class Environment
     {
     private:
+        // TypeCatalog inherits ClassRegistry, so one instance serves both
+        // accessors. `classRegistry` is kept as a typed view for backward
+        // compatibility with the many `getClassRegistry()->X()` call sites.
+        std::shared_ptr<TypeCatalog> typeCatalog;
         std::shared_ptr<ClassRegistry> classRegistry;
         std::shared_ptr<FunctionRegistry> functionRegistry;
         std::shared_ptr<VariableManager> variableManager;
@@ -71,6 +76,7 @@ namespace environment
         void resetForRebuild();
 
         std::shared_ptr<ClassRegistry> getClassRegistry() const;
+        std::shared_ptr<TypeCatalog> getTypeCatalog() const;
         std::shared_ptr<FunctionRegistry> getFunctionRegistry() const;
         std::shared_ptr<VariableManager> getVariableManager() const;
         std::shared_ptr<ScopeManager> getScopeManager() const;

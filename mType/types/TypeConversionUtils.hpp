@@ -3,13 +3,15 @@
 #include "../value/ValueType.hpp"
 #include "../value/ParameterType.hpp"
 #include "UnifiedType.hpp"
-#include "TypeRegistry.hpp"
+#include "TypeDescriptors.hpp"
 #include "../errors/TypeException.hpp"
 #include "../errors/TypeConversionException.hpp"
 #include <string>
 #include <vector>
 #include <memory>
 #include <unordered_map>
+
+namespace environment::registry { class TypeCatalog; }
 
 namespace types {
 
@@ -36,6 +38,7 @@ namespace types {
         static value::ValueType convertWithContext(
             const UnifiedTypePtr& type,
             const std::unordered_map<std::string, std::string>& substitutionMap,
+            environment::registry::TypeCatalog& catalog,
             const TypeConversionContext& context = TypeConversionContext());
 
         /**
@@ -51,21 +54,25 @@ namespace types {
         /**
          * Get type suggestions for unknown type names
          */
-        static std::vector<std::string> getTypeSuggestions(const std::string& unknownType);
+        static std::vector<std::string> getTypeSuggestions(
+            const std::string& unknownType,
+            environment::registry::TypeCatalog& catalog);
 
         /**
          * Validate array type dimensions and element types
          */
         static bool validateArrayType(const std::string& typeName,
                                     std::string& elementType,
-                                    int& dimensions);
+                                    int& dimensions,
+                                    environment::registry::TypeCatalog& catalog);
 
         /**
          * Validate generic type instantiation
          */
         static bool validateGenericInstantiation(const std::string& genericType,
                                                const std::vector<std::string>& typeArguments,
-                                               std::string& errorMessage);
+                                               std::string& errorMessage,
+                                               environment::registry::TypeCatalog& catalog);
 
         // ---- getTypeDisplayName overloads ----------------------------------
         //
@@ -143,21 +150,21 @@ namespace types {
         static value::ValueType handleGenericParameter(
             const UnifiedTypePtr& type,
             const std::unordered_map<std::string, std::string>& substitutionMap,
-            TypeRegistry& registry);
+            environment::registry::TypeCatalog& catalog);
 
         /**
          * Handle conversion of concrete types
          */
         static value::ValueType handleConcreteType(
             const UnifiedTypePtr& type,
-            TypeRegistry& registry);
+            environment::registry::TypeCatalog& catalog);
 
         /**
          * Handle conversion of parameterized types
          */
         static value::ValueType handleParameterizedType(
             const UnifiedTypePtr& type,
-            TypeRegistry& registry);
+            environment::registry::TypeCatalog& catalog);
 
         /**
          * Calculate string similarity for type suggestions

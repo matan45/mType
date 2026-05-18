@@ -2,8 +2,8 @@
 #include "ValueShim.hpp"
 #include "HashUtils.hpp"
 #include "../gc/WriteBarrier.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
+#include "../value/ObjectInstance.hpp"
 #include <functional>
 // Key extraction, boxing, and materialization live in
 // SpecializedCollectionsBoxing.cpp to keep this file focused on the

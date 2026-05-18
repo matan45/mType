@@ -49,6 +49,12 @@
     <Filter Include="vm\optimization\analysis">
       <UniqueIdentifier>{F10E3793-DD33-8613-067F-6BA3F2028531}</UniqueIdentifier>
     </Filter>
+    <Filter Include="vm\optimization\base">
+      <UniqueIdentifier>{C888D619-B417-60E3-5D36-74DE49A47089}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="vm\optimization\passes">
+      <UniqueIdentifier>{9C5C440A-8856-6D5C-71C3-036D5D5CD3C8}</UniqueIdentifier>
+    </Filter>
     <Filter Include="vm\optimization\patterns">
       <UniqueIdentifier>{1E3F35AF-0A64-842F-33AF-69BF1F33834D}</UniqueIdentifier>
     </Filter>
@@ -219,6 +225,18 @@
     <ClInclude Include="vm\compiler\visitors\TryStatementHelper.hpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClInclude>
+    <ClInclude Include="vm\optimization\BytecodeOptimizationConfig.hpp">
+      <Filter>vm\optimization</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\BytecodeOptimizationPassManager.hpp">
+      <Filter>vm\optimization</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\BytecodeOptimizationResult.hpp">
+      <Filter>vm\optimization</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\BytecodeOptimizer.hpp">
+      <Filter>vm\optimization</Filter>
+    </ClInclude>
     <ClInclude Include="vm\optimization\InlineAnalysis.hpp">
       <Filter>vm\optimization</Filter>
     </ClInclude>
@@ -236,6 +254,27 @@
     </ClInclude>
     <ClInclude Include="vm\optimization\analysis\JumpTargetTracker.hpp">
       <Filter>vm\optimization\analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\base\BytecodeOptimizationContext.hpp">
+      <Filter>vm\optimization\base</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\base\BytecodePass.hpp">
+      <Filter>vm\optimization\base</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\passes\LocalArrayFusionPass.hpp">
+      <Filter>vm\optimization\passes</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\passes\LoopOptimizationPass.hpp">
+      <Filter>vm\optimization\passes</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\passes\PeepholeOptimizationPass.hpp">
+      <Filter>vm\optimization\passes</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\passes\TrivialGetterInliningPass.hpp">
+      <Filter>vm\optimization\passes</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\optimization\passes\TrivialSetterInliningPass.hpp">
+      <Filter>vm\optimization\passes</Filter>
     </ClInclude>
     <ClInclude Include="vm\optimization\patterns\AbstractClassPattern.hpp">
       <Filter>vm\optimization\patterns</Filter>
@@ -524,6 +563,18 @@
     <ClCompile Include="vm\compiler\visitors\TryStatementHelper.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\optimization\BytecodeOptimizationConfig.cpp">
+      <Filter>vm\optimization</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\BytecodeOptimizationPassManager.cpp">
+      <Filter>vm\optimization</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\BytecodeOptimizationResult.cpp">
+      <Filter>vm\optimization</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\BytecodeOptimizer.cpp">
+      <Filter>vm\optimization</Filter>
+    </ClCompile>
     <ClCompile Include="vm\optimization\InlineAnalysis.cpp">
       <Filter>vm\optimization</Filter>
     </ClCompile>
@@ -541,6 +592,24 @@
     </ClCompile>
     <ClCompile Include="vm\optimization\analysis\JumpTargetTracker.cpp">
       <Filter>vm\optimization\analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\base\BytecodePass.cpp">
+      <Filter>vm\optimization\base</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\passes\LocalArrayFusionPass.cpp">
+      <Filter>vm\optimization\passes</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\passes\LoopOptimizationPass.cpp">
+      <Filter>vm\optimization\passes</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\passes\PeepholeOptimizationPass.cpp">
+      <Filter>vm\optimization\passes</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\passes\TrivialGetterInliningPass.cpp">
+      <Filter>vm\optimization\passes</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\optimization\passes\TrivialSetterInliningPass.cpp">
+      <Filter>vm\optimization\passes</Filter>
     </ClCompile>
     <ClCompile Include="vm\optimization\patterns\AbstractClassPattern.cpp">
       <Filter>vm\optimization\patterns</Filter>

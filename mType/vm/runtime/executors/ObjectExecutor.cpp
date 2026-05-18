@@ -4,14 +4,14 @@
 #include <cstdint>
 #include "ObjectInstanceHelper.hpp"
 #include "FunctionExecutor.hpp"
+#include "../VirtualMachine.hpp"
 #include "../../MethodSignature.hpp"
 #include "../../../services/ScriptAPI.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../utils/NullCheckUtils.hpp"
 #include "../../../errors/SourceLocation.hpp"
 #include "../../../errors/TypeException.hpp"
-#include "../../../types/TypeRegistry.hpp"
-#include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
+#include "../../../environment/registry/InterfaceDefinition.hpp"
 #include "../../../constants/LambdaConstants.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../profiler/ProfilerHookHelper.hpp"
@@ -24,7 +24,7 @@
 #include "../context/SharedStackFramePool.hpp"
 #include "../utils/BoxingUtils.hpp"
 #include "../utils/MethodResolver.hpp"
-#include "../../../runtimeTypes/klass/SignatureUtils.hpp"
+#include "../../../environment/registry/SignatureUtils.hpp"
 #include <algorithm>
 
 using vm::runtime::utils::autoBoxPrimitive;
@@ -34,9 +34,13 @@ namespace vm::runtime
     {
     }
 
-    ObjectExecutor::ObjectExecutor(ExecutionContext& ctx)
+    ObjectExecutor::ObjectExecutor(ExecutionContext& ctx,
+                                   std::shared_ptr<environment::Environment> env,
+                                   VirtualMachine* vmPtr)
         : context(ctx)
-        , instanceHelper(std::make_unique<ObjectInstanceHelper>(ctx))
+        , environment(std::move(env))
+        , vm(vmPtr)
+        , instanceHelper(std::make_unique<ObjectInstanceHelper>(ctx, environment, vmPtr))
     {}
 
     ObjectExecutor::~ObjectExecutor() = default;
@@ -63,7 +67,7 @@ namespace vm::runtime
                 value::Value boxed;
                 if (utils::tryCreatePrimitiveValueObject(
                         className, std::span<const value::Value>(&arg, 1),
-                        context.environment.get(), boxed))
+                        environment.get(), boxed))
                 {
                     context.stackManager->pop();
                     context.stackManager->push(std::move(boxed));
@@ -121,10 +125,10 @@ namespace vm::runtime
         if (value::isInt(objectValue) ||
             value::isFloat(objectValue) ||
             value::isBool(objectValue)) {
-            objectValue = autoBoxPrimitive(objectValue, context.environment);
+            objectValue = autoBoxPrimitive(objectValue, environment);
         }
 
-        utils::checkNullReceiver(instr, objectValue, context, "access field", fieldName);
+        utils::checkNullReceiver(instr, objectValue, context, environment, "access field", fieldName);
 
         // MYT-225: value-class receivers (e.g. `other.x` where `other` is a
         // value-class parameter) appear with tag VALUE_OBJECT, not OBJECT.
@@ -159,7 +163,7 @@ namespace vm::runtime
 
         auto* instance = value::asObjectInstanceRaw(objectValue);
 
-        auto classRegistry = context.environment->getClassRegistry();
+        auto classRegistry = environment->getClassRegistry();
         auto staticClass = classRegistry->findClass(className);
         if (!staticClass) {
             // Static class not found at runtime; fall back to dynamic lookup.
@@ -207,7 +211,7 @@ namespace vm::runtime
         value::Value newValue = context.stackManager->pop();
         value::Value objectValue = context.stackManager->pop();
 
-        utils::checkNullReceiver(instr, objectValue, context, "set field", fieldName);
+        utils::checkNullReceiver(instr, objectValue, context, environment, "set field", fieldName);
 
         // MYT-225: value-class receivers — deep copy before mutation for value
         // semantics. Mirrors handleSetField's value-object branch plus the
@@ -246,7 +250,7 @@ namespace vm::runtime
 
         auto* instance = value::asObjectInstanceRaw(objectValue);
 
-        auto classRegistry = context.environment->getClassRegistry();
+        auto classRegistry = environment->getClassRegistry();
         auto staticClass = classRegistry->findClass(className);
         if (!staticClass) {
             instance->setField(fieldName, newValue);
@@ -309,7 +313,7 @@ namespace vm::runtime
         std::string className = qualifiedName.substr(0, colonPos);
         std::string fieldName = qualifiedName.substr(colonPos + 2);
 
-        auto classRegistry = context.environment->getClassRegistry();
+        auto classRegistry = environment->getClassRegistry();
         auto classDef = classRegistry->findClass(className);
         if (!classDef) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "Class not found: " + className);
@@ -349,7 +353,7 @@ namespace vm::runtime
         std::string className = qualifiedName.substr(0, colonPos);
         std::string fieldName = qualifiedName.substr(colonPos + 2);
 
-        auto classRegistry = context.environment->getClassRegistry();
+        auto classRegistry = environment->getClassRegistry();
         auto classDef = classRegistry->findClass(className);
         if (!classDef) {
             utils::ErrorLocationHelper::throwRuntimeError(context, "Class not found: " + className);
@@ -480,7 +484,7 @@ namespace vm::runtime
 
                 if (needsBoxing) {
                     // Create boxed instance: new BoxClass(primitiveValue)
-                    auto classDef = context.environment->findClass(boxClassName);
+                    auto classDef = environment->findClass(boxClassName);
                     if (classDef) {
                         if (classDef->isValueClass()) {
                             auto valueObj = std::make_shared<value::ValueObject>(classDef);
@@ -603,7 +607,7 @@ namespace vm::runtime
         }
 
         auto resolution = utils::MethodResolver::resolve(
-            qualifiedName, definingClassName, simpleMethodName, context);
+            qualifiedName, definingClassName, simpleMethodName, context, *vm);
         auto funcMetadata = resolution.funcMetadata;
         size_t targetProgramIndex = resolution.programIndex;
         const bytecode::BytecodeProgram* targetProgram = resolution.program;
@@ -658,7 +662,7 @@ namespace vm::runtime
                 // obj.getClass() and native ScriptAPI::getClass are the
                 // same code path. Builds the parameterized canonical name
                 // from the instance's reified type and calls Class.forName.
-                services::ScriptAPI api(context.environment, context.vm, context.program);
+                services::ScriptAPI api(environment, vm, context.program);
                 // MYT-208: pass the original receiver Value so getClass works
                 // for both OBJECT and STACK_OBJECT receivers without re-boxing.
                 context.stackManager->push(
@@ -804,10 +808,10 @@ namespace vm::runtime
             value::isFloat(objectValue) ||
             value::isBool(objectValue) ||
             value::isAnyString(objectValue)) {
-            objectValue = autoBoxPrimitive(objectValue, context.environment);
+            objectValue = autoBoxPrimitive(objectValue, environment);
         }
 
-        utils::checkNullReceiver(instr, objectValue, context, "call method", methodName);
+        utils::checkNullReceiver(instr, objectValue, context, environment, "call method", methodName);
 
         // Handle lambda invocation
         if (value::isLambda(objectValue)) {
@@ -842,7 +846,7 @@ namespace vm::runtime
         // tag-branches the frame.thisInstance / thisInstanceRaw assignment
         // and pushes the original Value onto the stack as `this`.
         if (!value::isAnyObject(objectValue)) {
-            utils::ErrorLocationHelper::throwUserException(context,
+            utils::ErrorLocationHelper::throwUserException(context, environment,
                 "RuntimeException",
                 "CALL_METHOD requires an object instance or lambda");
         }
@@ -916,7 +920,7 @@ namespace vm::runtime
             return;
         }
 
-        utils::ErrorLocationHelper::throwUserException(context,
+        utils::ErrorLocationHelper::throwUserException(context, environment,
             "RuntimeException",
             "method '" + simpleName + "' not found on array");
     }
@@ -981,7 +985,7 @@ namespace vm::runtime
             }
             if (methodName == "getKeys" || methodName == "toArray")
             {
-                context.stackManager->push(storage->materializeKeys(context.environment.get()));
+                context.stackManager->push(storage->materializeKeys(environment.get()));
                 return true;
             }
             if (methodName == "getValues")
@@ -1014,7 +1018,7 @@ namespace vm::runtime
             }
             if (methodName == "toArray")
             {
-                context.stackManager->push(storage->materializeKeys(context.environment.get()));
+                context.stackManager->push(storage->materializeKeys(environment.get()));
                 return true;
             }
         }
@@ -1074,7 +1078,7 @@ namespace vm::runtime
             } else {
                 // Fallback: extract class name from function name (static methods).
                 // MYT-197: resolve the interned handle before splitting.
-                const std::string& funcName = context.frameName(context.callStack.back());
+                const std::string& funcName = vm->frameName(context.callStack.back());
                 size_t colonPos = funcName.find("::");
                 if (colonPos != std::string::npos) {
                     return funcName.substr(0, colonPos);
@@ -1086,7 +1090,7 @@ namespace vm::runtime
 
     bool ObjectExecutor::isSubclass(const std::string& derivedClass, const std::string& baseClass) {
         if (derivedClass.empty()) return false;
-        auto currentClass = context.environment->getClassRegistry()->findClass(derivedClass);
+        auto currentClass = environment->getClassRegistry()->findClass(derivedClass);
         while (currentClass && currentClass->hasParentClass()) {
             std::string parentClassName = currentClass->getParentClassName();
 
@@ -1104,7 +1108,7 @@ namespace vm::runtime
             }
 
             // Use base name for registry lookup
-            auto parentClass = context.environment->getClassRegistry()->findClass(baseParentName);
+            auto parentClass = environment->getClassRegistry()->findClass(baseParentName);
             currentClass = parentClass;
         }
         return false;
@@ -1153,12 +1157,12 @@ namespace vm::runtime
         // Pop the iterable collection from the stack
         value::Value collectionValue = context.stackManager->pop();
 
-        utils::checkNullReceiver(instr, collectionValue, context, "get iterator from", "collection");
+        utils::checkNullReceiver(instr, collectionValue, context, environment, "get iterator from", "collection");
 
         // Check if it's an array - create an ArrayIteratorHelper for it
         if (value::isNativeArray(collectionValue)) {
             // Get the ArrayIteratorHelper class from the class registry
-            auto classRegistry = context.environment->getClassRegistry();
+            auto classRegistry = environment->getClassRegistry();
             auto iteratorHelperClass = classRegistry->findClass("ArrayIteratorHelper");
 
             if (!iteratorHelperClass) {
@@ -1210,7 +1214,7 @@ namespace vm::runtime
         // blocked OSR with OPERAND_STACK_NOT_EMPTY).
         value::Value iteratorValue = context.stackManager->pop();
 
-        utils::checkNullReceiver(instr, iteratorValue, context, "call hasNext() on", "iterator");
+        utils::checkNullReceiver(instr, iteratorValue, context, environment, "call hasNext() on", "iterator");
 
         if (!value::isAnyObject(iteratorValue)) {
             utils::ErrorLocationHelper::throwRuntimeError(context,
@@ -1229,7 +1233,7 @@ namespace vm::runtime
         // MYT-156: pop the iterator (see handleIteratorHasNext).
         value::Value iteratorValue = context.stackManager->pop();
 
-        utils::checkNullReceiver(instr, iteratorValue, context, "call next() on", "iterator");
+        utils::checkNullReceiver(instr, iteratorValue, context, environment, "call next() on", "iterator");
 
         if (!value::isAnyObject(iteratorValue)) {
             utils::ErrorLocationHelper::throwRuntimeError(context,
@@ -1290,7 +1294,7 @@ namespace vm::runtime
         }
 
         value::Value receiverValue = context.stackManager->pop();
-        utils::checkNullReceiver(instr, receiverValue, context, "compute hashCode of", "this");
+        utils::checkNullReceiver(instr, receiverValue, context, environment, "compute hashCode of", "this");
 
         int64_t h = 1;
 

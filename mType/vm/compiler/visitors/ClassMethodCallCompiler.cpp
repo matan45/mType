@@ -4,7 +4,7 @@
 #include <set>
 #include "GenericScopeHelper.hpp"
 #include "../validation/CompileTimeValidator.hpp"
-#include "../../../runtimeTypes/klass/SignatureUtils.hpp"
+#include "../../../environment/registry/SignatureUtils.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../bytecode/OpCode.hpp"
 #include "../optimization/PrimitiveMethodOptimizer.hpp"

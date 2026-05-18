@@ -1,21 +1,18 @@
-﻿#pragma once
+#pragma once
+#include <functional>
 #include <memory>
+#include <string>
 #include <vector>
 #include "../ast/ASTNode.hpp"
+#include "../errors/SourceLocation.hpp"
+#include "../token/Token.hpp"
+#include "../token/TokenType.hpp"
 #include "TokenStream.hpp"
 #include "ParseContext.hpp"
-#include "expression/BinaryOperatorParser.hpp"
-#include "expression/UnaryOperatorParser.hpp"
-#include "expression/PostfixOperatorParser.hpp"
-#include "expression/LiteralParser.hpp"
-#include "expression/ArgumentParser.hpp"
-#include "expression/CastParser.hpp"
 
 namespace parser
 {
-    class ParseContext;
     using namespace ast;
-    using namespace parser::expression;
 
     class ExpressionParser
     {
@@ -23,74 +20,102 @@ namespace parser
         TokenStream& tokenStream;
         ParseContext& context;
 
-        // Specialized parser helpers
-        std::unique_ptr<BinaryOperatorParser> binaryOpParser;
-        std::unique_ptr<UnaryOperatorParser> unaryOpParser;
-        std::unique_ptr<PostfixOperatorParser> postfixOpParser;
-        std::unique_ptr<LiteralParser> literalParser;
-        std::unique_ptr<ArgumentParser> argumentParser;
-        std::unique_ptr<CastParser> castParser;
+        void expectToken(token::TokenType type);
+        bool tryConsumeToken(token::TokenType type);
+        const token::Token& currentToken() const;
+        bool isAtEnd() const;
 
     public:
         explicit ExpressionParser(TokenStream& stream, ParseContext& ctx);
 
-        // Expression parsing methods (precedence climbing)
+        // Public precedence-climbing entry points (called from other parsers)
         std::unique_ptr<ASTNode> parseExpression();
-        std::unique_ptr<ASTNode> parseAssignment();
-        std::unique_ptr<ASTNode> parseLambda();
-        std::unique_ptr<ASTNode> parseTernary();
-        std::unique_ptr<ASTNode> parseLogicalOr();
-        std::unique_ptr<ASTNode> parseLogicalAnd();
-        std::unique_ptr<ASTNode> parseEquality();
-        std::unique_ptr<ASTNode> parseComparison();
-        std::unique_ptr<ASTNode> parseAdditive();
-        std::unique_ptr<ASTNode> parseMultiplicative();
+        std::unique_ptr<ASTNode> parseTernary();  // LambdaParser uses this to skip the assignment level
         std::unique_ptr<ASTNode> parseUnary();
         std::unique_ptr<ASTNode> parsePostfix();
         std::unique_ptr<ASTNode> parsePrimary();
 
-        // Argument parsing (used by other parsers)
+        // Used by ClassParser/StatementParser via context (parseNewExpression path)
         std::vector<std::unique_ptr<ASTNode>> parseArguments();
-
-        // Generic type argument parsing for static method calls
         std::vector<std::string> parseGenericTypeArguments();
 
-        // Get castParser for isClassOf delegation
-        CastParser* getCastParser() const { return castParser.get(); }
-
     private:
-        void initializeHelperParsers();
+        // Assignment + precedence ladder
+        std::unique_ptr<ASTNode> parseAssignment();
+        std::unique_ptr<ASTNode> parseLambda();
+        std::unique_ptr<ASTNode> parseLogicalOr();
+        std::unique_ptr<ASTNode> parseLogicalAnd();
+        std::unique_ptr<ASTNode> parseBitwiseOr();
+        std::unique_ptr<ASTNode> parseBitwiseXor();
+        std::unique_ptr<ASTNode> parseBitwiseAnd();
+        std::unique_ptr<ASTNode> parseEquality();
+        std::unique_ptr<ASTNode> parseComparison();
+        std::unique_ptr<ASTNode> parseIsClassOf();
+        std::unique_ptr<ASTNode> parseShift();
+        std::unique_ptr<ASTNode> parseAdditive();
+        std::unique_ptr<ASTNode> parseMultiplicative();
+        std::unique_ptr<ASTNode> parseBinaryLevel(
+            std::function<std::unique_ptr<ASTNode>()> parseNext,
+            const std::vector<token::TokenType>& operators);
 
-        // Helper methods
+        // Cast / instanceof (absorbed from CastParser)
+        bool isCastExpression() const;
+        bool canParseCast() const;
+        std::unique_ptr<ASTNode> parseCastExpression();
+        std::unique_ptr<ASTNode> parseInstanceOfExpression(std::unique_ptr<ASTNode> left);
+
+        // Postfix (absorbed from PostfixOperatorParser)
+        std::unique_ptr<ASTNode> parsePostfixOperations(std::unique_ptr<ASTNode> expr);
+        std::unique_ptr<ASTNode> parseFunctionCall(std::unique_ptr<ASTNode> expr);
         std::unique_ptr<ASTNode> parseMemberAccess(std::unique_ptr<ASTNode> object);
         std::unique_ptr<ASTNode> parseIndexAccess(std::unique_ptr<ASTNode> collection);
+        std::unique_ptr<ASTNode> parseScopeResolution(std::unique_ptr<ASTNode> expr);
+        std::unique_ptr<ASTNode> parseGenericMethodCall(const std::string& className,
+                                                        const std::string& methodName,
+                                                        const std::vector<std::string>& typeArgs);
+        bool isPostfixOperator(token::TokenType type) const noexcept;
+        bool isGenericFunctionCall();
+
+        // Literal / primary (absorbed from LiteralParser)
+        std::unique_ptr<ASTNode> parseIntegerLiteral();
+        std::unique_ptr<ASTNode> parseFloatLiteral();
+        std::unique_ptr<ASTNode> parseStringLiteral();
+        std::unique_ptr<ASTNode> parseBooleanLiteral();
+        std::unique_ptr<ASTNode> parseNullLiteral();
+        std::unique_ptr<ASTNode> parseIdentifier();
+        std::unique_ptr<ASTNode> parseParenthesizedExpression();
+        std::unique_ptr<ASTNode> parseSuperExpression();
+        std::unique_ptr<ASTNode> parseInterpolatedStringExpression();
         std::unique_ptr<ASTNode> parseArrayLiteral();
+
+        // Argument lists (absorbed from ArgumentParser)
+        std::vector<std::unique_ptr<ASTNode>> parseArgumentsWithParentheses();
         std::string parseGenericTypeArgument();
 
-        // Lambda detection helpers
+        // Lambda detection
         bool isLambdaStart() const;
         bool isLikelyLambdaParameterList() const;
 
         // Assignment handling helpers
         std::unique_ptr<ASTNode> handleMemberAssignment(
             ast::nodes::classes::MemberAccessNode* memberAccessNode,
-            TokenType opType,
+            token::TokenType opType,
             std::unique_ptr<ASTNode> rightExpr,
-            const SourceLocation& location);
+            const errors::SourceLocation& location);
         std::unique_ptr<ASTNode> handleSuperMemberAssignment(
             ast::nodes::classes::SuperMemberAccessNode* superMemberAccessNode,
-            TokenType opType,
+            token::TokenType opType,
             std::unique_ptr<ASTNode> rightExpr,
-            const SourceLocation& location);
+            const errors::SourceLocation& location);
         std::unique_ptr<ASTNode> handleIndexAssignment(
             ast::nodes::expressions::IndexAccessNode* indexAccessNode,
-            TokenType opType,
+            token::TokenType opType,
             std::unique_ptr<ASTNode> rightExpr,
-            const SourceLocation& location);
+            const errors::SourceLocation& location);
         std::unique_ptr<ASTNode> handleVariableAssignment(
             ast::nodes::expressions::VariableNode* variableNode,
-            TokenType opType,
+            token::TokenType opType,
             std::unique_ptr<ASTNode> rightExpr,
-            const SourceLocation& location);
+            const errors::SourceLocation& location);
     };
 }

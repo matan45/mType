@@ -29,6 +29,7 @@
 #include "ImportHelper.hpp"
 #include "../../circularDependency/CircularDependencyDetector.hpp"
 #include "../../diagnostics/Diagnostic.hpp"
+#include "../../services/BytecodeOptimizationService.hpp"
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -190,6 +191,11 @@ namespace vm::compiler
 
         // Import helper
         ImportHelper importHelper;
+
+        // Bytecode-level post-processing pipeline. Replaces the inline
+        // peephole / inliner / fusion calls that used to live at the end of
+        // compile().
+        services::BytecodeOptimizationService bytecodeOptimizationService;
 
         // Import tracking (to avoid recompiling the same file)
         std::unordered_set<std::string> compiledImports;

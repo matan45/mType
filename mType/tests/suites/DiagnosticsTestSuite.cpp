@@ -10,8 +10,8 @@
 
 #include "../../analysis/OverrideAnnotationChecker.hpp"
 #include "../../analysis/UnusedVariableAnalyzer.hpp"
-#include "../../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../../runtimeTypes/klass/MethodDefinition.hpp"
+#include "../../environment/registry/ClassDefinition.hpp"
+#include "../../environment/registry/MethodDefinition.hpp"
 #include "../../ast/nodes/annotations/AnnotationNode.hpp"
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"

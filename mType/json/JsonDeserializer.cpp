@@ -3,9 +3,9 @@
 #include <cstddef>
 #include <cstdint>
 #include "JsonParser.hpp"
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../runtimeTypes/klass/FieldDefinition.hpp"
+#include "../value/ObjectInstance.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
+#include "../environment/registry/FieldDefinition.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/ObjectInstancePool.hpp"
 #include "../value/ValueObject.hpp"

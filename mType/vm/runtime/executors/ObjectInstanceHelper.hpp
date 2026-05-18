@@ -1,8 +1,9 @@
 #pragma once
 #include "../context/ExecutionContext.hpp"
+#include "../../../environment/Environment.hpp"
 #include "../validation/AccessValidator.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../value/ObjectInstance.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"
 #include <span>
 #include <vector>
@@ -11,6 +12,8 @@
 
 namespace vm::runtime
 {
+    class VirtualMachine;
+
     /**
      * Helper class for object instance operations
      * Extracted from ObjectExecutor to improve Single Responsibility Principle compliance
@@ -19,7 +22,9 @@ namespace vm::runtime
     class ObjectInstanceHelper
     {
     public:
-        explicit ObjectInstanceHelper(ExecutionContext& ctx);
+        ObjectInstanceHelper(ExecutionContext& ctx,
+                             std::shared_ptr<environment::Environment> env,
+                             VirtualMachine* vmPtr);
         ~ObjectInstanceHelper() = default;
 
         // Object creation
@@ -43,6 +48,8 @@ namespace vm::runtime
 
     private:
         ExecutionContext& context;
+        std::shared_ptr<environment::Environment> environment;
+        VirtualMachine* vm;
 
         // Object creation helpers
         std::string parseGenericTypeArguments(const std::string& fullClassName,

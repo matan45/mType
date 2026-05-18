@@ -1,24 +1,36 @@
 #include "ExpressionParser.hpp"
 #include <cstddef>
+#include "LambdaParser.hpp"
 #include "TypeParser.hpp"
 #include "utilities/ParserUtils.hpp"
-#include "LambdaParser.hpp"
-#include "../services/ImportManager.hpp"
-#include "expression/BinaryOperatorParser.hpp"
-#include "expression/UnaryOperatorParser.hpp"
-#include "expression/PostfixOperatorParser.hpp"
-#include "expression/LiteralParser.hpp"
-#include "expression/ArgumentParser.hpp"
-#include "../ast/nodes/expressions/BinaryExpNode.hpp"
-#include "../ast/nodes/expressions/VariableNode.hpp"
-#include "../ast/nodes/expressions/LambdaNode.hpp"
-#include "../ast/nodes/expressions/IndexAccessNode.hpp"
+#include "utilities/QualifiedNameParser.hpp"
 #include "../ast/nodes/classes/MemberAccessNode.hpp"
+#include "../ast/nodes/classes/MethodCallNode.hpp"
+#include "../ast/nodes/classes/SuperConstructorCallNode.hpp"
 #include "../ast/nodes/classes/SuperMemberAccessNode.hpp"
 #include "../ast/nodes/classes/SuperMemberAssignmentNode.hpp"
-#include "../ast/nodes/statements/MemberAssignmentNode.hpp"
-#include "../ast/nodes/statements/IndexAssignmentNode.hpp"
+#include "../ast/nodes/classes/SuperMethodCallNode.hpp"
+#include "../ast/nodes/classes/ThisConstructorCallNode.hpp"
+#include "../ast/nodes/expressions/ArrayLiteralNode.hpp"
+#include "../ast/nodes/expressions/AwaitExpression.hpp"
+#include "../ast/nodes/expressions/BinaryExpNode.hpp"
+#include "../ast/nodes/expressions/BoolNode.hpp"
+#include "../ast/nodes/expressions/CastExpression.hpp"
+#include "../ast/nodes/expressions/FloatNode.hpp"
+#include "../ast/nodes/expressions/IndexAccessNode.hpp"
+#include "../ast/nodes/expressions/InstanceOfExpression.hpp"
+#include "../ast/nodes/expressions/IntegerNode.hpp"
+#include "../ast/nodes/expressions/LambdaNode.hpp"
+#include "../ast/nodes/expressions/NullNode.hpp"
+#include "../ast/nodes/expressions/StringNode.hpp"
+#include "../ast/nodes/expressions/TernaryExpNode.hpp"
+#include "../ast/nodes/expressions/UnaryExpNode.hpp"
+#include "../ast/nodes/expressions/VariableNode.hpp"
+#include "../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../ast/nodes/statements/AssignmentNode.hpp"
+#include "../ast/nodes/statements/IndexAssignmentNode.hpp"
+#include "../ast/nodes/statements/MemberAssignmentNode.hpp"
+#include "../errors/MissingSemicolonException.hpp"
 #include "../errors/ParseException.hpp"
 
 namespace parser
@@ -28,28 +40,54 @@ namespace parser
     using namespace ast::nodes::statements;
     using namespace ast::nodes::classes;
     using namespace token;
+    using namespace value;
+    using namespace errors;
 
-    void ExpressionParser::initializeHelperParsers()
-    {
-        binaryOpParser = std::make_unique<BinaryOperatorParser>(tokenStream, context);
-        unaryOpParser = std::make_unique<UnaryOperatorParser>(tokenStream, context);
-        postfixOpParser = std::make_unique<PostfixOperatorParser>(tokenStream, context);
-        literalParser = std::make_unique<LiteralParser>(tokenStream, context);
-        argumentParser = std::make_unique<ArgumentParser>(tokenStream, context);
-        castParser = std::make_unique<CastParser>(tokenStream, context);
-
-        // Set ExpressionParser reference in parsers to break circular dependencies
-        binaryOpParser->setExpressionParser(*this);
-        unaryOpParser->setExpressionParser(*this);
-        postfixOpParser->setExpressionParser(*this);
-        castParser->setExpressionParser(*this);
-    }
+    // ============================================================
+    // Construction and BaseParser-equivalent helpers
+    // ============================================================
 
     ExpressionParser::ExpressionParser(TokenStream& stream, ParseContext& ctx)
         : tokenStream(stream), context(ctx)
     {
-        initializeHelperParsers();
     }
+
+    void ExpressionParser::expectToken(TokenType type)
+    {
+        if (!tokenStream.check(type))
+        {
+            if (type == TokenType::SEMICOLON)
+            {
+                throw MissingSemicolonException(tokenStream.current().location);
+            }
+            throw ParseException("Expected token but found different token", tokenStream.current().location);
+        }
+        tokenStream.advance();
+    }
+
+    bool ExpressionParser::tryConsumeToken(TokenType type)
+    {
+        if (tokenStream.check(type))
+        {
+            tokenStream.advance();
+            return true;
+        }
+        return false;
+    }
+
+    const Token& ExpressionParser::currentToken() const
+    {
+        return tokenStream.current();
+    }
+
+    bool ExpressionParser::isAtEnd() const
+    {
+        return tokenStream.isAtEnd();
+    }
+
+    // ============================================================
+    // Top-level parseExpression + parseAssignment
+    // ============================================================
 
     std::unique_ptr<ASTNode> ExpressionParser::parseExpression()
     {
@@ -60,7 +98,6 @@ namespace parser
     {
         auto expr = parseLambda();
 
-        // Check if this is an assignment expression
         if (tokenStream.current().type == TokenType::ASSIGN ||
             tokenStream.current().type == TokenType::PLUS_ASSIGN ||
             tokenStream.current().type == TokenType::MINUS_ASSIGN ||
@@ -68,7 +105,6 @@ namespace parser
             tokenStream.current().type == TokenType::DIVIDE_ASSIGN ||
             tokenStream.current().type == TokenType::MODULO_ASSIGN)
         {
-            // For assignment expressions, the left side should be a variable, member access, super member access, or index access
             auto variableNode = dynamic_cast<VariableNode*>(expr.get());
             auto memberAccessNode = dynamic_cast<MemberAccessNode*>(expr.get());
             auto superMemberAccessNode = dynamic_cast<SuperMemberAccessNode*>(expr.get());
@@ -82,9 +118,8 @@ namespace parser
             TokenType opType = tokenStream.current().type;
             SourceLocation assignmentLocation = tokenStream.current().location;
             tokenStream.advance();
-            auto rightExpr = parseAssignment(); // Right associative
+            auto rightExpr = parseAssignment();
 
-            // Delegate to appropriate handler based on target type
             if (superMemberAccessNode)
             {
                 return handleSuperMemberAssignment(superMemberAccessNode, opType, std::move(rightExpr), assignmentLocation);
@@ -108,133 +143,952 @@ namespace parser
 
     std::unique_ptr<ASTNode> ExpressionParser::parseLambda()
     {
-        // Check for async keyword before lambda
         bool isAsync = false;
         if (tokenStream.current().type == TokenType::ASYNC)
         {
-            // Peek ahead to see if this is followed by a lambda pattern
             Token nextToken = tokenStream.peek();
-
-            // Check if next token starts a lambda (identifier or lparen)
             if (nextToken.type == TokenType::IDENTIFIER || nextToken.type == TokenType::LPAREN)
             {
-                // Consume 'async'
                 tokenStream.advance();
                 isAsync = true;
             }
         }
 
-        // Check if this looks like a lambda expression
         if (isLambdaStart())
         {
             LambdaParser lambdaParser(tokenStream, context);
             auto lambdaNode = lambdaParser.parseLambda();
 
-            // Set async flag if present
             if (isAsync)
             {
-                static_cast<ast::nodes::expressions::LambdaNode*>(lambdaNode.get())->setIsAsync(true);
+                static_cast<LambdaNode*>(lambdaNode.get())->setIsAsync(true);
             }
 
             return lambdaNode;
         }
 
-        // Not a lambda, delegate to next precedence level
         return parseTernary();
     }
 
+    // ============================================================
+    // Binary operators (absorbed from BinaryOperatorParser)
+    // ============================================================
+
     std::unique_ptr<ASTNode> ExpressionParser::parseTernary()
     {
-        return binaryOpParser->parseTernary();
+        ParserContextState::RecursionDepthGuard depthGuard(context.getContextState());
+
+        auto expr = parseLogicalOr();
+
+        if (tokenStream.check(TokenType::QUESTION))
+        {
+            SourceLocation questionLocation = tokenStream.current().location;
+            tokenStream.advance();
+            auto trueExpr = parseTernary();
+            expectToken(TokenType::COLON);
+            auto falseExpr = parseTernary();
+            return std::make_unique<TernaryExpNode>(std::move(expr), std::move(trueExpr), std::move(falseExpr),
+                                                    questionLocation);
+        }
+
+        return expr;
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseLogicalOr()
     {
-        return binaryOpParser->parseLogicalOr();
+        return parseBinaryLevel(
+            [this]() { return parseLogicalAnd(); },
+            {TokenType::OR}
+        );
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseLogicalAnd()
     {
-        return binaryOpParser->parseLogicalAnd();
+        return parseBinaryLevel(
+            [this]() { return parseBitwiseOr(); },
+            {TokenType::AND}
+        );
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseBitwiseOr()
+    {
+        return parseBinaryLevel(
+            [this]() { return parseBitwiseXor(); },
+            {TokenType::BITWISE_OR}
+        );
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseBitwiseXor()
+    {
+        return parseBinaryLevel(
+            [this]() { return parseBitwiseAnd(); },
+            {TokenType::BITWISE_XOR}
+        );
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseBitwiseAnd()
+    {
+        return parseBinaryLevel(
+            [this]() { return parseEquality(); },
+            {TokenType::BITWISE_AND}
+        );
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseEquality()
     {
-        return binaryOpParser->parseEquality();
+        return parseBinaryLevel(
+            [this]() { return parseComparison(); },
+            {TokenType::EQUALS, TokenType::NOT_EQUALS}
+        );
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseComparison()
     {
-        return binaryOpParser->parseComparison();
+        return parseBinaryLevel(
+            [this]() { return parseIsClassOf(); },
+            {TokenType::LESS, TokenType::LESS_EQUALS, TokenType::GREATER, TokenType::GREATER_EQUALS}
+        );
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseIsClassOf()
+    {
+        auto left = parseShift();
+
+        while (tokenStream.check(TokenType::ISCLASSOF))
+        {
+            left = parseInstanceOfExpression(std::move(left));
+        }
+
+        return left;
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseShift()
+    {
+        return parseBinaryLevel(
+            [this]() { return parseAdditive(); },
+            {TokenType::LEFT_SHIFT, TokenType::RIGHT_SHIFT}
+        );
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseAdditive()
     {
-        return binaryOpParser->parseAdditive();
+        return parseBinaryLevel(
+            [this]() { return parseMultiplicative(); },
+            {TokenType::PLUS, TokenType::MINUS}
+        );
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseMultiplicative()
     {
-        return binaryOpParser->parseMultiplicative();
+        return parseBinaryLevel(
+            [this]() { return parseUnary(); },
+            {TokenType::MULTIPLY, TokenType::DIVIDE, TokenType::MODULO}
+        );
     }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseBinaryLevel(
+        std::function<std::unique_ptr<ASTNode>()> parseNext,
+        const std::vector<TokenType>& operators)
+    {
+        ParserContextState::RecursionDepthGuard depthGuard(context.getContextState());
+
+        try
+        {
+            return ParserUtils::parseBinaryOperators(tokenStream, parseNext, operators);
+        }
+        catch (const ParseException&)
+        {
+            throw;
+        }
+        catch (const std::exception& e)
+        {
+            throw ParseException("Binary operator parsing failed: " + std::string(e.what()),
+                                 tokenStream.current().location);
+        }
+    }
+
+    // ============================================================
+    // Unary (absorbed from UnaryOperatorParser)
+    // ============================================================
 
     std::unique_ptr<ASTNode> ExpressionParser::parseUnary()
     {
-        return unaryOpParser->parseUnary();
+        ParserContextState::RecursionDepthGuard depthGuard(context.getContextState());
+
+        if (canParseCast())
+        {
+            return parseCastExpression();
+        }
+
+        if (tokenStream.current().type == TokenType::AWAIT)
+        {
+            SourceLocation awaitLocation = tokenStream.current().location;
+            tokenStream.advance();
+
+            if (context.isInsideConstructorBody())
+            {
+                throw ParseException("'await' cannot be used inside constructors (constructors cannot be async)",
+                                     awaitLocation);
+            }
+
+            bool isInNonAsyncFunction = context.isInsideFunctionBody() && !context.isInsideAsyncFunction();
+
+            if (isInNonAsyncFunction)
+            {
+                throw ParseException("'await' can only be used inside async functions or at the top level",
+                                     awaitLocation);
+            }
+
+            auto expression = parseUnary();
+            return std::make_unique<AwaitExpression>(std::move(expression), awaitLocation);
+        }
+
+        switch (tokenStream.current().type)
+        {
+        case TokenType::NOT:
+        case TokenType::MINUS:
+        case TokenType::PLUS:
+        case TokenType::INCREMENT:
+        case TokenType::DECREMENT:
+        case TokenType::BITWISE_NOT:
+            {
+                TokenType op = tokenStream.current().type;
+                SourceLocation opLocation = tokenStream.current().location;
+                tokenStream.advance();
+                auto operand = parseUnary();
+                return std::make_unique<UnaryExpNode>(op, std::move(operand), UnaryPosition::PREFIX, opLocation);
+            }
+        default:
+            break;
+        }
+
+        return parsePostfix();
     }
+
+    // ============================================================
+    // Cast / instanceof (absorbed from CastParser)
+    // ============================================================
+
+    bool ExpressionParser::canParseCast() const
+    {
+        if (!tokenStream.check(TokenType::LPAREN))
+        {
+            return false;
+        }
+        try
+        {
+            return isCastExpression();
+        }
+        catch (...)
+        {
+            return false;
+        }
+    }
+
+    bool ExpressionParser::isCastExpression() const
+    {
+        Token nextToken = tokenStream.peek();
+        TokenType type = nextToken.type;
+
+        if (type == TokenType::INT || type == TokenType::FLOAT ||
+            type == TokenType::BOOL || type == TokenType::STRING_TYPE ||
+            type == TokenType::VOID)
+        {
+            return true;
+        }
+
+        if (type == TokenType::IDENTIFIER)
+        {
+            Token afterId = tokenStream.peekAhead(2);
+
+            if (afterId.type == TokenType::RPAREN)
+            {
+                return true;
+            }
+
+            if (afterId.type == TokenType::LBRACKET)
+            {
+                std::string idValue = std::string(nextToken.stringValue);
+                if (!idValue.empty() && std::isupper(idValue[0]))
+                {
+                    return true;
+                }
+            }
+
+            if (afterId.type == TokenType::LESS)
+            {
+                std::string idValue = std::string(nextToken.stringValue);
+                if (!idValue.empty() && std::isupper(idValue[0]))
+                {
+                    return true;
+                }
+            }
+
+            if (afterId.type == TokenType::QUESTION)
+            {
+                Token afterQuestion = tokenStream.peekAhead(3);
+                if (afterQuestion.type == TokenType::RPAREN)
+                {
+                    std::string idValue = std::string(nextToken.stringValue);
+                    if (!idValue.empty() && std::isupper(static_cast<unsigned char>(idValue[0])))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseCastExpression()
+    {
+        SourceLocation startLoc = tokenStream.current().location;
+
+        expectToken(TokenType::LPAREN);
+
+        SourceLocation typeStart = tokenStream.current().location;
+        auto targetType = TypeParser::parseGenericType(tokenStream);
+
+        if (targetType->isNullable())
+        {
+            throw ParseException(
+                "Nullable cast syntax (T?) is not supported. "
+                "Cast to T and assign to a T? variable, or use null directly.",
+                typeStart);
+        }
+
+        expectToken(TokenType::RPAREN);
+
+        auto expr = parseUnary();
+
+        return std::make_unique<CastExpression>(
+            std::move(expr),
+            std::move(targetType),
+            startLoc
+        );
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseInstanceOfExpression(std::unique_ptr<ASTNode> left)
+    {
+        SourceLocation loc = tokenStream.current().location;
+
+        if (!tokenStream.check(TokenType::ISCLASSOF))
+        {
+            throw ParseException("Expected 'isClassOf'", tokenStream.current().location);
+        }
+        tokenStream.advance();
+
+        auto targetType = TypeParser::parseGenericType(tokenStream);
+
+        return std::make_unique<InstanceOfExpression>(
+            std::move(left),
+            std::move(targetType),
+            loc
+        );
+    }
+
+    // ============================================================
+    // Postfix (absorbed from PostfixOperatorParser)
+    // ============================================================
 
     std::unique_ptr<ASTNode> ExpressionParser::parsePostfix()
     {
-        return postfixOpParser->parsePostfix();
+        ParserContextState::RecursionDepthGuard depthGuard(context.getContextState());
+
+        auto expr = parsePrimary();
+        return parsePostfixOperations(std::move(expr));
     }
 
-    std::unique_ptr<ASTNode> ExpressionParser::parsePrimary()
+    std::unique_ptr<ASTNode> ExpressionParser::parsePostfixOperations(std::unique_ptr<ASTNode> expr)
     {
-        return literalParser->parsePrimary();
+        while (true)
+        {
+            if (tokenStream.check(TokenType::INCREMENT) || tokenStream.check(TokenType::DECREMENT))
+            {
+                TokenType op = tokenStream.current().type;
+                SourceLocation opLocation = tokenStream.current().location;
+                tokenStream.advance();
+                expr = std::make_unique<UnaryExpNode>(op, std::move(expr), UnaryPosition::POSTFIX, opLocation);
+            }
+            else if (tokenStream.check(TokenType::LESS) && dynamic_cast<VariableNode*>(expr.get()) &&
+                isGenericFunctionCall())
+            {
+                expr = parseFunctionCall(std::move(expr));
+            }
+            else if (tokenStream.check(TokenType::LPAREN))
+            {
+                expr = parseFunctionCall(std::move(expr));
+            }
+            else if (tokenStream.check(TokenType::DOT))
+            {
+                expr = parseMemberAccess(std::move(expr));
+            }
+            else if (tokenStream.check(TokenType::LBRACKET))
+            {
+                expr = parseIndexAccess(std::move(expr));
+            }
+            else if (tokenStream.check(TokenType::SCOPE))
+            {
+                expr = parseScopeResolution(std::move(expr));
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return expr;
     }
 
-    std::vector<std::unique_ptr<ASTNode>> ExpressionParser::parseArguments()
+    std::unique_ptr<ASTNode> ExpressionParser::parseFunctionCall(std::unique_ptr<ASTNode> expr)
     {
-        return argumentParser->parseArguments();
+        std::string funcName;
+        bool canCallFunction = false;
+        SourceLocation callLocation;
+
+        if (auto varNode = dynamic_cast<VariableNode*>(expr.get()))
+        {
+            funcName = varNode->getName();
+            canCallFunction = true;
+            callLocation = varNode->getLocation();
+        }
+
+        if (canCallFunction)
+        {
+            if (funcName == "this" && context.isInsideConstructorBody())
+            {
+                std::vector<std::unique_ptr<ASTNode>> arguments = parseArgumentsWithParentheses();
+                return std::make_unique<ThisConstructorCallNode>(std::move(arguments), callLocation);
+            }
+
+            std::vector<std::string> genericTypeArguments;
+            if (tokenStream.check(TokenType::LESS))
+            {
+                tokenStream.advance();
+                genericTypeArguments = parseGenericTypeArguments();
+                tokenStream.expectGreaterForGeneric();
+            }
+
+            std::vector<std::unique_ptr<ASTNode>> arguments = parseArgumentsWithParentheses();
+            return std::make_unique<FunctionCallNode>(funcName, std::move(arguments), genericTypeArguments,
+                                                      tokenStream.current().location);
+        }
+
+        throw ParseException("Invalid function call target", tokenStream.current().location);
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseMemberAccess(std::unique_ptr<ASTNode> object)
     {
-        return postfixOpParser->parseMemberAccess(std::move(object));
-    }
+        expectToken(TokenType::DOT);
 
+        if (!tokenStream.check(TokenType::IDENTIFIER))
+        {
+            throw ParseException("Expected member name after '.'", tokenStream.current().location);
+        }
+
+        std::string memberName = std::string(tokenStream.current().stringValue);
+        SourceLocation location = tokenStream.current().location;
+        tokenStream.advance();
+
+        std::vector<std::string> genericTypeArguments;
+        if (tokenStream.check(TokenType::LESS) && isGenericFunctionCall())
+        {
+            tokenStream.advance();
+            genericTypeArguments = parseGenericTypeArguments();
+            tokenStream.expectGreaterForGeneric();
+        }
+
+        if (tokenStream.check(TokenType::LPAREN))
+        {
+            tokenStream.advance();
+            std::vector<std::unique_ptr<ASTNode>> arguments;
+
+            if (!tokenStream.check(TokenType::RPAREN))
+            {
+                arguments.push_back(context.parseExpression());
+
+                while (tokenStream.check(TokenType::COMMA))
+                {
+                    tokenStream.advance();
+                    arguments.push_back(context.parseExpression());
+                }
+            }
+
+            expectToken(TokenType::RPAREN);
+            return std::make_unique<MethodCallNode>(std::move(object), memberName, std::move(arguments),
+                                                    false, genericTypeArguments, location);
+        }
+
+        return std::make_unique<MemberAccessNode>(std::move(object), memberName, false, location);
+    }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseIndexAccess(std::unique_ptr<ASTNode> collection)
     {
-        return postfixOpParser->parseIndexAccess(std::move(collection));
+        SourceLocation location = tokenStream.current().location;
+        expectToken(TokenType::LBRACKET);
+
+        auto index = context.parseExpression();
+        expectToken(TokenType::RBRACKET);
+
+        return std::make_unique<IndexAccessNode>(std::move(collection), std::move(index), location);
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseScopeResolution(std::unique_ptr<ASTNode> expr)
+    {
+        expectToken(TokenType::SCOPE);
+
+        if (!tokenStream.check(TokenType::IDENTIFIER))
+        {
+            throw ParseException("Expected identifier after '::'", tokenStream.current().location);
+        }
+
+        if (auto varNode = dynamic_cast<VariableNode*>(expr.get()))
+        {
+            auto parts = QualifiedNameParser::parseQualifiedIdentifierChain(tokenStream, varNode->getName());
+
+            std::vector<std::string> genericTypeArguments;
+            if (tokenStream.check(TokenType::LESS))
+            {
+                tokenStream.advance();
+                genericTypeArguments = parseGenericTypeArguments();
+                tokenStream.expectGreaterForGeneric();
+            }
+
+            if (tokenStream.check(TokenType::LPAREN))
+            {
+                if (!genericTypeArguments.empty() && parts.size() >= 2)
+                {
+                    return parseGenericMethodCall(parts[0], parts[1], genericTypeArguments);
+                }
+                else
+                {
+                    std::string fullName = QualifiedNameParser::buildQualifiedName(parts);
+                    std::vector<std::unique_ptr<ASTNode>> arguments = parseArgumentsWithParentheses();
+                    return std::make_unique<FunctionCallNode>(fullName, std::move(arguments),
+                                                              tokenStream.current().location);
+                }
+            }
+            else
+            {
+                std::string fullName = QualifiedNameParser::buildQualifiedName(parts);
+                auto qualifiedVarLocation = varNode->getLocation();
+                return std::make_unique<VariableNode>(fullName, qualifiedVarLocation);
+            }
+        }
+
+        throw ParseException("Invalid scope resolution target", tokenStream.current().location);
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseGenericMethodCall(
+        const std::string& className,
+        const std::string& methodName,
+        const std::vector<std::string>& typeArgs)
+    {
+        expectToken(TokenType::LPAREN);
+        std::vector<std::unique_ptr<ASTNode>> arguments;
+
+        if (!tokenStream.check(TokenType::RPAREN))
+        {
+            arguments.push_back(context.parseExpression());
+
+            while (tokenStream.check(TokenType::COMMA))
+            {
+                tokenStream.advance();
+                arguments.push_back(context.parseExpression());
+            }
+        }
+
+        expectToken(TokenType::RPAREN);
+
+        auto classNodeLocation = tokenStream.current().location;
+        auto classNode = std::make_unique<VariableNode>(className, classNodeLocation);
+        return std::make_unique<MethodCallNode>(std::move(classNode), methodName, std::move(arguments),
+                                                true, typeArgs, classNodeLocation);
+    }
+
+    bool ExpressionParser::isPostfixOperator(TokenType type) const noexcept
+    {
+        switch (type)
+        {
+        case TokenType::INCREMENT:
+        case TokenType::DECREMENT:
+        case TokenType::LPAREN:
+        case TokenType::DOT:
+        case TokenType::LBRACKET:
+        case TokenType::SCOPE:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    bool ExpressionParser::isGenericFunctionCall()
+    {
+        if (!tokenStream.check(TokenType::LESS))
+        {
+            return false;
+        }
+
+        try
+        {
+            size_t offset = 1;
+            int depth = 1;
+
+            while (depth > 0)
+            {
+                Token nextToken = tokenStream.peekAhead(offset);
+
+                if (nextToken.type == TokenType::END)
+                {
+                    return false;
+                }
+
+                if (nextToken.type == TokenType::LESS)
+                {
+                    depth++;
+                }
+                else if (nextToken.type == TokenType::GREATER)
+                {
+                    depth--;
+                    if (depth == 0)
+                    {
+                        Token afterGreater = tokenStream.peekAhead(offset + 1);
+                        return afterGreater.type == TokenType::LPAREN;
+                    }
+                }
+                else if (nextToken.type == TokenType::RIGHT_SHIFT)
+                {
+                    depth -= 2;
+                    if (depth == 0)
+                    {
+                        Token afterRightShift = tokenStream.peekAhead(offset + 1);
+                        return afterRightShift.type == TokenType::LPAREN;
+                    }
+                    else if (depth < 0)
+                    {
+                        Token afterRightShift = tokenStream.peekAhead(offset + 1);
+                        return afterRightShift.type == TokenType::LPAREN;
+                    }
+                }
+                else if (nextToken.type != TokenType::IDENTIFIER &&
+                    nextToken.type != TokenType::COMMA)
+                {
+                    return false;
+                }
+
+                offset++;
+
+                if (offset > 100)
+                {
+                    return false;
+                }
+            }
+
+            return false;
+        }
+        catch (...)
+        {
+            return false;
+        }
+    }
+
+    // ============================================================
+    // Primary / literals (absorbed from LiteralParser)
+    // ============================================================
+
+    std::unique_ptr<ASTNode> ExpressionParser::parsePrimary()
+    {
+        switch (tokenStream.current().type)
+        {
+        case TokenType::INT_NUMBER:
+            return parseIntegerLiteral();
+        case TokenType::FLOAT_NUMBER:
+            return parseFloatLiteral();
+        case TokenType::STRING_LITERAL:
+            return parseStringLiteral();
+        case TokenType::TRUE:
+        case TokenType::FALSE:
+            return parseBooleanLiteral();
+        case TokenType::NULL_LITERAL:
+            return parseNullLiteral();
+        case TokenType::IDENTIFIER:
+            return parseIdentifier();
+        case TokenType::LPAREN:
+            return parseParenthesizedExpression();
+        case TokenType::NEW:
+            return context.parseNewExpression();
+        case TokenType::LBRACKET:
+            return parseArrayLiteral();
+        case TokenType::SUPER:
+            return parseSuperExpression();
+        case TokenType::INTERP_STRING_BEGIN:
+            return parseInterpolatedStringExpression();
+        default:
+            throw ParseException("Unexpected token in primary expression", tokenStream.current().location);
+        }
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseArrayLiteral()
     {
-        return literalParser->parseArrayLiteral();
+        SourceLocation location = tokenStream.current().location;
+        expectToken(TokenType::LBRACKET);
+
+        std::vector<std::unique_ptr<ASTNode>> elements;
+
+        if (tokenStream.check(TokenType::RBRACKET))
+        {
+            tokenStream.advance();
+            return std::make_unique<ArrayLiteralNode>(std::move(elements), location);
+        }
+
+        elements.push_back(context.parseExpression());
+
+        while (tryConsumeToken(TokenType::COMMA))
+        {
+            elements.push_back(context.parseExpression());
+        }
+
+        expectToken(TokenType::RBRACKET);
+        return std::make_unique<ArrayLiteralNode>(std::move(elements), location);
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseIntegerLiteral()
+    {
+        int value = static_cast<int>(tokenStream.current().intValue);
+        auto intLocation = tokenStream.current().location;
+        tokenStream.advance();
+        return std::make_unique<IntegerNode>(value, intLocation);
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseFloatLiteral()
+    {
+        double value = tokenStream.current().floatValue;
+        auto floatLocation = tokenStream.current().location;
+        tokenStream.advance();
+        return std::make_unique<FloatNode>(value, floatLocation);
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseStringLiteral()
+    {
+        std::string value = std::string(tokenStream.current().stringValue);
+        auto stringLocation = tokenStream.current().location;
+        tokenStream.advance();
+        return std::make_unique<StringNode>(value, stringLocation);
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseBooleanLiteral()
+    {
+        bool value = (tokenStream.current().type == TokenType::TRUE);
+        auto boolLocation = tokenStream.current().location;
+        tokenStream.advance();
+        return std::make_unique<BoolNode>(value, boolLocation);
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseNullLiteral()
+    {
+        auto nullLocation = tokenStream.current().location;
+        tokenStream.advance();
+        return std::make_unique<NullNode>(nullLocation);
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseIdentifier()
+    {
+        std::string name = std::string(tokenStream.current().stringValue);
+        auto identifierLocation = tokenStream.current().location;
+        tokenStream.advance();
+        return std::make_unique<VariableNode>(name, identifierLocation);
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseParenthesizedExpression()
+    {
+        expectToken(TokenType::LPAREN);
+        auto expr = context.parseExpression();
+        expectToken(TokenType::RPAREN);
+        return expr;
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseSuperExpression()
+    {
+        SourceLocation superLocation = tokenStream.current().location;
+        expectToken(TokenType::SUPER);
+
+        if (tokenStream.check(TokenType::LPAREN))
+        {
+            if (context.isInsideConstructorBody())
+            {
+                throw ParseException(
+                    "super() constructor calls are not allowed inside constructor bodies. "
+                    "Use the constructor initializer list syntax instead: constructor(...) : super(...) { }",
+                    superLocation);
+            }
+
+            std::vector<std::unique_ptr<ASTNode>> arguments = parseArgumentsWithParentheses();
+
+            return std::make_unique<SuperConstructorCallNode>(
+                std::move(arguments), superLocation);
+        }
+        else if (tokenStream.check(TokenType::DOT))
+        {
+            tokenStream.advance();
+
+            if (tokenStream.current().type != TokenType::IDENTIFIER)
+            {
+                throw ParseException("Expected member name after 'super.'",
+                                     tokenStream.current().location);
+            }
+
+            std::string memberName = std::string(tokenStream.current().stringValue);
+            tokenStream.advance();
+
+            if (tokenStream.check(TokenType::LPAREN))
+            {
+                std::vector<std::unique_ptr<ASTNode>> arguments = parseArgumentsWithParentheses();
+
+                return std::make_unique<SuperMethodCallNode>(
+                    memberName, std::move(arguments), superLocation);
+            }
+            else
+            {
+                return std::make_unique<SuperMemberAccessNode>(
+                    memberName, superLocation);
+            }
+        }
+        else
+        {
+            throw ParseException("Expected '(' or '.' after 'super'",
+                                 tokenStream.current().location);
+        }
+    }
+
+    std::unique_ptr<ASTNode> ExpressionParser::parseInterpolatedStringExpression()
+    {
+        SourceLocation location = tokenStream.current().location;
+        bool hasConcatenation = false;
+
+        auto makePlus = [&](std::unique_ptr<ASTNode> left, std::unique_ptr<ASTNode> right)
+        {
+            hasConcatenation = true;
+            return std::make_unique<BinaryExpNode>(
+                std::move(left), TokenType::PLUS, std::move(right), location);
+        };
+
+        std::string beginText = std::string(tokenStream.current().stringValue);
+        tokenStream.advance();
+
+        std::unique_ptr<ASTNode> result;
+
+        if (!beginText.empty())
+        {
+            result = std::make_unique<StringNode>(beginText, location);
+        }
+
+        auto expr = context.parseExpression();
+
+        if (result)
+        {
+            result = makePlus(std::move(result), std::move(expr));
+        }
+        else
+        {
+            result = std::move(expr);
+        }
+
+        while (tokenStream.check(TokenType::INTERP_STRING_MIDDLE))
+        {
+            std::string middleText = std::string(tokenStream.current().stringValue);
+            tokenStream.advance();
+
+            if (!middleText.empty())
+            {
+                result = makePlus(std::move(result),
+                                  std::make_unique<StringNode>(middleText, location));
+            }
+
+            expr = context.parseExpression();
+            result = makePlus(std::move(result), std::move(expr));
+        }
+
+        if (!tokenStream.check(TokenType::INTERP_STRING_END))
+        {
+            throw ParseException("Expected end of interpolated string",
+                                 tokenStream.current().location);
+        }
+
+        std::string endText = std::string(tokenStream.current().stringValue);
+        tokenStream.advance();
+
+        if (!endText.empty())
+        {
+            result = makePlus(std::move(result),
+                              std::make_unique<StringNode>(endText, location));
+        }
+
+        if (!hasConcatenation)
+        {
+            result = makePlus(std::make_unique<StringNode>("", location), std::move(result));
+        }
+
+        return result;
+    }
+
+    // ============================================================
+    // Argument lists (absorbed from ArgumentParser)
+    // ============================================================
+
+    std::vector<std::unique_ptr<ASTNode>> ExpressionParser::parseArguments()
+    {
+        std::vector<std::unique_ptr<ASTNode>> arguments;
+
+        if (!tokenStream.check(TokenType::RPAREN))
+        {
+            arguments.push_back(context.parseExpression());
+
+            while (tryConsumeToken(TokenType::COMMA))
+            {
+                arguments.push_back(context.parseExpression());
+            }
+        }
+
+        return arguments;
+    }
+
+    std::vector<std::unique_ptr<ASTNode>> ExpressionParser::parseArgumentsWithParentheses()
+    {
+        expectToken(TokenType::LPAREN);
+        auto arguments = parseArguments();
+        expectToken(TokenType::RPAREN);
+        return arguments;
     }
 
     std::vector<std::string> ExpressionParser::parseGenericTypeArguments()
     {
-        return argumentParser->parseGenericTypeArguments();
+        std::vector<std::string> typeArgs;
+
+        typeArgs.push_back(parseGenericTypeArgument());
+
+        while (tryConsumeToken(TokenType::COMMA))
+        {
+            typeArgs.push_back(parseGenericTypeArgument());
+        }
+
+        return typeArgs;
     }
 
     std::string ExpressionParser::parseGenericTypeArgument()
     {
         std::string typeArg;
 
-        if (tokenStream.current().type == TokenType::IDENTIFIER)
+        if (tokenStream.check(TokenType::IDENTIFIER))
         {
             typeArg = std::string(tokenStream.current().stringValue);
             tokenStream.advance();
 
-            // Handle nested generics like Array<String>
             if (tokenStream.check(TokenType::LESS))
             {
                 typeArg += "<";
-                tokenStream.advance(); // consume '<'
+                tokenStream.advance();
 
-                // Recursively parse nested type arguments
                 auto nestedArgs = parseGenericTypeArguments();
                 for (size_t i = 0; i < nestedArgs.size(); ++i)
                 {
@@ -242,21 +1096,22 @@ namespace parser
                     typeArg += nestedArgs[i];
                 }
 
-                tokenStream.expectGreaterForGeneric(); // consume '>' (handles >> for nested generics)
+                tokenStream.expectGreaterForGeneric();
                 typeArg += ">";
             }
 
             return typeArg;
         }
-        else
-        {
-            throw ParseException("Expected type argument", tokenStream.current().location);
-        }
+
+        throw ParseException("Expected type argument", tokenStream.current().location);
     }
+
+    // ============================================================
+    // Lambda detection
+    // ============================================================
 
     bool ExpressionParser::isLambdaStart() const
     {
-        // Pattern 1: identifier -> (single parameter without parentheses)
         if (tokenStream.current().type == TokenType::IDENTIFIER)
         {
             if (!tokenStream.isAtEnd() && tokenStream.peek().type == TokenType::ARROW)
@@ -265,32 +1120,19 @@ namespace parser
             }
         }
 
-        // Pattern 2: ( ... ) -> (parenthesized parameters or empty)
         if (tokenStream.current().type == TokenType::LPAREN)
         {
-            // Check for empty parameter list: () ->
             Token next = tokenStream.peek();
             if (next.type == TokenType::RPAREN)
             {
-                return true; // Likely () -> pattern
+                return true;
             }
 
-            // For multi-parameter lambdas, use more sophisticated heuristic
             if (next.type == TokenType::IDENTIFIER)
             {
-                // This could be either:
-                // 1. (param1, param2) -> ... (lambda parameters)
-                // 2. (variable + expression) ... (parenthesized expression)
-
-                // Heuristic: lambda parameters are more likely if we're at assignment context
-                // For now, be conservative - assume it's a parenthesized expression unless
-                // we have stronger evidence it's lambda parameters
-
-                // Look for lambda-like patterns: identifier followed by comma or colon
                 return isLikelyLambdaParameterList();
             }
 
-            // Otherwise it's likely a parenthesized expression, not lambda parameters
             return false;
         }
 
@@ -299,45 +1141,31 @@ namespace parser
 
     bool ExpressionParser::isLikelyLambdaParameterList() const
     {
-        // Look for very specific lambda patterns only:
-        // Pattern 1: (a, b) -> ... (comma-separated identifiers)
-        // Pattern 2: (a : int, b : int) -> ... (typed parameters)
-        // Pattern 3: (a) -> ... (single parameter)
-
-        Token token1 = tokenStream.peek(); // First token after (
+        Token token1 = tokenStream.peek();
         if (token1.type != TokenType::IDENTIFIER)
         {
             return false;
         }
 
-        // Check if we can look ahead safely
         if (tokenStream.isAtEnd())
         {
             return false;
         }
 
-        // Look for the pattern (identifier, ...)
-        // If we see (identifier, identifier) or (identifier :) it's likely lambda
-        // If we see (identifier +) or (identifier *) it's likely expression
-
-        // Use the safe peekAhead for just the next couple tokens
         try
         {
-            Token token2 = tokenStream.peekAhead(2); // Second token after identifier
+            Token token2 = tokenStream.peekAhead(2);
 
-            // Pattern: (identifier, ...) suggests lambda parameters
             if (token2.type == TokenType::COMMA)
             {
                 return true;
             }
 
-            // Pattern: (identifier : ...) suggests typed parameter
             if (token2.type == TokenType::COLON)
             {
                 return true;
             }
 
-            // Pattern: (identifier ) -> suggests single parameter lambda
             if (token2.type == TokenType::RPAREN)
             {
                 Token token3 = tokenStream.peekAhead(3);
@@ -347,7 +1175,6 @@ namespace parser
                 }
             }
 
-            // Otherwise assume it's a parenthesized expression
             return false;
         }
         catch (...)
@@ -356,8 +1183,12 @@ namespace parser
         }
     }
 
+    // ============================================================
+    // Assignment helpers (originals)
+    // ============================================================
+
     std::unique_ptr<ASTNode> ExpressionParser::handleMemberAssignment(
-        ast::nodes::classes::MemberAccessNode* memberAccessNode,
+        MemberAccessNode* memberAccessNode,
         TokenType opType,
         std::unique_ptr<ASTNode> rightExpr,
         const SourceLocation& location)
@@ -372,7 +1203,6 @@ namespace parser
         }
         else
         {
-            // Compound member assignment: obj.field += expr --> obj.field = obj.field + expr
             TokenType binaryOp = ParserUtils::compoundToBinaryOperator(opType);
 
             auto readNode = std::make_unique<MemberAccessNode>(
@@ -393,7 +1223,7 @@ namespace parser
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::handleSuperMemberAssignment(
-        ast::nodes::classes::SuperMemberAccessNode* superMemberAccessNode,
+        SuperMemberAccessNode* superMemberAccessNode,
         TokenType opType,
         std::unique_ptr<ASTNode> rightExpr,
         const SourceLocation& location)
@@ -407,7 +1237,6 @@ namespace parser
         }
         else
         {
-            // Compound super member assignment: super.field += expr --> super.field = super.field + expr
             TokenType binaryOp = ParserUtils::compoundToBinaryOperator(opType);
 
             auto readNode = std::make_unique<SuperMemberAccessNode>(
@@ -424,7 +1253,7 @@ namespace parser
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::handleIndexAssignment(
-        ast::nodes::expressions::IndexAccessNode* indexAccessNode,
+        IndexAccessNode* indexAccessNode,
         TokenType opType,
         std::unique_ptr<ASTNode> rightExpr,
         const SourceLocation& location)
@@ -439,10 +1268,8 @@ namespace parser
         }
         else
         {
-            // Compound index assignment: arr[i] += expr --> arr[i] = arr[i] + expr
             TokenType binaryOp = ParserUtils::compoundToBinaryOperator(opType);
 
-            // Clone collection and index before transferring ownership
             auto collectionClone = indexAccessNode->getCollection()->clone();
             auto indexClone = indexAccessNode->getIndex()->clone();
 
@@ -461,14 +1288,13 @@ namespace parser
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::handleVariableAssignment(
-        ast::nodes::expressions::VariableNode* variableNode,
+        VariableNode* variableNode,
         TokenType opType,
         std::unique_ptr<ASTNode> rightExpr,
         const SourceLocation& location)
     {
         if (opType == TokenType::ASSIGN)
         {
-            // Simple assignment - create regular AssignmentNode with VOID type (not a declaration)
             return std::make_unique<AssignmentNode>(variableNode->getName(),
                                                     std::move(rightExpr),
                                                     ValueType::VOID, "",
@@ -477,10 +1303,8 @@ namespace parser
         }
         else
         {
-            // Compound assignment - we need to expand this to: var = var op right
             TokenType binaryOp = ParserUtils::compoundToBinaryOperator(opType);
 
-            // Create: var op right
             auto leftVar = std::make_unique<VariableNode>(variableNode->getName(), location);
             auto expandedRight = std::make_unique<BinaryExpNode>(std::move(leftVar), binaryOp, std::move(rightExpr),
                                                                  location);

@@ -17,7 +17,7 @@
 #include "../services/ScriptInterpreter.hpp"
 #include <cstddef>
 #include "../vm/bytecode/BytecodeProgram.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
 #include "../value/NativeArray.hpp"
 #include "../gc/GC.hpp"
 #include "../plugin/PluginLoader.hpp"

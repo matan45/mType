@@ -6,8 +6,8 @@
 #include "../value/NativeArray.hpp"
 #include "../value/InternedString.hpp"
 #include "../errors/RuntimeException.hpp"
-#include "../runtimeTypes/klass/FieldDefinition.hpp"
-#include "../runtimeTypes/klass/AnnotationDefinition.hpp"
+#include "../environment/registry/FieldDefinition.hpp"
+#include "../environment/registry/AnnotationDefinition.hpp"
 #include "../ast/nodes/annotations/TypedAnnotationValue.hpp"
 #include "../environment/Environment.hpp"
 #include <sstream>

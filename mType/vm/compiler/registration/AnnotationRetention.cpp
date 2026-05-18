@@ -1,6 +1,6 @@
 #include "AnnotationRetention.hpp"
 #include <cstdint>
-#include "../../../runtimeTypes/klass/AnnotationDefinition.hpp"
+#include "../../../environment/registry/AnnotationDefinition.hpp"
 #include "../../../ast/nodes/annotations/TypedAnnotationValue.hpp"
 
 namespace vm::compiler::registration

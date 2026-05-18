@@ -1,6 +1,6 @@
 #include "TypeFeedbackCollector.hpp"
 #include <cstddef>
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../value/ObjectInstance.hpp"
 #include "../../../value/ValueShim.hpp"
 
 namespace vm::jit::ic

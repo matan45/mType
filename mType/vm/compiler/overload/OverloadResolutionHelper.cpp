@@ -1,11 +1,11 @@
 #include "OverloadResolutionHelper.hpp"
 #include <cstddef>
 #include "OverloadResolver.hpp"
-#include "../../../runtimeTypes/klass/SignatureUtils.hpp"
+#include "../../../environment/registry/SignatureUtils.hpp"
 #include "../../../errors/NoMatchingOverloadException.hpp"
 #include "../../../errors/AmbiguousCallException.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
-#include "../../../types/TypeRegistry.hpp"
+#include "../../../environment/registry/TypeCatalog.hpp"
 #include <iostream>
 #include <unordered_map>
 #include <algorithm>
@@ -208,10 +208,10 @@ namespace vm::compiler::overload
 
                     // Check if this type contains unresolved generic parameters (like T, K, V)
                     // Look for patterns like "T", "Box<T>", "List<K>", etc.
-                    auto& registry = ::types::getGlobalTypeRegistry();
+                    auto& catalog = *ctx.env->getTypeCatalog();
 
                     // Simple check: if type string is a single capital letter and not in registry
-                    if (typeStr.length() == 1 && std::isupper(typeStr[0]) && !registry.hasType(typeStr)) {
+                    if (typeStr.length() == 1 && std::isupper(typeStr[0]) && !catalog.hasType(typeStr)) {
                         hasUnresolvedGenerics = true;
                     }
                     // Check for parameterized types with generics: Box<T>, List<K>, etc.
@@ -225,7 +225,7 @@ namespace vm::compiler::overload
                             typeArg.erase(typeArg.find_last_not_of(" \t") + 1);
 
                             // Check if type argument is unresolved (single letter not in registry)
-                            if (typeArg.length() == 1 && std::isupper(typeArg[0]) && !registry.hasType(typeArg)) {
+                            if (typeArg.length() == 1 && std::isupper(typeArg[0]) && !catalog.hasType(typeArg)) {
                                 hasUnresolvedGenerics = true;
                             }
                         }
@@ -286,7 +286,7 @@ namespace vm::compiler::overload
         std::vector<value::ParameterType> argTypes = inferArgumentTypes(arguments);
 
         // Use OverloadResolver to find best match (using filtered overloads)
-        auto result = OverloadResolver::resolveMethodOverload(filteredOverloads, argTypes, location);
+        auto result = OverloadResolver::resolveMethodOverload(filteredOverloads, argTypes, location, *ctx.env->getTypeCatalog());
 
         if (result.isAmbiguous)
         {
@@ -526,7 +526,7 @@ namespace vm::compiler::overload
         std::vector<value::ParameterType> argTypes = inferArgumentTypes(arguments);
 
         // Use OverloadResolver to find best match
-        auto result = OverloadResolver::resolveMethodOverload(filteredOverloads, argTypes, location);
+        auto result = OverloadResolver::resolveMethodOverload(filteredOverloads, argTypes, location, *ctx.env->getTypeCatalog());
 
         if (result.isAmbiguous)
         {
@@ -753,10 +753,10 @@ namespace vm::compiler::overload
                     }
 
                     // Check if type contains unresolved generic parameters (like T, K, V)
-                    auto& registry = ::types::getGlobalTypeRegistry();
+                    auto& catalog = *ctx.env->getTypeCatalog();
 
                     // Simple check: if type string is a single capital letter and not in registry
-                    if (typeStr.length() == 1 && std::isupper(typeStr[0]) && !registry.hasType(typeStr)) {
+                    if (typeStr.length() == 1 && std::isupper(typeStr[0]) && !catalog.hasType(typeStr)) {
                         hasUnresolvedGenerics = true;
                     }
                     // Check for parameterized types with generics: Box<T>, List<K>, etc.
@@ -770,7 +770,7 @@ namespace vm::compiler::overload
                             typeArg.erase(typeArg.find_last_not_of(" \t") + 1);
 
                             // Check if type argument is unresolved (single letter not in registry)
-                            if (typeArg.length() == 1 && std::isupper(typeArg[0]) && !registry.hasType(typeArg)) {
+                            if (typeArg.length() == 1 && std::isupper(typeArg[0]) && !catalog.hasType(typeArg)) {
                                 hasUnresolvedGenerics = true;
                             }
                         }
@@ -812,13 +812,13 @@ namespace vm::compiler::overload
         }
 
         // Try to resolve with non-generic overloads first
-        auto result = OverloadResolver::resolveFunctionOverload(filteredOverloads, argTypes, location);
+        auto result = OverloadResolver::resolveFunctionOverload(filteredOverloads, argTypes, location, *ctx.env->getTypeCatalog());
 
         // If no viable candidates from non-generic overloads, try generic overloads
         if ((!result.hasViableCandidates || !result.selectedOverload) && !hasGenericTypeArgs && !genericOverloads.empty())
         {
             filteredOverloads = genericOverloads;
-            result = OverloadResolver::resolveFunctionOverload(filteredOverloads, argTypes, location);
+            result = OverloadResolver::resolveFunctionOverload(filteredOverloads, argTypes, location, *ctx.env->getTypeCatalog());
         }
 
         if (result.isAmbiguous)

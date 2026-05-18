@@ -3,7 +3,7 @@
 #include <cstddef>
 #include "../ValueType.hpp"
 #include "object/FlatMultiObjectArray.hpp"
-#include "../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../environment/registry/ClassDefinition.hpp"
 #include "../../environment/registry/ClassRegistry.hpp"
 #include <memory>
 #include <vector>

@@ -5,7 +5,7 @@
 #include "../../value/ValueShim.hpp"
 #include "../../value/AsyncPromiseValue.hpp"
 #include "../../gc/GC.hpp"
-#include "../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../value/ObjectInstance.hpp"
 #include "../../value/ValueObject.hpp"
 #include "../../value/StringPool.hpp"
 #include <new>

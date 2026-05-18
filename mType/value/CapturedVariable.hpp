@@ -1,6 +1,6 @@
 #pragma once
 #include "ValueType.hpp"
-#include "../runtimeTypes/global/VariableDefinition.hpp"
+#include "../environment/registry/VariableDefinition.hpp"
 #include <string>
 #include <memory>
 #include <variant>

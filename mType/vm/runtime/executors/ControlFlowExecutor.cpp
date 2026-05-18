@@ -4,7 +4,7 @@
 #include "../../../value/ValueObject.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../profiler/ProfilerHookHelper.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../value/ObjectInstance.hpp"
 #include "../../jit/OSRManager.hpp"
 #include "../VirtualMachine.hpp"
 
@@ -16,16 +16,16 @@ namespace vm::runtime
 
     void ControlFlowExecutor::handleJumpBack(const bytecode::BytecodeProgram::Instruction& instr) {
         // Phase 5: OSR check at loop back-edge
-        if (osrManager && context.vm && context.vm->isJitEnabled())
+        if (osrManager && vm && vm->isJitEnabled())
         {
-            auto* compiler = context.vm->getJitCompiler();
-            auto* codeCache = context.vm->getJitCodeCache();
+            auto* compiler = vm->getJitCompiler();
+            auto* codeCache = vm->getJitCodeCache();
             if (compiler && codeCache)
             {
                 if (osrManager->tryOSR(context.instructionPointer,
                                         *context.program,
                                         context,
-                                        *context.vm,
+                                        *vm,
                                         *compiler,
                                         *codeCache))
                 {
@@ -53,12 +53,12 @@ namespace vm::runtime
             // gates short-circuit when disabled, keeping the hot path free
             // of std::string materialisation.
             if (vm::profiler::ProfilerHookHelper::isProfilingEnabled()) {
-                vm::profiler::ProfilerHookHelper::onFunctionExit(context.frameName(frame));
+                vm::profiler::ProfilerHookHelper::onFunctionExit(vm->frameName(frame));
             }
 
             // Notify debugger of function exit BEFORE popping the call stack
             if (debugger::DebugHookHelper::isDebuggingEnabled()) {
-                debugger::DebugHookHelper::exitFunctionHook(context.frameName(frame));
+                debugger::DebugHookHelper::exitFunctionHook(vm->frameName(frame));
             }
 
             // MYT-208: release stack-promoted allocations BEFORE pop. Normal
@@ -69,10 +69,11 @@ namespace vm::runtime
             context.instructionPointer = frame.returnAddress;
 
             // Restore caller's program if returning across library boundary
-            if (!context.callStack.empty() && context.loadedPrograms) {
+            if (!context.callStack.empty()) {
                 const auto& callerFrame = context.callStack.back();
-                if (callerFrame.programIndex < context.loadedPrograms->size()) {
-                    context.program = (*context.loadedPrograms)[callerFrame.programIndex];
+                const auto& loaded = vm->getLoadedPrograms();
+                if (callerFrame.programIndex < loaded.size()) {
+                    context.program = loaded[callerFrame.programIndex];
                 }
             }
 

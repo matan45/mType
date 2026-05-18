@@ -1,6 +1,6 @@
 #include "WriteBarrier.hpp"
 #include <cstddef>
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../value/ObjectInstance.hpp"
 #include "../vm/runtime/context/ExecutionContext.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/FlatMultiArray.hpp"

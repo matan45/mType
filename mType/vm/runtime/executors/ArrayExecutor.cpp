@@ -31,7 +31,7 @@ namespace vm::runtime
 
         value::ValueType elemType = ::types::TypeConversionUtils::stringToValueType(elementTypeName);
         // Use ArrayFactory for optimized array creation
-        auto classRegistry = context.environment ? context.environment->getClassRegistry().get() : nullptr;
+        auto classRegistry = environment ? environment->getClassRegistry().get() : nullptr;
         auto array = mType::value::arrays::ArrayFactory::create1DArray(
             static_cast<size_t>(size),
              elemType,
@@ -66,7 +66,7 @@ namespace vm::runtime
         }
         std::reverse(dimensions.begin(), dimensions.end());
 
-        auto classRegistry = context.environment ? context.environment->getClassRegistry().get() : nullptr;
+        auto classRegistry = environment ? environment->getClassRegistry().get() : nullptr;
         value::Value result = buildMultiArray(classRegistry, elementTypeName, dimensions, totalDimensions);
         context.stackManager->push(result);
     }
@@ -127,7 +127,7 @@ namespace vm::runtime
 
     void ArrayExecutor::setNativeArrayElement(const std::shared_ptr<value::NativeArray>& array, int64_t index, const value::Value& valueToSet) {
         // Bounds check
-        utils::ArrayBoundsChecker::checkBounds(context, static_cast<int>(index), array->size(), "Array");
+        utils::ArrayBoundsChecker::checkBounds(context, environment, static_cast<int>(index), array->size(), "Array");
 
         // Type check for object arrays with generics
         if (array->getElementType() == value::ValueType::OBJECT) {
@@ -168,8 +168,8 @@ namespace vm::runtime
                             if (existingElementType != actualArrayElementType) {
                                 bool isCompatible = false;
 
-                                if (context.environment) {
-                                    auto classRegistry = context.environment->getClassRegistry();
+                                if (environment) {
+                                    auto classRegistry = environment->getClassRegistry();
                                     auto actualClass = classRegistry->findClass(actualArrayElementType);
 
                                     if (actualClass) {
@@ -183,7 +183,7 @@ namespace vm::runtime
                                         }
 
                                         if (!isCompatible) {
-                                            auto interfaceRegistry = context.environment->getInterfaceRegistry();
+                                            auto interfaceRegistry = environment->getInterfaceRegistry();
                                             auto interfaceDef = interfaceRegistry->findInterface(existingElementType);
 
                                             if (interfaceDef) {
@@ -259,7 +259,7 @@ namespace vm::runtime
         int64_t currentDimSize = dimensions[dimIndex];
 
         if (dimIndex == dimensions.size() - 1) {
-            auto classRegistry = context.environment ? context.environment->getClassRegistry().get() : nullptr;
+            auto classRegistry = environment ? environment->getClassRegistry().get() : nullptr;
 
             if (dimensions.size() == totalDimensions) {
                 value::ValueType elemType = ::types::TypeConversionUtils::stringToValueType(elementTypeName);
@@ -282,7 +282,7 @@ namespace vm::runtime
             }
         }
         else {
-            auto classRegistry = context.environment ? context.environment->getClassRegistry().get() : nullptr;
+            auto classRegistry = environment ? environment->getClassRegistry().get() : nullptr;
             auto outerArray = mType::value::arrays::ArrayFactory::create1DArray(
                 currentDimSize,
                 value::ValueType::OBJECT,
@@ -313,7 +313,7 @@ namespace vm::runtime
         }
 
         int64_t currentDimSize = dimensions[dimIndex];
-        auto classRegistry = context.environment ? context.environment->getClassRegistry().get() : nullptr;
+        auto classRegistry = environment ? environment->getClassRegistry().get() : nullptr;
 
         if (dimIndex == dimensions.size() - 1) {
             value::ValueType elemType = ::types::TypeConversionUtils::stringToValueType(elementTypeName);

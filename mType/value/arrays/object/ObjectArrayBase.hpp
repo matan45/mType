@@ -3,8 +3,8 @@
 #include <cstddef>
 #include "../primitive/PrimitiveArray.hpp"
 #include "../string/StringArray.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
+#include "../../../value/ObjectInstance.hpp"
 #include <unordered_map>
 #include <memory>
 #include <string>

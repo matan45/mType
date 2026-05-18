@@ -459,7 +459,10 @@ public:
 #### Class Design Best Practices
 - **File Structure**: Each class in its own `.hpp/.cpp` file pair
 - **Function Size Limit**: Maximum 50 lines per function implementation
-- **Class Size Limit**: Maximum 500 lines in `.cpp` implementation files
+- **Class Size Limit**: Maximum 500 lines per `.cpp` implementation file. Explicit exceptions for **deep modules by design** (see `CONTEXT.md`):
+  - `parser/ClassParser.cpp`, `parser/StatementParser.cpp`, `parser/ExpressionParser.cpp`, `parser/InterfaceParser.cpp` — top-level parsers each own one grammar region; subparser fragmentation (previously in `parser/class/`, `parser/statement/`, `parser/expression/`, `parser/interface/`) was collapsed to eliminate `ParseContext`-style indirection.
+  - `parser/TypeParser.cpp` — recursive generic type parsing with no external callbacks.
+  - `parser/utilities/StatementTypeDetector.cpp` — exhaustive grammar dispatch table.
 - **Helper Classes**: Extract complex logic into focused helper classes
 - **Utility Extraction**: Move common operations to utility classes
 - **Context Grouping**: Organize classes by functional context in folder structure

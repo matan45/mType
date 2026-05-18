@@ -1,7 +1,7 @@
 #include "ObjectInstancePool.hpp"
 
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../value/ObjectInstance.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
 
 #include <new>
 #include <utility>

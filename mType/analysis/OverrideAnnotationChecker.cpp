@@ -3,8 +3,8 @@
 #include "../diagnostics/DiagnosticBuilder.hpp"
 #include "../diagnostics/ErrorCodeRegistry.hpp"
 #include "../diagnostics/SourceFileCache.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../runtimeTypes/klass/MethodDefinition.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
+#include "../environment/registry/MethodDefinition.hpp"
 #include "../ast/AccessModifier.hpp"
 
 namespace analysis

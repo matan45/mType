@@ -1,10 +1,11 @@
 #pragma once
 #include "../context/ExecutionContext.hpp"
+#include "../../../environment/Environment.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../value/StringPool.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
-#include "../../../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../../../value/ObjectInstance.hpp"
+#include "../../../environment/registry/ClassDefinition.hpp"
 #include "../../../value/ValueObject.hpp"
 #include <functional>
 #include <unordered_set>
@@ -19,7 +20,8 @@ namespace vm::runtime
     class TypeExecutor
     {
     public:
-        explicit TypeExecutor(ExecutionContext& ctx);
+        TypeExecutor(ExecutionContext& ctx,
+                     std::shared_ptr<environment::Environment> env);
         ~TypeExecutor() = default;
 
         // Type operations
@@ -31,7 +33,7 @@ namespace vm::runtime
             const std::string& targetTypeName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
             value::Value val = context.stackManager->pop();
             // Shared FFI entry point — same code path as ScriptAPI::isInstanceOf.
-            bool result = checkInstanceOfByName(val, targetTypeName, context.environment);
+            bool result = checkInstanceOfByName(val, targetTypeName, environment);
             context.stackManager->push(result);
         }
 
@@ -42,7 +44,7 @@ namespace vm::runtime
             const std::string& paramName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
             std::string resolved = resolveTypeParameter(paramName);
             value::Value val = context.stackManager->pop();
-            bool result = checkInstanceOfByName(val, resolved, context.environment);
+            bool result = checkInstanceOfByName(val, resolved, environment);
             context.stackManager->push(result);
         }
 
@@ -93,6 +95,7 @@ namespace vm::runtime
 
     private:
         ExecutionContext& context;
+        std::shared_ptr<environment::Environment> environment;
 
         // Helper methods for type checking — static so they can run
         // without an ExecutionContext (reused by the FFI entry point).

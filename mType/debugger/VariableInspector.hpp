@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include "../environment/Environment.hpp"
 #include "../value/ValueType.hpp"
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../value/ObjectInstance.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/FlatMultiArray.hpp"
 #include "../value/SparseMultiArray.hpp"

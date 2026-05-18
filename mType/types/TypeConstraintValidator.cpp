@@ -2,9 +2,9 @@
 #include <cstddef>
 #include "../ast/GenericTypeParameter.hpp"
 #include "../environment/registry/ClassRegistry.hpp"
-#include "../runtimeTypes/klass/InterfaceRegistry.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../runtimeTypes/klass/InterfaceDefinition.hpp"
+#include "../environment/registry/InterfaceRegistry.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
+#include "../environment/registry/InterfaceDefinition.hpp"
 #include <sstream>
 #include <algorithm>
 

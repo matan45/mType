@@ -2,7 +2,6 @@
 #include <cstddef>
 #include "../errors/ParseException.hpp"
 #include "../ast/GenericType.hpp"
-#include "../types/TypeRegistry.hpp"
 #include "../types/UnifiedType.hpp"
 
 namespace parser
@@ -277,17 +276,10 @@ namespace parser
             return it->second;
         }
 
-        // Use the global registry for comprehensive type resolution
-        try
-        {
-            auto& registry = types::getGlobalTypeRegistry();
-            return registry.getValueType(std::string(typeName));
-        }
-        catch (...)
-        {
-            // If registry fails, fallback to OBJECT (maintains backward compatibility)
-            return ValueType::OBJECT;
-        }
+        // Anything else is an OBJECT type — the parser has no runtime catalog
+        // to consult and the historical registry lookup always fell through
+        // to OBJECT for unknown names anyway.
+        return ValueType::OBJECT;
     }
 
     std::string TypeParser::parseQualifiedName(TokenStream& stream)

@@ -5,7 +5,7 @@
 #include <functional>
 #include <memory>
 #include "../../../value/ValueType.hpp"
-#include "../../../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../../../value/ObjectInstance.hpp"
 
 namespace environment::registry::builtin
 {

@@ -3,7 +3,7 @@
 #include <cstddef>
 #include "../../../ast/ASTNode.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"
-#include "../../../runtimeTypes/klass/ConstructorDefinition.hpp"
+#include "../../../environment/registry/ConstructorDefinition.hpp"
 #include <string>
 #include <vector>
 #include <memory>

@@ -1,5 +1,5 @@
 #include "BoolCache.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
 
 namespace value {
 

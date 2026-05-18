@@ -10,8 +10,8 @@
 #include "ValueObject.hpp"
 #include "ValueShim.hpp"
 #include "../environment/Environment.hpp"
-#include "../runtimeTypes/klass/ClassDefinition.hpp"
-#include "../runtimeTypes/klass/ObjectInstance.hpp"
+#include "../environment/registry/ClassDefinition.hpp"
+#include "../value/ObjectInstance.hpp"
 
 namespace value
 {
