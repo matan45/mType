@@ -798,7 +798,7 @@ namespace vm::jit
 
             // Fast path: monomorphic / polymorphic / wide-tier shape match.
             // Phase 2c: MEGAMORPHIC also consults the cache; lookup() walks
-            // the wide tier on top of the 4-entry POLY array, so shapes
+            // the wide tier on top of the inline POLY array, so overflow shapes
             // 5..16 still get a cached dispatch from this JIT helper instead
             // of falling through to the runtime method resolver.
             if (cache.state == ic::ICState::MONOMORPHIC ||
@@ -899,7 +899,7 @@ namespace vm::jit
                 return;
 
             // Phase 2c: populate the cache on every state including
-            // MEGAMORPHIC. addEntry routes shapes past POLY-4 into the wide
+            // MEGAMORPHIC. addEntry routes shapes past the inline POLY tier into the wide
             // tier; the next call of that shape will hit the cached
             // dispatch above instead of repeating the runtime resolution.
             {

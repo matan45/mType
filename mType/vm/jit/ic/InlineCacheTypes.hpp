@@ -11,7 +11,7 @@ namespace vm::bytecode { class BytecodeProgram; }
 
 namespace vm::jit::ic
 {
-    constexpr size_t IC_MAX_POLYMORPHIC_ENTRIES = 4;
+    constexpr size_t IC_MAX_POLYMORPHIC_ENTRIES = 8;
 
     enum class ICState : uint8_t
     {
@@ -138,11 +138,11 @@ namespace vm::jit::ic
         const void* cachedJit = nullptr;
     };
 
-    // Phase 2c wider mega-IC tier. Once the 4-entry POLY cache overflows we
+    // Phase 2c wider mega-IC tier. Once the inline POLY cache overflows we
     // promote new entries here instead of declaring MEGAMORPHIC dead. A small
     // open-addressed table absorbs 5-16 shapes; mega-tier hits still pay only
     // ~1-2 probe comparisons before dispatch, vs. a full runtime method
-    // resolution. The 4-entry POLY array remains the hot first-hit cache.
+    // resolution. The POLY array remains the hot first-hit cache.
     struct WideMethodICTable
     {
         static constexpr size_t WIDE_CAPACITY = 16;
@@ -221,7 +221,7 @@ namespace vm::jit::ic
         ICState state = ICState::UNINITIALIZED;
         uint8_t entryCount = 0;
         std::array<MethodICEntry, IC_MAX_POLYMORPHIC_ENTRIES> entries{};
-        // Phase 2c: lazily allocated when POLY overflows. Null until the 5th
+        // Phase 2c: lazily allocated when POLY overflows. Null until the next
         // distinct shape arrives; consulted only when state==MEGAMORPHIC.
         std::unique_ptr<WideMethodICTable> wide;
 

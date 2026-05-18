@@ -1174,7 +1174,7 @@ namespace vm::jit
     }
 
     // MYT-165 (Phase F-c) — speculative bytecode-level inlining, POLYMORPHIC
-    // IC state. Emits a chain of shape guards against the N (≤4) cached
+    // IC state. Emits a chain of shape guards against the cached
     // ClassDefinition pointers. Each guard's fall-through enters that shape's
     // inlined body; mismatch jumps to the next shape's guard (or, for the
     // last entry, to the slow-path helper call). Only one shape body

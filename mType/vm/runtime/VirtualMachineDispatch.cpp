@@ -340,6 +340,62 @@ namespace vm::runtime
             break;
         case OpCode::JUMP_IF_NULL: controlFlowExecutor->handleJumpIfNull(instr);
             break;
+        case OpCode::SWITCH_STRING:
+        {
+            value::Value discriminant = stackManager->pop();
+            size_t target = static_cast<size_t>(instr.inlineOperands[0]);
+            const value::Value* stringValue = nullptr;
+            value::Value boxedStringField;
+            if (value::isAnyString(discriminant))
+            {
+                stringValue = &discriminant;
+            }
+            else if (value::isObject(discriminant))
+            {
+                const auto& instance = value::asObject(discriminant);
+                if (instance && instance->getPrimitiveTag() == value::PrimitiveTypeTag::STRING)
+                {
+                    boxedStringField = instance->getFieldValue("value");
+                    if (value::isAnyString(boxedStringField))
+                    {
+                        stringValue = &boxedStringField;
+                    }
+                }
+            }
+            else if (value::isValueObject(discriminant))
+            {
+                const auto& instance = value::asValueObject(discriminant);
+                if (instance && instance->getPrimitiveTag() == value::PrimitiveTypeTag::STRING)
+                {
+                    boxedStringField = instance->getFieldValue("value");
+                    if (value::isAnyString(boxedStringField))
+                    {
+                        stringValue = &boxedStringField;
+                    }
+                }
+            }
+
+            if (stringValue)
+            {
+                const std::string_view key = value::asStringView(*stringValue);
+                const size_t caseCount = static_cast<size_t>(instr.inlineOperands[1]);
+                const auto& constPool = activeProgram->getConstantPool();
+                for (size_t c = 0; c < caseCount; ++c)
+                {
+                    const size_t stringOperand = 2 + c * 2;
+                    const size_t targetOperand = stringOperand + 1;
+                    const std::string& caseValue =
+                        constPool.getString(static_cast<size_t>(instr.operandAt(stringOperand)));
+                    if (key == caseValue)
+                    {
+                        target = static_cast<size_t>(instr.operandAt(targetOperand));
+                        break;
+                    }
+                }
+            }
+            instructionPointer = target - 1;
+            break;
+        }
         case OpCode::RETURN: controlFlowExecutor->handleReturn();
             break;
         case OpCode::RETURN_VALUE: controlFlowExecutor->handleReturnValue();

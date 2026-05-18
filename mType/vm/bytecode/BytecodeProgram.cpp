@@ -207,6 +207,9 @@ namespace vm::bytecode
             case OpCode::PUSH_BOOL:
                 return 1;
 
+            case OpCode::SWITCH_STRING:
+                return 2;
+
             // === Locals/globals: 1 operand (slot or name index) ===
             case OpCode::LOAD_LOCAL:
             case OpCode::LOAD_LOCAL_INT:
@@ -310,6 +313,20 @@ namespace vm::bytecode
                     " requires at least " + std::to_string(static_cast<int>(required)) +
                     " operand(s) but has " + std::to_string(instr.numOperands()));
             }
+
+            if (instr.opcode == OpCode::SWITCH_STRING)
+            {
+                const size_t caseCount = static_cast<size_t>(instr.inlineOperands[1]);
+                const size_t expected = 2 + caseCount * 2;
+                if (instr.numOperands() != expected)
+                {
+                    throw std::runtime_error(
+                        "Bytecode validation: SWITCH_STRING at instruction " +
+                        std::to_string(ip) + " expects " + std::to_string(expected) +
+                        " operand(s) from caseCount but has " +
+                        std::to_string(instr.numOperands()));
+                }
+            }
         }
     }
 
@@ -400,6 +417,20 @@ namespace vm::bytecode
                 case OpCode::JUMP_IF_TRUE_OR_POP:
                     if (instr.hasOperands()) {
                         fusionUnsafeTargets.insert(instr.inlineOperands[0]);
+                    }
+                    break;
+
+                case OpCode::SWITCH_STRING:
+                    if (instr.numOperands() >= 2) {
+                        fusionUnsafeTargets.insert(instr.inlineOperands[0]);
+                        const size_t caseCount = static_cast<size_t>(instr.inlineOperands[1]);
+                        for (size_t c = 0; c < caseCount; ++c) {
+                            const size_t targetOperand = 3 + c * 2;
+                            if (targetOperand < instr.numOperands()) {
+                                fusionUnsafeTargets.insert(
+                                    static_cast<size_t>(instr.operandAt(targetOperand)));
+                            }
+                        }
                     }
                     break;
 
@@ -558,6 +589,33 @@ namespace vm::bytecode
                             ". This indicates malformed bytecode.");
                     }
                     break;
+
+                case OpCode::SWITCH_STRING:
+                {
+                    if (instr.numOperands() < 2) {
+                        throw std::runtime_error(
+                            "SWITCH_STRING instruction has fewer than 2 operands. "
+                            "Instruction offset: " + std::to_string(i) +
+                            ". This indicates malformed bytecode.");
+                    }
+                    auto validateTarget = [&](uint64_t rawTarget) {
+                        uint32_t target = static_cast<uint32_t>(rawTarget);
+                        if (target >= instructions.size()) {
+                            throw std::runtime_error(
+                                "Invalid SWITCH_STRING jump target detected in updateAllJumpOffsets(). "
+                                "Instruction offset: " + std::to_string(i) +
+                                ", Jump target: " + std::to_string(target) +
+                                ", Instruction count: " + std::to_string(instructions.size()) +
+                                ". This indicates bytecode corruption during optimization.");
+                        }
+                    };
+                    validateTarget(instr.inlineOperands[0]);
+                    const size_t caseCount = static_cast<size_t>(instr.inlineOperands[1]);
+                    for (size_t c = 0; c < caseCount; ++c) {
+                        validateTarget(instr.operandAt(3 + c * 2));
+                    }
+                    break;
+                }
 
                 default:
                     break;

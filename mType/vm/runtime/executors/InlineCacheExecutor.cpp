@@ -562,7 +562,7 @@ namespace vm::runtime
 
         // IC fast path. Phase 2c: MEGAMORPHIC also consults the cache —
         // MethodInlineCache::lookup transparently searches the wide tier on
-        // top of the 4-entry POLY array, so shapes 5..16 still get a fast
+        // top of the inline POLY array, so overflow shapes still get a fast
         // cached dispatch instead of falling straight through to the runtime
         // resolver.
         if (cache.state == ICState::MONOMORPHIC ||
@@ -629,7 +629,7 @@ namespace vm::runtime
 
         // After the call, try to populate the cache for next time. We allow
         // population for every state — the wide tier absorbs entries past
-        // POLY-4 and addEntry returns false only when the wide tier is full.
+        // inline POLY tier and addEntry returns false only when the wide tier is full.
         {
             const std::string& rawMethodName =
                 context.program->getConstantPool().getString(instr.inlineOperands[0]);
@@ -701,7 +701,7 @@ namespace vm::runtime
                     // the 5th-and-beyond shapes (they live in cache.wide). The
                     // POLY_CACHED fused opcode still needs to be demoted on
                     // the POLY → MEGA transition, because its dispatcher only
-                    // walks the 4-entry POLY array.
+                        // walks only the inline POLY array.
                     if (transitionedToMega)
                     {
                         auto& mut = context.getMutableInstructionAt(icKey);
@@ -1137,7 +1137,7 @@ namespace vm::runtime
         auto* instance = value::asObjectInstanceRaw(objectValue);
         auto* shape = instance->getClassDefinitionRaw();
 
-        // Linear scan over up to 4 entries. The compiler unrolls / branch-
+        // Linear scan over the inline POLY entries. The compiler unrolls / branch-
         // predicts a 4-iter loop comfortably; hand-unrolling buys nothing
         // and hurts readability. Hot-path total: 1-4 pointer compares + 1
         // direct dispatch (no icTable hashmap probe, no per-entry IC scan).
@@ -1163,7 +1163,7 @@ namespace vm::runtime
         }
 
         // Linear-scan miss. Could be either a 3rd / 4th shape (POLY-stable,
-        // re-snapshot on slow-path return) or a 5th shape (MEGA, demote in
+        // re-snapshot on slow-path return) or an overflow shape (MEGA, demote in
         // the slow-path's MEGA-detect block). Either way, delegate to
         // handleCallMethodIC — do NOT bump sticky here, that would block
         // legitimate POLY growth.
