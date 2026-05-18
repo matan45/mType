@@ -32,7 +32,7 @@ namespace runMain
 {
 namespace
 {
-    constexpr std::array<const char*, 59> CANONICAL_SCRIPTS = {
+    constexpr std::array<const char*, 60> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -172,6 +172,12 @@ namespace
         "substring_hot.mt",
         "gc_churn_intense_hot.mt",
         "array_literal_alloc_hot.mt",
+        // MYT-346: value_class_mut_hot currently fails under --jit (OSR
+        // diverges from interpreter on value-class write methods past the
+        // OSR threshold). Retained in the canonical list so --benchmark
+        // reports wall-time on both paths; the integration suite uses it as
+        // a regression canary.
+        "value_class_mut_hot.mt",
         "int_only_arith_hot.mt",
     };
 
