@@ -107,6 +107,24 @@ namespace validation
             std::shared_ptr<Environment> environment,
             const SourceLocation& location);
 
+        /**
+         * @brief Reject the same annotation appearing twice on one declaration.
+         *
+         * Stacking duplicates (e.g. two `@Throw` on one method) is ambiguous
+         * because lookups via `getAnnotation(name)` silently return the first
+         * occurrence and drop the rest. Hard error rather than silent shadowing.
+         *
+         * Called from FunctionRegistrar for free functions, and internally for
+         * classes/methods/fields/constructors/parameters.
+         *
+         * @param annotations All annotations on a single declaration
+         * @param hostKindLabel Human-readable host kind for the error message
+         *                      (e.g. "method", "class", "field", "function")
+         */
+        static void checkNoDuplicateAnnotations(
+            const std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>& annotations,
+            const char* hostKindLabel);
+
     private:
         /**
          * @brief Find a matching method in the parent class hierarchy

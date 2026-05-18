@@ -18,7 +18,6 @@ function describe(Dog d): string {
     return "dog";
 }
 
-@Script
 function main(): void {
     // ERROR: ambiguous call to 'describe' - null matches both Animal and Dog
     print(describe(null));

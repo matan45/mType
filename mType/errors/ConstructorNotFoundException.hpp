@@ -21,8 +21,8 @@ namespace errors
                                      size_t paramCount,
                                      const SourceLocation& loc = SourceLocation())
             : RuntimeException(
-                "Constructor not found for class '" + className
-                + "' with " + std::to_string(paramCount) + " parameters", loc)
+                "no matching overload for call to constructor of class '" + className
+                + "' with " + std::to_string(paramCount) + " argument(s)", loc)
             , className_(className)
             , paramCount_(paramCount)
         {

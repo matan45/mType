@@ -1,18 +1,17 @@
 // Two instance methods with identical parameter signatures - rejected at class registration
 // (overloading by NAME is allowed in mType; overloading by IDENTICAL SIGNATURE is not)
 class Calculator {
-    int compute(int a, int b) {
+    public function compute(int a, int b): int {
         return a + b;
     }
 
     // ERROR: Duplicate method signature: 'compute(int, int)'
-    int compute(int x, int y) {
+    public function compute(int x, int y): int {
         return x * y;
     }
 }
 
-@Script
-function main() {
+function main(): void {
     Calculator calc = new Calculator();
     print(calc.compute(1, 2));
 }

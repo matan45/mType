@@ -279,8 +279,8 @@ namespace vm::compiler::validation
             }
 
             throw errors::TypeException(
-                "Constructor for class '" + baseName + "' with " + std::to_string(argCount) +
-                " parameters not found",
+                "no matching overload for call to constructor of class '" + baseName
+                + "' with " + std::to_string(argCount) + " argument(s)",
                 location
             );
         }

@@ -262,6 +262,31 @@ namespace vm::compiler::overload
                 if (catalog.isSubtypeOf(fromBase, toBase)) {
                     return ConversionType::INHERITANCE;
                 }
+                // class -> interface fallback. FunctionNode::classifyParameterType
+                // stores every OBJECT-typed parameter as ParameterType::forClass
+                // regardless of whether the identifier names a class or an
+                // interface — so an interface-typed parameter looks like a class
+                // here. After the class-subtype check misses, ask the source
+                // class itself whether it implements the target name as an
+                // interface. Diamond-implements (one class, two unrelated
+                // interfaces, two overloads) then becomes ambiguous via the
+                // equivalent-distance path in selectBestCandidate.
+                if (auto classDef = catalog.findClass(fromBase)) {
+                    if (classDef->implementsInterface(toBase)) {
+                        return ConversionType::INHERITANCE;
+                    }
+                }
+            }
+            // If a future code path correctly stores the param as
+            // ParameterType::forInterface, honour it directly.
+            if (from.isClass() && to.isInterface()) {
+                std::string fromBase = types::TypeConversionUtils::stripNullable(from.getClassName());
+                std::string toIface = types::TypeConversionUtils::stripNullable(to.getInterfaceName());
+                if (auto classDef = catalog.findClass(fromBase)) {
+                    if (classDef->implementsInterface(toIface)) {
+                        return ConversionType::INHERITANCE;
+                    }
+                }
             }
             // Untyped object (no className) is assignable to Object (the root class)
             if (!from.isClass() && !from.isInterface() && to.isClass() &&
@@ -460,10 +485,13 @@ namespace vm::compiler::overload
                 bestMatches.clear();
                 bestMatches.push_back(current);
             } else if (!best.second.isBetterThan(current.second)) {
-                // Equally good - potential ambiguity
-                if (current.second.isEquivalentTo(best.second)) {
-                    bestMatches.push_back(current);
-                }
+                // Neither candidate dominates the other (e.g. one wins on
+                // param[0], the other on param[1] — compute(int,float) vs
+                // compute(float,int) called with (int,int)). That's ambiguity,
+                // not "pick the first one". The earlier isEquivalentTo gate
+                // missed the mixed-conversion case because it only compared
+                // matching ConversionType+distance per slot.
+                bestMatches.push_back(current);
             }
         }
 

@@ -1,6 +1,5 @@
 // Test arithmetic type promotion: int + float = float
 
-@Script
 function main(): void {
     int intValue = 5;
     float floatValue = 3.14;

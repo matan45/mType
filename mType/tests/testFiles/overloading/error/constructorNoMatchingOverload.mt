@@ -16,7 +16,6 @@ class Point {
     }
 }
 
-@Script
 function main(): void {
     // ERROR: no matching overload for call to Point constructor with (int, int, int)
     Point p = new Point(1, 2, 3);

@@ -21,7 +21,6 @@ class Box<T> {
     }
 }
 
-@Script
 function testGenericArrayTypeMismatch(): void {
     // Create array of Container<int>
     Container<int>[] intContainers = new Container<int>[3];

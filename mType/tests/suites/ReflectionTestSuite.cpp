@@ -195,7 +195,7 @@ namespace tests::testSuite
         addTestFromFile("Invoke With Wrong Arity Error",
                         errorPath + "invokeWithWrongArity.mt",
                         TestType::ERROR_EXPECTED,
-                        "cannot find method");
+                        "not found on class");
 
         // === EDGE CASE TESTS - private fields / inherited methods / null forName ===
         addOutputVerificationTest("Reflect Private Field",

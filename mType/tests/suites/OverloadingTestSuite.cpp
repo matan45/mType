@@ -96,15 +96,15 @@ namespace tests::testSuite
         addTestFromFile("Duplicate Method Signature",
                     errorPath + "duplicateMethodSignature.mt",
                     TestType::ERROR_EXPECTED,
-                    "Duplicate method signature");
+                    "Duplicate instance method declaration");
         addTestFromFile("Duplicate Static Method Signature",
                     errorPath + "duplicateStaticMethodSignature.mt",
                     TestType::ERROR_EXPECTED,
-                    "Duplicate static method signature");
+                    "Duplicate static method declaration");
         addTestFromFile("Return Type Only Overload",
                     errorPath + "returnTypeOnlyOverload.mt",
                     TestType::ERROR_EXPECTED,
-                    "Duplicate method signature");
+                    "Duplicate instance method declaration");
 
         // Overload resolution errors at call sites.
         addTestFromFile("Null Ambiguity Inheritance",

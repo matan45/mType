@@ -16,7 +16,6 @@ function describe(Swimmer s): string {
     return "swims";
 }
 
-@Script
 function main(): void {
     Duck d = new Duck();
     // ERROR: ambiguous call to 'describe' - Duck is both Walker and Swimmer at distance 1

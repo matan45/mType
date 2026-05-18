@@ -1,7 +1,6 @@
 // Test: Attempting to cast invalid string to float should fail
 // Expected: Runtime error when trying to parse invalid float string
 
-@Script
 def testInvalidStringToFloat() {
     print("Testing invalid string to float conversion");
 

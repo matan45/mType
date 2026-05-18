@@ -229,6 +229,11 @@ namespace tests::testSuite
                         errorPath + "throw_duplicate_annotation_error.mt",
                         TestType::ERROR_EXPECTED);
 
+        addTestFromFile("Script On Function Rejected",
+                        errorPath + "script_on_function_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "cannot be applied to");
+
         addOutputVerificationTest("Throw Duplicate Exception In List (current behavior)",
                                   passPath + "throw_duplicate_in_list_pass.mt");
 

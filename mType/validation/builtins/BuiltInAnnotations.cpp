@@ -22,11 +22,19 @@ namespace validation::builtins
         // @Script — zero parameters. Per explicit user requirement, the
         // semantic enforcement (default ctor + onStart/onUpdate(float)/onDestroy)
         // remains in C++ in AnnotationValidator::validateScriptAnnotation.
-        // Registering here only gives the new usage validator a schema to
-        // recognize the annotation as known.
+        // @Script is a lifecycle marker that only makes sense on a class
+        // (the validator looks for constructors and onStart/onUpdate/onDestroy
+        // methods), so @Target restricts it to CLASS.
         if (!registry->hasAnnotation("Script"))
         {
             auto def = std::make_shared<AnnotationDefinition>("Script", true);
+
+            auto targetMeta = std::make_shared<ast::nodes::annotations::AnnotationNode>("Target");
+            targetMeta->setTypedParameter(
+                "targets",
+                ast::nodes::annotations::TypedAnnotationValue::makeClassArray({"CLASS"}));
+            def->addMetaAnnotation(targetMeta);
+
             registry->registerAnnotation("Script", def);
         }
 
@@ -50,6 +58,16 @@ namespace validation::builtins
             schema.nullable     = false;
             schema.isArray      = true;
             def->addParam(std::move(schema));
+
+            // @Throw is only meaningful where a body executes user code that
+            // can raise: instance methods and free functions. Reject it on
+            // fields, constructors, parameters, classes, and annotations.
+            auto targetMeta = std::make_shared<ast::nodes::annotations::AnnotationNode>("Target");
+            targetMeta->setTypedParameter(
+                "targets",
+                ast::nodes::annotations::TypedAnnotationValue::makeClassArray({"METHOD", "FUNCTION"}));
+            def->addMetaAnnotation(targetMeta);
+
             registry->registerAnnotation("Throw", def);
         }
 

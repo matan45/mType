@@ -21,7 +21,7 @@ namespace errors
             const std::vector<std::string>& available,
             const std::vector<std::string>& argTypes)
         {
-            std::string message = "No matching overload for call to '" + name + "' with arguments (";
+            std::string message = "no matching overload for call to '" + name + "' with arguments (";
 
             // Format argument types
             for (size_t i = 0; i < argTypes.size(); ++i) {

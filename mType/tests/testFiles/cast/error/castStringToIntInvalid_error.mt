@@ -1,7 +1,6 @@
 // Test: Attempting to cast invalid string to integer should fail
 // Expected: Runtime error when trying to parse invalid integer string
 
-@Script
 def testInvalidStringToInt() {
     print("Testing invalid string to int conversion");
 

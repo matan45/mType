@@ -6,6 +6,7 @@
 #include "../../../errors/AmbiguousCallException.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../../environment/registry/TypeCatalog.hpp"
+#include "../../../ast/nodes/expressions/NullNode.hpp"
 #include <iostream>
 #include <unordered_map>
 #include <algorithm>
@@ -81,6 +82,19 @@ namespace vm::compiler::overload
 
         for (const auto& arg : arguments)
         {
+            // A literal `null` must be reported as NULL_TYPE, not OBJECT-untyped.
+            // Type inference can collapse `null` to OBJECT (no className), and the
+            // resolver's OBJECT-vs-OBJECT path then declares every typed-OBJECT
+            // overload INCOMPATIBLE — masking the real "null matches both" case
+            // as "no matching overload (object)". Forcing NULL_TYPE here lets the
+            // existing null → OBJECT EXACT_MATCH branch run, which keeps every
+            // viable overload alive so ambiguity detection can fire.
+            if (dynamic_cast<ast::NullNode*>(arg.get()))
+            {
+                argTypes.emplace_back(value::ParameterType(value::ValueType::NULL_TYPE));
+                continue;
+            }
+
             // Infer the basic value type
             value::ValueType basicType = ctx.typeInference.inferExpressionType(arg.get());
 

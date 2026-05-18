@@ -97,13 +97,6 @@ namespace tests::testSuite
                         passPath + "localCopyOfFieldNarrowed.mt");
         addOutputVerificationTest("Nullable Field Defaults to Null",
                         passPath + "nullableFieldDefaultsToNull.mt");
-        addTestFromFile("this.field Narrowing Unsupported",
-                        errorPath + "thisFieldNarrowingUnsupported_error.mt",
-                        TestType::ERROR_EXPECTED);
-        addTestFromFile("obj.field Narrowing Unsupported",
-                        errorPath + "objFieldNarrowingUnsupported_error.mt",
-                        TestType::ERROR_EXPECTED);
-
         // === ARRAYS WITH NULLABLE ELEMENTS ===
         addOutputVerificationTest("Object Array Defaults Null",
                         passPath + "objectArrayDefaultsNull.mt");

@@ -1,5 +1,4 @@
 // Test: Import conflicts with local definition
-@Script
 import { LocalClass } from "./modules/OverwriteModule.mt"
 
 class LocalClass {

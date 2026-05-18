@@ -382,7 +382,7 @@ namespace diagnostics
         Diagnostic convertConstructorNotFound(const errors::ConstructorNotFoundException& e)
         {
             DiagnosticBuilder b(codes::NameConstructorNotFound);
-            b.withMessage("cannot find a constructor on '" + e.getClassName()
+            b.withMessage("no matching overload for call to constructor of '" + e.getClassName()
                           + "' taking " + std::to_string(e.getParamCount())
                           + " argument(s)")
              .withPrimary(e.getLocation(), "no matching constructor")

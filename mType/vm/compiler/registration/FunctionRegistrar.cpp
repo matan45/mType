@@ -369,6 +369,8 @@ namespace vm::compiler::registration
         // MYT-108: run the typed usage validator over every annotation on the
         // top-level function first (catches unknown annotations, bad types,
         // missing required params, fills in defaults).
+        ::validation::AnnotationValidator::checkNoDuplicateAnnotations(
+            functionNode->getAnnotations(), "function");
         for (const auto& annotation : functionNode->getAnnotations())
         {
             if (!annotation) continue;
@@ -380,6 +382,8 @@ namespace vm::compiler::registration
         // MYT-110: validate per-parameter annotations with PARAMETER host kind
         for (const auto& perParam : functionNode->getParameterAnnotations())
         {
+            ::validation::AnnotationValidator::checkNoDuplicateAnnotations(
+                perParam, "parameter");
             for (const auto& ann : perParam)
             {
                 if (!ann) continue;
