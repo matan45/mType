@@ -1,0 +1,9 @@
+Testing enhanced for-loop over int[]:
+10
+20
+30
+40
+50
+Sum: 150
+Empty count: 0
+for-each over int[] test passed!

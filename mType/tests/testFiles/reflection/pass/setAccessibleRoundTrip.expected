@@ -1,0 +1,6 @@
+initial isAccessible=false
+after unlock isAccessible=true
+unlocked read=99
+after relock isAccessible=false
+after second unlock isAccessible=true
+Test passed

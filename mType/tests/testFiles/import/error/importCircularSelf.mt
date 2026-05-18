@@ -1,5 +1,4 @@
 // Test: File importing itself (self-referential circular import)
-@Script
 import { SomeClass } from "./importCircularSelf.mt"
 
 class SomeClass {

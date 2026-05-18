@@ -1,0 +1,6 @@
+tracked.name=doIt
+hasMeta(Retention)=true
+hasMeta(Target)=true
+retention non-null=true
+target non-null=true
+Test passed

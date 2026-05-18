@@ -1,0 +1,4 @@
+default: null
+after assign: 42
+after reassign null: null
+Nullable field default-to-null tests passed!

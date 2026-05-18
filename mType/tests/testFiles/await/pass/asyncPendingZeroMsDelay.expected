@@ -1,0 +1,4 @@
+=== Async Pending Zero Ms Delay ===
+main: before zero-ms await
+main: after zero-ms await
+OK

@@ -1,16 +1,15 @@
 // Ambiguous overload resolution - should fail at compile time
 class Calculator {
-    int compute(int a, float b) {
-        return a + b;
+    public function compute(int a, float b): int {
+        return 0;
     }
 
-    int compute(float a, int b) {
-        return a + b;
+    public function compute(float a, int b): int {
+        return 0;
     }
 }
 
-@Script
-function main() {
+function main(): void {
     Calculator calc = new Calculator();
 
     // This should be ambiguous - both overloads are equally specific

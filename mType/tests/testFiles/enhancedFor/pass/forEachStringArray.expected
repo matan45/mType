@@ -1,0 +1,7 @@
+Testing enhanced for-loop over String[]:
+alpha
+beta
+gamma
+Count: 3
+Empty count: 0
+for-each over String[] test passed!

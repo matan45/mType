@@ -1,0 +1,6 @@
+=== Async Pending Interleaved Settlement Order ===
+main: awaiting short first
+main: short returned 1
+main: awaiting longer second
+main: longer returned 3
+OK

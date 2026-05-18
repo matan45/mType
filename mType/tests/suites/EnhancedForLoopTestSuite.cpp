@@ -85,6 +85,22 @@ namespace tests::testSuite
         addOutputVerificationTest("ForEach With Lambda In Body",
                                   passPath + "forEachWithLambdaInBody.mt");
 
+        // === ARRAY ITERATION ===
+        addOutputVerificationTest("ForEach Over int[] Primitive Array",
+                                  passPath + "forEachIntArray.mt");
+
+        addOutputVerificationTest("ForEach Over float[] Primitive Array",
+                                  passPath + "forEachFloatArray.mt");
+
+        addOutputVerificationTest("ForEach Over bool[] Primitive Array",
+                                  passPath + "forEachBoolArray.mt");
+
+        addOutputVerificationTest("ForEach Over String[] Class Array",
+                                  passPath + "forEachStringArray.mt");
+
+        addOutputVerificationTest("ForEach Over User Class Array",
+                                  passPath + "forEachClassArray.mt");
+
         // Add error tests for iterator type safety
         addTestFromFile("For-Each on Non-Iterable Type",
                        errorPath + "forEachNonIterable.mt",

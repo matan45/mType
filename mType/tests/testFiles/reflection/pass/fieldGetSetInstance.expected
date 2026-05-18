@@ -1,0 +1,11 @@
+Before reflective access:
+  primary.text=alpha
+  secondary.text=beta
+Reflective get returned non-null:
+  primary non-null=true
+  secondary non-null=true
+After Field.set:
+  primary.text=rewritten
+  secondary.text=rewritten
+  same instance after both sets=true
+Test passed

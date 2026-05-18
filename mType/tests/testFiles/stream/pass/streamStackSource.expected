@@ -1,0 +1,6 @@
+Testing Stream from Stack:
+Count: 4
+Sum: 50
+Has >12: true
+All positive: true
+Stream Stack source test passed!

@@ -1,0 +1,4 @@
+inner try
+inner finally
+outer caught: boom
+outer finally

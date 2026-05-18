@@ -1,0 +1,7 @@
+Service ctor annotation count=2
+Plain ctor annotation count=0
+Service ctor.hasAnnotation(Inject)=true
+Service ctor.hasAnnotation(Wired)=true
+Service ctor.hasAnnotation(Missing)=false
+wired.scope=request
+Test passed

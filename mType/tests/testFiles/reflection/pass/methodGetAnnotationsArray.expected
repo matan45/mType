@@ -1,0 +1,8 @@
+hot annotation handle count=2
+plain annotation handle count=0
+hot.hasAnnotation(Logged)=true
+hot.hasAnnotation(Cached)=true
+hot.hasAnnotation(Missing)=false
+logged.level=debug
+cached.ttl=120
+Test passed

@@ -1,0 +1,7 @@
+ctor param count=3
+created non-null=true
+first non-null=true
+first.text=alpha
+second.text=beta
+third.text=gamma
+Test passed

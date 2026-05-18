@@ -1,6 +1,5 @@
 // Test compound assignment operators with type checking
 
-@Script
 function main(): void {
     // Test += operator
     int intValue = 10;

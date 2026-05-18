@@ -25,6 +25,7 @@ namespace validation
         // on this class and on every method. Catches unknown annotations,
         // wrong-type/missing/unknown params, and fills in defaults so the
         // built-in validators below see a complete value set.
+        checkNoDuplicateAnnotations(classDefinition->getAnnotations(), "class");
         for (const auto& annotation : classDefinition->getAnnotations())
         {
             AnnotationUsageValidator::validate(
@@ -35,6 +36,7 @@ namespace validation
         {
             for (const auto& methodDef : methodOverloads)
             {
+                checkNoDuplicateAnnotations(methodDef->getAnnotations(), "method");
                 for (const auto& ann : methodDef->getAnnotations())
                 {
                     AnnotationUsageValidator::validate(
@@ -47,6 +49,7 @@ namespace validation
         {
             for (const auto& methodDef : methodOverloads)
             {
+                checkNoDuplicateAnnotations(methodDef->getAnnotations(), "method");
                 for (const auto& ann : methodDef->getAnnotations())
                 {
                     AnnotationUsageValidator::validate(
@@ -59,6 +62,7 @@ namespace validation
         for (const auto& ctorDef : classDefinition->getConstructors())
         {
             if (!ctorDef) continue;
+            checkNoDuplicateAnnotations(ctorDef->getAnnotations(), "constructor");
             for (const auto& ann : ctorDef->getAnnotations())
             {
                 AnnotationUsageValidator::validate(
@@ -70,6 +74,7 @@ namespace validation
         for (const auto& [fieldName, fieldDef] : classDefinition->getInstanceFields())
         {
             if (!fieldDef) continue;
+            checkNoDuplicateAnnotations(fieldDef->getAnnotations(), "field");
             for (const auto& ann : fieldDef->getAnnotations())
             {
                 AnnotationUsageValidator::validate(
@@ -80,6 +85,7 @@ namespace validation
         for (const auto& [fieldName, fieldDef] : classDefinition->getStaticFields())
         {
             if (!fieldDef) continue;
+            checkNoDuplicateAnnotations(fieldDef->getAnnotations(), "field");
             for (const auto& ann : fieldDef->getAnnotations())
             {
                 AnnotationUsageValidator::validate(
@@ -92,6 +98,7 @@ namespace validation
         // The usage validator checks @Target against HostKind::PARAMETER.
         auto validateParamAnnotations = [&](const auto& perParam)
         {
+            checkNoDuplicateAnnotations(perParam, "parameter");
             for (const auto& ann : perParam)
             {
                 if (!ann) continue;
@@ -754,6 +761,25 @@ namespace validation
                 continue;
             }
             seen.insert(name);
+        }
+    }
+
+    void AnnotationValidator::checkNoDuplicateAnnotations(
+        const std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>& annotations,
+        const char* hostKindLabel)
+    {
+        std::unordered_set<std::string> seen;
+        for (const auto& ann : annotations)
+        {
+            if (!ann) continue;
+            const std::string& name = ann->getName();
+            if (!seen.insert(name).second)
+            {
+                std::ostringstream oss;
+                oss << "Duplicate annotation '@" << name << "' on " << hostKindLabel
+                    << " — the same annotation cannot be applied more than once.";
+                throw TypeException(oss.str(), ann->getLocation());
+            }
         }
     }
 }

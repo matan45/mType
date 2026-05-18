@@ -1,0 +1,5 @@
+=== Async Local Alive Across Await ===
+before: x=7 label=answer boxed=35
+after: x=7 label=answer boxed=35
+product=245
+OK

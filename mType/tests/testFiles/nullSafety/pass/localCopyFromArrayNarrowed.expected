@@ -1,0 +1,4 @@
+first: 100
+second is null
+third is null
+Local copy from array narrowing tests passed!

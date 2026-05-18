@@ -1,0 +1,3 @@
+before wrong-type set, n=0
+after wrong-type set, n=<object>
+Test passed

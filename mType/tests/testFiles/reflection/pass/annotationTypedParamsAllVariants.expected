@@ -1,0 +1,9 @@
+hasAnnotation(Spec)=true
+port=8080
+ratio=1.5
+label=x
+enabled=false
+handler=Owner
+optional isNull=true
+label isNull=false
+Test passed

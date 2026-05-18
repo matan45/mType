@@ -1,0 +1,13 @@
+Widget.isInterface=false
+interface count=2
+has Drawable=true
+has Resizable=true
+declared count=4
+declared has draw=true
+declared has getName=true
+declared has resize=true
+declared has own=true
+draw param count=0
+draw return type=void
+resize param count=2
+Test passed

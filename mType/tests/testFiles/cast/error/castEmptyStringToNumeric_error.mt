@@ -1,7 +1,6 @@
 // Test: Attempting to cast empty string to numeric types should fail
 // Expected: Runtime error when trying to parse empty string
 
-@Script
 def testEmptyStringToNumeric() {
     print("Testing empty string to numeric conversion");
 

@@ -1,0 +1,4 @@
+=== Async Pending Delay Reject Fanout ===
+first: caught boom
+second: caught boom
+OK

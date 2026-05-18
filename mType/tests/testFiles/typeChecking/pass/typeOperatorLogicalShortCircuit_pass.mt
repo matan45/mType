@@ -1,6 +1,5 @@
 // Test type checking in logical operators with short-circuit evaluation
 
-@Script
 function main(): void {
     // Test && operator - should short-circuit
     bool result1 = false && true;

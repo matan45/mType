@@ -21,7 +21,7 @@ namespace errors
             const std::vector<std::string>& candidates,
             const std::vector<std::string>& argTypes)
         {
-            std::string message = "Ambiguous call to '" + name + "' with arguments (";
+            std::string message = "ambiguous call to '" + name + "' with arguments (";
 
             // Format argument types
             for (size_t i = 0; i < argTypes.size(); ++i) {

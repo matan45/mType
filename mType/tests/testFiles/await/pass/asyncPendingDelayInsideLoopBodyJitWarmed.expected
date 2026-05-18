@@ -1,0 +1,3 @@
+=== Async Pending Delay Inside Loop Body (JIT-warmed) ===
+total=60300
+OK

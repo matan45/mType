@@ -1,0 +1,4 @@
+=== Async Captured Outer Scope Across Await ===
+before: shared=5
+after: result=105 shared=5
+OK
