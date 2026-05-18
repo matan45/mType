@@ -187,6 +187,7 @@ project "mtype-language-server-lib"
         "../mType/environment/registry/ExportRegistry.cpp",
         "../mType/environment/registry/FunctionRegistry.cpp",
         "../mType/environment/registry/InheritanceTracker.cpp",
+        "../mType/environment/registry/TypeCatalog.cpp",
         -- Note: Excluding NativeRegistry.cpp to avoid runtime builtin function dependencies
 
         -- Services
@@ -195,7 +196,7 @@ project "mtype-language-server-lib"
 
         -- Type system
         "../mType/types/TypeConversionUtils.cpp",
-        "../mType/types/TypeRegistry.cpp",
+        "../mType/types/TypeDescriptors.cpp",
         "../mType/types/UnifiedType.cpp",
         "../mType/types/ReifiedTypeRegistry.cpp",
         "../mType/types/TypeSubstitutionService.cpp",

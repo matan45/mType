@@ -2,9 +2,9 @@
 #include <cstddef>
 #include "../../parser/TypeParser.hpp"
 #include "../../ast/nodes/expressions/LambdaInterfaceInvocationNode.hpp"
-#include "../../types/TypeRegistry.hpp"
 #include "../../types/TypeConversionUtils.hpp"
 #include <algorithm>
+#include <cctype>
 #include <sstream>
 #include <unordered_set>
 #include <stdexcept>
@@ -299,7 +299,7 @@ namespace runtimeTypes::klass
             // Check if this is actually a generic type parameter (T, E, K, V)
             // vs a class name (String, HashSet, etc.)
             // Generic parameters are single uppercase letters
-            if (types::TypeRegistry::isGenericParameter(typeName))
+            if (typeName.length() == 1 && std::isupper(static_cast<unsigned char>(typeName[0])))
             {
                 // This is a true generic parameter - validate it's declared
                 bool found = false;

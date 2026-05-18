@@ -6,7 +6,6 @@
 #include "../utils/ErrorLocationHelper.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/TypeException.hpp"
-#include "../../../types/TypeRegistry.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"
 #include "../../profiler/ProfilerHookHelper.hpp"
 #include "../../../value/IntegerCache.hpp"
@@ -229,7 +228,6 @@ namespace vm::runtime
         std::vector<std::string> typeArgs = parseTypeArguments(typeArgsStr);
 
         // Validate type arguments
-        auto& typeRegistry = types::getGlobalTypeRegistry();
         for (const auto& typeArg : typeArgs) {
             if (typeArg.empty()) {
                 throw errors::TypeException("Invalid empty type argument for generic class '" + baseClassName + "'");

@@ -38,14 +38,16 @@ namespace environment::registry
         bool hasClass(const std::string& name) const;
 
         // Inheritance relationship management (delegated to InheritanceTracker)
-        void registerInheritance(const std::string& childName, const std::string& parentName);
+        // Virtual so TypeCatalog can invalidate its subtype cache when edges change.
+        virtual void registerInheritance(const std::string& childName, const std::string& parentName);
         [[nodiscard]] bool wouldCreateCycle(const std::string& childName, const std::string& parentName) const;
         [[nodiscard]] std::vector<std::shared_ptr<ClassDefinition>> getInheritanceChain(const std::string& className) const;
         [[nodiscard]] std::vector<std::string> getChildClasses(const std::string& parentName) const;
         [[nodiscard]] std::string getParentClass(const std::string& childName) const;
 
-        // Clear all script-defined classes, preserving builtin "Object" class
-        void clearScriptDefinitions();
+        // Clear all script-defined classes, preserving builtin "Object" class.
+        // Virtual so TypeCatalog can also re-bootstrap its primitive/Box state.
+        virtual void clearScriptDefinitions();
 
         // NEW (Phase 4): Reified type management for generic classes
         [[nodiscard]] std::shared_ptr<::types::ReifiedTypeRegistry> getReifiedTypeRegistry() const

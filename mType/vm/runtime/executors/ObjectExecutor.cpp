@@ -11,7 +11,6 @@
 #include "../utils/NullCheckUtils.hpp"
 #include "../../../errors/SourceLocation.hpp"
 #include "../../../errors/TypeException.hpp"
-#include "../../../types/TypeRegistry.hpp"
 #include "../../../runtimeTypes/klass/InterfaceDefinition.hpp"
 #include "../../../constants/LambdaConstants.hpp"
 #include "../../../debugger/DebugHookHelper.hpp"

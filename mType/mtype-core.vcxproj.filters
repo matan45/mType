@@ -102,6 +102,9 @@
     <ClInclude Include="environment\registry\Registry.hpp">
       <Filter>environment\registry</Filter>
     </ClInclude>
+    <ClInclude Include="environment\registry\TypeCatalog.hpp">
+      <Filter>environment\registry</Filter>
+    </ClInclude>
     <ClInclude Include="environment\registry\builtin\BuiltinNatives.hpp">
       <Filter>environment\registry\builtin</Filter>
     </ClInclude>
@@ -168,7 +171,7 @@
     <ClInclude Include="types\TypeConversionUtils.hpp">
       <Filter>types</Filter>
     </ClInclude>
-    <ClInclude Include="types\TypeRegistry.hpp">
+    <ClInclude Include="types\TypeDescriptors.hpp">
       <Filter>types</Filter>
     </ClInclude>
     <ClInclude Include="types\TypeSignature.hpp">
@@ -341,6 +344,9 @@
     <ClCompile Include="environment\registry\NativeRegistry.cpp">
       <Filter>environment\registry</Filter>
     </ClCompile>
+    <ClCompile Include="environment\registry\TypeCatalog.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
     <ClCompile Include="environment\registry\builtin\BuiltinNatives.cpp">
       <Filter>environment\registry\builtin</Filter>
     </ClCompile>
@@ -401,7 +407,7 @@
     <ClCompile Include="types\TypeConversionUtils.cpp">
       <Filter>types</Filter>
     </ClCompile>
-    <ClCompile Include="types\TypeRegistry.cpp">
+    <ClCompile Include="types\TypeDescriptors.cpp">
       <Filter>types</Filter>
     </ClCompile>
     <ClCompile Include="types\TypeSignature.cpp">

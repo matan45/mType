@@ -10,6 +10,8 @@
 #include "../../../runtimeTypes/global/FunctionDefinition.hpp"
 #include "../../../errors/SourceLocation.hpp"
 
+namespace environment::registry { class TypeCatalog; }
+
 namespace vm::compiler::overload
 {
     /**
@@ -101,92 +103,67 @@ namespace vm::compiler::overload
         static OverloadResolutionResult<runtimeTypes::klass::MethodDefinition> resolveMethodOverload(
             const std::vector<std::shared_ptr<runtimeTypes::klass::MethodDefinition>>& candidates,
             const std::vector<value::ParameterType>& argumentTypes,
-            const ast::SourceLocation& sourceLocation);
+            const ast::SourceLocation& sourceLocation,
+            const environment::registry::TypeCatalog& catalog);
 
         /**
          * Resolve method overload using argument type names
-         *
-         * @param candidates Vector of method candidates
-         * @param argumentTypeNames Argument type names as strings
-         * @param sourceLocation Source location for error reporting
-         * @return Resolution result
          */
         static OverloadResolutionResult<runtimeTypes::klass::MethodDefinition> resolveMethodOverload(
             const std::vector<std::shared_ptr<runtimeTypes::klass::MethodDefinition>>& candidates,
             const std::vector<std::string>& argumentTypeNames,
-            const ast::SourceLocation& sourceLocation);
+            const ast::SourceLocation& sourceLocation,
+            const environment::registry::TypeCatalog& catalog);
 
         /**
          * Resolve function overload from candidates
-         *
-         * @param candidates Vector of function candidates with same name
-         * @param argumentTypes Actual argument types at call site
-         * @param sourceLocation Source location for error reporting
-         * @return Resolution result
          */
         static OverloadResolutionResult<runtimeTypes::global::FunctionDefinition> resolveFunctionOverload(
             const std::vector<std::shared_ptr<runtimeTypes::global::FunctionDefinition>>& candidates,
             const std::vector<value::ParameterType>& argumentTypes,
-            const ast::SourceLocation& sourceLocation);
+            const ast::SourceLocation& sourceLocation,
+            const environment::registry::TypeCatalog& catalog);
 
         /**
          * Resolve function overload using argument type names
-         *
-         * @param candidates Vector of function candidates
-         * @param argumentTypeNames Argument type names as strings
-         * @param sourceLocation Source location for error reporting
-         * @return Resolution result
          */
         static OverloadResolutionResult<runtimeTypes::global::FunctionDefinition> resolveFunctionOverload(
             const std::vector<std::shared_ptr<runtimeTypes::global::FunctionDefinition>>& candidates,
             const std::vector<std::string>& argumentTypeNames,
-            const ast::SourceLocation& sourceLocation);
+            const ast::SourceLocation& sourceLocation,
+            const environment::registry::TypeCatalog& catalog);
 
         /**
          * Analyze conversion required for a single parameter
-         *
-         * @param argumentType Actual argument type
-         * @param parameterType Expected parameter type
-         * @return Conversion analysis result
          */
         static ParameterConversion analyzeParameterConversion(
             const value::ParameterType& argumentType,
-            const value::ParameterType& parameterType);
+            const value::ParameterType& parameterType,
+            const environment::registry::TypeCatalog& catalog);
 
         /**
          * Analyze conversion using type names
-         *
-         * @param argumentTypeName Actual argument type name
-         * @param parameterTypeName Expected parameter type name
-         * @return Conversion analysis result
          */
         static ParameterConversion analyzeParameterConversion(
             const std::string& argumentTypeName,
-            const std::string& parameterTypeName);
+            const std::string& parameterTypeName,
+            const environment::registry::TypeCatalog& catalog);
 
         /**
          * Check if one type can be converted to another
-         *
-         * @param from Source type
-         * @param to Target type
-         * @return Conversion type
          */
         static ConversionType getConversionType(
             const value::ParameterType& from,
-            const value::ParameterType& to);
+            const value::ParameterType& to,
+            const environment::registry::TypeCatalog& catalog);
 
         /**
          * Calculate inheritance distance between two class types
-         * Returns 0 for exact match, positive number for inheritance distance,
-         * -1 if not related
-         *
-         * @param childType Child class name
-         * @param parentType Parent class name
-         * @return Inheritance distance or -1
          */
         static int calculateInheritanceDistance(
             const std::string& childType,
-            const std::string& parentType);
+            const std::string& parentType,
+            const environment::registry::TypeCatalog& catalog);
 
     private:
         /**
@@ -195,7 +172,8 @@ namespace vm::compiler::overload
         template<typename T>
         static CandidateMatch matchCandidate(
             const std::shared_ptr<T>& candidate,
-            const std::vector<value::ParameterType>& argumentTypes);
+            const std::vector<value::ParameterType>& argumentTypes,
+            const environment::registry::TypeCatalog& catalog);
 
         /**
          * Filter viable candidates (those that can accept the arguments)
@@ -203,7 +181,8 @@ namespace vm::compiler::overload
         template<typename T>
         static std::vector<std::pair<std::shared_ptr<T>, CandidateMatch>> filterViableCandidates(
             const std::vector<std::shared_ptr<T>>& candidates,
-            const std::vector<value::ParameterType>& argumentTypes);
+            const std::vector<value::ParameterType>& argumentTypes,
+            const environment::registry::TypeCatalog& catalog);
 
         /**
          * Select best candidate from viable matches

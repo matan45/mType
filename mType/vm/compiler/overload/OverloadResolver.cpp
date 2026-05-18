@@ -1,6 +1,6 @@
 #include "OverloadResolver.hpp"
 #include <cstddef>
-#include "../../../types/TypeRegistry.hpp"
+#include "../../../environment/registry/TypeCatalog.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include <algorithm>
 #include <climits>
@@ -132,13 +132,14 @@ namespace vm::compiler::overload
     }
 
     // Helper function to check if a type name is a generic parameter (like T, K, V)
-    bool isGenericParameter(const std::string& typeName, const types::TypeRegistry& registry) {
+    static bool isGenericParameter(const std::string& typeName,
+                                   const environment::registry::TypeCatalog& catalog) {
         // Single uppercase letter = generic parameter
         if (typeName.length() == 1 && std::isupper(typeName[0])) {
             return true;
         }
         // Two-letter type that isn't registered
-        if (typeName.length() == 2 && std::isupper(typeName[0]) && !registry.hasType(typeName)) {
+        if (typeName.length() == 2 && std::isupper(typeName[0]) && !catalog.hasType(typeName)) {
             return true;
         }
         return false;
@@ -147,13 +148,13 @@ namespace vm::compiler::overload
     // OverloadResolver implementation
     ConversionType OverloadResolver::getConversionType(
         const value::ParameterType& from,
-        const value::ParameterType& to)
+        const value::ParameterType& to,
+        const environment::registry::TypeCatalog& catalog)
     {
         // Check for generic type parameter FIRST (before exact match)
         // Generic parameters like T, K, V should be detected before any other checks
         // This ensures they get the lowest priority (GENERIC_PARAMETER = 10)
         if (to.basicType == value::ValueType::OBJECT && to.className.has_value()) {
-            auto& registry = types::getGlobalTypeRegistry();
             const std::string& className = to.className.value();
 
             // Extract base class name (before '<' if it exists)
@@ -165,7 +166,7 @@ namespace vm::compiler::overload
 
             // Generic type parameter detection:
             // Case 1: Simple generic like "T", "K", "V" (single capital letters)
-            if (isGenericParameter(baseClassName, registry)) {
+            if (isGenericParameter(baseClassName, catalog)) {
                 // This is a generic parameter - can match ANY type but with lowest priority
                 return ConversionType::GENERIC_PARAMETER;
             }
@@ -199,7 +200,7 @@ namespace vm::compiler::overload
                             const std::string& fromArg = fromArgs[i];
                             const std::string& toArg = toArgs[i];
 
-                            if (isGenericParameter(toArg, registry)) {
+                            if (isGenericParameter(toArg, catalog)) {
                                 // Target is generic parameter - matches any concrete type
                                 allExact = false;
                             } else if (fromArg == toArg) {
@@ -239,12 +240,10 @@ namespace vm::compiler::overload
         }
 
         // Auto-boxing: primitive -> wrapper class
-        auto& registry = types::getGlobalTypeRegistry();
-
         // Check if 'from' is primitive and 'to' is the corresponding box class
         if (from.basicType != value::ValueType::OBJECT && to.basicType == value::ValueType::OBJECT) {
             std::string fromTypeName = types::TypeConversionUtils::getTypeDisplayName(from.basicType);
-            std::string boxClassName = registry.getBoxClassName(fromTypeName);
+            std::string boxClassName = catalog.getBoxClassName(fromTypeName);
 
             if (to.isClass() && boxClassName == to.getClassName()) {
                 return ConversionType::AUTO_BOXING;
@@ -260,7 +259,7 @@ namespace vm::compiler::overload
             if (from.isClass() && to.isClass()) {
                 std::string fromBase = types::TypeConversionUtils::stripNullable(from.getClassName());
                 std::string toBase = types::TypeConversionUtils::stripNullable(to.getClassName());
-                if (registry.isSubtypeOf(fromBase, toBase)) {
+                if (catalog.isSubtypeOf(fromBase, toBase)) {
                     return ConversionType::INHERITANCE;
                 }
             }
@@ -310,17 +309,18 @@ namespace vm::compiler::overload
 
     int OverloadResolver::calculateInheritanceDistance(
         const std::string& childType,
-        const std::string& parentType)
+        const std::string& parentType,
+        const environment::registry::TypeCatalog& catalog)
     {
-        auto& registry = types::getGlobalTypeRegistry();
-        return registry.getInheritanceDistance(childType, parentType);
+        return catalog.getInheritanceDistance(childType, parentType);
     }
 
     ParameterConversion OverloadResolver::analyzeParameterConversion(
         const value::ParameterType& argumentType,
-        const value::ParameterType& parameterType)
+        const value::ParameterType& parameterType,
+        const environment::registry::TypeCatalog& catalog)
     {
-        ConversionType convType = getConversionType(argumentType, parameterType);
+        ConversionType convType = getConversionType(argumentType, parameterType, catalog);
 
         if (convType == ConversionType::INCOMPATIBLE) {
             return ParameterConversion(ConversionType::INCOMPATIBLE, 0);
@@ -331,7 +331,8 @@ namespace vm::compiler::overload
             if (argumentType.isClass() && parameterType.isClass()) {
                 distance = calculateInheritanceDistance(
                     argumentType.getClassName(),
-                    parameterType.getClassName());
+                    parameterType.getClassName(),
+                    catalog);
             }
         } else if (convType == ConversionType::GENERIC_PARAMETER) {
             // For generic parameter conversions, calculate distance based on number of generic type parameters
@@ -341,12 +342,11 @@ namespace vm::compiler::overload
 
                 // If this is a parameterized type, count the number of generic type parameters
                 if (paramClassName.find('<') != std::string::npos) {
-                    auto& registry = types::getGlobalTypeRegistry();
                     auto typeArgs = parseTypeArguments(paramClassName);
 
                     // Count how many are generic parameters
                     for (const auto& arg : typeArgs) {
-                        if (isGenericParameter(arg, registry)) {
+                        if (isGenericParameter(arg, catalog)) {
                             distance++;
                         }
                     }
@@ -365,13 +365,14 @@ namespace vm::compiler::overload
 
     ParameterConversion OverloadResolver::analyzeParameterConversion(
         const std::string& argumentTypeName,
-        const std::string& parameterTypeName)
+        const std::string& parameterTypeName,
+        const environment::registry::TypeCatalog& catalog)
     {
         // Convert type names to ParameterTypes
         auto argType = typeNameToParameterType(argumentTypeName);
         auto paramType = typeNameToParameterType(parameterTypeName);
 
-        return analyzeParameterConversion(argType, paramType);
+        return analyzeParameterConversion(argType, paramType, catalog);
     }
 
     value::ParameterType OverloadResolver::typeNameToParameterType(const std::string& typeName)
@@ -391,7 +392,8 @@ namespace vm::compiler::overload
     template<typename T>
     CandidateMatch OverloadResolver::matchCandidate(
         const std::shared_ptr<T>& candidate,
-        const std::vector<value::ParameterType>& argumentTypes)
+        const std::vector<value::ParameterType>& argumentTypes,
+        const environment::registry::TypeCatalog& catalog)
     {
         CandidateMatch match;
         const auto& parameters = getParameters(candidate);
@@ -405,7 +407,7 @@ namespace vm::compiler::overload
         // Analyze each parameter conversion
         match.conversions.reserve(argumentTypes.size());
         for (size_t i = 0; i < argumentTypes.size(); ++i) {
-            auto conversion = analyzeParameterConversion(argumentTypes[i], parameters[i].second);
+            auto conversion = analyzeParameterConversion(argumentTypes[i], parameters[i].second, catalog);
             match.conversions.push_back(conversion);
         }
 
@@ -416,12 +418,13 @@ namespace vm::compiler::overload
     template<typename T>
     std::vector<std::pair<std::shared_ptr<T>, CandidateMatch>> OverloadResolver::filterViableCandidates(
         const std::vector<std::shared_ptr<T>>& candidates,
-        const std::vector<value::ParameterType>& argumentTypes)
+        const std::vector<value::ParameterType>& argumentTypes,
+        const environment::registry::TypeCatalog& catalog)
     {
         std::vector<std::pair<std::shared_ptr<T>, CandidateMatch>> viableMatches;
 
         for (const auto& candidate : candidates) {
-            CandidateMatch match = matchCandidate(candidate, argumentTypes);
+            CandidateMatch match = matchCandidate(candidate, argumentTypes, catalog);
             // A match is viable if conversions are valid AND totalScore is not INT_MAX (parameter count matches)
             if (match.isViable() && match.totalScore != INT_MAX) {
                 viableMatches.emplace_back(candidate, match);
@@ -517,16 +520,18 @@ namespace vm::compiler::overload
     OverloadResolutionResult<runtimeTypes::klass::MethodDefinition> OverloadResolver::resolveMethodOverload(
         const std::vector<std::shared_ptr<runtimeTypes::klass::MethodDefinition>>& candidates,
         const std::vector<value::ParameterType>& argumentTypes,
-        const ast::SourceLocation& sourceLocation)
+        const ast::SourceLocation& sourceLocation,
+        const environment::registry::TypeCatalog& catalog)
     {
-        auto viableMatches = filterViableCandidates(candidates, argumentTypes);
+        auto viableMatches = filterViableCandidates(candidates, argumentTypes, catalog);
         return selectBestCandidate(viableMatches);
     }
 
     OverloadResolutionResult<runtimeTypes::klass::MethodDefinition> OverloadResolver::resolveMethodOverload(
         const std::vector<std::shared_ptr<runtimeTypes::klass::MethodDefinition>>& candidates,
         const std::vector<std::string>& argumentTypeNames,
-        const ast::SourceLocation& sourceLocation)
+        const ast::SourceLocation& sourceLocation,
+        const environment::registry::TypeCatalog& catalog)
     {
         std::vector<value::ParameterType> argumentTypes;
         argumentTypes.reserve(argumentTypeNames.size());
@@ -534,22 +539,24 @@ namespace vm::compiler::overload
             argumentTypes.push_back(typeNameToParameterType(typeName));
         }
 
-        return resolveMethodOverload(candidates, argumentTypes, sourceLocation);
+        return resolveMethodOverload(candidates, argumentTypes, sourceLocation, catalog);
     }
 
     OverloadResolutionResult<runtimeTypes::global::FunctionDefinition> OverloadResolver::resolveFunctionOverload(
         const std::vector<std::shared_ptr<runtimeTypes::global::FunctionDefinition>>& candidates,
         const std::vector<value::ParameterType>& argumentTypes,
-        const ast::SourceLocation& sourceLocation)
+        const ast::SourceLocation& sourceLocation,
+        const environment::registry::TypeCatalog& catalog)
     {
-        auto viableMatches = filterViableCandidates(candidates, argumentTypes);
+        auto viableMatches = filterViableCandidates(candidates, argumentTypes, catalog);
         return selectBestCandidate(viableMatches);
     }
 
     OverloadResolutionResult<runtimeTypes::global::FunctionDefinition> OverloadResolver::resolveFunctionOverload(
         const std::vector<std::shared_ptr<runtimeTypes::global::FunctionDefinition>>& candidates,
         const std::vector<std::string>& argumentTypeNames,
-        const ast::SourceLocation& sourceLocation)
+        const ast::SourceLocation& sourceLocation,
+        const environment::registry::TypeCatalog& catalog)
     {
         std::vector<value::ParameterType> argumentTypes;
         argumentTypes.reserve(argumentTypeNames.size());
@@ -557,7 +564,7 @@ namespace vm::compiler::overload
             argumentTypes.push_back(typeNameToParameterType(typeName));
         }
 
-        return resolveFunctionOverload(candidates, argumentTypes, sourceLocation);
+        return resolveFunctionOverload(candidates, argumentTypes, sourceLocation, catalog);
     }
 
 } // namespace vm::compiler::overload

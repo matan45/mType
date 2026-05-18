@@ -614,6 +614,7 @@ project "mtype-language-server-lib"
       "mType/environment/registry/ExportRegistry.cpp",
       "mType/environment/registry/FunctionRegistry.cpp",
       "mType/environment/registry/InheritanceTracker.cpp",
+      "mType/environment/registry/TypeCatalog.cpp",
 
       "mType/services/FileReader.cpp",
       "mType/services/ImportManager.cpp",
@@ -631,7 +632,7 @@ project "mtype-language-server-lib"
       "mType/json/JsonValue.cpp",
 
       "mType/types/TypeConversionUtils.cpp",
-      "mType/types/TypeRegistry.cpp",
+      "mType/types/TypeDescriptors.cpp",
       "mType/types/UnifiedType.cpp",
       "mType/types/ReifiedTypeRegistry.cpp",
       "mType/types/TypeSubstitutionService.cpp",

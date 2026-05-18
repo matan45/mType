@@ -11,7 +11,8 @@ namespace environment
         std::shared_ptr<VariableManager> varMgr,
         std::shared_ptr<ScopeManager> scopeMgr,
         std::shared_ptr<NativeRegistry> nativeReg
-    ) : classRegistry(classReg),
+    ) : typeCatalog(std::dynamic_pointer_cast<TypeCatalog>(classReg)),
+        classRegistry(classReg),
         functionRegistry(functionReg),
         variableManager(varMgr),
         scopeManager(scopeMgr),
@@ -72,6 +73,11 @@ namespace environment
     std::shared_ptr<ClassRegistry> Environment::getClassRegistry() const
     {
         return classRegistry;
+    }
+
+    std::shared_ptr<TypeCatalog> Environment::getTypeCatalog() const
+    {
+        return typeCatalog;
     }
 
     std::shared_ptr<FunctionRegistry> Environment::getFunctionRegistry() const
