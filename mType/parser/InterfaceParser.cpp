@@ -3,20 +3,26 @@
 #include "ParserConstants.hpp"
 #include "ParserContextState.hpp"
 #include "class/GenericParameterParser.hpp"
-#include "interface/InterfaceMethodSignatureParser.hpp"
 #include "TypeParser.hpp"
 #include "utilities/ParserUtils.hpp"
 #include "utilities/NameValidator.hpp"
+#include "utilities/ParameterParser.hpp"
 #include "utilities/AccessModifierParser.hpp"
 #include "utilities/VisibilityParser.hpp"
 #include "../token/TokenType.hpp"
+#include "../ast/GenericType.hpp"
 #include "../ast/nodes/classes/InterfaceNode.hpp"
+#include "../ast/nodes/functions/FunctionNode.hpp"
+#include "../ast/nodes/statements/BlockNode.hpp"
+#include "../errors/MissingSemicolonException.hpp"
 #include "../errors/ParseException.hpp"
 #include "../errors/DuplicateDeclarationException.hpp"
 
 namespace parser
 {
     using namespace ast::nodes::classes;
+    using namespace ast::nodes::functions;
+    using namespace ast::nodes::statements;
     using namespace token;
     using namespace errors;
     using namespace parser::utilities;
@@ -24,15 +30,9 @@ namespace parser
     InterfaceParser::InterfaceParser(TokenStream& stream, ParseContext& ctx)
         : BaseParser(stream, ctx)
     {
-        initializeHelperParsers();
     }
 
     InterfaceParser::~InterfaceParser() = default;
-
-    void InterfaceParser::initializeHelperParsers()
-    {
-        methodSignatureParser = std::make_unique<InterfaceMethodSignatureParser>(tokenStream, context);
-    }
 
     std::unique_ptr<ASTNode> InterfaceParser::parse()
     {
@@ -274,7 +274,7 @@ namespace parser
 
             if (tokenStream.current().type == TokenType::FUNCTION)
             {
-                auto methodSignature = methodSignatureParser->parseMethodSignature();
+                auto methodSignature = parseMethodSignature();
                 if (methodSignature)
                 {
                     interfaceNode->addMethod(std::move(methodSignature));
@@ -298,8 +298,86 @@ namespace parser
 
     std::vector<GenericTypeParameter> InterfaceParser::parseGenericTypeParameters()
     {
-        // Use GenericParameterParser to handle all the complexity
         GenericParameterParser genericParser(tokenStream, context);
         return genericParser.parseGenericTypeParameters();
+    }
+
+    // ============================================================
+    // Method signature (absorbed from InterfaceMethodSignatureParser)
+    // ============================================================
+
+    std::unique_ptr<ASTNode> InterfaceParser::parseMethodSignature()
+    {
+        if (tokenStream.current().type == TokenType::STATIC)
+        {
+            throw ParseException("Static methods are not allowed in interfaces", tokenStream.current().location);
+        }
+
+        if (tokenStream.current().type != TokenType::FUNCTION)
+        {
+            throw ParseException("Expected 'function' keyword", tokenStream.current().location);
+        }
+        tokenStream.advance();
+
+        bool isAsync = false;
+        if (tokenStream.current().type == TokenType::ASYNC)
+        {
+            isAsync = true;
+            tokenStream.advance();
+        }
+
+        std::vector<ast::GenericTypeParameter> methodGenericParameters;
+        if (tokenStream.current().type == TokenType::LESS)
+        {
+            tokenStream.advance();
+            GenericParameterParser genericParser(tokenStream, context);
+            methodGenericParameters = genericParser.parseGenericTypeParameters();
+
+            if (tokenStream.current().type != TokenType::GREATER)
+            {
+                throw ParseException("Expected '>' after generic type parameters", tokenStream.current().location);
+            }
+            tokenStream.advance();
+        }
+
+        if (tokenStream.current().type != TokenType::IDENTIFIER)
+        {
+            throw ParseException("Expected method name", tokenStream.current().location);
+        }
+
+        std::string methodName = std::string(tokenStream.current().stringValue);
+        SourceLocation methodLocation = tokenStream.current().location;
+        tokenStream.advance();
+
+        auto parameters = ParameterParser::parseGenericParameterList(tokenStream, true);
+
+        std::shared_ptr<GenericType> returnType;
+        if (tokenStream.current().type == TokenType::COLON)
+        {
+            tokenStream.advance();
+            returnType = TypeParser::parseGenericType(tokenStream);
+        }
+        else
+        {
+            returnType = std::make_shared<GenericType>(ValueType::VOID);
+        }
+
+        if (tokenStream.current().type != TokenType::SEMICOLON)
+        {
+            throw errors::MissingSemicolonException(tokenStream.current().location);
+        }
+        tokenStream.advance();
+
+        auto dummyBody = std::make_shared<BlockNode>(tokenStream.current().location);
+
+        auto methodNode = std::make_unique<FunctionNode>(
+            methodName, returnType, parameters, dummyBody,
+            std::vector<ast::GenericTypeParameter>{}, false, methodLocation
+        );
+
+        methodNode->setGenericTypeParameters(methodGenericParameters);
+        methodNode->setIsAsync(isAsync);
+
+        return std::move(methodNode);
     }
 }
