@@ -8,6 +8,8 @@ namespace vm::jit { class OSRManager; }
 
 namespace vm::runtime
 {
+    class VirtualMachine;
+
     /**
      * Executes control flow opcodes
      * Handles JUMP, JUMP_IF_FALSE, JUMP_IF_TRUE, JUMP_BACK, RETURN, RETURN_VALUE
@@ -22,7 +24,8 @@ namespace vm::runtime
     class ControlFlowExecutor
     {
     public:
-        explicit ControlFlowExecutor(ExecutionContext& ctx) : context(ctx) {}
+        ControlFlowExecutor(ExecutionContext& ctx, VirtualMachine* vmPtr)
+            : context(ctx), vm(vmPtr) {}
         ~ControlFlowExecutor() = default;
 
         // MYT-318: JUMP* operand-count contract is enforced by
@@ -88,6 +91,7 @@ namespace vm::runtime
 
     private:
         ExecutionContext& context;
+        VirtualMachine* vm;
         vm::jit::OSRManager* osrManager = nullptr;
 
         // Helper method for truthiness evaluation

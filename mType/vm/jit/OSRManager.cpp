@@ -341,7 +341,7 @@ namespace vm::jit
         jitCtx.hasReturnValue = false;
         jitCtx.program = &program;
         jitCtx.stackManager = context.stackManager.get();
-        jitCtx.environment = context.environment.get();
+        jitCtx.environment = vm.getEnvironment().get();
         jitCtx.vm = &vm;
         jitCtx.jitCodeCache = &codeCache;
         jitCtx.icTable = vm.getInlineCacheTable();

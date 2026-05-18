@@ -774,6 +774,9 @@
     <ClInclude Include="tests\suites\ExeTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\ExecutorIsolationTestSuite.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\GCTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
@@ -894,6 +897,9 @@
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ExeTestSuite.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\ExecutorIsolationTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\GCTestSuite.cpp">

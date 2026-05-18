@@ -1,6 +1,7 @@
 #pragma once
 #include <span>
 #include "../context/ExecutionContext.hpp"
+#include "../../../environment/Environment.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../errors/AccessViolationException.hpp"
 #include "../../../ast/AccessModifier.hpp"
@@ -20,10 +21,14 @@ namespace vm::runtime
      * + ClassDefinition + InterfaceDefinition into the header would also
      * propagate that include weight to every TU using FunctionExecutor.hpp.
      */
+    class VirtualMachine;
+
     class FunctionExecutor
     {
     public:
-        explicit FunctionExecutor(ExecutionContext& ctx);
+        FunctionExecutor(ExecutionContext& ctx,
+                         std::shared_ptr<environment::Environment> env,
+                         VirtualMachine* vm);
         ~FunctionExecutor() = default;
 
         // Function call operations
@@ -41,6 +46,8 @@ namespace vm::runtime
 
     private:
         ExecutionContext& context;
+        std::shared_ptr<environment::Environment> environment;
+        VirtualMachine* vm;
 
         // Helper method for access modifier validation
         void validateStaticMethodAccess(

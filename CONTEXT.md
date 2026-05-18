@@ -23,7 +23,7 @@ Domain vocabulary used by the `/improve-codebase-architecture` skill and other p
 
 - **VirtualMachine** — stack-based execution engine. Holds the call stack and dispatches instructions to category-specific **Executors**.
 - **Executor** — handler for one category of opcodes (`ArithmeticExecutor`, `ControlFlowExecutor`, `FunctionExecutor`, …). Receive an `ExecutionContext` reference.
-- **ExecutionContext** — current call frame's mutable state plus references to program/stack/loaded-programs. Currently a god-helper threaded into every executor (deepening candidate).
+- **ExecutionContext** — narrow holder of frame-local mutable state (program, IP, callStack, stackManager, stats, debug source-loc, pendingTypeArgs). Cross-cutting state (Environment, VM back-pointer, loaded-programs catalog) is no longer threaded through this type — vm-coupled executors take those as constructor params. Frame-local executors (Stack/Arithmetic/Bitwise/Logical/Comparison/Lambda/Exception-marker handlers) consume only ExecutionContext, making them test-isolatable without a VirtualMachine.
 - **Environment** — owns runtime registries: `ClassRegistry`, `FunctionRegistry`, `VariableManager`, `ScopeManager`, `NativeRegistry`. The seam between scoping (`manager/`) and symbol tables (`registry/`) is currently muddy.
 - **Value** — tagged union (`value::Value`) carrying a `ValueType` tag and a payload. Primitives, references to heap objects, arrays, lambdas, strings (interned via `StringPool`).
 

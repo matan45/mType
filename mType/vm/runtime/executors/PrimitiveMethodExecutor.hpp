@@ -3,6 +3,7 @@
 #include <memory>
 #include <string>
 #include "../context/ExecutionContext.hpp"
+#include "../../../environment/Environment.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../value/IntegerCache.hpp"
 #include "../../../value/ValueShim.hpp"
@@ -31,8 +32,10 @@ namespace vm::runtime {
  */
 class PrimitiveMethodExecutor {
 public:
-    explicit PrimitiveMethodExecutor(ExecutionContext& ctx)
+    PrimitiveMethodExecutor(ExecutionContext& ctx,
+                            std::shared_ptr<environment::Environment> env)
         : context(ctx)
+        , environment(std::move(env))
         , cachedIntClass_(nullptr)
         , cachedFloatClass_(nullptr)
     {}
@@ -341,6 +344,7 @@ public:
 
 private:
     ExecutionContext& context;
+    std::shared_ptr<environment::Environment> environment;
 
     // === Helper Methods — out-of-line in .cpp (ObjectInstancePool / ValueObject / StringPool / ClassDefinition) ===
 

@@ -51,10 +51,11 @@ namespace vm::runtime::utils
 
     void ErrorLocationHelper::throwUserException(
         const ExecutionContext& context,
+        const std::shared_ptr<environment::Environment>& env,
         const std::string& typeName,
         const std::string& message)
     {
-        auto classDef = resolveExceptionClass(context.environment, typeName);
+        auto classDef = resolveExceptionClass(env, typeName);
         if (!classDef)
         {
             // Nothing in lib/exceptions/ is loaded — preserve the old

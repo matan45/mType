@@ -28,12 +28,6 @@
     <Filter Include="parser\core">
       <UniqueIdentifier>{AAC52739-167B-A02E-9F6F-9A050B249732}</UniqueIdentifier>
     </Filter>
-    <Filter Include="parser\expression">
-      <UniqueIdentifier>{F14AF50D-5D61-F3A3-A6D8-7EC5122EC42B}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="parser\interface">
-      <UniqueIdentifier>{72AC3D8F-5EA5-5CE1-87D7-4166732F3CED}</UniqueIdentifier>
-    </Filter>
     <Filter Include="parser\utilities">
       <UniqueIdentifier>{FD68964F-E961-B5A1-1294-9A26FEEB94AD}</UniqueIdentifier>
     </Filter>

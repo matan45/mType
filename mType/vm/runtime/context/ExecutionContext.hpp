@@ -10,12 +10,8 @@
 #include <iostream>
 #include "TypeArgMapPtr.hpp"
 #include "../../../value/ValueType.hpp"
-#include "../../../environment/Environment.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"
 #include "../stack/StackManager.hpp"
-
-// Forward declaration for VM back-pointer
-namespace vm::runtime { class VirtualMachine; }
 
 namespace vm::runtime
 {
@@ -191,16 +187,10 @@ namespace vm::runtime
         // Program data
         const bytecode::BytecodeProgram* program;
 
-        // Multi-program support: loaded library programs (index 0 = main)
-        std::vector<const bytecode::BytecodeProgram*>* loadedPrograms = nullptr;
-
         // Execution state
         size_t& instructionPointer;
         std::vector<CallFrame>& callStack;
         size_t maxCallStackSize;  // Maximum allowed call stack depth
-
-        // Environment integration
-        std::shared_ptr<environment::Environment> environment;
 
         // Stack manager
         std::shared_ptr<StackManager> stackManager;
@@ -214,9 +204,6 @@ namespace vm::runtime
         std::string& currentSourceFile;
         int& currentSourceLine;
 
-        // VM back-pointer for OSR and other VM-level operations
-        VirtualMachine* vm = nullptr;
-
         // MYT-228: scratch slot for type-argument bindings staged by
         // BIND_TYPE_ARGS. The very next pushCallFrame transfers this
         // into CallFrame::typeArgBindings and clears it. Backed by the
@@ -228,26 +215,22 @@ namespace vm::runtime
             size_t& ip,
             std::vector<CallFrame>& cs,
             size_t maxStackDepth,
-            std::shared_ptr<environment::Environment> env,
             std::shared_ptr<StackManager> sm,
             ExecutionStats& st,
             std::chrono::steady_clock::time_point& exStart,
             bool& debugEnabled,
             std::string& srcFile,
-            int& srcLine,
-            VirtualMachine* vmPtr = nullptr)
+            int& srcLine)
             : program(prog)
             , instructionPointer(ip)
             , callStack(cs)
             , maxCallStackSize(maxStackDepth)
-            , environment(std::move(env))
             , stackManager(std::move(sm))
             , stats(st)
             , executionStart(exStart)
             , debuggingEnabled(debugEnabled)
             , currentSourceFile(srcFile)
             , currentSourceLine(srcLine)
-            , vm(vmPtr)
         {}
 
         // Call stack management with overflow protection.
@@ -282,21 +265,5 @@ namespace vm::runtime
             return program->findCachedState(ip);
         }
 
-        // MYT-197: resolve the BytecodeProgram that owns a given frame's
-        // FunctionNameHandle. Use this when formatting a frame that isn't
-        // necessarily on the currently-executing program (stack-trace walks,
-        // exception unwinding, debugger frame inspection). Falls back to
-        // `program` when loadedPrograms isn't wired or programIndex is out
-        // of range.
-        const bytecode::BytecodeProgram* programForFrame(const CallFrame& frame) const {
-            if (loadedPrograms && frame.programIndex < loadedPrograms->size()) {
-                return (*loadedPrograms)[frame.programIndex];
-            }
-            return program;
-        }
-
-        const std::string& frameName(const CallFrame& frame) const {
-            return programForFrame(frame)->getFrameName(frame.functionName);
-        }
     };
 }

@@ -16,12 +16,14 @@ namespace vm::runtime
 {
     class ObjectExecutor;
     class FunctionExecutor;
+    class VirtualMachine;
 
     class InlineCacheExecutor
     {
     public:
-        explicit InlineCacheExecutor(ExecutionContext& ctx,
-                                      vm::jit::ic::InlineCacheTable& icTable);
+        InlineCacheExecutor(ExecutionContext& ctx,
+                            VirtualMachine* vmPtr,
+                            vm::jit::ic::InlineCacheTable& icTable);
 
         void setObjectExecutor(ObjectExecutor* objExec) { objectExecutor = objExec; }
         void setFunctionExecutor(FunctionExecutor* funcExec) { functionExecutor = funcExec; }
@@ -281,6 +283,7 @@ namespace vm::runtime
         bool tryUnfusePair(bytecode::OpCode underlyingCached);
 
         ExecutionContext& context;
+        VirtualMachine* vm;
         vm::jit::ic::InlineCacheTable& icTable;
         ObjectExecutor* objectExecutor = nullptr;
         FunctionExecutor* functionExecutor = nullptr;

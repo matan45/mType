@@ -6,6 +6,7 @@
 #include "../../../value/ValueShim.hpp"
 #include "../../../runtimeTypes/global/VariableDefinition.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
+#include "../VirtualMachine.hpp"
 
 namespace vm::runtime
 {
@@ -95,7 +96,7 @@ namespace vm::runtime
                 // We need to look at the CALL instruction itself (one before)
                 size_t callSite = frame.returnAddress > 0 ? frame.returnAddress - 1 : frame.returnAddress;
                 // MYT-197: resolve handle via the frame's own program.
-                const std::string& frameNameStr = context.frameName(frame);
+                const std::string& frameNameStr = vm->frameName(frame);
                 auto* loc = context.program->getSourceLocation(callSite);
                 if (loc)
                 {

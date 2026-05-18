@@ -1,6 +1,7 @@
 #include "MethodResolver.hpp"
 #include <cstddef>
 #include "../context/ExecutionContext.hpp"
+#include "../VirtualMachine.hpp"
 
 namespace vm::runtime::utils
 {
@@ -101,11 +102,12 @@ namespace vm::runtime::utils
         const std::string& qualifiedName,
         const std::string& definingClassName,
         const std::string& simpleMethodName,
-        const ExecutionContext& context)
+        const ExecutionContext& context,
+        const VirtualMachine& vm)
     {
         const size_t startIndex = context.callStack.empty()
             ? 0 : context.callStack.back().programIndex;
         return resolve(qualifiedName, definingClassName, simpleMethodName,
-                       context.program, context.loadedPrograms, startIndex);
+                       context.program, &vm.getLoadedPrograms(), startIndex);
     }
 }

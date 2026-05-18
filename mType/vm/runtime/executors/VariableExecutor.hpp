@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include "../context/ExecutionContext.hpp"
+#include "../../../environment/Environment.hpp"
 #include "../context/SharedStackFramePool.hpp"
 #include "../../../errors/RuntimeException.hpp"
 #include "../../../value/ValueType.hpp"
@@ -29,7 +30,9 @@ namespace vm::runtime
     class VariableExecutor
     {
     public:
-        explicit VariableExecutor(ExecutionContext& ctx) : context(ctx) {}
+        VariableExecutor(ExecutionContext& ctx,
+                         std::shared_ptr<environment::Environment> env)
+            : context(ctx), environment(std::move(env)) {}
         ~VariableExecutor() = default;
 
         // Global variable operations — out-of-line: need ObjectInstance/ClassDefinition.
@@ -393,6 +396,7 @@ namespace vm::runtime
 
     private:
         ExecutionContext& context;
+        std::shared_ptr<environment::Environment> environment;
 
         // Helper methods for handleLoadVar/StoreVar — out-of-line (need
         // ObjectInstance/ClassDefinition).

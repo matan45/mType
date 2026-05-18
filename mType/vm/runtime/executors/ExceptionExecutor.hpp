@@ -17,10 +17,13 @@ namespace vm::runtime
      * inlined here (empty bodies); handleThrow stays out-of-line because it
      * needs ObjectInstance/ClassDefinition/SourceLocation and is exception-cold.
      */
+    class VirtualMachine;
+
     class ExceptionExecutor
     {
     public:
-        explicit ExceptionExecutor(ExecutionContext& ctx) : context(ctx) {}
+        ExceptionExecutor(ExecutionContext& ctx, VirtualMachine* vmPtr)
+            : context(ctx), vm(vmPtr) {}
         ~ExceptionExecutor() = default;
 
         inline void handleTryBegin(const bytecode::BytecodeProgram::Instruction& /*instr*/) {
@@ -55,5 +58,6 @@ namespace vm::runtime
 
     private:
         ExecutionContext& context;
+        VirtualMachine* vm;
     };
 }

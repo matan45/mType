@@ -235,8 +235,10 @@ namespace vm::runtime
         }
     } // anonymous namespace
 
-    TypeExecutor::TypeExecutor(ExecutionContext& ctx)
+    TypeExecutor::TypeExecutor(ExecutionContext& ctx,
+                               std::shared_ptr<environment::Environment> env)
         : context(ctx)
+        , environment(std::move(env))
     {}
 
     // MYT-320: handleInstanceof / handleInstanceofTypeParam moved to TypeExecutor.hpp.
@@ -414,7 +416,7 @@ namespace vm::runtime
                         context.stackManager->push(val);
                         return;
                     }
-                    utils::ErrorLocationHelper::throwUserException(context,
+                    utils::ErrorLocationHelper::throwUserException(context, environment,
                         "ClassCastException",
                         "cannot cast " + fullName + " to " + targetTypeName);
                 }
@@ -430,7 +432,7 @@ namespace vm::runtime
                         context.stackManager->push(val);
                         return;
                     }
-                    utils::ErrorLocationHelper::throwUserException(context,
+                    utils::ErrorLocationHelper::throwUserException(context, environment,
                         "ClassCastException",
                         "cannot cast " + multiDimFullName + " to " + targetTypeName);
                 }
@@ -441,7 +443,7 @@ namespace vm::runtime
                 context.stackManager->push(val);
                 return;
             }
-            utils::ErrorLocationHelper::throwUserException(context,
+            utils::ErrorLocationHelper::throwUserException(context, environment,
                 "ClassCastException",
                 "cannot cast array to " + targetTypeName);
         }
@@ -889,7 +891,7 @@ namespace vm::runtime
     bool TypeExecutor::checkDowncastMatch(const std::string& baseClassName, const std::string& baseTargetName,
                                           const std::string& classTypeParams, const std::string& targetTypeParams) {
         // Get target class from registry to check if it's a subclass
-        auto targetClass = context.environment->findClass(baseTargetName);
+        auto targetClass = environment->findClass(baseTargetName);
         if (!targetClass) {
             return false;
         }
@@ -913,7 +915,7 @@ namespace vm::runtime
         const auto& interfaces = classDef->getImplementedInterfaces();
         for (const auto& iface : interfaces) {
             std::unordered_set<std::string> visited;
-            if (checkInterfaceHierarchy(iface, targetTypeName, visited, context.environment.get())) {
+            if (checkInterfaceHierarchy(iface, targetTypeName, visited, environment.get())) {
                 return true;
             }
         }

@@ -4,7 +4,7 @@
 #include <vector>
 #include "../../bytecode/BytecodeProgram.hpp"
 
-namespace vm::runtime { class ExecutionContext; }
+namespace vm::runtime { class ExecutionContext; class VirtualMachine; }
 
 namespace vm::runtime::utils
 {
@@ -48,12 +48,14 @@ namespace vm::runtime::utils
     public:
         // ExecutionContext-based overload used by interpreter paths. Preserves
         // the caller's current frame programIndex as the default when the
-        // method is found in context.program.
+        // method is found in context.program. `vm` supplies the loaded-program
+        // catalog for library dispatch.
         static MethodResolution resolve(
             const std::string& qualifiedName,
             const std::string& definingClassName,
             const std::string& simpleMethodName,
-            const ExecutionContext& context);
+            const ExecutionContext& context,
+            const VirtualMachine& vm);
 
         // Raw-pointer overload used by JIT runtime helpers that only hold
         // JitContext + the VM's loadedPrograms vector. currentProgramIndex

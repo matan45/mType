@@ -180,7 +180,7 @@ std::shared_ptr<runtimeTypes::klass::ObjectInstance> PrimitiveMethodExecutor::bo
 
 std::shared_ptr<runtimeTypes::klass::ClassDefinition> PrimitiveMethodExecutor::getIntClass() {
     if (!cachedIntClass_) {
-        auto classRegistry = context.environment->getClassRegistry();
+        auto classRegistry = environment->getClassRegistry();
         if (!classRegistry) {
             throw errors::RuntimeException("Class registry not available for Int boxing");
         }
@@ -194,7 +194,7 @@ std::shared_ptr<runtimeTypes::klass::ClassDefinition> PrimitiveMethodExecutor::g
 
 std::shared_ptr<runtimeTypes::klass::ClassDefinition> PrimitiveMethodExecutor::getFloatClass() {
     if (!cachedFloatClass_) {
-        auto classRegistry = context.environment->getClassRegistry();
+        auto classRegistry = environment->getClassRegistry();
         if (!classRegistry) {
             throw errors::RuntimeException("Class registry not available for Float boxing");
         }

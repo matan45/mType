@@ -37,6 +37,7 @@
 #include "../tests/suites/LibraryTestSuite.hpp"
 #include "../tests/suites/EscapeAnalysisTestSuite.hpp"
 #include "../tests/suites/PluginTestSuite.hpp"
+#include "../tests/suites/ExecutorIsolationTestSuite.hpp"
 
 #include "../gc/GC.hpp"
 #include "../services/ScriptInterpreter.hpp"
@@ -204,6 +205,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<PluginTestSuite>();
     }
+    else if (suiteName == "executor-isolation" || suiteName == "executor")
+    {
+        return std::make_unique<ExecutorIsolationTestSuite>();
+    }
     return nullptr;
 }
 
@@ -247,6 +252,7 @@ void printAvailableTestSuites()
     std::cout << "  library      - Library Linking (.mtcLib) Test Suite\n";
     std::cout << "  escape       - Escape Analysis Test Suite (MYT-134)\n";
     std::cout << "  plugin       - Native Plugin Loader Test Suite (MYT-289)\n";
+    std::cout << "  executor     - Executor Isolation Test Suite (ExecutionContext deepening)\n";
 }
 
 int runSpecificTestSuite(const std::string& suiteName,
@@ -333,6 +339,7 @@ int runAllTests(constants::ExecutionMode execMode, bool jitEnabled)
     suites.push_back(std::make_unique<LibraryTestSuite>());
     suites.push_back(std::make_unique<EscapeAnalysisTestSuite>());
     suites.push_back(std::make_unique<PluginTestSuite>());
+    suites.push_back(std::make_unique<ExecutorIsolationTestSuite>());
 
     int totalFailures = 0;
     int totalErrors   = 0;

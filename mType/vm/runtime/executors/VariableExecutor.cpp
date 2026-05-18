@@ -41,14 +41,14 @@ namespace vm::runtime
         if (!context.callStack.back().definingClassName.empty()) {
             className = context.callStack.back().definingClassName;
         } else {
-            const std::string& functionName = context.frameName(context.callStack.back());
+            const std::string& functionName = context.program->getFrameName(context.callStack.back().functionName);
             size_t colonPos = functionName.find("::");
             if (colonPos == std::string::npos) {
                 return false;
             }
             className = functionName.substr(0, colonPos);
         }
-        auto classRegistry = context.environment->getClassRegistry();
+        auto classRegistry = environment->getClassRegistry();
         if (!classRegistry) {
             return false;
         }
@@ -72,7 +72,7 @@ namespace vm::runtime
     void VariableExecutor::handleLoadVar(const bytecode::BytecodeProgram::Instruction& instr) {
         // MYT-318: operand-count contract enforced by program-load validator.
         const std::string& varName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
-        auto varDef = context.environment->findVariable(varName);
+        auto varDef = environment->findVariable(varName);
 
         // Found in global environment
         if (varDef) {
@@ -137,14 +137,14 @@ namespace vm::runtime
         if (!context.callStack.back().definingClassName.empty()) {
             className = context.callStack.back().definingClassName;
         } else {
-            const std::string& functionName = context.frameName(context.callStack.back());
+            const std::string& functionName = context.program->getFrameName(context.callStack.back().functionName);
             size_t colonPos = functionName.find("::");
             if (colonPos == std::string::npos) {
                 return false;
             }
             className = functionName.substr(0, colonPos);
         }
-        auto classRegistry = context.environment->getClassRegistry();
+        auto classRegistry = environment->getClassRegistry();
         if (!classRegistry) {
             return false;
         }
@@ -189,7 +189,7 @@ namespace vm::runtime
     void VariableExecutor::handleStoreVar(const bytecode::BytecodeProgram::Instruction& instr) {
         const std::string& varName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         value::Value val = context.stackManager->pop();
-        auto varDef = context.environment->findVariable(varName);
+        auto varDef = environment->findVariable(varName);
 
         if (varDef) {
             validateAndStoreGlobalVariable(varName, val, varDef);
@@ -223,7 +223,7 @@ namespace vm::runtime
         auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(
             varName, type, val, isFinal);
 
-        context.environment->declareVariable(varName, varDef);
+        environment->declareVariable(varName, varDef);
     }
 
     // MYT-204 promote helpers.

@@ -179,8 +179,10 @@ namespace vm::runtime
     }
 
     InlineCacheExecutor::InlineCacheExecutor(ExecutionContext& ctx,
+                                              VirtualMachine* vmPtr,
                                               vm::jit::ic::InlineCacheTable& table)
         : context(ctx)
+        , vm(vmPtr)
         , icTable(table)
     {}
 
@@ -648,7 +650,7 @@ namespace vm::runtime
                     lookupResult.qualifiedName,
                     lookupResult.definingClassName,
                     simpleMethodName,
-                    context);
+                    context, *vm);
                 if (resolution.funcMetadata)
                 {
                     MethodICEntry entry;
@@ -679,8 +681,8 @@ namespace vm::runtime
                     // Lookup is keyed by the function's qualifiedName; OSR
                     // entries use "osr@<offset>" so this can't accidentally
                     // return an OSR-entry pointer.
-                    if (context.vm) {
-                        if (auto* codeCache = context.vm->getJitCodeCache()) {
+                    if (vm) {
+                        if (auto* codeCache = vm->getJitCodeCache()) {
                             entry.cachedJit = reinterpret_cast<const void*>(
                                 codeCache->lookup(entry.qualifiedName));
                         }

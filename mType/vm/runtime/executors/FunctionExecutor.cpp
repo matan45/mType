@@ -19,8 +19,12 @@
 #include <iostream>
 namespace vm::runtime
 {
-    FunctionExecutor::FunctionExecutor(ExecutionContext& ctx)
+    FunctionExecutor::FunctionExecutor(ExecutionContext& ctx,
+                                       std::shared_ptr<environment::Environment> env,
+                                       VirtualMachine* vmPtr)
         : context(ctx)
+        , environment(std::move(env))
+        , vm(vmPtr)
     {
     }
 
@@ -63,7 +67,7 @@ namespace vm::runtime
                 // FFI cache hit — skip both unordered_map::find calls into the
                 // native registry. The slot is populated below on first dispatch.
                 vm::profiler::ProfilerHookHelper::onFunctionEntry(functionName);
-                environment::NativeContext nativeCtx{ context.environment, context.vm->shared_from_this() };
+                environment::NativeContext nativeCtx{ environment, vm->shared_from_this() };
                 value::Value result = cached->cachedNativeFunc(nativeCtx, args.span());
                 vm::profiler::ProfilerHookHelper::onFunctionExit(functionName);
                 context.stackManager->push(result);
@@ -73,7 +77,7 @@ namespace vm::runtime
 
         if (!funcMetadata) {
             // Cache miss — check native first, then bytecode lookup
-            auto nativeRegistry = context.environment->getNativeRegistry();
+            auto nativeRegistry = environment->getNativeRegistry();
             if (nativeRegistry && nativeRegistry->hasNativeFunction(functionName))
             {
                 auto nativeFunc = nativeRegistry->findNativeFunction(functionName);
@@ -85,7 +89,7 @@ namespace vm::runtime
                     auto& newCached = context.getOrCreateCachedState(callIp);
                     newCached.cachedNativeFunc = nativeFunc;
 
-                    environment::NativeContext nativeCtx{ context.environment, context.vm->shared_from_this() };
+                    environment::NativeContext nativeCtx{ environment, vm->shared_from_this() };
                     value::Value result = nativeFunc(nativeCtx, args.span());
 
                     vm::profiler::ProfilerHookHelper::onFunctionExit(functionName);
@@ -97,13 +101,14 @@ namespace vm::runtime
 
             funcMetadata = context.program->getFunction(functionName);
 
-            if (!funcMetadata && context.loadedPrograms) {
-                for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
-                    auto libFunc = (*context.loadedPrograms)[i]->getFunction(functionName);
+            if (!funcMetadata) {
+                const auto& loaded = vm->getLoadedPrograms();
+                for (size_t i = 0; i < loaded.size(); ++i) {
+                    auto libFunc = loaded[i]->getFunction(functionName);
                     if (libFunc) {
                         funcMetadata = libFunc;
                         targetProgramIndex = i;
-                        targetProgram = (*context.loadedPrograms)[i];
+                        targetProgram = loaded[i];
                         break;
                     }
                 }
@@ -351,7 +356,7 @@ namespace vm::runtime
             }
 
             // Get class definition
-            auto classRegistry = context.environment->getClassRegistry();
+            auto classRegistry = environment->getClassRegistry();
             auto classDef = classRegistry->findClass(className);
             if (!classDef)
             {
@@ -448,15 +453,16 @@ namespace vm::runtime
                 funcMetadata = context.program->getFunction(staticQualifiedName);
             }
 
-            if (!funcMetadata && context.loadedPrograms) {
-                for (size_t i = 0; i < context.loadedPrograms->size(); ++i) {
-                    funcMetadata = (*context.loadedPrograms)[i]->getFunction(signedQualifiedName);
+            if (!funcMetadata) {
+                const auto& loaded = vm->getLoadedPrograms();
+                for (size_t i = 0; i < loaded.size(); ++i) {
+                    funcMetadata = loaded[i]->getFunction(signedQualifiedName);
                     if (!funcMetadata) {
-                        funcMetadata = (*context.loadedPrograms)[i]->getFunction(staticQualifiedName);
+                        funcMetadata = loaded[i]->getFunction(staticQualifiedName);
                     }
                     if (funcMetadata) {
                         targetProgramIndex = i;
-                        targetProgram = (*context.loadedPrograms)[i];
+                        targetProgram = loaded[i];
                         break;
                     }
                 }
@@ -638,7 +644,7 @@ namespace vm::runtime
             if (paramType == "Int" && value::isInt(arg))
             {
                 // Auto-box int to Int
-                auto intClass = context.environment->findClass("Int");
+                auto intClass = environment->findClass("Int");
                 if (intClass)
                 {
                     auto instance = value::ObjectInstancePool::getInstance().acquire(intClass);
@@ -650,7 +656,7 @@ namespace vm::runtime
             else if (paramType == "Float" && value::isFloat(arg))
             {
                 // Auto-box float to Float
-                auto floatClass = context.environment->findClass("Float");
+                auto floatClass = environment->findClass("Float");
                 if (floatClass)
                 {
                     auto instance = value::ObjectInstancePool::getInstance().acquire(floatClass);
@@ -662,7 +668,7 @@ namespace vm::runtime
             else if (paramType == "Bool" && value::isBool(arg))
             {
                 // Auto-box bool to Bool
-                auto boolClass = context.environment->findClass("Bool");
+                auto boolClass = environment->findClass("Bool");
                 if (boolClass)
                 {
                     auto instance = value::ObjectInstancePool::getInstance().acquire(boolClass);
@@ -674,7 +680,7 @@ namespace vm::runtime
             else if (paramType == "String" && value::isAnyString(arg))
             {
                 // Auto-box string to String
-                auto stringClass = context.environment->findClass("String");
+                auto stringClass = environment->findClass("String");
                 if (stringClass)
                 {
                     auto instance = value::ObjectInstancePool::getInstance().acquire(stringClass);
@@ -724,7 +730,7 @@ namespace vm::runtime
             }
             else
             {
-                const std::string& funcName = context.frameName(context.callStack.back());
+                const std::string& funcName = vm->frameName(context.callStack.back());
                 size_t colonPos = funcName.find("::");
                 if (colonPos != std::string::npos)
                 {
@@ -766,7 +772,7 @@ namespace vm::runtime
                 bool isSubclass = false;
                 if (!currentClassName.empty())
                 {
-                    auto currentClass = context.environment->getClassRegistry()->findClass(currentClassName);
+                    auto currentClass = environment->getClassRegistry()->findClass(currentClassName);
                     while (currentClass && currentClass->hasParentClass())
                     {
                         if (currentClass->getParentClassName() == className)
@@ -775,7 +781,7 @@ namespace vm::runtime
                             break;
                         }
                         // Move to parent class
-                        auto parentClass = context.environment->getClassRegistry()->findClass(
+                        auto parentClass = environment->getClassRegistry()->findClass(
                             currentClass->getParentClassName());
                         currentClass = parentClass;
                     }

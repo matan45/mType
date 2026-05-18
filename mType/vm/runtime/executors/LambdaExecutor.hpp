@@ -91,7 +91,7 @@ namespace vm::runtime
                     // interned frame names.
                     lambda->creatingClassName = currentFrame.definingClassName;
                 } else {
-                    const std::string& funcName = context.frameName(currentFrame);
+                    const std::string& funcName = context.program->getFrameName(currentFrame.functionName);
                     size_t colonPos = funcName.find("::");
                     if (colonPos != std::string::npos) {
                         lambda->creatingClassName = funcName.substr(0, colonPos);

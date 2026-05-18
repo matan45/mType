@@ -81,6 +81,7 @@ namespace vm::runtime::utils
          */
         [[noreturn]] static void throwUserException(
             const ExecutionContext& context,
+            const std::shared_ptr<environment::Environment>& env,
             const std::string& typeName,
             const std::string& message);
 

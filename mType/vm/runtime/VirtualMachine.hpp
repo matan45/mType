@@ -307,6 +307,22 @@ namespace vm::runtime
             return loadedPrograms;
         }
 
+        // MYT-197: resolve the BytecodeProgram that owns a given frame's
+        // FunctionNameHandle. Use when formatting a frame that may not be
+        // on the currently-executing program (stack-trace walks, exception
+        // unwinding, debugger frame inspection). Falls back to the main
+        // program when programIndex is out of range.
+        const bytecode::BytecodeProgram* programForFrame(const CallFrame& frame) const {
+            if (frame.programIndex < loadedPrograms.size()) {
+                return loadedPrograms[frame.programIndex];
+            }
+            return program;
+        }
+
+        const std::string& frameName(const CallFrame& frame) const {
+            return programForFrame(frame)->getFrameName(frame.functionName);
+        }
+
         // Event loop integration (lazy initialization)
         ::runtime::EventLoop* getEventLoop() const { return eventLoop.get(); }
         ::runtime::EventLoop* ensureEventLoop();  // Create EventLoop if it doesn't exist
