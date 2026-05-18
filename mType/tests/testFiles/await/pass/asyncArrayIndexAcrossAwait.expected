@@ -1,0 +1,5 @@
+=== Async Array Index Across Await ===
+before: arr[1]=20
+after: arr[2]=25
+arr[0]=10 arr[1]=20 arr[2]=25 arr[3]=40
+OK

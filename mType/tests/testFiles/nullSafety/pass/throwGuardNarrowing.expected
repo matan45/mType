@@ -1,0 +1,3 @@
+good: 42
+caught: box was null
+Throw guard narrowing tests passed!

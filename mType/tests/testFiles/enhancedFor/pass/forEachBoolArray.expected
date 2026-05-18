@@ -1,0 +1,8 @@
+Testing enhanced for-loop over bool[]:
+true
+false
+true
+false
+true
+True count: 3
+for-each over bool[] test passed!

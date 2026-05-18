@@ -198,6 +198,12 @@ namespace tests::testSuite
         addTestFromFile("Await In Static Initializer",
                         errorPath + "awaitInStaticInitializer.mt",
                         TestType::ERROR_EXPECTED);
+        addTestFromFile("Await On Non-Promise",
+                        errorPath + "awaitOnNonPromise.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Await In Sync Lambda",
+                        errorPath + "awaitInSyncLambda.mt",
+                        TestType::ERROR_EXPECTED);
 
         // Edge Context Tests (2 more pass tests)
         addOutputVerificationTest("Async Main Function",
@@ -263,5 +269,65 @@ namespace tests::testSuite
 
         addOutputVerificationTest("Throw Before First Await",
                         passPath + "throwBeforeFirstAwait.mt");
+
+        // === EXPANDED ASYNC COVERAGE: PENDING-PROMISE TIMING ===
+        // Tests forcing executeAwait's suspend branch and (for the
+        // JIT-warmed twins) the OSRDeoptException -> interpreter
+        // recovery path beyond the MYT-265 trinity.
+        addOutputVerificationTest("Async Pending Two Delays Summed",
+                        passPath + "asyncPendingTwoDelaysSummed.mt");
+        addOutputVerificationTest("Async Pending Two Delays Summed (JIT-warmed)",
+                        passPath + "asyncPendingTwoDelaysSummedJitWarmed.mt");
+        addOutputVerificationTest("Async Pending Zero Ms Delay",
+                        passPath + "asyncPendingZeroMsDelay.mt");
+        addOutputVerificationTest("Async Pending Zero Ms Delay (JIT-warmed)",
+                        passPath + "asyncPendingZeroMsDelayJitWarmed.mt");
+        addOutputVerificationTest("Async Pending Interleaved Settlement Order",
+                        passPath + "asyncPendingInterleavedSettlementOrder.mt");
+        addOutputVerificationTest("Async Pending Delay In Try Finally",
+                        passPath + "asyncPendingDelayInTryFinally.mt");
+        addOutputVerificationTest("Async Pending Delay In Try Finally (JIT-warmed)",
+                        passPath + "asyncPendingDelayInTryFinallyJitWarmed.mt");
+        addOutputVerificationTest("Async Pending Delay Reject Fanout",
+                        passPath + "asyncPendingDelayRejectFanout.mt");
+        addOutputVerificationTest("Async Pending Delay Inside Loop Body",
+                        passPath + "asyncPendingDelayInsideLoopBody.mt");
+        addOutputVerificationTest("Async Pending Delay Inside Loop Body (JIT-warmed)",
+                        passPath + "asyncPendingDelayInsideLoopBodyJitWarmed.mt");
+
+        // === EXPANDED ASYNC COVERAGE: STATE ACROSS AWAIT ===
+        // ExecutionSnapshot fidelity probes for locals, this-binding,
+        // captured outer scope, loop variables, and array index/slot
+        // survival across real event-loop suspensions.
+        addOutputVerificationTest("Async Local Alive Across Await",
+                        passPath + "asyncLocalAliveAcrossAwait.mt");
+        addOutputVerificationTest("Async This Binding Across Await",
+                        passPath + "asyncThisBindingAcrossAwait.mt");
+        addOutputVerificationTest("Async Captured Outer Scope Across Await",
+                        passPath + "asyncCapturedOuterScopeAcrossAwait.mt");
+        addOutputVerificationTest("Async Loop Var Across Await",
+                        passPath + "asyncLoopVarAcrossAwait.mt");
+        addOutputVerificationTest("Async Loop Var Across Await (JIT-warmed)",
+                        passPath + "asyncLoopVarAcrossAwaitJitWarmed.mt");
+        addOutputVerificationTest("Async Array Index Across Await",
+                        passPath + "asyncArrayIndexAcrossAwait.mt");
+
+        // === EXPANDED ASYNC COVERAGE: OOP / GENERICS ===
+        // Async super chains beyond two levels, generic async
+        // identity, multi-invocation of async lambdas, async methods
+        // on parameterized classes, and covariant return-type
+        // declaration on overrides.
+        addOutputVerificationTest("Async Super Chain Three Levels",
+                        passPath + "asyncSuperChainThreeLevels.mt");
+        addOutputVerificationTest("Async Super Chain Three Levels (JIT-warmed)",
+                        passPath + "asyncSuperChainThreeLevelsJitWarmed.mt");
+        addOutputVerificationTest("Async Generic Identity Promise",
+                        passPath + "asyncGenericIdentityPromise.mt");
+        addOutputVerificationTest("Async Lambda Passed To Hof",
+                        passPath + "asyncLambdaPassedToHof.mt");
+        addOutputVerificationTest("Async Method On Parameterized Class",
+                        passPath + "asyncMethodOnParameterizedClass.mt");
+        addOutputVerificationTest("Async Override Returns More Specific",
+                        passPath + "asyncOverrideReturnsMoreSpecific.mt");
     }
 }

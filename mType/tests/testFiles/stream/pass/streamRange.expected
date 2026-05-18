@@ -1,0 +1,10 @@
+Testing Streams.range:
+Length: 5
+0
+1
+2
+3
+4
+Empty count: 0
+Even count in [0,10): 5
+Streams.range test passed!

@@ -1,0 +1,6 @@
+=== Async Pending Delay In Try Finally ===
+try: before await
+try: after await
+finally: ran
+main: value=99
+OK

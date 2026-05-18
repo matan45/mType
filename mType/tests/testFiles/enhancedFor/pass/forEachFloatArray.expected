@@ -1,0 +1,10 @@
+Testing enhanced for-loop over float[]:
+1.5
+2.5
+3.5
+4.5
+Count: 4
+9
+7.5
+8.25
+for-each over float[] test passed!

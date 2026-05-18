@@ -1,0 +1,3 @@
+data: 42
+inner is null
+Local copy of field narrowing tests passed!

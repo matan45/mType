@@ -581,5 +581,18 @@ namespace tests::testSuite
                         errorPath + "errorInstantiateAbstractException_error.mt",
                         TestType::ERROR_EXPECTED,
                         "abstract");
+
+        // @Throw annotation × try/catch/finally integration — verifies the
+        // declarative throws contract actually plays nicely with the runtime
+        // exception machinery (catch matching, finally ordering, propagation
+        // through unannotated frames).
+        addOutputVerificationTest("Throw Annotated Method Caught With Finally",
+                                  passPath + "throwAnnotatedMethodCaught_pass.mt");
+        addOutputVerificationTest("Throw Annotated Propagates Through Unannotated Caller",
+                                  passPath + "throwAnnotatedPropagatesThroughCaller_pass.mt");
+        addOutputVerificationTest("Throw Annotated Multiple Types Specific Catch",
+                                  passPath + "throwAnnotatedMultipleTypes_pass.mt");
+        addOutputVerificationTest("Throw Annotated Nested Finally Ordering",
+                                  passPath + "throwAnnotatedNestedFinally_pass.mt");
     }
 }

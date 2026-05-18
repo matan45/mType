@@ -1,0 +1,4 @@
+=== Async Pending Delay In Try Finally (JIT-warmed) ===
+finallyCounter=200
+sum=20100
+OK

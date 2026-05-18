@@ -1,0 +1,5 @@
+=== Async This Binding Across Await ===
+pre: this.value=10
+post: this.value=11
+main: after=11 c.value=11
+OK

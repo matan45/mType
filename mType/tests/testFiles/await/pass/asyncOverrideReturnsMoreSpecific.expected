@@ -1,0 +1,4 @@
+=== Async Override Returns More Specific ===
+direct: name=circle radius=5
+viaBase: name=circle
+OK

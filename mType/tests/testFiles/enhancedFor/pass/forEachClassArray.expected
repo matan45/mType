@@ -1,0 +1,7 @@
+Testing enhanced for-loop over Point[]:
+1,2
+3,4
+5,6
+sumX: 9
+sumY: 12
+for-each over Point[] test passed!

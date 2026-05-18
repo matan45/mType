@@ -84,6 +84,22 @@ namespace tests::testSuite
         addOutputVerificationTest("Stream Empty Terminals",
                                   passPath + "streamEmptyTerminals.mt");
 
+        // === FACTORY METHODS ===
+        addOutputVerificationTest("Stream Range (half-open)",
+                                  passPath + "streamRange.mt");
+        addOutputVerificationTest("Stream RangeClosed (inclusive)",
+                                  passPath + "streamRangeClosed.mt");
+        addOutputVerificationTest("Stream FromIterable",
+                                  passPath + "streamFromIterable.mt");
+
+        // === ADDITIONAL COLLECTION SOURCES ===
+        addOutputVerificationTest("Stream From HashSet",
+                                  passPath + "streamHashSetSource.mt");
+        addOutputVerificationTest("Stream From ArrayQueue",
+                                  passPath + "streamArrayQueueSource.mt");
+        addOutputVerificationTest("Stream From Stack",
+                                  passPath + "streamStackSource.mt");
+
         // Add error tests for stream error handling
         addTestFromFile("Stream Reuse After Terminal Operation",
                        errorPath + "streamReuse.mt",
@@ -128,6 +144,27 @@ namespace tests::testSuite
 
         addTestFromFile("Stream Min On Empty",
                        errorPath + "streamMinEmpty.mt",
+                       TestType::ERROR_EXPECTED);
+
+        // === NULL-ARG ERROR SYMMETRY (anyMatch/allMatch/noneMatch/sortedWith) ===
+        addTestFromFile("Stream sorted() Always Throws",
+                       errorPath + "streamSortedThrows.mt",
+                       TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Stream anyMatch Null Predicate",
+                       errorPath + "streamAnyMatchNullPredicate.mt",
+                       TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Stream allMatch Null Predicate",
+                       errorPath + "streamAllMatchNullPredicate.mt",
+                       TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Stream noneMatch Null Predicate",
+                       errorPath + "streamNoneMatchNullPredicate.mt",
+                       TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Stream sortedWith Null Comparator",
+                       errorPath + "streamSortedWithNullComparator.mt",
                        TestType::ERROR_EXPECTED);
     }
 }

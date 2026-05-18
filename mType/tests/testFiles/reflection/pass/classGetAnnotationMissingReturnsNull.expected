@@ -1,0 +1,7 @@
+Presence checks (hasAnnotation is the reliable predicate):
+  WithAnnotation.hasAnnotation(Tagged)=true
+  WithAnnotation.hasAnnotation(Missing)=false
+  WithoutAnnotation.hasAnnotation(Tagged)=false
+Round-trip on present annotation:
+  label=present
+Test passed

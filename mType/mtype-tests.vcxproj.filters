@@ -1042,6 +1042,27 @@
     <None Include="tests\testFiles\annotation\error\script_annotation_wrong_update_signature_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\error\throw_duplicate_annotation_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\throw_empty_array_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\throw_on_class_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\throw_on_constructor_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\throw_on_field_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\throw_on_parameter_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\throw_wrong_param_name_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\error\unknown_annotation_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
@@ -1244,6 +1265,36 @@
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\single_exception_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\throw_dce_preserves_function_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\throw_dce_preserves_function_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\throw_dce_preserves_method_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\throw_dce_preserves_method_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\throw_duplicate_in_list_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\throw_duplicate_in_list_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\throw_override_dropped_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\throw_override_dropped_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\throw_override_widens_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\throw_override_widens_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\arrays\error\arrayDimensionTypeCheck.mt">
@@ -2041,6 +2092,12 @@
     <None Include="tests\testFiles\await\error\awaitInStaticInitializer.mt">
       <Filter>testFiles\await\error</Filter>
     </None>
+    <None Include="tests\testFiles\await\error\awaitInSyncLambda.mt">
+      <Filter>testFiles\await\error</Filter>
+    </None>
+    <None Include="tests\testFiles\await\error\awaitOnNonPromise.mt">
+      <Filter>testFiles\await\error</Filter>
+    </None>
     <None Include="tests\testFiles\await\error\awaitOutsideAsync.mt">
       <Filter>testFiles\await\error</Filter>
     </None>
@@ -2048,6 +2105,12 @@
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncAnonymousBlock.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncArrayIndexAcrossAwait.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncArrayIndexAcrossAwait.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncAwaitInForLoop.expected">
@@ -2072,6 +2135,12 @@
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncBreakInLoop.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncCapturedOuterScopeAcrossAwait.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncCapturedOuterScopeAcrossAwait.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncCircularPromiseReference.expected">
@@ -2164,6 +2233,12 @@
     <None Include="tests\testFiles\await\pass\asyncFinallyReturnOrder.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
+    <None Include="tests\testFiles\await\pass\asyncGenericIdentityPromise.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncGenericIdentityPromise.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
     <None Include="tests\testFiles\await\pass\asyncGenericPromise.expected">
       <Filter>testFiles\await\pass</Filter>
     </None>
@@ -2188,6 +2263,12 @@
     <None Include="tests\testFiles\await\pass\asyncLambdaFunctions.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
+    <None Include="tests\testFiles\await\pass\asyncLambdaPassedToHof.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncLambdaPassedToHof.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
     <None Include="tests\testFiles\await\pass\asyncLambdaPreRejectedPromise.expected">
       <Filter>testFiles\await\pass</Filter>
     </None>
@@ -2200,6 +2281,24 @@
     <None Include="tests\testFiles\await\pass\asyncLargePromiseChain.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
+    <None Include="tests\testFiles\await\pass\asyncLocalAliveAcrossAwait.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncLocalAliveAcrossAwait.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncLoopVarAcrossAwait.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncLoopVarAcrossAwait.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncLoopVarAcrossAwaitJitWarmed.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncLoopVarAcrossAwaitJitWarmed.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
     <None Include="tests\testFiles\await\pass\asyncMainFunction.expected">
       <Filter>testFiles\await\pass</Filter>
     </None>
@@ -2210,6 +2309,12 @@
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncMemoryStress.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncMethodOnParameterizedClass.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncMethodOnParameterizedClass.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncMethods.expected">
@@ -2260,6 +2365,12 @@
     <None Include="tests\testFiles\await\pass\asyncOverrideMethod.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
+    <None Include="tests\testFiles\await\pass\asyncOverrideReturnsMoreSpecific.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncOverrideReturnsMoreSpecific.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
     <None Include="tests\testFiles\await\pass\asyncParallelPromises.expected">
       <Filter>testFiles\await\pass</Filter>
     </None>
@@ -2306,6 +2417,66 @@
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncPendingAwaitSuspendJitWarmed.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingDelayInTryFinally.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingDelayInTryFinally.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingDelayInTryFinallyJitWarmed.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingDelayInTryFinallyJitWarmed.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingDelayInsideLoopBody.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingDelayInsideLoopBody.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingDelayInsideLoopBodyJitWarmed.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingDelayInsideLoopBodyJitWarmed.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingDelayRejectFanout.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingDelayRejectFanout.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingInterleavedSettlementOrder.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingInterleavedSettlementOrder.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingTwoDelaysSummed.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingTwoDelaysSummed.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingTwoDelaysSummedJitWarmed.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingTwoDelaysSummedJitWarmed.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingZeroMsDelay.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingZeroMsDelay.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingZeroMsDelayJitWarmed.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncPendingZeroMsDelayJitWarmed.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncPreRejectedPromiseFanout.expected">
@@ -2404,10 +2575,28 @@
     <None Include="tests\testFiles\await\pass\asyncStaticMethodVariant.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
+    <None Include="tests\testFiles\await\pass\asyncSuperChainThreeLevels.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncSuperChainThreeLevels.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncSuperChainThreeLevelsJitWarmed.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncSuperChainThreeLevelsJitWarmed.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
     <None Include="tests\testFiles\await\pass\asyncSwitchStatement.expected">
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncSwitchStatement.mt">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncThisBindingAcrossAwait.expected">
+      <Filter>testFiles\await\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\await\pass\asyncThisBindingAcrossAwait.mt">
       <Filter>testFiles\await\pass</Filter>
     </None>
     <None Include="tests\testFiles\await\pass\asyncTryCatchBasic.expected">
@@ -5662,10 +5851,22 @@
     <None Include="tests\testFiles\enhancedFor\pass\forEachBackToBackSameCollection.mt">
       <Filter>testFiles\enhancedFor\pass</Filter>
     </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachBoolArray.expected">
+      <Filter>testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachBoolArray.mt">
+      <Filter>testFiles\enhancedFor\pass</Filter>
+    </None>
     <None Include="tests\testFiles\enhancedFor\pass\forEachBreak.expected">
       <Filter>testFiles\enhancedFor\pass</Filter>
     </None>
     <None Include="tests\testFiles\enhancedFor\pass\forEachBreak.mt">
+      <Filter>testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachClassArray.expected">
+      <Filter>testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachClassArray.mt">
       <Filter>testFiles\enhancedFor\pass</Filter>
     </None>
     <None Include="tests\testFiles\enhancedFor\pass\forEachContinue.expected">
@@ -5686,6 +5887,12 @@
     <None Include="tests\testFiles\enhancedFor\pass\forEachEmptyBody.mt">
       <Filter>testFiles\enhancedFor\pass</Filter>
     </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachFloatArray.expected">
+      <Filter>testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachFloatArray.mt">
+      <Filter>testFiles\enhancedFor\pass</Filter>
+    </None>
     <None Include="tests\testFiles\enhancedFor\pass\forEachGenericClass.expected">
       <Filter>testFiles\enhancedFor\pass</Filter>
     </None>
@@ -5702,6 +5909,12 @@
       <Filter>testFiles\enhancedFor\pass</Filter>
     </None>
     <None Include="tests\testFiles\enhancedFor\pass\forEachHashSet.mt">
+      <Filter>testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachIntArray.expected">
+      <Filter>testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachIntArray.mt">
       <Filter>testFiles\enhancedFor\pass</Filter>
     </None>
     <None Include="tests\testFiles\enhancedFor\pass\forEachLinkedList.expected">
@@ -5774,6 +5987,12 @@
       <Filter>testFiles\enhancedFor\pass</Filter>
     </None>
     <None Include="tests\testFiles\enhancedFor\pass\forEachStack.mt">
+      <Filter>testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachStringArray.expected">
+      <Filter>testFiles\enhancedFor\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\enhancedFor\pass\forEachStringArray.mt">
       <Filter>testFiles\enhancedFor\pass</Filter>
     </None>
     <None Include="tests\testFiles\enhancedFor\pass\forEachThreeNestedBreakInner.expected">
@@ -6689,6 +6908,30 @@
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\returnInTryCatchFinallyPrecedence.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\throwAnnotatedMethodCaught_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\throwAnnotatedMethodCaught_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\throwAnnotatedMultipleTypes_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\throwAnnotatedMultipleTypes_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\throwAnnotatedNestedFinally_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\throwAnnotatedNestedFinally_pass.mt">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\throwAnnotatedPropagatesThroughCaller_pass.expected">
+      <Filter>testFiles\error\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\error\pass\throwAnnotatedPropagatesThroughCaller_pass.mt">
       <Filter>testFiles\error\pass</Filter>
     </None>
     <None Include="tests\testFiles\error\pass\throwNullCheckedAtSite.expected">
@@ -11623,6 +11866,9 @@
     <None Include="tests\testFiles\nullSafety\error\chainedAccessThroughNullable_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
+    <None Include="tests\testFiles\nullSafety\error\compoundAndNoNarrowing_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
     <None Include="tests\testFiles\nullSafety\error\guardClauseNoExit_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
@@ -11633,6 +11879,9 @@
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\error\methodCallOnNullable_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\error\narrowingScopedToIfBlock_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\error\nullArgToNonNullCtorParam_error.mt">
@@ -11647,14 +11896,44 @@
     <None Include="tests\testFiles\nullSafety\error\nullableArgToNonNullParam_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
+    <None Include="tests\testFiles\nullSafety\error\nullableInterfaceUnchecked_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
     <None Include="tests\testFiles\nullSafety\error\nullableParamNotNarrowed_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\error\nullablePrimitiveType_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
+    <None Include="tests\testFiles\nullSafety\error\nullableSuperUnchecked_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\error\objFieldNarrowingUnsupported_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
     <None Include="tests\testFiles\nullSafety\error\returnNullFromNonNull_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\error\thisFieldNarrowingUnsupported_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\arrayElementNullThenReassign.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\arrayElementNullThenReassign.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\arrayIterateWithNullCheck.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\arrayIterateWithNullCheck.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\elseBranchMethodDispatch.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\elseBranchMethodDispatch.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\guardClauseNarrowing.expected">
       <Filter>testFiles\nullSafety\pass</Filter>
@@ -11668,16 +11947,64 @@
     <None Include="tests\testFiles\nullSafety\pass\jitNullCheckElimination.mt">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
+    <None Include="tests\testFiles\nullSafety\pass\localCopyFromArrayNarrowed.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\localCopyFromArrayNarrowed.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\localCopyOfFieldNarrowed.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\localCopyOfFieldNarrowed.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nestedNarrowing.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nestedNarrowing.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
     <None Include="tests\testFiles\nullSafety\pass\nullSafeParamAndReturn.expected">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\nullSafeParamAndReturn.mt">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullableFieldAssignAndGet.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullableFieldAssignAndGet.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullableFieldDefaultsToNull.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullableFieldDefaultsToNull.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
     <None Include="tests\testFiles\nullSafety\pass\nullableFunctionParams.expected">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\nullableFunctionParams.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullableInheritedReceiver.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullableInheritedReceiver.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullableInterfaceReceiver.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullableInterfaceReceiver.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullableObjectReceiver.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\nullableObjectReceiver.mt">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\nullableTypeBasic.expected">
@@ -11692,19 +12019,55 @@
     <None Include="tests\testFiles\nullSafety\pass\nullableValueObject.mt">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
+    <None Include="tests\testFiles\nullSafety\pass\objectArrayDefaultsNull.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\objectArrayDefaultsNull.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
     <None Include="tests\testFiles\nullSafety\pass\smartCastBasic.expected">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\smartCastBasic.mt">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
+    <None Include="tests\testFiles\nullSafety\pass\throwGuardNarrowing.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\throwGuardNarrowing.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\whileLoopNarrowing.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\whileLoopNarrowing.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
     <None Include="tests\testFiles\overloading\error\ambiguousCall.mt">
+      <Filter>testFiles\overloading\error</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\error\constructorNoMatchingOverload.mt">
+      <Filter>testFiles\overloading\error</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\error\diamondInterfaceAmbiguous.mt">
+      <Filter>testFiles\overloading\error</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\error\duplicateMethodSignature.mt">
+      <Filter>testFiles\overloading\error</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\error\duplicateStaticMethodSignature.mt">
       <Filter>testFiles\overloading\error</Filter>
     </None>
     <None Include="tests\testFiles\overloading\error\noMatchingOverload.mt">
       <Filter>testFiles\overloading\error</Filter>
     </None>
+    <None Include="tests\testFiles\overloading\error\nullAmbiguityInheritance.mt">
+      <Filter>testFiles\overloading\error</Filter>
+    </None>
     <None Include="tests\testFiles\overloading\error\nullAmbiguityTwoClasses.mt">
+      <Filter>testFiles\overloading\error</Filter>
+    </None>
+    <None Include="tests\testFiles\overloading\error\returnTypeOnlyOverload.mt">
       <Filter>testFiles\overloading\error</Filter>
     </None>
     <None Include="tests\testFiles\overloading\pass\basicFunctionOverload.expected">
@@ -11932,6 +12295,9 @@
     <None Include="tests\testFiles\reflection\error\forNameInvalidParameterized.mt">
       <Filter>testFiles\reflection\error</Filter>
     </None>
+    <None Include="tests\testFiles\reflection\error\invokeWithWrongArity.mt">
+      <Filter>testFiles\reflection\error</Filter>
+    </None>
     <None Include="tests\testFiles\reflection\error\methodNotFound.mt">
       <Filter>testFiles\reflection\error</Filter>
     </None>
@@ -11945,6 +12311,12 @@
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\annotationReflection.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\annotationTypedParamsAllVariants.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\annotationTypedParamsAllVariants.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\basicReflection.expected">
@@ -11983,6 +12355,12 @@
     <None Include="tests\testFiles\reflection\pass\classForName.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
+    <None Include="tests\testFiles\reflection\pass\classGetAnnotationMissingReturnsNull.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\classGetAnnotationMissingReturnsNull.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
     <None Include="tests\testFiles\reflection\pass\classGetNameNested.expected">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
@@ -12013,6 +12391,12 @@
     <None Include="tests\testFiles\reflection\pass\constructorDiscovery.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
+    <None Include="tests\testFiles\reflection\pass\constructorGetAnnotationsArray.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\constructorGetAnnotationsArray.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
     <None Include="tests\testFiles\reflection\pass\constructorParameters.expected">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
@@ -12023,6 +12407,12 @@
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\fieldDiscovery.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\fieldGetSetInstance.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\fieldGetSetInstance.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\fieldModifiers.expected">
@@ -12103,16 +12493,34 @@
     <None Include="tests\testFiles\reflection\pass\inheritanceReflection.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
+    <None Include="tests\testFiles\reflection\pass\interfaceMethodReflection.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\interfaceMethodReflection.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
     <None Include="tests\testFiles\reflection\pass\interfaceReflection.expected">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\interfaceReflection.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
+    <None Include="tests\testFiles\reflection\pass\metaAnnotationReadParams.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\metaAnnotationReadParams.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
     <None Include="tests\testFiles\reflection\pass\methodDiscovery.expected">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\methodDiscovery.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\methodGetAnnotationsArray.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\methodGetAnnotationsArray.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\methodModifiers.expected">
@@ -12143,6 +12551,12 @@
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\modifierUtilities.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\newInstanceWithMultipleArgs.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\newInstanceWithMultipleArgs.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\objectReflectionApi.expected">
@@ -12187,10 +12601,28 @@
     <None Include="tests\testFiles\reflection\pass\reflectionInvocation.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
+    <None Include="tests\testFiles\reflection\pass\setAccessibleRoundTrip.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\setAccessibleRoundTrip.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\setFieldWrongTypeSilent.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\setFieldWrongTypeSilent.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
     <None Include="tests\testFiles\reflection\pass\staticFieldAccess.expected">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\staticFieldAccess.mt">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\staticFieldSet.expected">
+      <Filter>testFiles\reflection\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\reflection\pass\staticFieldSet.mt">
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\reflection\pass\superclassReflection.expected">
@@ -12202,6 +12634,12 @@
     <None Include="tests\testFiles\scriptapi\bootstrap.mt">
       <Filter>testFiles\scriptapi</Filter>
     </None>
+    <None Include="tests\testFiles\stream\error\streamAllMatchNullPredicate.mt">
+      <Filter>testFiles\stream\error</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\error\streamAnyMatchNullPredicate.mt">
+      <Filter>testFiles\stream\error</Filter>
+    </None>
     <None Include="tests\testFiles\stream\error\streamFilterPredicateThrows.mt">
       <Filter>testFiles\stream\error</Filter>
     </None>
@@ -12212,6 +12650,9 @@
       <Filter>testFiles\stream\error</Filter>
     </None>
     <None Include="tests\testFiles\stream\error\streamMinEmpty.mt">
+      <Filter>testFiles\stream\error</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\error\streamNoneMatchNullPredicate.mt">
       <Filter>testFiles\stream\error</Filter>
     </None>
     <None Include="tests\testFiles\stream\error\streamNullConsumer.mt">
@@ -12235,6 +12676,12 @@
     <None Include="tests\testFiles\stream\error\streamSkipNegative.mt">
       <Filter>testFiles\stream\error</Filter>
     </None>
+    <None Include="tests\testFiles\stream\error\streamSortedThrows.mt">
+      <Filter>testFiles\stream\error</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\error\streamSortedWithNullComparator.mt">
+      <Filter>testFiles\stream\error</Filter>
+    </None>
     <None Include="tests\testFiles\stream\pass\streamAllMatch.expected">
       <Filter>testFiles\stream\pass</Filter>
     </None>
@@ -12245,6 +12692,12 @@
       <Filter>testFiles\stream\pass</Filter>
     </None>
     <None Include="tests\testFiles\stream\pass\streamAnyMatch.mt">
+      <Filter>testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamArrayQueueSource.expected">
+      <Filter>testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamArrayQueueSource.mt">
       <Filter>testFiles\stream\pass</Filter>
     </None>
     <None Include="tests\testFiles\stream\pass\streamBasicOperations.expected">
@@ -12307,6 +12760,12 @@
     <None Include="tests\testFiles\stream\pass\streamForEach.mt">
       <Filter>testFiles\stream\pass</Filter>
     </None>
+    <None Include="tests\testFiles\stream\pass\streamFromIterable.expected">
+      <Filter>testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamFromIterable.mt">
+      <Filter>testFiles\stream\pass</Filter>
+    </None>
     <None Include="tests\testFiles\stream\pass\streamHashMap.expected">
       <Filter>testFiles\stream\pass</Filter>
     </None>
@@ -12317,6 +12776,12 @@
       <Filter>testFiles\stream\pass</Filter>
     </None>
     <None Include="tests\testFiles\stream\pass\streamHashMapAdvanced.mt">
+      <Filter>testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamHashSetSource.expected">
+      <Filter>testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamHashSetSource.mt">
       <Filter>testFiles\stream\pass</Filter>
     </None>
     <None Include="tests\testFiles\stream\pass\streamLimit.expected">
@@ -12367,6 +12832,18 @@
     <None Include="tests\testFiles\stream\pass\streamPeekVsForEachOrder.mt">
       <Filter>testFiles\stream\pass</Filter>
     </None>
+    <None Include="tests\testFiles\stream\pass\streamRange.expected">
+      <Filter>testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamRange.mt">
+      <Filter>testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamRangeClosed.expected">
+      <Filter>testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamRangeClosed.mt">
+      <Filter>testFiles\stream\pass</Filter>
+    </None>
     <None Include="tests\testFiles\stream\pass\streamReduce.expected">
       <Filter>testFiles\stream\pass</Filter>
     </None>
@@ -12407,6 +12884,12 @@
       <Filter>testFiles\stream\pass</Filter>
     </None>
     <None Include="tests\testFiles\stream\pass\streamSortedWithDescending.mt">
+      <Filter>testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamStackSource.expected">
+      <Filter>testFiles\stream\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\stream\pass\streamStackSource.mt">
       <Filter>testFiles\stream\pass</Filter>
     </None>
     <None Include="tests\testFiles\stringpool\StringPoolTestSuite.expected">

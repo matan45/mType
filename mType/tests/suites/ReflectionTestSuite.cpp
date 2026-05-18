@@ -123,6 +123,44 @@ namespace tests::testSuite
 
         addOutputVerificationTest("Reflection Invocation",
                         passPath + "reflectionInvocation.mt");
+        addOutputVerificationTest("New Instance With Multiple Args",
+                        passPath + "newInstanceWithMultipleArgs.mt");
+
+        // === MYT-111 REGRESSION TESTS ===
+        // Exception propagation across reflective invocation boundaries.
+        addOutputVerificationTest("Reflect Invoke Method Throws Caught By Caller",
+                        passPath + "reflectInvokeMethodThrowsCaughtByCaller.mt");
+        addOutputVerificationTest("Reflect New Instance Throws Caught By Caller",
+                        passPath + "reflectNewInstanceThrowsCaughtByCaller.mt");
+
+        // === FIELD GET/SET TESTS ===
+        // Round-trip and static-write paths (Field.get/set, setStaticFieldValue)
+        addOutputVerificationTest("Field Get Set Instance",
+                        passPath + "fieldGetSetInstance.mt");
+        addOutputVerificationTest("Static Field Set",
+                        passPath + "staticFieldSet.mt");
+        addOutputVerificationTest("Set Field Wrong Type Silent (doc pin)",
+                        passPath + "setFieldWrongTypeSilent.mt");
+
+        // === ACCESSIBLE OBJECT TESTS ===
+        addOutputVerificationTest("Set Accessible Round Trip",
+                        passPath + "setAccessibleRoundTrip.mt");
+
+        // === INTERFACE METHOD REFLECTION ===
+        addOutputVerificationTest("Interface Method Reflection",
+                        passPath + "interfaceMethodReflection.mt");
+
+        // === ANNOTATION REFLECTION - DEPTH ===
+        addOutputVerificationTest("Class Get Annotation Missing Returns Null",
+                        passPath + "classGetAnnotationMissingReturnsNull.mt");
+        addOutputVerificationTest("Method Get Annotations Array",
+                        passPath + "methodGetAnnotationsArray.mt");
+        addOutputVerificationTest("Constructor Get Annotations Array",
+                        passPath + "constructorGetAnnotationsArray.mt");
+        addOutputVerificationTest("Annotation Typed Params All Variants",
+                        passPath + "annotationTypedParamsAllVariants.mt");
+        addOutputVerificationTest("Meta Annotation Read Params",
+                        passPath + "metaAnnotationReadParams.mt");
 
         // === OBJECT-BASED REFLECTION API TESTS ===
         // Tests for simplified reflection using Object as universal type
@@ -154,6 +192,10 @@ namespace tests::testSuite
         addTestFromFile("Private Method Access Error",
                         errorPath + "privateMethodAccess.mt",
                         TestType::ERROR_EXPECTED);
+        addTestFromFile("Invoke With Wrong Arity Error",
+                        errorPath + "invokeWithWrongArity.mt",
+                        TestType::ERROR_EXPECTED,
+                        "cannot find method");
 
         // === EDGE CASE TESTS - private fields / inherited methods / null forName ===
         addOutputVerificationTest("Reflect Private Field",

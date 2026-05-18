@@ -195,6 +195,55 @@ namespace tests::testSuite
                         errorPath + "empty_throw_error.mt",
                         TestType::ERROR_EXPECTED);
 
+        addTestFromFile("Throw On Field Rejected",
+                        errorPath + "throw_on_field_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "cannot be applied to");
+
+        addTestFromFile("Throw On Constructor Rejected",
+                        errorPath + "throw_on_constructor_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "cannot be applied to");
+
+        addTestFromFile("Throw On Method Parameter Rejected",
+                        errorPath + "throw_on_parameter_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "cannot be applied to");
+
+        addTestFromFile("Throw On Class Declaration Rejected",
+                        errorPath + "throw_on_class_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "cannot be applied to");
+
+        addTestFromFile("Throw Wrong Parameter Name",
+                        errorPath + "throw_wrong_param_name_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Unknown parameter");
+
+        addTestFromFile("Throw Empty Array Literal",
+                        errorPath + "throw_empty_array_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "at least one exception class");
+
+        addTestFromFile("Throw Duplicate Annotation On Method",
+                        errorPath + "throw_duplicate_annotation_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addOutputVerificationTest("Throw Duplicate Exception In List (current behavior)",
+                                  passPath + "throw_duplicate_in_list_pass.mt");
+
+        addOutputVerificationTest("Throw Override Widens Exception Set (current behavior)",
+                                  passPath + "throw_override_widens_pass.mt");
+
+        addOutputVerificationTest("Throw Override Drops Annotation (current behavior)",
+                                  passPath + "throw_override_dropped_pass.mt");
+
+        addOutputVerificationTest("Throw DCE Preserves Unused Function",
+                                  passPath + "throw_dce_preserves_function_pass.mt");
+
+        addOutputVerificationTest("Throw DCE Preserves Unused Method",
+                                  passPath + "throw_dce_preserves_method_pass.mt");
+
         // ===== MYT-109 (3a): META-ANNOTATIONS - PASS TESTS =====
 
         addOutputVerificationTest("Meta-annotation Declaration Parses",

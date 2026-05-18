@@ -1,0 +1,5 @@
+=== Async Lambda Passed To Hof ===
+first: 6
+second: 14
+total=20
+OK

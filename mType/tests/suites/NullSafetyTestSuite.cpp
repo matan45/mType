@@ -73,5 +73,59 @@ namespace tests::testSuite
         addTestFromFile("Guard Clause Without Exit Not Narrowed",
                         errorPath + "guardClauseNoExit_error.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === NARROWING EDGE CASES ===
+        addOutputVerificationTest("Else-Branch Method Dispatch",
+                        passPath + "elseBranchMethodDispatch.mt");
+        addOutputVerificationTest("Throw Guard Narrowing",
+                        passPath + "throwGuardNarrowing.mt");
+        addOutputVerificationTest("While Loop Narrowing",
+                        passPath + "whileLoopNarrowing.mt");
+        addOutputVerificationTest("Nested Narrowing",
+                        passPath + "nestedNarrowing.mt");
+        addTestFromFile("Compound && Does Not Narrow",
+                        errorPath + "compoundAndNoNarrowing_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Narrowing Scoped to If Block",
+                        errorPath + "narrowingScopedToIfBlock_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === FIELDS AND CHAINED ACCESS ===
+        addOutputVerificationTest("Nullable Field Assign and Get",
+                        passPath + "nullableFieldAssignAndGet.mt");
+        addOutputVerificationTest("Local Copy of Field Narrowed",
+                        passPath + "localCopyOfFieldNarrowed.mt");
+        addOutputVerificationTest("Nullable Field Defaults to Null",
+                        passPath + "nullableFieldDefaultsToNull.mt");
+        addTestFromFile("this.field Narrowing Unsupported",
+                        errorPath + "thisFieldNarrowingUnsupported_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("obj.field Narrowing Unsupported",
+                        errorPath + "objFieldNarrowingUnsupported_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        // === ARRAYS WITH NULLABLE ELEMENTS ===
+        addOutputVerificationTest("Object Array Defaults Null",
+                        passPath + "objectArrayDefaultsNull.mt");
+        addOutputVerificationTest("Array Iterate With Null Check",
+                        passPath + "arrayIterateWithNullCheck.mt");
+        addOutputVerificationTest("Local Copy From Array Narrowed",
+                        passPath + "localCopyFromArrayNarrowed.mt");
+        addOutputVerificationTest("Array Element Null Then Reassign",
+                        passPath + "arrayElementNullThenReassign.mt");
+
+        // === INTERFACES, INHERITANCE, OBJECT ===
+        addOutputVerificationTest("Nullable Interface Receiver",
+                        passPath + "nullableInterfaceReceiver.mt");
+        addOutputVerificationTest("Nullable Inherited Receiver",
+                        passPath + "nullableInheritedReceiver.mt");
+        addOutputVerificationTest("Nullable Object Receiver",
+                        passPath + "nullableObjectReceiver.mt");
+        addTestFromFile("Nullable Interface Unchecked",
+                        errorPath + "nullableInterfaceUnchecked_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Nullable Super Unchecked",
+                        errorPath + "nullableSuperUnchecked_error.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

@@ -1,0 +1,11 @@
+=== Async Loop Var Across Await ===
+pre: i=1
+post: i=1
+pre: i=2
+post: i=2
+pre: i=3
+post: i=3
+pre: i=4
+post: i=4
+observed=10
+OK

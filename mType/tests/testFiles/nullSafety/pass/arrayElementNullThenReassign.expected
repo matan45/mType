@@ -1,0 +1,4 @@
+before: 5
+mid is null
+after: 99
+Array element null-then-reassign tests passed!

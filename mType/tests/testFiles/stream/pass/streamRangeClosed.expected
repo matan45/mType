@@ -1,0 +1,11 @@
+Testing Streams.rangeClosed:
+Length: 5
+1
+2
+3
+4
+5
+Single length: 1
+3
+Sum 1..10: 55
+Streams.rangeClosed test passed!

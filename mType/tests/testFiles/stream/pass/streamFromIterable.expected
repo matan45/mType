@@ -1,0 +1,10 @@
+Testing Streams.fromIterable:
+List length: 3
+10
+20
+30
+Set length: 3
+3
+7
+11
+Streams.fromIterable test passed!

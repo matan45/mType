@@ -1,0 +1,4 @@
+arr[0] = null
+arr[1] = null
+arr[2] = null
+Object array defaults-null tests passed!

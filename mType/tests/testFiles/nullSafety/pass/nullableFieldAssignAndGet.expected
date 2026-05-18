@@ -1,0 +1,5 @@
+value: 5
+null
+value: 99
+null
+Nullable field assign-and-get tests passed!

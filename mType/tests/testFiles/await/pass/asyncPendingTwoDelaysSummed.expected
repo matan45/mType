@@ -1,0 +1,7 @@
+=== Async Pending Two Delays Summed ===
+main: before first await
+main: got a=11
+main: before second await
+main: got b=31
+main: total=42
+OK

@@ -1,0 +1,3 @@
+non-null: 42
+null branch reached
+Else-branch narrowing tests passed!

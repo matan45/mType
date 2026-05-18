@@ -71,17 +71,54 @@ namespace tests::testSuite
                         passPath + "overloadGenericNullable.mt");
 
         // === ERROR TESTS ===
-        // Tests for overload resolution error scenarios
+        // Tests for overload resolution error scenarios.
+        // Substring matchers pin which error fires - without them a regression that
+        // swaps "ambiguous" for "no matching overload" (or any other throw) would
+        // pass silently.
 
         addTestFromFile("Ambiguous Call",
                     errorPath + "ambiguousCall.mt",
-                    TestType::ERROR_EXPECTED);
+                    TestType::ERROR_EXPECTED,
+                    "ambiguous call to");
         addTestFromFile("No Matching Overload",
                     errorPath + "noMatchingOverload.mt",
-                    TestType::ERROR_EXPECTED);
+                    TestType::ERROR_EXPECTED,
+                    "no matching overload for call to");
         addTestFromFile("Null Ambiguity Two Classes",
                     errorPath + "nullAmbiguityTwoClasses.mt",
-                    TestType::ERROR_EXPECTED);
+                    TestType::ERROR_EXPECTED,
+                    "ambiguous call to");
+
+        // Duplicate-signature errors (registration phase, MT-E0004).
+        // DuplicateSignatureException::formatMessage produces:
+        //   "Duplicate <type> signature: '<name>(<sig>)' has already been declared at <loc>"
+        // so the per-test substring is the type-specific phrase.
+        addTestFromFile("Duplicate Method Signature",
+                    errorPath + "duplicateMethodSignature.mt",
+                    TestType::ERROR_EXPECTED,
+                    "Duplicate method signature");
+        addTestFromFile("Duplicate Static Method Signature",
+                    errorPath + "duplicateStaticMethodSignature.mt",
+                    TestType::ERROR_EXPECTED,
+                    "Duplicate static method signature");
+        addTestFromFile("Return Type Only Overload",
+                    errorPath + "returnTypeOnlyOverload.mt",
+                    TestType::ERROR_EXPECTED,
+                    "Duplicate method signature");
+
+        // Overload resolution errors at call sites.
+        addTestFromFile("Null Ambiguity Inheritance",
+                    errorPath + "nullAmbiguityInheritance.mt",
+                    TestType::ERROR_EXPECTED,
+                    "ambiguous call to");
+        addTestFromFile("Constructor No Matching Overload",
+                    errorPath + "constructorNoMatchingOverload.mt",
+                    TestType::ERROR_EXPECTED,
+                    "no matching overload for call to");
+        addTestFromFile("Diamond Interface Ambiguous",
+                    errorPath + "diamondInterfaceAmbiguous.mt",
+                    TestType::ERROR_EXPECTED,
+                    "ambiguous call to");
 
         // === EDGE CASE TESTS - static vs instance same name / generic vs concrete / Int-Float ambig ===
         addOutputVerificationTest("Overload Static And Instance Same Name",

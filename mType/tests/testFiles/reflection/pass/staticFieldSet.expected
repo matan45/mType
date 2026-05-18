@@ -1,0 +1,13 @@
+Direct read before set:
+  counter=5
+  threshold=100
+isStatic flags:
+  counter.isStatic=true
+  threshold.isStatic=true
+After reflective writes - direct read:
+  counter=99
+  threshold=250
+After reflective writes - reflective read:
+  counter=99
+  threshold=250
+Test passed
