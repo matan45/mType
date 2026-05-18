@@ -130,11 +130,18 @@ namespace vm::runtime
             // Pop value from top of stack
             value::Value val = context.stackManager->pop();
 
-            // Check if we're in a lambda context and this is a captured variable
-            // If so, update it through the SharedStackFrame parent chain for reference capture
-            if (!context.callStack.empty() && context.callStack.back().originatingLambda)
+            // Check if we're in a lambda context and this is a captured variable.
+            // If so, update it through the SharedStackFrame parent chain for
+            // reference capture. Phase 2b: read originatingLambda via .get() —
+            // copying the shared_ptr fires an atomic refcount op that the hot
+            // lambda LOAD/STORE path can't afford.
+            BytecodeLambda* lambda = nullptr;
+            if (!context.callStack.empty())
             {
-                auto lambda = context.callStack.back().originatingLambda;
+                lambda = context.callStack.back().originatingLambda.get();
+            }
+            if (lambda)
+            {
                 size_t paramCount = lambda->parameterCount;
                 size_t capturedCount = lambda->capturedSlots.size();
 
@@ -143,7 +150,7 @@ namespace vm::runtime
                     size_t capturedIndex = slot - paramCount;
                     if (capturedIndex < lambda->capturedNames.size())
                     {
-                        std::string capturedVarName = lambda->capturedNames[capturedIndex];
+                        const std::string& capturedVarName = lambda->capturedNames[capturedIndex];
 
                         if (!capturedVarName.empty() && lambda->capturedFrame)
                         {
@@ -174,7 +181,7 @@ namespace vm::runtime
             }
 
             // Also update the SharedStackFrame (for closure capture reference semantics)
-            if (!context.callStack.empty() && !context.callStack.back().originatingLambda)
+            if (!lambda && !context.callStack.empty())
             {
                 if (context.callStack.back().sharedFrame)
                 {
@@ -213,10 +220,17 @@ namespace vm::runtime
                     std::to_string(constants::security::MAX_LOCAL_STACK_PER_FRAME));
             }
 
-            // Check if we're in a lambda context and this is a captured variable
-            if (!context.callStack.empty() && context.callStack.back().originatingLambda)
+            // Check if we're in a lambda context and this is a captured variable.
+            // Phase 2b: read originatingLambda via .get() — the previous form
+            // copied the shared_ptr per LOAD_LOCAL, firing an atomic refcount
+            // op the lambda hot path can't absorb.
+            BytecodeLambda* lambda = nullptr;
+            if (!context.callStack.empty())
             {
-                auto lambda = context.callStack.back().originatingLambda;
+                lambda = context.callStack.back().originatingLambda.get();
+            }
+            if (lambda)
+            {
                 size_t paramCount = lambda->parameterCount;
                 size_t capturedCount = lambda->capturedSlots.size();
 
@@ -307,10 +321,11 @@ namespace vm::runtime
 
             value::Value val = context.stackManager->pop();
 
-            // Lambda-captured path.
+            // Lambda-captured path. Phase 2b: raw-pointer access avoids the
+            // shared_ptr refcount atomic op on the lambda hot path.
             if (inLambda)
             {
-                auto lambda = context.callStack.back().originatingLambda;
+                BytecodeLambda* lambda = context.callStack.back().originatingLambda.get();
                 size_t paramCount = lambda->parameterCount;
                 size_t capturedCount = lambda->capturedSlots.size();
                 if (slot >= paramCount && slot < paramCount + capturedCount)
@@ -318,7 +333,7 @@ namespace vm::runtime
                     size_t capturedIndex = slot - paramCount;
                     if (capturedIndex < lambda->capturedNames.size())
                     {
-                        std::string capturedVarName = lambda->capturedNames[capturedIndex];
+                        const std::string& capturedVarName = lambda->capturedNames[capturedIndex];
                         if (!capturedVarName.empty() && lambda->capturedFrame)
                         {
                             lambda->capturedFrame->setLocalByName(capturedVarName, val);

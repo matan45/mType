@@ -2328,6 +2328,13 @@ namespace vm::jit
     // interpreter and re-runs through executeAwait's full suspend / throw
     // machinery.
     //
+    // Phase 2a fast path: inline the PROMISE_INT unwrap so the dominant
+    // bench case skips both cc.invoke sites (jit_await + jit_has_pending_
+    // exception). PROMISE_INT and INT share the same payload layout (raw
+    // int64 at offset 8); the unwrap is a single tag-byte rewrite at offset
+    // 0. Any non-PROMISE_INT tag falls through to the helper, which still
+    // handles fulfilled heap promises and the deopt-stash path unchanged.
+    //
     // MYT-268: jit_await stashes OSRDeoptException on ctx->pendingException
     // instead of throwing (the throw form crashed silently on Windows x64
     // — no PE unwind data registered for the asmjit frame). After the
@@ -2353,6 +2360,24 @@ namespace vm::jit
         Gp valueAddr = cc.new_gp64();
         cc.lea(valueAddr, Mem(s.boxedBase, static_cast<int32_t>(stackIdx * valueSize)));
         emitBoxOrCopy(s, valueAddr, stackIdx, valueType);
+
+        Label slowLabel = cc.new_label();
+        Label joinLabel = cc.new_label();
+
+        // Phase 2a inline fast path. Load the tag byte at offset 0 and
+        // compare to PROMISE_INT. Match: rewrite the tag byte to INT in
+        // place — the int64 payload at offset 8 is already the resolved
+        // value, no further mutation required. Miss: fall through to the
+        // helper, which still handles the heap-fulfilled / deopt paths.
+        Gp tagReg = cc.new_gp32();
+        cc.movzx(tagReg, byte_ptr(valueAddr, 0));
+        cc.cmp(tagReg, static_cast<int32_t>(value::ValueType::PROMISE_INT));
+        cc.jne(slowLabel);
+        cc.mov(byte_ptr(valueAddr, 0),
+               static_cast<int32_t>(value::ValueType::INT));
+        cc.jmp(joinLabel);
+
+        cc.bind(slowLabel);
 
         Gp ipReg = cc.new_gp64();
         cc.mov(ipReg, static_cast<int64_t>(s.currentIP));
@@ -2393,6 +2418,8 @@ namespace vm::jit
             cc.test(pendingResult, pendingResult);
             cc.jnz(s.functionDeoptExitLabel);
         }
+
+        cc.bind(joinLabel);
 
         s.slotTypes.push_back(SlotType::BOXED);
         return true;

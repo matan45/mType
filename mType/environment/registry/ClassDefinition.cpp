@@ -18,6 +18,44 @@ namespace runtimeTypes::klass
         return instanceFields.find(fieldName) != instanceFields.end();
     }
 
+    bool ClassDefinition::isInitTriviallySkippable() const
+    {
+        if (initTriviallySkippableCached) return initTriviallySkippable;
+
+        // A class is trivially-skippable iff:
+        //   1. It has no parent class. The existing alloc-path comment
+        //      (ObjectInstanceHelper.cpp:313-317) notes that parent fields
+        //      stay fully default-init even when the compiler proved the
+        //      parent's constructor assigns them, because a child constructor
+        //      may read this.<parent_field> before super(). We honor that
+        //      conservative invariant — no parent means no such hazard.
+        //   2. Every own non-final instance field is in skipDefaultInitFields
+        //      (the compiler proved each constructor assigns it before any
+        //      read). Final fields are handled by the existing isFinal
+        //      early-continue in initializeObjectFields.
+        bool result = true;
+        if (getParentClass())
+        {
+            result = false;
+        }
+        else
+        {
+            for (const auto& [name, fieldDef] : instanceFields)
+            {
+                if (fieldDef->isFinal()) continue;
+                if (skipDefaultInitFields.count(name) == 0)
+                {
+                    result = false;
+                    break;
+                }
+            }
+        }
+
+        initTriviallySkippable = result;
+        initTriviallySkippableCached = true;
+        return result;
+    }
+
     bool ClassDefinition::hasMethod(const std::string& methodName) const
     {
         return instanceMethods.find(methodName) != instanceMethods.end();
@@ -164,6 +202,9 @@ namespace runtimeTypes::klass
             instanceFieldOrder.push_back(name);
         }
         instanceFields[name] = field;
+        // Phase 3b: a new field changes the trivially-skippable answer
+        // (it may not be in skipDefaultInitFields yet). Recompute lazily.
+        initTriviallySkippableCached = false;
     }
 
     void ClassDefinition::addInstanceMethod(const std::string& name, std::shared_ptr<MethodDefinition> method)

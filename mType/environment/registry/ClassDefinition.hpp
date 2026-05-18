@@ -258,6 +258,9 @@ namespace runtimeTypes::klass
             {
                 parentClassName = parent->getName();
             }
+            // Phase 3b: gaining a parent flips the trivially-skippable answer
+            // unconditionally to false. Invalidate to recompute lazily.
+            initTriviallySkippableCached = false;
         }
 
         // Generic type substitution management
@@ -424,10 +427,32 @@ namespace runtimeTypes::klass
         void setSkipDefaultInitFields(std::unordered_set<std::string> fields)
         {
             skipDefaultInitFields = std::move(fields);
+            // Phase 3b: invalidate the trivially-skippable cache when the
+            // skip set changes. The next isInitTriviallySkippable() call
+            // recomputes lazily.
+            initTriviallySkippableCached = false;
         }
         const std::unordered_set<std::string>& getSkipDefaultInitFields() const
         {
             return skipDefaultInitFields;
+        }
+
+        // Phase 3b: true when every instance field of THIS class (and its
+        // parent chain) can be skipped at default-init time — i.e. every
+        // non-final field is in skipDefaultInitFields, and the parent class
+        // (if any) is also trivially skippable. Lets the alloc hot path
+        // bypass the per-field walk in initializeObjectFields entirely.
+        //
+        // Lazily computed on first call and cached. Cache is invalidated by
+        // setSkipDefaultInitFields (called from ClassCompiler after AST
+        // analysis); other mutations to the field set (parent reassignment,
+        // late field addition) should also call invalidateInitSkipCache to
+        // keep this honest. Defined out-of-line in ClassDefinition.cpp so
+        // the parent-class walk doesn't pull additional headers here.
+        bool isInitTriviallySkippable() const;
+        void invalidateInitSkipCache() const noexcept
+        {
+            initTriviallySkippableCached = false;
         }
 
     private:
@@ -452,6 +477,12 @@ namespace runtimeTypes::klass
 
         // Phase 2 (allocation perf): fields whose default-init NEW_OBJECT can skip.
         std::unordered_set<std::string> skipDefaultInitFields;
+
+        // Phase 3b: lazily-computed flag for "every instance field of this
+        // class and its parent chain can be skipped at default-init time".
+        // Drives the alloc fast-path in ObjectInstanceHelper::initializeObjectFields.
+        mutable bool initTriviallySkippable = false;
+        mutable bool initTriviallySkippableCached = false;
 
         // Depth protection for interface and class inheritance chains
         static constexpr int MAX_INTERFACE_DEPTH = 20;

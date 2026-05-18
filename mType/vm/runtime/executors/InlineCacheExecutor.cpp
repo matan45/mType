@@ -560,8 +560,14 @@ namespace vm::runtime
             return;
         }
 
-        // IC fast path
-        if (cache.state == ICState::MONOMORPHIC || cache.state == ICState::POLYMORPHIC)
+        // IC fast path. Phase 2c: MEGAMORPHIC also consults the cache —
+        // MethodInlineCache::lookup transparently searches the wide tier on
+        // top of the 4-entry POLY array, so shapes 5..16 still get a fast
+        // cached dispatch instead of falling straight through to the runtime
+        // resolver.
+        if (cache.state == ICState::MONOMORPHIC ||
+            cache.state == ICState::POLYMORPHIC ||
+            cache.state == ICState::MEGAMORPHIC)
         {
             const MethodICEntry* entry = cache.lookup(classDef);
             if (entry && entry->funcMetadata)
@@ -614,25 +620,16 @@ namespace vm::runtime
             }
         }
 
-        // IC miss — delegate to full handler, then try to populate cache
-        // We need to capture the function metadata after dispatch
-        // For simplicity in V1, just delegate without populating on miss from this path
-        if (cache.state == ICState::MEGAMORPHIC)
-        {
-            objectExecutor->handleCallMethod(instr);
-            return;
-        }
-
-        // For UNINITIALIZED, let the full handler run and we'll populate on next hit
-        // This is a tradeoff: we miss the first IC population opportunity,
-        // but keep the code simple and correct.
-        // Capture the caller's IP before handleCallMethod mutates it — this
-        // is the bytecode offset that keys our cache entry.
+        // IC miss — delegate to full handler, then try to populate cache.
+        // Phase 2c: MEGAMORPHIC misses also fall through to the populate path
+        // below. addEntry routes the new shape into the wide tier so the next
+        // call of the same shape hits the cached dispatch above.
         const size_t icKey = context.instructionPointer;
         objectExecutor->handleCallMethod(instr);
 
-        // After the call, try to populate the cache for next time
-        if (cache.state != ICState::MEGAMORPHIC)
+        // After the call, try to populate the cache for next time. We allow
+        // population for every state — the wide tier absorbs entries past
+        // POLY-4 and addEntry returns false only when the wide tier is full.
         {
             const std::string& rawMethodName =
                 context.program->getConstantPool().getString(instr.inlineOperands[0]);
@@ -694,15 +691,18 @@ namespace vm::runtime
                     // triggered rehash. Cheap: one hash lookup on the slow
                     // path, which we already are on.
                     MethodInlineCache& freshCache = icTable.getMethodIC(icKey);
+                    const ICState prevState = freshCache.state;
                     bool added = freshCache.addEntry(entry);
+                    const bool transitionedToMega =
+                        prevState != ICState::MEGAMORPHIC &&
+                        freshCache.state == ICState::MEGAMORPHIC;
 
-                    // MYT-203: addEntry returns false only when transitioning
-                    // POLY → MEGA (5th unique shape). If a CALL_METHOD_POLY_CACHED
-                    // (or its fused variant) lives at this IP, demote it back
-                    // to plain CALL_METHOD with sticky polyCachedDeoptCount.
-                    // No re-entry — the call has already been dispatched by
-                    // the slow-path handleCallMethod above.
-                    if (!added)
+                    // Phase 2c: with the wide tier, addEntry returns true for
+                    // the 5th-and-beyond shapes (they live in cache.wide). The
+                    // POLY_CACHED fused opcode still needs to be demoted on
+                    // the POLY → MEGA transition, because its dispatcher only
+                    // walks the 4-entry POLY array.
+                    if (transitionedToMega)
                     {
                         auto& mut = context.getMutableInstructionAt(icKey);
                         if (mut.opcode == bytecode::OpCode::CALL_METHOD_POLY_CACHED ||
@@ -727,14 +727,15 @@ namespace vm::runtime
                             cs.polyEntryCount = 0;
                             if (cs.polyCachedDeoptCount < 255) ++cs.polyCachedDeoptCount;
                         }
-                        // Promotion hooks gate on MONO/POLY state — neither
-                        // fires under MEGA. Skip them.
                     }
-                    else
+
+                    if (added)
                     {
                         // MYT-173: once the site stabilizes to MONO, promote
                         // the opcode so subsequent dispatches skip the icTable
-                        // hashmap probe and per-entry scan entirely.
+                        // hashmap probe and per-entry scan entirely. The
+                        // promote hooks themselves gate on MONO/POLY state
+                        // and are no-ops when the cache is already MEGA.
                         tryPromoteToCached(instr, entry);
                         // MYT-203: once the site has 2-4 entries (POLY),
                         // snapshot all of them on the side table and rewrite

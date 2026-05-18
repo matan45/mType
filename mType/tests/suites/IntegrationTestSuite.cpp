@@ -625,6 +625,49 @@ namespace tests::testSuite
                                   benchmarkPath + "try_catch_finally_hot.mt");
 
         // ====================================
+        // Phase 1: additional benchmark coverage for runtime-perf work
+        //   - deep_inheritance_hot          : 6-level chain, inherited-method dispatch
+        //   - interface_dispatch_collections_hot : interface dispatch through ArrayList iterator
+        //   - cast_miss_hot                 : isClassOf failure path
+        //   - exception_throw_hot           : throw-dominant try/catch loop
+        //   - ic_transition_hot             : mono -> poly -> mega IC promotion at one site
+        //   - switch_on_string_hot          : string-keyed switch dispatch
+        //   - substring_hot                 : substring allocation hot path
+        //   - gc_churn_intense_hot          : sustained allocation pressure
+        //   - array_literal_alloc_hot       : NEW_ARRAY literal inside loop body
+        //   - value_class_mut_hot           : value-class write-skip path
+        //   - int_only_arith_hot            : pure-INT arithmetic (companion to mixed loop)
+        //
+        // MYT-346: value_class_mut_hot currently FAILS under --jit (the OSR-
+        // compiled body diverges from the interpreter on value-class write
+        // methods past the OSR threshold — JIT prints total=500 vs the
+        // correct interpreter result total=2000000). Kept in the suite as a
+        // regression canary that will pass once the OSR path is fixed.
+        // ====================================
+        addOutputVerificationTest("Benchmark: deep_inheritance_hot",
+                                  benchmarkPath + "deep_inheritance_hot.mt");
+        addOutputVerificationTest("Benchmark: interface_dispatch_collections_hot",
+                                  benchmarkPath + "interface_dispatch_collections_hot.mt");
+        addOutputVerificationTest("Benchmark: cast_miss_hot",
+                                  benchmarkPath + "cast_miss_hot.mt");
+        addOutputVerificationTest("Benchmark: exception_throw_hot",
+                                  benchmarkPath + "exception_throw_hot.mt");
+        addOutputVerificationTest("Benchmark: ic_transition_hot",
+                                  benchmarkPath + "ic_transition_hot.mt");
+        addOutputVerificationTest("Benchmark: switch_on_string_hot",
+                                  benchmarkPath + "switch_on_string_hot.mt");
+        addOutputVerificationTest("Benchmark: substring_hot",
+                                  benchmarkPath + "substring_hot.mt");
+        addOutputVerificationTest("Benchmark: gc_churn_intense_hot",
+                                  benchmarkPath + "gc_churn_intense_hot.mt");
+        addOutputVerificationTest("Benchmark: array_literal_alloc_hot",
+                                  benchmarkPath + "array_literal_alloc_hot.mt");
+        addOutputVerificationTest("Benchmark: value_class_mut_hot",
+                                  benchmarkPath + "value_class_mut_hot.mt");
+        addOutputVerificationTest("Benchmark: int_only_arith_hot",
+                                  benchmarkPath + "int_only_arith_hot.mt");
+
+        // ====================================
         // COMMENTED OUT - Test files were not created
         // ====================================
         /*

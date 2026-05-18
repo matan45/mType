@@ -796,8 +796,14 @@ namespace vm::jit
 
             ic::MethodInlineCache& cache = ctx->icTable->getMethodIC(bytecodeOffset);
 
-            // Fast path: monomorphic / polymorphic shape match.
-            if (cache.state == ic::ICState::MONOMORPHIC || cache.state == ic::ICState::POLYMORPHIC)
+            // Fast path: monomorphic / polymorphic / wide-tier shape match.
+            // Phase 2c: MEGAMORPHIC also consults the cache; lookup() walks
+            // the wide tier on top of the 4-entry POLY array, so shapes
+            // 5..16 still get a cached dispatch from this JIT helper instead
+            // of falling through to the runtime method resolver.
+            if (cache.state == ic::ICState::MONOMORPHIC ||
+                cache.state == ic::ICState::POLYMORPHIC ||
+                cache.state == ic::ICState::MEGAMORPHIC)
             {
                 const ic::MethodICEntry* entry = cache.lookup(classDef);
                 if (entry && entry->protocolFastKind != ic::MethodProtocolFastKind::NONE)
@@ -887,14 +893,15 @@ namespace vm::jit
                 }
             }
 
-            // Miss / UNINITIALIZED / MEGAMORPHIC — defer to the generic helper.
+            // Miss — defer to the generic helper.
             jit_call_method(ctx, methodNameIndex, argCount);
             if (ctx->pendingException)
                 return;
 
-            // Populate cache for future iterations (skip MEGAMORPHIC: addEntry will
-            // no-op once the slot count is exceeded, but we save a hash hit + lookup).
-            if (cache.state != ic::ICState::MEGAMORPHIC)
+            // Phase 2c: populate the cache on every state including
+            // MEGAMORPHIC. addEntry routes shapes past POLY-4 into the wide
+            // tier; the next call of that shape will hit the cached
+            // dispatch above instead of repeating the runtime resolution.
             {
                 const std::string& rawMethodName =
                     ctx->program->getConstantPool().getString(methodNameIndex);
