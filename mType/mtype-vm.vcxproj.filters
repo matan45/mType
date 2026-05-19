@@ -96,6 +96,9 @@
     <ClInclude Include="vm\bytecode\BytecodeProgram.hpp">
       <Filter>vm\bytecode</Filter>
     </ClInclude>
+    <ClInclude Include="vm\bytecode\BytecodeProgramReadValidators.hpp">
+      <Filter>vm\bytecode</Filter>
+    </ClInclude>
     <ClInclude Include="vm\bytecode\ExceptionTable.hpp">
       <Filter>vm\bytecode</Filter>
     </ClInclude>
@@ -438,6 +441,21 @@
       <Filter>vm\bytecode</Filter>
     </ClCompile>
     <ClCompile Include="vm\bytecode\BytecodeProgram.cpp">
+      <Filter>vm\bytecode</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\bytecode\BytecodeProgram_Edit.cpp">
+      <Filter>vm\bytecode</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\bytecode\BytecodeProgram_SerializeRead.cpp">
+      <Filter>vm\bytecode</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\bytecode\BytecodeProgram_SerializeReadMeta.cpp">
+      <Filter>vm\bytecode</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\bytecode\BytecodeProgram_SerializeWrite.cpp">
+      <Filter>vm\bytecode</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\bytecode\BytecodeProgram_Tables.cpp">
       <Filter>vm\bytecode</Filter>
     </ClCompile>
     <ClCompile Include="vm\bytecode\ExceptionTable.cpp">
