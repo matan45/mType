@@ -485,6 +485,18 @@
     <ClCompile Include="vm\compiler\registration\ClassRegistrar.cpp">
       <Filter>vm\compiler\registration</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\registration\ClassRegistrar_Linking.cpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\registration\ClassRegistrar_Metadata.cpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\registration\ClassRegistrar_OverrideValidation.cpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\registration\ClassRegistrar_RegisterSingle.cpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\registration\FunctionRegistrar.cpp">
       <Filter>vm\compiler\registration</Filter>
     </ClCompile>
