@@ -497,7 +497,16 @@
     <ClCompile Include="vm\compiler\overload\OverloadResolutionHelper.cpp">
       <Filter>vm\compiler\overload</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\overload\OverloadResolutionHelper_Function.cpp">
+      <Filter>vm\compiler\overload</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\overload\OverloadResolutionHelper_Static.cpp">
+      <Filter>vm\compiler\overload</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\overload\OverloadResolver.cpp">
+      <Filter>vm\compiler\overload</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\overload\OverloadResolver_Phases.cpp">
       <Filter>vm\compiler\overload</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\registration\AnnotationRetention.cpp">
@@ -633,6 +642,9 @@
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\MethodCompilerHelper.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\MethodCompilerHelper_Body.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\ParameterValidator.cpp">
