@@ -794,6 +794,15 @@
     <ClCompile Include="vm\runtime\executors\TypeExecutor.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\runtime\executors\TypeExecutor_Cast.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\TypeExecutor_Instanceof.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\TypeExecutor_Interface.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
     <ClCompile Include="vm\runtime\executors\VariableExecutor.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
