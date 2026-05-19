@@ -557,6 +557,9 @@
     <ClCompile Include="validation\AnnotationValidator.cpp">
       <Filter>validation</Filter>
     </ClCompile>
+    <ClCompile Include="validation\AnnotationValidator_Constraints.cpp">
+      <Filter>validation</Filter>
+    </ClCompile>
     <ClCompile Include="validation\builtins\BuiltInAnnotations.cpp">
       <Filter>validation\builtins</Filter>
     </ClCompile>

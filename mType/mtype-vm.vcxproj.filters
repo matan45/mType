@@ -566,7 +566,13 @@
     <ClCompile Include="vm\compiler\types\TypeValidator.cpp">
       <Filter>vm\compiler\types</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\types\TypeValidator_Operations.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\validation\CompileTimeValidator.cpp">
+      <Filter>vm\compiler\validation</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\validation\CompileTimeValidator_Completeness.cpp">
       <Filter>vm\compiler\validation</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\validation\FieldInitializationValidator.cpp">
