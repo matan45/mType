@@ -7,6 +7,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="run\BenchmarkRunner.hpp" />
+    <ClInclude Include="run\BenchmarkRunner_Internal.hpp" />
     <ClInclude Include="run\DebugSession.hpp" />
     <ClInclude Include="run\ErrorReporting.hpp" />
     <ClInclude Include="run\MainExceptionHandlers.hpp" />
@@ -18,6 +19,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="run\BenchmarkRunner.cpp" />
+    <ClCompile Include="run\BenchmarkRunner_Report.cpp" />
     <ClCompile Include="run\DebugSession.cpp" />
     <ClCompile Include="run\ErrorReporting.cpp" />
     <ClCompile Include="run\Main.cpp" />

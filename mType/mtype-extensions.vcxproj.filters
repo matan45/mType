@@ -395,6 +395,9 @@
     <ClCompile Include="json\JsonDeserializer.cpp">
       <Filter>json</Filter>
     </ClCompile>
+    <ClCompile Include="json\JsonDeserializer_Collections.cpp">
+      <Filter>json</Filter>
+    </ClCompile>
     <ClCompile Include="json\JsonNatives.cpp">
       <Filter>json</Filter>
     </ClCompile>
@@ -402,6 +405,9 @@
       <Filter>json</Filter>
     </ClCompile>
     <ClCompile Include="json\JsonSerializer.cpp">
+      <Filter>json</Filter>
+    </ClCompile>
+    <ClCompile Include="json\JsonSerializer_Collections.cpp">
       <Filter>json</Filter>
     </ClCompile>
     <ClCompile Include="json\JsonValue.cpp">
@@ -453,6 +459,15 @@
       <Filter>project</Filter>
     </ClCompile>
     <ClCompile Include="project\ProjectBuilder.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\ProjectBuilder_Compile.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\ProjectBuilder_Executable.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\ProjectBuilder_Library.cpp">
       <Filter>project</Filter>
     </ClCompile>
     <ClCompile Include="project\ProjectConfigParser.cpp">
@@ -530,10 +545,16 @@
     <ClCompile Include="services\BytecodeService.cpp">
       <Filter>services</Filter>
     </ClCompile>
+    <ClCompile Include="services\BytecodeService_Metadata.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
     <ClCompile Include="services\FileReader.cpp">
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="services\ImportManager.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\ImportManager_Resolution.cpp">
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="services\ImportResolver.cpp">
@@ -548,7 +569,13 @@
     <ClCompile Include="services\ScriptAPI.cpp">
       <Filter>services</Filter>
     </ClCompile>
+    <ClCompile Include="services\ScriptAPI_Reflection.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
     <ClCompile Include="services\ScriptInterpreter.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\ScriptInterpreter_Api.cpp">
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="validation\AnnotationUsageValidator.cpp">

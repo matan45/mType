@@ -1,17 +1,12 @@
 #include "ImportManager.hpp"
-#include <cstddef>
-#include <filesystem>
-#include <algorithm>
 #include "../lexer/Lexer.hpp"
 #include "../parser/Parser.hpp"
-#include "../errors/FileException.hpp"
 #include "../ast/nodes/statements/ImportNode.hpp"
 #include "../ast/nodes/statements/ProgramNode.hpp"
 #include "../ast/nodes/statements/BlockNode.hpp"
 
 namespace services
 {
-    namespace fs = std::filesystem;
     using namespace ast;
     using namespace lexer;
     using namespace parser;
@@ -25,271 +20,28 @@ namespace services
         clearCache();
     }
 
-    void ImportManager::setBaseDirectory(const std::string& dir)
-    {
-        baseDirectory = dir;
-    }
-
-    void ImportManager::setProjectRoot(const std::string& root)
-    {
-        allowedRoots.clear();
-        if (!root.empty())
-        {
-            allowedRoots.push_back(root);
-        }
-    }
-
-    void ImportManager::addAllowedRoot(const std::string& root)
-    {
-        if (!root.empty())
-        {
-            allowedRoots.push_back(root);
-        }
-    }
-
-    std::string ImportManager::getCurrentFilePath() const
-    {
-        return currentFilePath;
-    }
-
-    void ImportManager::setCurrentFilePath(const std::string& path)
-    {
-        currentFilePath = path;
-    }
-
-    void ImportManager::setSearchPaths(const std::vector<std::string>& paths)
-    {
-        searchPaths = paths;
-    }
-
-    void ImportManager::setPathAliases(const std::unordered_map<std::string, std::string>& aliases)
-    {
-        pathAliases = aliases;
-    }
-
-    std::string ImportManager::resolvePath(const std::string& path)
-    {
-        std::string resolvedPath = path;
-
-        // Check for path alias (e.g., @core/utils.mt -> lib/core/utils.mt)
-        if (!resolvedPath.empty() && resolvedPath[0] == '@')
-        {
-            size_t slashPos = resolvedPath.find('/');
-            if (slashPos == std::string::npos)
-            {
-                slashPos = resolvedPath.find('\\');
-            }
-
-            std::string aliasName = (slashPos != std::string::npos)
-                ? resolvedPath.substr(0, slashPos)
-                : resolvedPath;
-
-            auto it = pathAliases.find(aliasName);
-            if (it != pathAliases.end())
-            {
-                std::string remainder = (slashPos != std::string::npos)
-                    ? resolvedPath.substr(slashPos)
-                    : "";
-                resolvedPath = it->second + remainder;
-            }
-        }
-
-        fs::path filePath(resolvedPath);
-
-        // SECURITY: absolute paths are still allowed because some build
-        // systems pass absolute paths into the import alias map, but they
-        // must canonicalize to a location inside baseDirectory. Path
-        // traversal attempts (/etc/passwd, C:\Windows\..., etc.) are
-        // rejected by enforceWithinProjectRoot.
-        if (!filePath.is_relative())
-        {
-            filePath = normalizeFilePath(filePath, false);
-            enforceWithinProjectRoot(filePath, path);
-            return filePath.string();
-        }
-
-        // Try resolving relative to current file's directory first
-        if (!currentFilePath.empty())
-        {
-            fs::path currentFileDir = fs::path(currentFilePath).parent_path();
-            fs::path candidate = currentFileDir / filePath;
-
-            try
-            {
-                candidate = normalizeFilePath(candidate, true);
-                if (fs::exists(candidate))
-                {
-                    enforceWithinProjectRoot(candidate, path);
-                    return candidate.string();
-                }
-            }
-            catch (const std::filesystem::filesystem_error&)
-            {
-            }
-        }
-
-        // Try resolving relative to base directory
-        {
-            fs::path candidate = fs::path(baseDirectory) / filePath;
-
-            try
-            {
-                candidate = normalizeFilePath(candidate, true);
-                if (fs::exists(candidate))
-                {
-                    enforceWithinProjectRoot(candidate, path);
-                    return candidate.string();
-                }
-            }
-            catch (const std::filesystem::filesystem_error&)
-            {
-            }
-        }
-
-        // Try each search path
-        for (const auto& searchPath : searchPaths)
-        {
-            fs::path searchDir = fs::path(baseDirectory) / searchPath;
-            fs::path candidate = searchDir / filePath;
-
-            try
-            {
-                candidate = normalizeFilePath(candidate, true);
-                if (fs::exists(candidate))
-                {
-                    enforceWithinProjectRoot(candidate, path);
-                    return candidate.string();
-                }
-            }
-            catch (const std::filesystem::filesystem_error&)
-            {
-            }
-        }
-
-        // Fall back to original resolution (may throw if file doesn't exist)
-        if (!currentFilePath.empty())
-        {
-            fs::path currentFileDir = fs::path(currentFilePath).parent_path();
-            filePath = currentFileDir / filePath;
-        }
-        else
-        {
-            filePath = fs::path(baseDirectory) / filePath;
-        }
-
-        filePath = normalizeFilePath(filePath, false);
-        enforceWithinProjectRoot(filePath, path);
-        return filePath.string();
-    }
-
-    void ImportManager::enforceWithinProjectRoot(const fs::path& resolved,
-                                                 const std::string& originalPath)
-    {
-        // Containment is opt-in: only enforced when explicit allowed root(s)
-        // have been configured (via setProjectRoot/addAllowedRoot). Ad-hoc
-        // scripts and tests run without any and skip the check entirely,
-        // since their layouts often legitimately use ../ to reach shared
-        // lib directories.
-        if (allowedRoots.empty())
-        {
-            return;
-        }
-
-        fs::path canonicalResolved;
-        try
-        {
-            canonicalResolved = fs::canonical(resolved);
-        }
-        catch (const std::filesystem::filesystem_error&)
-        {
-            canonicalResolved = fs::absolute(resolved).lexically_normal();
-        }
-
-        // Check if the resolved path falls within ANY of the allowed roots.
-        for (const auto& root : allowedRoots)
-        {
-            fs::path canonicalRoot;
-            try
-            {
-                canonicalRoot = fs::canonical(root);
-            }
-            catch (const std::filesystem::filesystem_error&)
-            {
-                canonicalRoot = fs::absolute(root).lexically_normal();
-            }
-
-            // Component-by-component prefix check. Using iterator comparison
-            // defeats /projectroot-evil/file kinds of bypass that a string
-            // find() would accept.
-            auto rootIt = canonicalRoot.begin();
-            auto rootEnd = canonicalRoot.end();
-            auto pathIt = canonicalResolved.begin();
-            auto pathEnd = canonicalResolved.end();
-
-            bool isWithin = true;
-            for (; rootIt != rootEnd; ++rootIt, ++pathIt)
-            {
-                if (pathIt == pathEnd || *pathIt != *rootIt)
-                {
-                    isWithin = false;
-                    break;
-                }
-            }
-
-            if (isWithin)
-            {
-                return;
-            }
-        }
-
-        throw errors::FileException(
-            "Import path escapes project root: " + originalPath);
-    }
-
     ASTNode* ImportManager::parseAndCacheAST(const std::string& rawPath)
     {
         std::string resolvedPath = resolvePath(rawPath);
 
-        // Check if already cached
         auto it = astCache.find(resolvedPath);
         if (it != astCache.end())
         {
             return it->second.get();
         }
 
-        // Parse .mt file directly
         Lexer lexer(resolvedPath);
+        // Pass nullptr for ImportManager since we don't handle nested imports
+        // during parsing — they're handled during the evaluation phase below.
         Parser parser(lexer, nullptr);
-        // Pass nullptr for ImportManager since we don't handle nested imports during parsing
-
-        // Pure parsing only - no ImportManager dependency
-        // If the nested file has imports, they will be handled during evaluation phase
         std::unique_ptr<ASTNode> ast = parser.parseProgram();
 
-        // Cache the AST
         ASTNode* astPtr = ast.get();
         astCache[resolvedPath] = std::move(ast);
         importedFiles.insert(resolvedPath);
 
         return astPtr;
     }
-
-    std::string ImportManager::resolvePathConsistently(const std::string& path)
-    {
-        fs::path filePath(path);
-
-        // If path is relative, resolve it relative to the ORIGINAL base directory (not current directory)
-        if (filePath.is_relative())
-        {
-            filePath = fs::path(baseDirectory) / filePath;
-        }
-
-        // Normalize the path (resolve . and .. components)
-        filePath = normalizeFilePath(filePath, true);
-
-        return filePath.string();
-    }
-
 
     void ImportManager::clearCache()
     {
@@ -318,7 +70,7 @@ namespace services
         }
         catch (const std::exception&)
         {
-            // Ignore errors when marking as evaluated
+            // Ignore errors when marking as evaluated.
         }
     }
 
@@ -366,10 +118,9 @@ namespace services
     {
         if (!node) return;
 
-        // Handle ImportNode
         if (auto importNode = dynamic_cast<ast::ImportNode*>(node))
         {
-            // Library imports are resolved by LibraryLinker, not ImportManager
+            // Library imports are resolved by LibraryLinker, not ImportManager.
             if (importNode->isLibraryImport()) {
                 markLibraryLoaded(importNode->getLibraryName());
                 return;
@@ -377,29 +128,25 @@ namespace services
 
             std::string filePath = importNode->getFilePath();
 
-            // If already resolved, just recurse into imported AST
             if (importNode->isResolved() && importNode->getImportedAST())
             {
                 handleResolvedImport(importNode);
                 return;
             }
 
-            // Handle unresolved import
             handleUnresolvedImport(importNode, filePath);
             return;
         }
 
-        // Recursively process children based on node type
         resolveImportsInChildren(node);
     }
 
     void ImportManager::handleResolvedImport(ast::ImportNode* importNode)
     {
-        // Save current file path and restore after recursion
         std::string savedCurrentFile = currentFilePath;
 
-        // Need to know the resolved path of the imported file to set as current
-        // Use the cached resolved path
+        // Find the cached resolved path of the imported file so nested
+        // imports inside it resolve relative to its own directory.
         for (const auto& [path, ast] : astCache)
         {
             if (ast.get() == importNode->getImportedAST())
@@ -415,36 +162,31 @@ namespace services
 
     void ImportManager::handleUnresolvedImport(ast::ImportNode* importNode, const std::string& filePath)
     {
-        // Save current file path
         std::string savedCurrentFile = currentFilePath;
 
-        // Resolve the import path (relative to current file)
         std::string resolvedPath = resolvePath(filePath);
         markAsBeingEvaluated(resolvedPath);
 
         try
         {
-            // Set current file to the resolved path BEFORE parsing
-            // This ensures that if the imported file has its own imports,
-            // they will be resolved relative to the imported file's directory
+            // Set current file to the resolved path BEFORE parsing so any
+            // imports inside the imported file resolve relative to its own
+            // directory.
             currentFilePath = resolvedPath;
 
-            // Parse and cache the imported file
-            // IMPORTANT: Pass resolvedPath, not filePath, to avoid double resolution
+            // IMPORTANT: pass resolvedPath, not filePath, to avoid double
+            // resolution inside parseAndCacheAST.
             ASTNode* importedAST = parseAndCacheAST(resolvedPath);
             importNode->setImportedAST(importedAST);
 
-            // Recursively resolve imports in the imported file
             resolveAllImports(importedAST);
 
             markAsEvaluated(resolvedPath);
 
-            // Restore previous current file
             currentFilePath = savedCurrentFile;
         }
         catch (...)
         {
-            // Restore current file on error
             currentFilePath = savedCurrentFile;
             unmarkAsBeingEvaluated(resolvedPath);
             throw;
@@ -468,47 +210,6 @@ namespace services
             {
                 resolveAllImports(statement.get());
             }
-        }
-    }
-
-    bool ImportManager::safeCheckInSet(const std::string& rawPath,
-                                       const std::unordered_set<std::string>& set,
-                                       bool useConsistentResolve)
-    {
-        try
-        {
-            std::string resolvedPath = useConsistentResolve ?
-                resolvePathConsistently(rawPath) : resolvePath(rawPath);
-            return set.find(resolvedPath) != set.end();
-        }
-        catch (...)
-        {
-            return false;
-        }
-    }
-
-    std::filesystem::path ImportManager::normalizeFilePath(const std::filesystem::path& filePath,
-                                                          bool allowFallback)
-    {
-        // First, lexically normalize the path to resolve . and .. components
-        // This doesn't require the file to exist
-        fs::path normalized = filePath.lexically_normal();
-
-        if (allowFallback)
-        {
-            try
-            {
-                return fs::canonical(normalized);
-            }
-            catch (const std::filesystem::filesystem_error&)
-            {
-                // If canonical fails, at least get the absolute path
-                return fs::absolute(normalized);
-            }
-        }
-        else
-        {
-            return fs::canonical(normalized);
         }
     }
 

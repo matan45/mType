@@ -182,6 +182,9 @@
     <ClCompile Include="lexer\Lexer.cpp">
       <Filter>lexer</Filter>
     </ClCompile>
+    <ClCompile Include="lexer\Lexer_Tokens.cpp">
+      <Filter>lexer</Filter>
+    </ClCompile>
     <ClCompile Include="lexer\SourceLocationTracker.cpp">
       <Filter>lexer</Filter>
     </ClCompile>
