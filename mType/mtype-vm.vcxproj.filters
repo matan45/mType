@@ -503,6 +503,18 @@
     <ClCompile Include="vm\compiler\types\TypeInferenceEngine.cpp">
       <Filter>vm\compiler\types</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\types\TypeInferenceEngine_Binary.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\types\TypeInferenceEngine_ClassNames.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\types\TypeInferenceEngine_Functions.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\types\TypeInferenceEngine_Nullable.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\types\TypeNameValidator.cpp">
       <Filter>vm\compiler\types</Filter>
     </ClCompile>
