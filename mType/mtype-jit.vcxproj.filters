@@ -369,6 +369,9 @@
     <ClInclude Include="vm\jit\JitCompiler_ControlFlow.hpp">
       <Filter>vm\jit</Filter>
     </ClInclude>
+    <ClInclude Include="vm\jit\JitCompiler_Objects.hpp">
+      <Filter>vm\jit</Filter>
+    </ClInclude>
     <ClInclude Include="vm\jit\JitCompiler_Shapes.hpp">
       <Filter>vm\jit</Filter>
     </ClInclude>
@@ -379,6 +382,9 @@
       <Filter>vm\jit</Filter>
     </ClInclude>
     <ClInclude Include="vm\jit\JitHelpers.hpp">
+      <Filter>vm\jit</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\jit\JitHelpers_Objects.hpp">
       <Filter>vm\jit</Filter>
     </ClInclude>
     <ClInclude Include="vm\jit\JitProfiler.hpp">
@@ -659,6 +665,27 @@
     <ClCompile Include="vm\jit\JitCompiler_OSR.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_ObjectCallInline.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_ObjectCallMethod.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_ObjectCallProtocol.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_ObjectFields.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_ObjectInstantiation.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_ObjectIteration.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_ObjectTypes.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
     <ClCompile Include="vm\jit\JitCompiler_Objects.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
@@ -689,7 +716,22 @@
     <ClCompile Include="vm\jit\JitHelpers_OSR.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
-    <ClCompile Include="vm\jit\JitHelpers_Objects.cpp">
+    <ClCompile Include="vm\jit\JitHelpers_ObjectCallIC.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitHelpers_ObjectCalls.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitHelpers_ObjectFields.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitHelpers_ObjectInstantiation.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitHelpers_ObjectStruct.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitHelpers_ObjectTypes.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
     <ClCompile Include="vm\jit\JitHelpers_Variables.cpp">

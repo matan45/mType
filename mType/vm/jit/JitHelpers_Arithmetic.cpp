@@ -393,13 +393,14 @@ namespace vm::jit
                         }
                         if (directTarget)
                         {
-                            jit_call_function_direct(ctx,
-                                                      directTarget,
-                                                      cached->cachedProgram,
-                                                      cached->cachedFuncMetadata,
-                                                      cached->cachedFrameName,
-                                                      cached->cachedProgramIndex,
-                                                      argCount);
+                            JitDirectCallArgs directArgs{
+                                directTarget,
+                                cached->cachedProgram,
+                                cached->cachedFuncMetadata,
+                                cached->cachedFrameName,
+                                cached->cachedProgramIndex,
+                                argCount};
+                            jit_call_function_direct(ctx, directArgs);
                             return;
                         }
                     }

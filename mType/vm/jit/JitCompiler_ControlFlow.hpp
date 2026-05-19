@@ -36,7 +36,7 @@ namespace vm::jit
     // JitCompiler_ControlFlow.cpp.
     void emitInlineGcSafepoint(JitEmissionState& s);
 
-    // MYT-316: defined in JitCompiler_Objects.cpp. Speculatively pastes the
+    // Defined in JitCompiler_ObjectCallInline.cpp. Speculatively pastes the
     // callee's bytecode body inline if it passes the plain-function inline
     // eligibility. No runtime identity guard — invalidation is eager via
     // JitCodeCache reverse edges (registerInlineEdge / invalidatedInlineCallersOf).
