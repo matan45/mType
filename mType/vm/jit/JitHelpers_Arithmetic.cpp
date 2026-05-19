@@ -1,161 +1,24 @@
 #include "JitHelpers.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <sstream>
+#include <variant>
+#include <vector>
 #include "JitCodeCache.hpp"
 #include "guards/DeoptimizationHandler.hpp"
-#include "../../value/ValueShim.hpp"
-#include "../../value/ValueObject.hpp"
-#include "../../value/ObjectInstance.hpp"
-#include "../../errors/RuntimeException.hpp"
+#include "../bytecode/BytecodeProgram.hpp"
+#include "../runtime/VirtualMachine.hpp"
 #include "../../environment/Environment.hpp"
 #include "../../environment/NativeContext.hpp"
 #include "../../environment/registry/NativeRegistry.hpp"
-#include "../bytecode/BytecodeProgram.hpp"
-#include "../runtime/VirtualMachine.hpp"
+#include "../../errors/RuntimeException.hpp"
+#include "../../value/ObjectInstance.hpp"
 #include "../../value/StringPool.hpp"
-#include <vector>
-#include <sstream>
-#include <variant>
+#include "../../value/ValueObject.hpp"
+#include "../../value/ValueShim.hpp"
 
 namespace vm::jit
 {
-    // MYT-254 follow-up: minimal valueToString for the JIT generic-binop
-    // string-concat fallback. Mirrors ArithmeticExecutor::valueToString for
-    // the primitive cases (INT/FLOAT/BOOL/STRING/INTERNED_STRING/NULL/VOID),
-    // plus the Int/Float/Bool/String value-class wrappers via field-0 unbox
-    // (matches tryReadBoxedField's "single `value` field at index 0"
-    // invariant from the lib/primitives boxed types). Custom-toString
-    // OBJECT receivers fall through to the throw path; the JIT can't
-    // safely re-enter the interpreter for arbitrary toString() dispatch
-    // from inside this helper without risking re-entrancy bugs.
-    static bool valueToStringForConcat(const value::Value& v, std::string& out)
-    {
-        if (value::isInt(v))
-        {
-            out = std::to_string(value::asInt(v));
-            return true;
-        }
-        if (value::isFloat(v))
-        {
-            std::ostringstream oss;
-            oss << value::asFloat(v);
-            out = oss.str();
-            return true;
-        }
-        if (value::isBool(v))
-        {
-            out = value::asBool(v) ? "true" : "false";
-            return true;
-        }
-        // MYT-317: SSO-aware. Folds the three string forms into one branch.
-        if (value::isAnyString(v))
-        {
-            out = std::string(value::asStringView(v));
-            return true;
-        }
-        if (value::isNullType(v))
-        {
-            out = "null";
-            return true;
-        }
-        if (value::isVoid(v))
-        {
-            out = "void";
-            return true;
-        }
-        // Boxed primitive wrappers (Int/Float/Bool/String value classes from
-        // lib/primitives): single `value` field at index 0 holding the
-        // underlying primitive. Recurse on the field — handles `text + i`
-        // where i is `Int` and `prefix + flag` where flag is `Bool`.
-        if (value::isValueObject(v))
-        {
-            const auto& vo = value::asValueObject(v);
-            if (vo && vo->getFieldCount() > 0)
-                return valueToStringForConcat(vo->getFieldByIndex(0), out);
-            return false;
-        }
-        if (value::isAnyObject(v))
-        {
-            auto* obj = value::asObjectInstanceRaw(v);
-            if (obj && obj->hasFieldVector())
-                return valueToStringForConcat(obj->getFieldByIndex(0), out);
-            return false;
-        }
-        return false;
-    }
-
-    static void performGenericBinop(value::Value* result,
-                                     const value::Value* left,
-                                     const value::Value* right,
-                                     char op)
-    {
-        if (value::isInt(*left) && value::isInt(*right))
-        {
-            int64_t l = value::asInt(*left);
-            int64_t r = value::asInt(*right);
-            switch (op)
-            {
-                case '+': *result = l + r; return;
-                case '-': *result = l - r; return;
-                case '*': *result = l * r; return;
-                case '/':
-                    if (r == 0) throw errors::RuntimeException("Division by zero");
-                    *result = l / r; return;
-                case '%':
-                    if (r == 0) throw errors::RuntimeException("Modulo by zero");
-                    *result = l % r; return;
-            }
-        }
-
-        bool leftIsNumeric = value::isFloat(*left) || value::isInt(*left);
-        bool rightIsNumeric = value::isFloat(*right) || value::isInt(*right);
-
-        if (leftIsNumeric && rightIsNumeric)
-        {
-            double l = value::isFloat(*left)
-                ? value::asFloat(*left)
-                : static_cast<double>(value::asInt(*left));
-            double r = value::isFloat(*right)
-                ? value::asFloat(*right)
-                : static_cast<double>(value::asInt(*right));
-
-            switch (op)
-            {
-                case '+': *result = l + r; return;
-                case '-': *result = l - r; return;
-                case '*': *result = l * r; return;
-                case '/':
-                    if (r == 0.0) throw errors::RuntimeException("Division by zero");
-                    *result = l / r; return;
-                case '%':
-                    throw errors::RuntimeException("Modulo not supported for float");
-            }
-        }
-
-        // MYT-254: string concatenation for ADD with at least one string-like
-        // operand. Mirrors ArithmeticExecutor::performBinaryOp's string-concat
-        // path so JIT-compiled outer loops handle `"-" + (i % 13)` and similar
-        // mixed-type ADD chains the same way the interpreter does. Without
-        // this, the throw below was being caught into ctx->pendingException
-        // and the JIT loop continued with garbage, producing corrupted
-        // String VALUE_OBJECTs whose value field held the right operand's
-        // raw int (boxed_primitive_dispatch_hot.mt regression).
-        // MYT-317: isAnyString covers STRING_INLINE alongside heap STRING.
-        if (op == '+' &&
-            (value::isAnyString(*left) || value::isAnyString(*right)))
-        {
-            std::string ls, rs;
-            if (valueToStringForConcat(*left, ls) &&
-                valueToStringForConcat(*right, rs))
-            {
-                *result = value::StringPool::getInstance().intern(ls + rs);
-                return;
-            }
-        }
-
-        throw errors::RuntimeException("Unsupported operand types for arithmetic");
-    }
-
     // Phase 2: resolved dispatch — callers supply the pre-resolved JitFunction
     // and an already-interned frame-name handle, skipping both the name
     // hashmap lookup and the per-call internFrameName hash. tryJitDispatch
@@ -168,8 +31,8 @@ namespace vm::jit
         if (!jitFn || !ctx->vm)
             return false;
 
-        // If native recursion is too deep, fall back to interpreter to avoid
-        // native C++ stack overflow (the VM interpreter uses a managed call stack)
+        // Native recursion guard — fall back to interpreter (managed call stack)
+        // to avoid overflowing the native C++ stack.
         if (ctx->vm->getJitNativeDepth() >= vm::runtime::VirtualMachine::MAX_JIT_NATIVE_DEPTH)
             return false;
 
@@ -229,14 +92,10 @@ namespace vm::jit
         ctx->vm->decrementJitNativeDepth();
         ctx->vm->popCallStack();
 
-        // Propagate any exception stored by JIT helpers (including the
-        // OSRDeoptException stashed by jit_await — the function-level
-        // deopt boundary in executeCallWithJit detects it and routes to
-        // the interpreter fallback).
         if (nestedCtx.pendingException)
         {
             ctx->pendingException = nestedCtx.pendingException;
-            return true;  // Return true so caller doesn't try other dispatch paths
+            return true;
         }
 
         ctx->returnValue = nestedCtx.returnValue;
@@ -281,7 +140,6 @@ namespace vm::jit
 
     void jit_call_function(JitContext* ctx, uint32_t nameIndex, size_t argCount)
     {
-        // If a previous call in this JIT frame already failed, bail out immediately
         if (ctx->pendingException)
             return;
 
@@ -310,15 +168,13 @@ namespace vm::jit
         }
         catch (...)
         {
-            // Store exception — don't let it unwind through JIT-generated frames.
-            // (Function-level JIT bodies have no implicit pendingException check
-            // between opcodes; rely on each helper's entry-check to short-circuit
-            // until the body returns and executeCallWithJit rethrows.)
+            // Function-level JIT bodies have no implicit pendingException check
+            // between opcodes, so each helper's entry-check short-circuits until
+            // the body returns and executeCallWithJit rethrows.
             // MYT-268: includes the OSRDeoptException stashed by jit_await
             // (now propagated via nestedCtx.pendingException in
             // tryJitDispatchResolved, then assigned to ctx->pendingException
-            // before the helper returns — the prior catch (OSRDeoptException&)
-            // arm is unreachable since no callee throws this type anymore).
+            // before the helper returns).
             ctx->pendingException = std::current_exception();
         }
     }
@@ -336,18 +192,15 @@ namespace vm::jit
         {
             const std::string& funcName = ctx->program->getConstantPool().getString(nameIndex);
 
-            // IC slot lookup. On warm path we route based on what was probed
-            // and cached on the first call at this IP. The JIT-dispatch arm
-            // is split out into a "do we even attempt tryJitDispatchResolved"
-            // gate (jitProbeDone) so a callee that's NOT separately JIT-
-            // compiled never re-pays the jitCodeCache hashmap probe — that
-            // probe was the source of the generic_dispatch_hot.mt regression
-            // when added blindly to every IC hit.
+            // IC slot lookup. The JIT-dispatch arm is split out into a "do we
+            // even attempt tryJitDispatchResolved" gate (jitProbeDone) so a
+            // callee that's NOT separately JIT-compiled never re-pays the
+            // jitCodeCache hashmap probe — that probe was the source of the
+            // generic_dispatch_hot.mt regression when added blindly to every IC hit.
             auto* cached = ctx->program->findCachedState(bytecodeOffset);
 
             if (cached && cached->jitProbeDone)
             {
-                // Native callee: cached delegate, invoke directly.
                 if (cached->cachedNativeFunc && ctx->vm)
                 {
                     environment::NativeContext nativeCtx{ ctx->vm->getEnvironment(), ctx->vm->shared_from_this() };
@@ -356,28 +209,21 @@ namespace vm::jit
                     ctx->hasReturnValue = true;
                     return;
                 }
-                // Interpreter-only callee (most common: small bodies that
-                // never crossed the JIT compilation threshold). Cached
-                // FunctionMetadata lets us skip the program->getFunction
-                // hashmap probe.
                 if (cached->cachedFuncMetadata && ctx->vm)
                 {
                     // MYT-322: take the direct JIT-to-JIT path only when
-                    // (a) the callee's instructionCount crosses the per-
-                    // call-overhead break-even point, and (b) the callee
-                    // has been JIT-compiled. Tiny leaves keep the cheaper
-                    // mini-interpret fast path.
+                    // (a) the callee's instructionCount crosses the per-call-
+                    // overhead break-even point, and (b) the callee has been
+                    // JIT-compiled. Tiny leaves keep the cheaper mini-interpret
+                    // fast path.
                     //
-                    // Lazy refresh of cachedJitFnPtr mirrors the method-
-                    // side pattern at JitHelpers_Objects.cpp:839-860. The
-                    // cold-fill at this IP runs before the callee tiers
-                    // up to JIT in most workloads; without the refresh,
-                    // cachedJitFnPtr stays null and the direct path
-                    // never engages even after function-entry tiering
-                    // compiles the callee. The probe is gated on the
-                    // size threshold so tiny callees that wouldn't take
-                    // the direct path anyway don't pay the hashmap cost
-                    // per call (the cause of MYT-321's revert).
+                    // Lazy refresh of cachedJitFnPtr mirrors JitHelpers_Objects
+                    // pattern. Cold-fill at this IP runs before the callee
+                    // tiers up; without the refresh, cachedJitFnPtr stays null
+                    // and the direct path never engages even after function-
+                    // entry tiering compiles the callee. Size threshold gating
+                    // avoids the hashmap cost on tiny callees (MYT-321 revert
+                    // cause).
                     void* directTarget = cached->cachedJitFnPtr;
                     if (cached->cachedFuncMetadata->instructionCount >= MIN_DIRECT_CALL_INSTRUCTION_COUNT)
                     {
@@ -410,17 +256,15 @@ namespace vm::jit
                     ctx->hasReturnValue = true;
                     return;
                 }
-                // jitProbeDone but no cached target — name didn't resolve last
-                // time. Fall through to the throw at the end with a fresh lookup.
+                // jitProbeDone but no cached target — fall through to the
+                // throw at the end with a fresh lookup.
             }
 
             // Cold path: first call at this IP. Probe native + funcMeta and
             // populate the IC. MYT-322 also probes JitCodeCache and pre-
             // interns the frame name + resolves the callee's programIndex so
             // the warm path's direct-dispatch branch can hand them straight
-            // to jit_call_function_direct without re-doing the work. The
-            // size gate at the warm-path call site keeps tiny callees off
-            // the direct path (the original MYT-321 regression cause).
+            // to jit_call_function_direct without re-doing the work.
             ::environment::registry::NativeDelegate nativeFn{};
             auto nativeRegistry = ctx->environment ? ctx->environment->getNativeRegistry() : nullptr;
             if (nativeRegistry && nativeRegistry->hasNativeFunction(funcName))
@@ -434,11 +278,8 @@ namespace vm::jit
                 funcMeta = ctx->program->getFunction(funcName);
             }
 
-            // MYT-322: resolve the callee's program index once. The old
-            // code unconditionally stored `0` here, which is wrong for
-            // library callees; no consumer reads the field for functions
-            // today so the bug was silent, but jit_call_function_direct
-            // relies on it being correct.
+            // MYT-322: resolve the callee's program index once. The old code
+            // unconditionally stored `0`, which was wrong for library callees.
             size_t calleeProgramIndex = 0;
             if (funcMeta && ctx->vm)
             {
@@ -449,12 +290,10 @@ namespace vm::jit
                 }
             }
 
-            // MYT-322: probe JitCodeCache exactly once per IP. Native
-            // delegates are never JIT-dispatched; skip the lookup when
-            // nativeFn is set. The frame name is interned unconditionally
-            // when funcMeta resolved, maintaining the invariant "frameName
-            // valid iff funcMeta cached" — the cost is a single hashmap
-            // probe per IP per program lifetime.
+            // MYT-322: probe JitCodeCache exactly once per IP. Native delegates
+            // are never JIT-dispatched; skip the lookup when nativeFn is set.
+            // The frame name is interned unconditionally when funcMeta resolved,
+            // maintaining the invariant "frameName valid iff funcMeta cached".
             void* jitFnPtr = nullptr;
             bytecode::FunctionNameHandle frameName{ bytecode::INVALID_FN_HANDLE };
             if (funcMeta && !nativeFn)
@@ -466,7 +305,6 @@ namespace vm::jit
                 frameName = ctx->program->internFrameName(funcName);
             }
 
-            // Populate IC slot for warm path.
             {
                 auto& slot = ctx->program->getOrCreateCachedState(bytecodeOffset);
                 slot.cachedNativeFunc = nativeFn;
@@ -503,9 +341,6 @@ namespace vm::jit
         }
         catch (...)
         {
-            // MYT-268: includes the OSRDeoptException stashed by jit_await
-            // (propagated via nestedCtx.pendingException; the prior
-            // catch (OSRDeoptException&) wrapper here is unreachable).
             ctx->pendingException = std::current_exception();
         }
     }
@@ -565,36 +400,8 @@ namespace vm::jit
         }
         catch (...)
         {
-            // MYT-268: includes the OSRDeoptException stashed by jit_await
-            // (propagated via nestedCtx.pendingException; the prior
-            // catch (OSRDeoptException&) wrapper here is unreachable).
             ctx->pendingException = std::current_exception();
         }
-    }
-
-    void jit_generic_add(value::Value* result, const value::Value* left, const value::Value* right)
-    {
-        performGenericBinop(result, left, right, '+');
-    }
-
-    void jit_generic_sub(value::Value* result, const value::Value* left, const value::Value* right)
-    {
-        performGenericBinop(result, left, right, '-');
-    }
-
-    void jit_generic_mul(value::Value* result, const value::Value* left, const value::Value* right)
-    {
-        performGenericBinop(result, left, right, '*');
-    }
-
-    void jit_generic_div(value::Value* result, const value::Value* left, const value::Value* right)
-    {
-        performGenericBinop(result, left, right, '/');
-    }
-
-    void jit_generic_mod(value::Value* result, const value::Value* left, const value::Value* right)
-    {
-        performGenericBinop(result, left, right, '%');
     }
 
     void jit_throw_div_by_zero()
@@ -643,4 +450,3 @@ namespace vm::jit
         *dest = pool.intern(str);
     }
 }
-

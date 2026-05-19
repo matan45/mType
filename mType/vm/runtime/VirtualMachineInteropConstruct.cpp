@@ -4,22 +4,19 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "context/SharedStackFramePool.hpp"
 #include "executors/ControlFlowExecutor.hpp"
-#include "utils/InteropExceptionDecorator.hpp"
 #include "utils/ExceptionHandler.hpp"
+#include "utils/InteropExceptionDecorator.hpp"
+#include "../../environment/registry/ClassDefinition.hpp"
 #include "../../errors/ClassNotFoundException.hpp"
 #include "../../errors/ConstructorNotFoundException.hpp"
-#include "../../errors/NullPointerException.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/ScriptException.hpp"
 #include "../../errors/UserException.hpp"
 #include "../../value/ObjectInstance.hpp"
-#include "../../environment/registry/ClassDefinition.hpp"
-#include "../../value/AsyncPromiseValue.hpp"
 #include "../../value/ObjectInstancePool.hpp"
-#include "../../value/PromiseValue.hpp"
 #include "../../value/ValueShim.hpp"  // MYT-208: makeStackObjectValue
-#include "context/SharedStackFramePool.hpp"
 
 namespace vm::runtime
 {
@@ -106,7 +103,6 @@ namespace vm::runtime
         }
     }
 
-    // Object construction & lambda invocation
     value::Value VirtualMachine::createObject(const std::string& className, std::span<const value::Value> args)
     {
         // Save current state up front so the typed catch can decorate the
@@ -127,27 +123,23 @@ namespace vm::runtime
             std::string baseClassName = parseGenericTypeName(
                 className, environment, genericTypeBindings);
 
-            // Find class definition
             auto classDef = environment->findClass(baseClassName);
             if (!classDef)
             {
                 throw errors::ClassNotFoundException(className);
             }
 
-            // Create object instance
             auto instance = genericTypeBindings.empty()
                 ? value::ObjectInstancePool::getInstance().acquire(classDef)
                 : value::ObjectInstancePool::getInstance().acquire(classDef, genericTypeBindings);
 
-            // Find constructor using type-aware lookup
             auto constructor = classDef->findConstructorByTypes(args);
             if (!constructor)
             {
-                // Check for default constructor case (no params, no explicit constructor)
+                // Default ctor: no params + no explicit constructor declared.
                 bool hasAnyConstructor = !classDef->getConstructors().empty();
                 if (args.empty() && !hasAnyConstructor)
                 {
-                    // Default constructor - just return the instance
                     return value::Value(instance);
                 }
                 // MYT-46: typed throw → MT-E1009 NameConstructorNotFound.
@@ -207,10 +199,8 @@ namespace vm::runtime
                 cache.frameNameHandle = frameNameHandle.id;
             }
 
-            // Reset finally offset for new function call
             currentFinallyOffset = SIZE_MAX;
 
-            // Push instance and arguments onto stack
             size_t frameBase = stackManager->size();
             push(instance);
             for (const auto& arg : args)
@@ -218,9 +208,8 @@ namespace vm::runtime
                 push(arg);
             }
 
-            // Create call frame
             CallFrame frame;
-            // Set return address to end of program so interpretLoop exits after constructor returns
+            // Return past end-of-program so interpretLoop exits after ctor returns.
             frame.returnAddress = program->getInstructionCount();
             frame.frameBase = frameBase;
             frame.localBase = frameBase;
@@ -231,13 +220,12 @@ namespace vm::runtime
             pushCallFrame(std::move(frame));
             stats.functionCalls++;
 
-            // Execute constructor
-            // Use direct execution loop instead of interpretLoop() to avoid
-            // recreating executors (which would invalidate the outer ExecutionContext)
+            // Direct execution loop here (vs interpretLoop) avoids recreating
+            // executors, which would invalidate the outer ExecutionContext.
             instructionPointer = ctorMetadata->startOffset;
             if (controlFlowExecutor)
             {
-                // Use executionCtx->program so cross-library calls fetch from the correct bytecode
+                // executionCtx->program so cross-library calls fetch the correct bytecode.
                 auto& ctorCurrentProgram = executionCtx->program;
                 size_t targetDepth = savedCallStack.size();
                 while (callStack.size() > targetDepth)
@@ -280,7 +268,6 @@ namespace vm::runtime
                     }
                     instructionPointer++;
                 }
-                // Clean up stack to original position
                 while (stackManager->size() > frameBase)
                     stackManager->pop();
             }
@@ -289,7 +276,6 @@ namespace vm::runtime
                 interpretLoop();
             }
 
-            // Restore state
             instructionPointer = savedIP;
             callStack = savedCallStack;
             currentFinallyOffset = savedCurrentFinallyOffset;
@@ -307,7 +293,6 @@ namespace vm::runtime
         }
         catch (...)
         {
-            // Restore state on error
             instructionPointer = savedIP;
             callStack = savedCallStack;
             currentFinallyOffset = savedCurrentFinallyOffset;
@@ -397,215 +382,8 @@ namespace vm::runtime
             return value::makeStackObjectValue(raw);
         }
 
-        // Fallback: non-trivial ctor — use the heap path. Correct, but
-        // doesn't realise the STACK_OBJECT perf win for this allocation.
+        // Non-trivial ctor — heap fallback. Correct, but doesn't realise the
+        // STACK_OBJECT perf win for this allocation.
         return createObject(className, args);
-    }
-
-    value::Value VirtualMachine::invokeLambda(std::shared_ptr<BytecodeLambda> lambda,
-                                               const std::vector<value::Value>& args)
-    {
-        return invokeLambda(lambda, args.data(), args.size());
-    }
-
-    value::Value VirtualMachine::invokeLambda(std::shared_ptr<BytecodeLambda> lambda,
-                                               const value::Value* args,
-                                               size_t argCount)
-    {
-        // Save current state up front so the typed catch can decorate the
-        // exception against the LIVE callStack before we restore.
-        size_t savedIP = instructionPointer;
-        std::vector<CallFrame> savedCallStack = callStack;
-        size_t savedCurrentFinallyOffset = currentFinallyOffset;
-
-        try
-        {
-            if (!program)
-            {
-                throw errors::RuntimeException(
-                    "No program loaded - cannot invoke lambda in bytecode mode without compiled bytecode");
-            }
-
-            if (!lambda)
-            {
-                throw errors::NullPointerException("Cannot invoke null lambda");
-            }
-
-            size_t paramCount = lambda->parameterCount;
-            if (argCount != paramCount)
-            {
-                throw errors::RuntimeException("Lambda expects " + std::to_string(paramCount) +
-                    " arguments but got " + std::to_string(argCount));
-            }
-
-            currentFinallyOffset = SIZE_MAX;
-            size_t frameBase = stackManager->size();
-
-            // Push arguments onto stack
-            for (size_t i = 0; i < argCount; ++i)
-            {
-                push(args[i]);
-            }
-
-            // Create call frame
-            CallFrame frame;
-            frame.returnAddress = program->getInstructionCount();
-            frame.frameBase = frameBase;
-            frame.localBase = frameBase;
-            // MYT-197: copy the lambda's 4-byte handle; fall back to an
-            // interned display name only for lambdas that skipped handleLambda.
-            if (lambda->functionName != bytecode::INVALID_FN_HANDLE) {
-                frame.functionName = lambda->functionName;
-            } else {
-                std::string fallback = lambda->creatingClassName.empty()
-                    ? "<lambda>"
-                    : lambda->creatingClassName + "::<lambda>";
-                frame.functionName = program->internFrameName(fallback);
-            }
-            frame.thisInstance = lambda->capturedThis;
-            frame.definingClassName = lambda->creatingClassName;
-            frame.originatingLambda = lambda;
-
-            pushCallFrame(std::move(frame));
-            stats.functionCalls++;
-
-            // Create shared frame for this invocation, link to parent captures
-            auto newSharedFrame = makePooledFrame();
-            newSharedFrame->parentFrame = lambda->capturedFrame;
-            if (!callStack.empty())
-            {
-                callStack.back().sharedFrame = newSharedFrame;
-            }
-
-            // Register parameter names in shared frame
-            for (size_t i = 0; i < argCount; ++i)
-            {
-                if (i < lambda->parameterNames.size() && !lambda->parameterNames[i].empty())
-                {
-                    newSharedFrame->setLocal(lambda->parameterNames[i], i, args[i]);
-                }
-            }
-
-            // Push captured variables onto stack
-            if (lambda->capturedFrame)
-            {
-                for (size_t i = 0; i < lambda->capturedSlots.size(); ++i)
-                {
-                    size_t slot = lambda->capturedSlots[i];
-                    value::Value capturedValue = lambda->capturedFrame->getLocal(slot);
-                    push(capturedValue);
-                }
-            }
-
-            // Reserve additional local variable slots if needed
-            auto* lambdaMetadata = program->getFunctionMeta(lambda->functionName);
-            if (lambdaMetadata)
-            {
-                size_t pushedSlots = argCount + lambda->capturedSlots.size();
-                if (lambdaMetadata->localCount > pushedSlots)
-                {
-                    size_t additionalLocals = lambdaMetadata->localCount - pushedSlots;
-                    for (size_t i = 0; i < additionalLocals; ++i)
-                    {
-                        push(std::monostate{});
-                    }
-                }
-            }
-
-            // Execute lambda
-            instructionPointer = lambda->instructionPointer;
-
-            // MYT-113: Async lambda -> drive via the continuation path so
-            // nested awaits work and the caller gets a Promise representing
-            // full body completion (used by TcpServer.onConnection callbacks).
-            if (lambdaMetadata && lambdaMetadata->isAsync)
-            {
-                auto outerPromise = std::make_shared<value::AsyncPromiseValue>();
-                driveAsyncInvocation(outerPromise, savedIP, savedCallStack,
-                                     savedCurrentFinallyOffset, frameBase);
-                return value::Value(
-                    std::static_pointer_cast<value::PromiseValue>(outerPromise));
-            }
-
-            value::Value result = std::monostate{};
-            if (controlFlowExecutor)
-            {
-                // Use executionCtx->program so cross-library calls fetch from the correct bytecode
-                auto& lambdaCurrentProgram = executionCtx->program;
-                size_t targetDepth = savedCallStack.size();
-                while (callStack.size() > targetDepth)
-                {
-                    if (instructionPointer >= lambdaCurrentProgram->getInstructionCount())
-                        break;
-                    const auto& instr = lambdaCurrentProgram->getInstruction(instructionPointer);
-                    try
-                    {
-                        executeInstruction(instr);
-                    }
-                    catch (errors::UserException& e)
-                    {
-                        auto handlerResult = exceptionHandler->handleUserException(
-                            e, instructionPointer, currentFinallyOffset);
-                        if (!handlerResult.handled)
-                        {
-                            throw;
-                        }
-                        // MYT-111: handler found the catch in a caller frame
-                        // above our reflective boundary. Roll back its mutations
-                        // so the outer VM loop's own handler runs fresh.
-                        if (callStack.size() < targetDepth)
-                        {
-                            callStack = savedCallStack;
-                            while (stackManager->size() > frameBase)
-                            {
-                                stackManager->pop();
-                            }
-                            instructionPointer = savedIP;
-                            currentFinallyOffset = savedCurrentFinallyOffset;
-                            throw;
-                        }
-                        instructionPointer = handlerResult.newInstructionPointer;
-                        if (handlerResult.jumpedToFinally)
-                        {
-                            pendingException = std::make_unique<errors::UserException>(e);
-                        }
-                        continue;
-                    }
-                    instructionPointer++;
-                }
-                if (stackManager->size() > frameBase)
-                    result = stackManager->pop();
-                while (stackManager->size() > frameBase)
-                    stackManager->pop();
-            }
-            else
-            {
-                result = interpretLoop();
-            }
-
-            // Restore state
-            instructionPointer = savedIP;
-            callStack = savedCallStack;
-            currentFinallyOffset = savedCurrentFinallyOffset;
-
-            return result;
-        }
-        catch (errors::ScriptException& e)
-        {
-            // MYT-46: decorate using LIVE callStack BEFORE state restore.
-            utils::decorateFromCallStack(e, callStack, program);
-            instructionPointer = savedIP;
-            callStack = savedCallStack;
-            currentFinallyOffset = savedCurrentFinallyOffset;
-            throw;
-        }
-        catch (...)
-        {
-            // Restore state on error
-            instructionPointer = savedIP;
-            callStack = savedCallStack;
-            currentFinallyOffset = savedCurrentFinallyOffset;
-            throw;
-        }
     }
 }

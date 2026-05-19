@@ -366,7 +366,16 @@
     <ClInclude Include="vm\jit\JitCompiler.hpp">
       <Filter>vm\jit</Filter>
     </ClInclude>
+    <ClInclude Include="vm\jit\JitCompiler_Arrays_Internal.hpp">
+      <Filter>vm\jit</Filter>
+    </ClInclude>
     <ClInclude Include="vm\jit\JitCompiler_ControlFlow.hpp">
+      <Filter>vm\jit</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\jit\JitCompiler_EmitHelpers_Internal.hpp">
+      <Filter>vm\jit</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\jit\JitCompiler_OSR_Internal.hpp">
       <Filter>vm\jit</Filter>
     </ClInclude>
     <ClInclude Include="vm\jit\JitCompiler_Objects.hpp">
@@ -638,6 +647,9 @@
     <ClCompile Include="vm\jit\JitCompiler_Arrays.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_Arrays_Bounds.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
     <ClCompile Include="vm\jit\JitCompiler_Binop.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
@@ -656,6 +668,9 @@
     <ClCompile Include="vm\jit\JitCompiler_EmitHelpers.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_EmitHelpers_Calls.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
     <ClCompile Include="vm\jit\JitCompiler_Frame.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
@@ -663,6 +678,9 @@
       <Filter>vm\jit</Filter>
     </ClCompile>
     <ClCompile Include="vm\jit\JitCompiler_OSR.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_OSR_Deopt.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
     <ClCompile Include="vm\jit\JitCompiler_ObjectCallInline.cpp">
@@ -702,6 +720,9 @@
       <Filter>vm\jit</Filter>
     </ClCompile>
     <ClCompile Include="vm\jit\JitHelpers_Arithmetic.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitHelpers_ArithmeticBoxed.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
     <ClCompile Include="vm\jit\JitHelpers_Arrays.cpp">
@@ -744,6 +765,9 @@
       <Filter>vm\jit</Filter>
     </ClCompile>
     <ClCompile Include="vm\jit\OSRManager.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\OSRManager_Unwind.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
     <ClCompile Include="vm\jit\codegen\OSREntryCodegen.cpp">

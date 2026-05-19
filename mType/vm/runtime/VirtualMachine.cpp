@@ -1,40 +1,40 @@
 #include "VirtualMachine.hpp"
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
-// All executor headers needed for unique_ptr<Executor> default destructor
-#include "executors/StackOperationsExecutor.hpp"
-#include "executors/ComparisonExecutor.hpp"
-#include "executors/LogicalExecutor.hpp"
+#include <sstream>
+// All executor headers needed for unique_ptr<Executor> default destructor.
 #include "executors/ArithmeticExecutor.hpp"
-#include "executors/BitwiseExecutor.hpp"
-#include "executors/ControlFlowExecutor.hpp"
-#include "executors/VariableExecutor.hpp"
-#include "executors/FunctionExecutor.hpp"
-#include "executors/TypeExecutor.hpp"
 #include "executors/ArrayExecutor.hpp"
-#include "executors/ObjectExecutor.hpp"
-#include "executors/LambdaExecutor.hpp"
+#include "executors/BitwiseExecutor.hpp"
+#include "executors/ComparisonExecutor.hpp"
+#include "executors/ControlFlowExecutor.hpp"
 #include "executors/ExceptionExecutor.hpp"
-#include "executors/PrimitiveMethodExecutor.hpp"
+#include "executors/FunctionExecutor.hpp"
 #include "executors/InlineCacheExecutor.hpp"
+#include "executors/LambdaExecutor.hpp"
+#include "executors/LogicalExecutor.hpp"
+#include "executors/ObjectExecutor.hpp"
+#include "executors/PrimitiveMethodExecutor.hpp"
+#include "executors/StackOperationsExecutor.hpp"
+#include "executors/TypeExecutor.hpp"
+#include "executors/VariableExecutor.hpp"
 #include "utils/ExceptionHandler.hpp"
 #include "utils/InteropExceptionDecorator.hpp"
+#include "../../constants/ExecutionMode.hpp"
 #include "../../errors/FunctionNotFoundException.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/ScriptException.hpp"
 #include "../../errors/UserException.hpp"
-#include "../../value/ObjectInstance.hpp"
-#include "../../runtime/EventLoop.hpp"
-#include "../../constants/ExecutionMode.hpp"
 #include "../../gc/GC.hpp"
-#include "../jit/JitProfiler.hpp"
+#include "../../runtime/EventLoop.hpp"
+#include "../../value/ObjectInstance.hpp"
 #include "../jit/JitCodeCache.hpp"
 #include "../jit/JitCompiler.hpp"
+#include "../jit/JitProfiler.hpp"
 #include "../jit/OSRManager.hpp"
 #include "../jit/ic/InlineCacheTable.hpp"
 #include "../jit/ic/TypeFeedbackCollector.hpp"
-#include <chrono>
-#include <sstream>
 
 namespace vm::runtime
 {
@@ -45,33 +45,32 @@ namespace vm::runtime
           , maxCallStackSize(maxStackDepth == 0 ? constants::vm::DEFAULT_MAX_CALL_STACK_SIZE : maxStackDepth)
           , instructionPointer(0)
           , environment(std::move(env))
-          , eventLoop(nullptr) // Lazy initialization - only created when needed
+          , eventLoop(nullptr)
           , currentTaskId(0)
           , suspendedByAwait(false)
           , debuggingEnabled(false)
           , currentSourceFile("")
           , currentSourceLine(0)
-          , currentFinallyOffset(SIZE_MAX) // Not in finally initially
-          , pendingFinallyOffset(SIZE_MAX) // No pending exception initially
+          , currentFinallyOffset(SIZE_MAX)
+          , pendingFinallyOffset(SIZE_MAX)
           , jitEnabled(false)
           , icEnabled(false)
     {
         callStack.reserve(256);
 
-        // Initialize garbage collector if not already initialized
         if (!gc::GC::isInitialized())
         {
             gc::GC::initialize();
         }
 
-        // Wire up root collector so GC can scan VM stack and call frames
+        // Wire up root collector so GC can scan VM stack and call frames.
         if (auto* coordinator = gc::GC::get())
         {
             coordinator->setRootCollector([this]() { return collectGCRoots(); });
         }
 
-        // Note: Executors will be initialized in execute() when program is available
-        // because ExecutionContext requires a valid program pointer
+        // Executors are initialized in execute() once a program is bound,
+        // because ExecutionContext requires a valid program pointer.
     }
 
     VirtualMachine::~VirtualMachine() = default;
@@ -121,27 +120,25 @@ namespace vm::runtime
     {
         program = &bytecodeProgram;
 
-        // Check if we're resuming from a saved state
         if (savedState.has_value())
         {
             restoreState(savedState.value());
-            savedState.reset(); // Clear saved state after restoring
+            savedState.reset();
         }
         else
         {
-            // Fresh execution - start from entry point
             instructionPointer = program->getEntryPoint();
             executionStart = std::chrono::steady_clock::now();
             stats = ExecutionStats{};
 
             // Create an initial call frame for the implicit "main" function
-            // This allows global scope variables to be captured by lambdas
-            // Use "__script_main__" to match the expected name for global scope access checks.
-            // MYT-197: pre-warm the sentinel handle once at bind time — subsequent
-            // equality checks in the hot interpretation path are integer compares.
+            // so global scope variables can be captured by lambdas.
+            // MYT-197: pre-warm the sentinel handle once at bind time —
+            // subsequent equality checks in the hot interpretation path are
+            // integer compares.
             scriptMainHandle = program->internFrameName("__script_main__");
             CallFrame mainFrame;
-            mainFrame.returnAddress = program->getInstructionCount(); // Return past end (halt)
+            mainFrame.returnAddress = program->getInstructionCount();
             mainFrame.frameBase = 0;
             mainFrame.localBase = 0;
             mainFrame.functionName = scriptMainHandle;
@@ -150,17 +147,10 @@ namespace vm::runtime
             callStack.push_back(mainFrame);
         }
 
-        // Note: Executors are now initialized in interpretLoop() to ensure
-        // they always have valid references, even when called from C++ API methods
-
-        // Note: The main script frame is now pushed in Main.cpp before pausing at entry,
-        // so VS Code has a frame to display immediately. It's also popped there after completion.
-
         try
         {
             value::Value result = interpretLoop();
 
-            // Pop the main frame if it's still on the stack.
             // MYT-197: integer compare against the pre-warmed sentinel.
             // MYT-208: release stack-promoted allocations before pop.
             if (!callStack.empty() && callStack.back().functionName == scriptMainHandle) {
@@ -172,7 +162,6 @@ namespace vm::runtime
         }
         catch (...)
         {
-            // Clean up and rethrow
             reset();
             throw;
         }
@@ -197,13 +186,11 @@ namespace vm::runtime
                 throw errors::FunctionNotFoundException(functionName);
             }
 
-            // Push arguments onto stack
             for (const auto& arg : args)
             {
                 push(arg);
             }
 
-            // Set instruction pointer to function start
             instructionPointer = funcMetadata->startOffset;
 
             return interpretLoop();
@@ -223,173 +210,6 @@ namespace vm::runtime
             instructionPointer = savedIP;
             callStack = savedCallStack;
             throw;
-        }
-    }
-
-    void VirtualMachine::runStaticInitializers(const bytecode::BytecodeProgram& bytecodeProgram)
-    {
-        // Idempotency check first — return immediately for an already-
-        // initialized program without touching `program` or executionCtx.
-        // Previously the setProgram call below ran first and (in the old
-        // implementation that cleared staticInitializedPrograms wholesale)
-        // ensured this guard could never fire on the !isLoadedProgram path.
-        if (staticInitializedPrograms.count(&bytecodeProgram) > 0)
-        {
-            return;
-        }
-
-        bool isLoadedProgram = false;
-        for (const auto* loadedProgram : loadedPrograms)
-        {
-            if (loadedProgram == &bytecodeProgram)
-            {
-                isLoadedProgram = true;
-                break;
-            }
-        }
-
-        if (!isLoadedProgram && program != &bytecodeProgram)
-        {
-            setProgram(&bytecodeProgram);
-        }
-
-        const auto& initializerNames = bytecodeProgram.getStaticInitializerFunctions();
-        if (initializerNames.empty())
-        {
-            staticInitializedPrograms.insert(&bytecodeProgram);
-            return;
-        }
-
-        const bytecode::BytecodeProgram* savedProgram = program;
-        size_t savedIP = instructionPointer;
-        std::vector<CallFrame> savedCallStack = callStack;
-        size_t savedCurrentFinallyOffset = currentFinallyOffset;
-        // Capture the operand-stack high-water mark BEFORE the try so a
-        // throw partway through an initializer can drain leftover pushes
-        // back to the caller's view. Without this, an exception escaping
-        // mid-init left the operand stack with phantom values.
-        size_t savedStackSize = stackManager->size();
-
-        if (!program)
-        {
-            setProgram(&bytecodeProgram);
-        }
-        else
-        {
-            program = &bytecodeProgram;
-            if (executionCtx)
-            {
-                executionCtx->program = &bytecodeProgram;
-            }
-        }
-
-        size_t programIndex = 0;
-        for (size_t i = 0; i < loadedPrograms.size(); ++i)
-        {
-            if (loadedPrograms[i] == &bytecodeProgram)
-            {
-                programIndex = i;
-                break;
-            }
-        }
-
-        auto restoreState = [&]() {
-            while (stackManager->size() > savedStackSize)
-            {
-                stackManager->pop();
-            }
-            instructionPointer = savedIP;
-            callStack = savedCallStack;
-            currentFinallyOffset = savedCurrentFinallyOffset;
-            program = savedProgram;
-            if (executionCtx)
-            {
-                executionCtx->program = savedProgram;
-            }
-        };
-
-        try
-        {
-            for (const auto& initializerName : initializerNames)
-            {
-                // MYT-325: skip duplicates when the same class lives in
-                // multiple loaded programs (e.g. embedded main bytecode plus a
-                // sidecar .mtcLib that also defines the class). The synthetic
-                // name "<ClassName>::<static_init>$static" is identical across
-                // every program carrying that class, so insert-and-check by
-                // name dedups regardless of program identity.
-                if (!executedStaticInitializers.insert(initializerName).second)
-                {
-                    continue;
-                }
-
-                auto* funcMetadata = bytecodeProgram.getFunction(initializerName);
-                if (!funcMetadata)
-                {
-                    throw errors::RuntimeException(
-                        "Static initializer '" + initializerName + "' has no bytecode");
-                }
-
-                size_t frameBase = stackManager->size();
-
-                CallFrame frame;
-                frame.returnAddress = bytecodeProgram.getInstructionCount();
-                frame.frameBase = frameBase;
-                frame.localBase = frameBase;
-                frame.functionName = bytecodeProgram.internFrameName(initializerName);
-                frame.thisInstance = nullptr;
-                frame.programIndex = programIndex;
-
-                size_t colonPos = initializerName.find("::");
-                if (colonPos != std::string::npos)
-                {
-                    frame.definingClassName = initializerName.substr(0, colonPos);
-                }
-
-                pushCallFrame(std::move(frame));
-                stats.functionCalls++;
-                instructionPointer = funcMetadata->startOffset;
-
-                interpretLoop();
-
-                while (stackManager->size() > frameBase)
-                {
-                    stackManager->pop();
-                }
-            }
-
-            staticInitializedPrograms.insert(&bytecodeProgram);
-            restoreState();
-        }
-        catch (...)
-        {
-            restoreState();
-            throw;
-        }
-    }
-
-    void VirtualMachine::runStaticInitializersForLoadedPrograms()
-    {
-        if (loadedPrograms.empty())
-        {
-            if (program)
-            {
-                runStaticInitializers(*program);
-            }
-            return;
-        }
-
-        for (size_t i = 1; i < loadedPrograms.size(); ++i)
-        {
-            if (loadedPrograms[i])
-            {
-                runStaticInitializers(*loadedPrograms[i]);
-            }
-        }
-
-        if (loadedPrograms[0])
-        {
-            runStaticInitializers(*loadedPrograms[0]);
         }
     }
 
@@ -413,196 +233,8 @@ namespace vm::runtime
         stackManager->popN(count);
     }
 
-    void VirtualMachine::pushCallFrame(CallFrame frame)
-    {
-        // Check for stack overflow
-        if (callStack.size() >= maxCallStackSize)
-        {
-            // MYT-228: clear any stale pending bindings so a future call
-            // can't pick them up after the exception is caught. Mirrors
-            // the same guard in ExecutionContext::pushCallFrame.
-            if (executionCtx)
-            {
-                executionCtx->pendingTypeArgs.reset();
-            }
-
-            // Build a helpful error message with stack trace
-            std::ostringstream oss;
-            oss << "Stack overflow: Maximum call stack depth of "
-                << maxCallStackSize << " exceeded.\n";
-            oss << "This may indicate infinite recursion.\n";
-            oss << "Call stack trace (most recent call first):\n";
-
-            // Show last 10 frames to help identify recursion pattern
-            auto frameNameOf = [&](const CallFrame& f) -> const std::string& {
-                const bytecode::BytecodeProgram* p =
-                    (f.programIndex < loadedPrograms.size())
-                        ? loadedPrograms[f.programIndex]
-                        : program;
-                return p->getFrameName(f.functionName);
-            };
-            size_t startIdx = callStack.size() > 10 ? callStack.size() - 10 : 0;
-            for (size_t i = startIdx; i < callStack.size(); ++i)
-            {
-                oss << "  [" << i << "] " << frameNameOf(callStack[i]);
-                if (!callStack[i].definingClassName.empty())
-                {
-                    oss << " (in class " << callStack[i].definingClassName << ")";
-                }
-                oss << "\n";
-            }
-
-            // Add the frame that would overflow
-            oss << "  [" << callStack.size() << "] " << frameNameOf(frame);
-            if (!frame.definingClassName.empty())
-            {
-                oss << " (in class " << frame.definingClassName << ")";
-            }
-            oss << " <- stack overflow here\n";
-
-            throw errors::RuntimeException(oss.str());
-        }
-
-        // MYT-228: same consume-and-clear convention as
-        // ExecutionContext::pushCallFrame so this VM-level entry stays
-        // in sync. Hot path: pendingTypeArgs is null, single branch.
-        if (executionCtx && executionCtx->pendingTypeArgs)
-        {
-            frame.typeArgBindings.adopt(executionCtx->pendingTypeArgs.releasePtr());
-        }
-
-        callStack.push_back(std::move(frame));
-    }
-
-    void VirtualMachine::popCallStack()
-    {
-        if (!callStack.empty())
-        {
-            // MYT-208: release stack-promoted allocations before pop.
-            callStack.back().releaseStackObjects();
-            callStack.pop_back();
-        }
-    }
-
-
-    // === Helper Methods ===
-
     const ExecutionStats& VirtualMachine::getStats() const
     {
         return stats;
     }
-
-    std::vector<std::string> VirtualMachine::getStackTrace() const
-    {
-        std::vector<std::string> trace;
-        for (const auto& frame : callStack)
-        {
-            const bytecode::BytecodeProgram* p =
-                (frame.programIndex < loadedPrograms.size())
-                    ? loadedPrograms[frame.programIndex]
-                    : program;
-            std::ostringstream oss;
-            oss << p->getFrameName(frame.functionName)
-                << " at offset " << frame.returnAddress;
-            trace.push_back(oss.str());
-        }
-        return trace;
-    }
-
-    void VirtualMachine::reset()
-    {
-        stackManager->clear();
-        // MYT-208: release every frame's stack-promoted allocations before
-        // clearing callStack — otherwise the pool leaks recyclable slots
-        // every time reset() is invoked (e.g. uncaught-exception cleanup).
-        for (auto& frame : callStack)
-        {
-            frame.releaseStackObjects();
-        }
-        callStack.clear();
-        instructionPointer = 0;
-        stats = ExecutionStats{};
-
-        // MYT-A4: drop all JIT-side state that points at script-defined
-        // ClassDefinitions. ScriptInterpreter::resetForRebuild — the sole
-        // caller — also runs Environment::resetForRebuild → clearScriptDefinitions
-        // which frees those ClassDefinitions. IC entries (InlineCacheTable),
-        // cached compiled stubs (JitCodeCache), and feedback counters
-        // (JitProfiler) all hold raw pointers into that lifetime. Without
-        // this clear, the next compile-and-run with the same VM dispatches
-        // through stale stubs and dereferences freed CDs (use-after-free).
-        if (jitCodeCache) jitCodeCache->clear();
-        if (jitProfiler)  jitProfiler->reset();
-        if (inlineCacheTable) inlineCacheTable->clear();
-    }
-
-    std::vector<void*> VirtualMachine::collectGCRoots() const
-    {
-        std::vector<void*> roots;
-
-        // 1. Stack values - all values on the operand stack
-        const auto& stack = stackManager->getStack();
-        for (const auto& val : stack)
-        {
-            void* ptr = gc::extractPointer(val);
-            if (ptr)
-            {
-                roots.push_back(ptr);
-            }
-        }
-
-        // 2. Call frame 'this' instances and shared frames
-        for (const auto& frame : callStack)
-        {
-            // Check thisInstance
-            if (frame.thisInstance)
-            {
-                roots.push_back(frame.thisInstance.get());
-            }
-
-            // MYT-208: stack-promoted `this` (NEW_STACK ctor) and frame-owned
-            // raw allocations. These are not GC-registered, but their fields
-            // may hold heap references that the cycle detector must keep alive
-            // while the owning frame is live. Inline array iteration over
-            // [0, stackObjectsCount) — entries beyond count are uninitialised.
-            if (frame.thisInstanceRaw)
-            {
-                roots.push_back(frame.thisInstanceRaw);
-            }
-            for (size_t i = 0; i < frame.stackObjectsCount; ++i)
-            {
-                if (frame.stackObjects[i])
-                {
-                    roots.push_back(frame.stackObjects[i]);
-                }
-            }
-
-            // Check shared frame locals (closure captures)
-            if (frame.sharedFrame)
-            {
-                for (const auto& local : frame.sharedFrame->locals)
-                {
-                    void* ptr = gc::extractPointer(local);
-                    if (ptr)
-                    {
-                        roots.push_back(ptr);
-                    }
-                }
-            }
-
-            // Check originating lambda
-            if (frame.originatingLambda)
-            {
-                roots.push_back(frame.originatingLambda.get());
-            }
-        }
-
-        // 3. Global variables from environment
-        // The environment's VariableManager holds global variables
-        // These would need to be exposed via a method if we want to track them
-        // For now, we rely on class/field definitions being separate from GC tracking
-
-        return roots;
-    }
-
 }

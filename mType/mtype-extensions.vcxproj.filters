@@ -81,6 +81,9 @@
     <ClInclude Include="debugger\DebugExpressionEvaluator.hpp">
       <Filter>debugger</Filter>
     </ClInclude>
+    <ClInclude Include="debugger\DebugExpressionEvaluator_Internal.hpp">
+      <Filter>debugger</Filter>
+    </ClInclude>
     <ClInclude Include="debugger\DebugHookHelper.hpp">
       <Filter>debugger</Filter>
     </ClInclude>
@@ -347,10 +350,16 @@
     <ClCompile Include="debugger\DebugExpressionEvaluator.cpp">
       <Filter>debugger</Filter>
     </ClCompile>
+    <ClCompile Include="debugger\DebugExpressionEvaluator_Scope.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
     <ClCompile Include="debugger\DebugHookHelper.cpp">
       <Filter>debugger</Filter>
     </ClCompile>
     <ClCompile Include="debugger\DebugProtocol.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\DebugProtocol_Dispatch.cpp">
       <Filter>debugger</Filter>
     </ClCompile>
     <ClCompile Include="debugger\VMVariableInspector.cpp">
@@ -369,6 +378,9 @@
       <Filter>debugger</Filter>
     </ClCompile>
     <ClCompile Include="debugger\VariableInspector.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\VariableInspector_Types.cpp">
       <Filter>debugger</Filter>
     </ClCompile>
     <ClCompile Include="gc\CycleDetector.cpp">
@@ -512,13 +524,22 @@
     <ClCompile Include="reflection\ReflectionHandle.cpp">
       <Filter>reflection</Filter>
     </ClCompile>
+    <ClCompile Include="reflection\ReflectionHandle_Accessors.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
     <ClCompile Include="reflection\ReflectionNatives.cpp">
       <Filter>reflection</Filter>
     </ClCompile>
     <ClCompile Include="reflection\ReflectionNatives_Class.cpp">
       <Filter>reflection</Filter>
     </ClCompile>
+    <ClCompile Include="reflection\ReflectionNatives_Class_Members.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
     <ClCompile Include="reflection\ReflectionNatives_CtorAnnotation.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
+    <ClCompile Include="reflection\ReflectionNatives_CtorAnnotation_Bind.cpp">
       <Filter>reflection</Filter>
     </ClCompile>
     <ClCompile Include="reflection\ReflectionNatives_Field.cpp">

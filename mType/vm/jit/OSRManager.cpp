@@ -1,20 +1,19 @@
 #include "OSRManager.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
+#include <typeinfo>
 #include "JitHelpers.hpp"
-#include "../../value/ValueShim.hpp"
 #include "guards/DeoptimizationHandler.hpp"
 #include "../bytecode/OpCode.hpp"
 #include "../runtime/VirtualMachine.hpp"
-#include "../../value/ObjectInstance.hpp"
 #include "../../value/NativeArray.hpp"
+#include "../../value/ObjectInstance.hpp"
 #include "../../value/StringPool.hpp"
-#include <iostream>      // MYT-248/249/250: cerr in catch handler diagnostic
-#include <typeinfo>      // MYT-248/249/250: typeid(e).name() in catch handler
+#include "../../value/ValueShim.hpp"
 
 namespace vm::jit
 {
-    
     OSRManager::OSRManager() {}
     OSRManager::~OSRManager() {}
 
@@ -32,7 +31,7 @@ namespace vm::jit
         outOffendingOpcode = 0;
 
         // MYT-251: the asmjit codegen path is otherwise uninstrumented all
-        // the way from compileLoopOSR -> tryOSR -> handleJumpBack to the VM
+        // the way from compileLoopOSR → tryOSR → handleJumpBack to the VM
         // loop's catch(UserException&) (which doesn't catch std::exception).
         // Wrap the call so codegen-time exceptions surface with a typed
         // diagnostic and demote the loop to interpreter execution instead
@@ -81,7 +80,7 @@ namespace vm::jit
         if (!fn)
         {
             // compileLoopOSR claimed success but the cache doesn't have the
-            // entry - treat as a generic codegen failure.
+            // entry — treat as a generic codegen failure.
             outReason = OSRBailoutReason::CODEGEN_FAILURE;
             return false;
         }
@@ -99,21 +98,20 @@ namespace vm::jit
     {
         // MYT-248/249/250 bisect knob (MTYPE_DISABLE_OSR) removed — the
         // underlying cc.new_stack overrun in OSR-emitted asmjit code was
-        // root-caused (speculative method inlining inside OSR-compiled
-        // loops overflowing operand-stack/locals slack) and fixed in
-        // MYT-251 (MAX_OP_STACK 64→256, INLINE_LOCALS_SLACK 32→96, plus
-        // runtime headroom guards in computeCalleePeakOperandStack and
+        // root-caused (speculative method inlining inside OSR-compiled loops
+        // overflowing operand-stack/locals slack) and fixed in MYT-251
+        // (MAX_OP_STACK 64→256, INLINE_LOCALS_SLACK 32→96, plus runtime
+        // headroom guards in computeCalleePeakOperandStack and
         // checkOpStackHeadroom). MYT-184's separate /GS symptom on
-        // errorLargeExceptionData_pass.mt was a different bug (unary INT
-        // on boxed slot, fixed in MYT-321); both classes write OOB into
-        // the asmjit frame and surface as __fastfail. OSR is safe with
-        // inlining on; if a regression resurfaces, reproduce against the
-        // bench suite and fix the underlying overrun rather than
-        // reintroducing the kill switch.
+        // errorLargeExceptionData_pass.mt was a different bug (unary INT on
+        // boxed slot, fixed in MYT-321); both classes write OOB into the
+        // asmjit frame and surface as __fastfail. OSR is safe with inlining
+        // on; if a regression resurfaces, reproduce against the bench suite
+        // and fix the underlying overrun rather than reintroducing the kill
+        // switch.
 
         LoopId loopId{jumpBackOffset};
 
-        // Check if we already have compiled code for this loop
         auto cacheIt = osrCache.find(jumpBackOffset);
         if (cacheIt != osrCache.end())
         {
@@ -123,13 +121,12 @@ namespace vm::jit
             return executeOSRLoop(cacheIt->second, state, program, context, vm, codeCache);
         }
 
-        // Profile the loop — returns true on exact threshold crossing
+        // Profile — returns true only on exact threshold crossing.
         if (!loopProfiler.recordIteration(loopId))
         {
             return false;
         }
 
-        // Loop just became hot — try to compile it.
         // MYT-148: thread the specific bailout reason out of captureState and
         // through compileAndCacheLoop so --jit-stats can show which gate rejected.
         OSRState state;
@@ -167,9 +164,9 @@ namespace vm::jit
     {
         // Nesting-balanced scan. The back-edge sits inside exactly one loop
         // body; the enclosing LOOP_START/LOOP_END are the first unmatched
-        // markers walking outward. A naive "first LOOP_START backward,
-        // first LOOP_END forward" picks inner-loop markers for an outer
-        // back-edge and clips the compile range (MYT-153 Bug #1).
+        // markers walking outward. A naive "first LOOP_START backward, first
+        // LOOP_END forward" picks inner-loop markers for an outer back-edge
+        // and clips the compile range (MYT-153 Bug #1).
         loopStartOffset = SIZE_MAX;
         {
             size_t depth = 0;
@@ -239,7 +236,6 @@ namespace vm::jit
             }
             else
             {
-                // Uninitialized local
                 state.locals.push_back(LocalSlotInfo{i, SlotType::INT, value::Value{int64_t(0)}});
             }
         }
@@ -280,7 +276,6 @@ namespace vm::jit
                 return OSRBailoutReason::SHARED_FRAME_REJECTION;
         }
 
-        // Get function metadata for local count.
         // MYT-197: resolve the interned handle via the callee's program; OSR
         // only runs on the frame's own program (no cross-program tier-up).
         std::string functionName;
@@ -306,11 +301,10 @@ namespace vm::jit
         if (localCount == 0)
             return OSRBailoutReason::NO_FUNCTION_FRAME;
 
-        // Capture locals
         size_t localBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
         captureLocals(state, localBase, localCount, context);
 
-        // Check operand stack above locals (should be empty at JUMP_BACK for V1)
+        // Operand stack above locals must be empty at JUMP_BACK for V1.
         size_t operandStackBase = localBase + localCount;
         if (context.stackManager->size() > operandStackBase)
             return OSRBailoutReason::OPERAND_STACK_NOT_EMPTY;
@@ -346,7 +340,6 @@ namespace vm::jit
         jitCtx.jitCodeCache = &codeCache;
         jitCtx.icTable = vm.getInlineCacheTable();
 
-        // Extract calling class name for access validation
         size_t sepPos = state.functionName.find("::");
         if (sepPos != std::string::npos)
             jitCtx.callingClassName = state.functionName.substr(0, sepPos);
@@ -358,178 +351,6 @@ namespace vm::jit
         jitCtx.osrExited = false;
     }
 
-    bool OSRManager::executeOSRLoop(OSRLoopFunction func,
-                                     const OSRState& state,
-                                     const bytecode::BytecodeProgram& program,
-                                     vm::runtime::ExecutionContext& context,
-                                     vm::runtime::VirtualMachine& vm,
-                                     JitCodeCache& codeCache)
-    {
-        // Allocate input/output Value arrays
-        std::vector<value::Value> inputLocals(state.localCount);
-        std::vector<value::Value> outputLocals(state.localCount);
-
-        // Copy captured locals into input array
-        for (const auto& slotInfo : state.locals)
-        {
-            if (slotInfo.slot < state.localCount)
-            {
-                inputLocals[slotInfo.slot] = slotInfo.value;
-            }
-        }
-
-        // Initialize output locals to same values (for deopt safety)
-        for (size_t i = 0; i < state.localCount; ++i)
-        {
-            outputLocals[i] = inputLocals[i];
-        }
-
-        JitContext jitCtx;
-        buildOSRContext(jitCtx, state, program, context, vm, codeCache,
-                        inputLocals.data(), outputLocals.data());
-
-        try
-        {
-            func(&jitCtx);
-
-            // MYT-254: any std::exception thrown by a JIT helper (e.g. a
-            // missing receiver-kind branch in jit_call_method) is caught at
-            // the helper's site and stored on the JIT context, since
-            // exceptions can't unwind through asmjit-generated frames. The
-            // emitted OSR loop checks ctx->pendingException at every back
-            // edge (see emitOSRCodegenLoop) and falls into the osrExit
-            // handler the moment one is observed, so by the time func()
-            // returns to us pendingException is the authoritative signal.
-            // Rethrow BEFORE inspecting osrExited / writing back updatedLocals
-            // so the catch (std::exception&) below restores the pre-OSR
-            // locals and the interpreter resumes the iteration that threw.
-            if (jitCtx.pendingException)
-            {
-                std::rethrow_exception(jitCtx.pendingException);
-            }
-
-            if (jitCtx.osrExited)
-            {
-                lastResult.success = true;
-                lastResult.deoptimized = false;
-                lastResult.resumeIP = jitCtx.osrExitOffset;
-                lastResult.updatedLocals = std::move(outputLocals);
-                writeBackState(lastResult, state, context);
-                return true;
-            }
-
-            // Loop function returned without setting osrExited
-            return false;
-        }
-        catch (const OSRDeoptException& e)
-        {
-            guards::DeoptState deoptState;
-            deoptState.reason = guards::DeoptReason::EXCEPTION_THROWN;
-            deoptState.bytecodeOffset = e.bytecodeOffset;
-            deoptState.locals = std::move(outputLocals);
-
-            guards::DeoptimizationHandler::handleDeopt(deoptState, state, context);
-
-            lastResult.success = false;
-            lastResult.deoptimized = true;
-            lastResult.resumeIP = e.bytecodeOffset;
-            return true;
-        }
-        catch (const std::exception& e)
-        {
-            // MYT-248/249/250: surface the typed exception name + message
-            // before rolling back state and rethrowing. Without this an
-            // exception thrown by a native helper (use-after-free, bad alloc,
-            // logic_error from MethodResolver, etc.) bubbles up through the
-            // VM loop's UserException-only catch and is silently swallowed
-            // when Main.cpp's std::exception catch can't classify it as a
-            // script error.
-            std::cerr << "[OSR] caught std::exception during JIT loop execution: "
-                      << typeid(e).name() << ": " << e.what()
-                      << " (jumpBackOffset=" << state.jumpBackOffset << ")\n";
-            std::cerr.flush();
-
-            lastResult.success = false;
-            lastResult.deoptimized = true;
-            lastResult.resumeIP = state.jumpBackOffset;
-
-            lastResult.updatedLocals.clear();
-            for (const auto& slot : state.locals)
-            {
-                lastResult.updatedLocals.push_back(slot.value);
-            }
-            writeBackState(lastResult, state, context);
-
-            throw;
-        }
-        catch (...)
-        {
-            // MYT-248/249/250: this is the silent-zero-output failure mode
-            // for the three benchmarks — a non-std exception (or SEH if MSVC
-            // is configured to translate them) escapes from JIT-emitted code
-            // or the IC populate path. Make it visible so the next repro is
-            // not silent.
-            std::cerr << "[OSR] caught unknown (non-std) exception during JIT "
-                      << "loop execution (jumpBackOffset=" << state.jumpBackOffset
-                      << "). Likely culprit: JIT helper returning into freed memory, "
-                      << "stale IC entry, or SEH from JIT-emitted code.\n";
-            std::cerr.flush();
-
-            lastResult.success = false;
-            lastResult.deoptimized = true;
-            lastResult.resumeIP = state.jumpBackOffset;
-
-            lastResult.updatedLocals.clear();
-            for (const auto& slot : state.locals)
-            {
-                lastResult.updatedLocals.push_back(slot.value);
-            }
-            writeBackState(lastResult, state, context);
-
-            throw;
-        }
-    }
-
-    void OSRManager::writeBackState(const OSRResult& result,
-                                     const OSRState& state,
-                                     vm::runtime::ExecutionContext& context)
-    {
-        size_t localBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
-
-        // Write each updated local back to the interpreter stack
-        for (size_t i = 0; i < result.updatedLocals.size() && i < state.localCount; ++i)
-        {
-            size_t stackIdx = localBase + i;
-            if (stackIdx < context.stackManager->size())
-            {
-                context.stackManager->getStack()[stackIdx] = result.updatedLocals[i];
-            }
-        }
-
-        // MYT-153 Bug #2: also mirror writes into the SharedStackFrame, when
-        // one is attached to the current call frame. VariableExecutor's
-        // handleStoreLocal pre-populates this frame on every named local
-        // store (speculative bookkeeping for potential lambda capture), and
-        // handleLoadLocal reads from it *before* the stack — so skipping the
-        // update here leaves post-OSR reads serving the captured pre-OSR
-        // values. captureState already rejects `originatingLambda` frames
-        // and frames with external sharedFrame owners, so any sharedFrame
-        // reaching this point is the ordinary per-function bookkeeping copy.
-        if (!context.callStack.empty() &&
-            !context.callStack.back().originatingLambda &&
-            context.callStack.back().sharedFrame)
-        {
-            auto sharedFrame = context.callStack.back().sharedFrame;
-            for (size_t i = 0; i < result.updatedLocals.size() && i < state.localCount; ++i)
-            {
-                sharedFrame->setLocal(i, result.updatedLocals[i]);
-            }
-        }
-
-        // Set instruction pointer: -1 because the interpreter loop increments
-        context.instructionPointer = result.resumeIP - 1;
-    }
-
     SlotType OSRManager::inferSlotType(const value::Value& val)
     {
         if (value::isInt(val)) return SlotType::INT;
@@ -538,8 +359,8 @@ namespace vm::jit
         // MYT-317: STRING_INLINE rolls into the STRING slot type so the
         // tracker doesn't see a spurious new type when a SSO concat result
         // flows through. JIT-side inline-string emission is out of scope;
-        // the JIT guard on tag==STRING will fail for STRING_INLINE and
-        // route through the interpreter, which is correct.
+        // the JIT guard on tag==STRING will fail for STRING_INLINE and route
+        // through the interpreter, which is correct.
         if (value::isAnyString(val)) return SlotType::STRING;
         if (value::isObject(val)) return SlotType::OBJECT;
         // MYT-208: distinct slot type so the JIT type tracker propagates the
@@ -549,4 +370,3 @@ namespace vm::jit
         return SlotType::BOXED;
     }
 }
-

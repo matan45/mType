@@ -434,6 +434,9 @@
     <ClCompile Include="value\ObjectInstancePool.cpp">
       <Filter>value</Filter>
     </ClCompile>
+    <ClCompile Include="value\ObjectInstance_Init.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
     <ClCompile Include="value\SpecializedCollections.cpp">
       <Filter>value</Filter>
     </ClCompile>

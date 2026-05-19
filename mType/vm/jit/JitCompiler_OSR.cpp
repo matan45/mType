@@ -1,77 +1,19 @@
 #include "JitCompiler.hpp"
+#include "JitCompiler_OSR_Internal.hpp"
+#include <asmjit/x86.h>
 #include <cstddef>
 #include <cstdint>
+#include <unordered_set>
 #include "JitEmissionState.hpp"
 #include "JitHelpers.hpp"
 #include "codegen/OSREntryCodegen.hpp"
 #include "../bytecode/OpCode.hpp"
-#include <asmjit/x86.h>
-#include <unordered_set>
 
 namespace vm::jit
 {
     using namespace asmjit;
     using namespace asmjit::x86;
     using OpCode = bytecode::OpCode;
-
-    static void emitWriteBackNonBoxedLocal(Compiler& cc, Gp destAddr,
-                                             Gp localsBase, size_t slot, SlotType lt)
-    {
-        if (lt == SlotType::FLOAT)
-        {
-            Vec val = cc.new_xmm();
-            cc.movsd(val, Mem(localsBase, static_cast<int32_t>(slot * 8)));
-            InvokeNode* inv;
-            cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_box_float),
-                      FuncSignature::build<void, value::Value*, double>());
-            inv->set_arg(0, destAddr);
-            inv->set_arg(1, val);
-        }
-        else
-        {
-            Gp val = cc.new_gp64();
-            cc.mov(val, Mem(localsBase, static_cast<int32_t>(slot * 8)));
-            uint64_t fn = (lt == SlotType::BOOL)
-                ? reinterpret_cast<uint64_t>(jit_box_bool)
-                : reinterpret_cast<uint64_t>(jit_box_int);
-            InvokeNode* inv;
-            cc.invoke(Out(inv), fn,
-                      FuncSignature::build<void, value::Value*, int64_t>());
-            inv->set_arg(0, destAddr);
-            inv->set_arg(1, val);
-        }
-    }
-
-    void emitLocalsWriteBack(JitEmissionState& s)
-    {
-        auto& cc = s.cc;
-        constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
-
-        Gp outPtr = cc.new_gp64();
-        cc.mov(outPtr, Mem(s.ctxPtr, offsetof(JitContext, osrOutputLocals)));
-
-        for (size_t i = 0; i < s.localCount; ++i)
-        {
-            Gp destAddr = cc.new_gp64();
-            cc.lea(destAddr, Mem(outPtr, static_cast<int32_t>(i * valueSize)));
-            SlotType lt = s.localTypes.count(i) ? s.localTypes[i] : SlotType::INT;
-
-            if (s.usesBoxedTypes)
-            {
-                Gp srcAddr = cc.new_gp64();
-                cc.lea(srcAddr, Mem(s.localsBase, static_cast<int32_t>(i * s.localStride)));
-                InvokeNode* inv;
-                cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_value_copy),
-                          FuncSignature::build<void, value::Value*, const value::Value*>());
-                inv->set_arg(0, destAddr);
-                inv->set_arg(1, srcAddr);
-            }
-            else
-            {
-                emitWriteBackNonBoxedLocal(cc, destAddr, s.localsBase, i, lt);
-            }
-        }
-    }
 
     struct OSRFrame
     {
@@ -84,81 +26,6 @@ namespace vm::jit
         std::unordered_map<size_t, SlotType> localTypes;
     };
 
-    // MYT-211: scan the OSR loop range for slots that are read but never
-    // written inside the loop. Hoist a single load of each such slot into a
-    // virtreg at OSR-prologue end so emitLoadLocal can short-circuit to the
-    // cached register on every iteration. This eliminates the per-iter memory
-    // load for loop-invariant locals (e.g. `mask`, `xorKey`, `wordMask`, `N`
-    // in the bitwise / arithmetic micro-benchmarks).
-    static void hoistInvariantLocals(JitEmissionState& s,
-                                      const bytecode::BytecodeProgram& program,
-                                      size_t loopStartOffset, size_t loopEndOffset)
-    {
-        if (s.usesBoxedTypes) return;
-        std::unordered_set<size_t> writtenSlots;
-        std::unordered_set<size_t> readSlots;
-        for (size_t ip = loopStartOffset; ip <= loopEndOffset; ++ip)
-        {
-            const auto& instr = program.getInstruction(ip);
-            switch (instr.opcode)
-            {
-                case OpCode::STORE_LOCAL:
-                case OpCode::STORE_LOCAL_INT:
-                case OpCode::STORE_LOCAL_FLOAT:
-                case OpCode::STORE_LOCAL_BOOL:
-                case OpCode::STORE_LOCAL_BOXED_INST:
-                case OpCode::ADD_INT_STORE_LOCAL:        // dst slot in operand[0]
-                    if (instr.hasOperands())
-                        writtenSlots.insert(instr.inlineOperands[0]);
-                    break;
-                case OpCode::LOAD_STORE_LOCAL:           // src=op[0], dst=op[1]
-                    if (instr.numOperands() >= 2)
-                    {
-                        readSlots.insert(instr.inlineOperands[0]);
-                        writtenSlots.insert(instr.inlineOperands[1]);
-                    }
-                    break;
-                case OpCode::LOAD_LOCAL:
-                case OpCode::LOAD_LOCAL_INT:
-                case OpCode::LOAD_LOCAL_FLOAT:
-                case OpCode::LOAD_LOCAL_BOOL:
-                case OpCode::LOAD_LOCAL_BOXED_INST:
-                    if (instr.hasOperands())
-                        readSlots.insert(instr.inlineOperands[0]);
-                    break;
-                case OpCode::LOAD_LOAD_ADD_INT:
-                case OpCode::LOAD_LOAD_SUB_INT:
-                case OpCode::LOAD_LOAD_MUL_INT:
-                    if (instr.numOperands() >= 2)
-                    {
-                        readSlots.insert(instr.inlineOperands[0]);
-                        readSlots.insert(instr.inlineOperands[1]);
-                    }
-                    break;
-                default: break;
-            }
-        }
-        auto& cc = s.cc;
-        for (size_t slot : readSlots)
-        {
-            if (writtenSlots.count(slot)) continue;
-            SlotType lt = s.localTypes.count(slot) ? s.localTypes[slot] : SlotType::INT;
-            if (isBoxedSlotType(lt)) continue;       // boxed locals stay memory-only
-            if (lt == SlotType::FLOAT)
-            {
-                Vec reg = cc.new_xmm();
-                cc.movsd(reg, Mem(s.localsBase, static_cast<int32_t>(slot * 8)));
-                s.invariantFloatLocals[slot] = reg;
-            }
-            else
-            {
-                Gp reg = cc.new_gp64();
-                cc.mov(reg, Mem(s.localsBase, static_cast<int32_t>(slot * 8)));
-                s.invariantIntLocals[slot] = reg;
-            }
-        }
-    }
-
     static OSRFrame setupOSRFrame(Compiler& cc,
                                    const bytecode::BytecodeProgram& program,
                                    const std::vector<LocalSlotInfo>& localSlotInfos,
@@ -167,14 +34,14 @@ namespace vm::jit
                                    Gp ctxPtr)
     {
         // MYT-251: use the single source of truth in JitEmissionState (was
-        // a local 64 here that could silently drift from the emitters'
-        // bound check). Pair with the operand-stack pre-scan in the inline
-        // guards (JitCompiler_Objects.cpp) so a hot OSR loop body that
-        // would overflow cc.new_stack bails at compile time. The MYT-184
-        // /GS cookie symptom that originally motivated reframing this guard
-        // turned out to be MYT-321's unary-INT-on-boxed-slot bug; pure
-        // operand-stack overflow is still a real cc.new_stack overrun
-        // failure mode this budget continues to defend against.
+        // a local 64 here that could silently drift from the emitters' bound
+        // check). Pair with the operand-stack pre-scan in the inline guards
+        // (JitCompiler_Objects.cpp) so a hot OSR loop body that would
+        // overflow cc.new_stack bails at compile time. The MYT-184 /GS cookie
+        // symptom that originally motivated reframing this guard turned out
+        // to be MYT-321's unary-INT-on-boxed-slot bug; pure operand-stack
+        // overflow is still a real cc.new_stack overrun failure mode this
+        // budget continues to defend against.
         constexpr size_t MAX_OP_STACK = JitEmissionState::MAX_OP_STACK;
         constexpr size_t valueSize = sizeof(value::Value);
 
@@ -301,18 +168,17 @@ namespace vm::jit
                 if (s.backEdgeTargets.find(ip) == s.backEdgeTargets.end())
                     s.arrayInfoCache.clear();
 
-                // MYT-254 (defense-in-depth): at every back-edge target
-                // (top of every loop iteration), check whether a JIT helper
-                // has stashed an exception on ctx->pendingException and
-                // fall into osrExit if so. Without this the helper's own
-                // `if (ctx->pendingException) return;` early-out turns
-                // every subsequent CALL_METHOD into a silent no-op and the
-                // OSR'd loop spins forever instead of surfacing the throw.
+                // MYT-254 (defense-in-depth): at every back-edge target (top
+                // of every loop iteration), check whether a JIT helper has
+                // stashed an exception on ctx->pendingException and fall into
+                // osrExit if so. Without this the helper's own `if
+                // (ctx->pendingException) return;` early-out turns every
+                // subsequent CALL_METHOD into a silent no-op and the OSR'd
+                // loop spins forever instead of surfacing the throw.
                 // OSRManager::executeOSRLoop rethrows immediately after the
                 // JIT call returns, so the path is: helper catches → loop
                 // back-edge sees → osrExit → OSRManager rethrows. Bounded
-                // one cc.invoke + cmp + je per outer iteration (back-edges
-                // are rare; one per loop level).
+                // one cc.invoke + cmp + je per outer iteration.
                 if (s.backEdgeTargets.find(ip) != s.backEdgeTargets.end())
                 {
                     InvokeNode* checkInv = nullptr;
@@ -342,9 +208,8 @@ namespace vm::jit
             emitObjectOps(s, instr);
 
             // If any of the emitters set compileFailed without attaching a
-            // specific reason (e.g. a sub-emitter hit an internal guard),
-            // record a generic CODEGEN_FAILURE so the profile still gets
-            // a non-NONE reason.
+            // specific reason, record a generic CODEGEN_FAILURE so the
+            // profile still gets a non-NONE reason.
             if (s.compileFailed && s.osrBailoutReason == OSRBailoutReason::NONE)
             {
                 s.osrBailoutReason = OSRBailoutReason::CODEGEN_FAILURE;
@@ -361,7 +226,7 @@ namespace vm::jit
                              size_t loopStartOffset, size_t loopEndOffset,
                              size_t jumpBackOffset,
                              ic::TypeFeedbackCollector* typeFeedback,
-                             JitCodeCache* codeCache,  // MYT-315
+                             JitCodeCache* codeCache,
                              uint64_t* inlineFieldICHits,
                              uint64_t* inlineFieldICMisses,
                              uint64_t* inlineFieldSetICHits,
@@ -396,17 +261,18 @@ namespace vm::jit
         s.inlineFieldSetICHits = inlineFieldSetICHits;
         s.inlineFieldSetICMisses = inlineFieldSetICMisses;
         s.inlineDecisions = inlineDecisions;
-        s.codeCache = codeCache;  // MYT-315: fresh JIT lookup at compile time
+        s.codeCache = codeCache;
         // MYT-251: explicit OSR-context signal. Replaces the
-        // currentCompilingFn.empty() heuristic at OSR-emit sites
-        // (e.g. tryEmitInlinedMethodCall's gate). currentCompilingFn
-        // remains empty here as before — it has no meaningful value
-        // for an OSR'd loop body — but downstream logic now keys off
-        // this flag instead of inferring OSR from the empty string.
+        // currentCompilingFn.empty() heuristic at OSR-emit sites (e.g.
+        // tryEmitInlinedMethodCall's gate). currentCompilingFn remains empty
+        // here as before — it has no meaningful value for an OSR'd loop body
+        // — but downstream logic now keys off this flag instead of inferring
+        // OSR from the empty string.
         s.isOSRCompilation = true;
-        // Phase 1 (self-recursive TCO): OSR frames don't bind functionEntryLabel
-        // (the generated code enters at the loop's back-edge target, not a
-        // function prologue), so suppress tail-call lowering in OSR emission.
+        // Phase 1 (self-recursive TCO): OSR frames don't bind
+        // functionEntryLabel (the generated code enters at the loop's back-
+        // edge target, not a function prologue), so suppress tail-call
+        // lowering in OSR emission.
         s.selfTailCallEnabled = false;
 
         // MYT-211: invariant-local hoisting is disabled in this iteration —
@@ -420,10 +286,9 @@ namespace vm::jit
         // MYT-153 Bug #2 (double-count): the captured state reflects the
         // interpreter right before the JUMP_BACK at `jumpBackOffset` fires,
         // so resuming at `loopStartOffset` would re-run the block we've
-        // already executed (header, inc, or body depending on which
-        // back-edge triggered OSR). Jump directly to the back-edge's target
-        // — the same instruction the interpreter's JUMP_BACK would have
-        // landed on.
+        // already executed (header, inc, or body depending on which back-
+        // edge triggered OSR). Jump directly to the back-edge's target — the
+        // same instruction the interpreter's JUMP_BACK would have landed on.
         const auto& jbInstr = program.getInstruction(jumpBackOffset);
         if (jbInstr.hasOperands())
         {
@@ -435,15 +300,13 @@ namespace vm::jit
         // MYT-207: same constraint for the direct-self-call path. The OSR
         // entry's FuncNode->label() points at the OSR loop prelude, not the
         // original function's prologue — recursing into it would re-execute
-        // the OSR setup with bogus state. currentCompilingFn is left empty
-        // for OSR frames anyway, but keep the explicit gate for clarity.
+        // the OSR setup with bogus state.
         s.selfDirectCallEnabled = false;
 
         ExitHandler osrExit = [&](JitEmissionState& es, size_t target) {
             // MYT-211: flush register-cached slots so emitLocalsWriteBack
             // reads consistent memory and any deopt resume sees the correct
-            // operand-stack content. emitCleanup also flushes, but doing it
-            // here keeps the locals-writeback ordering crystal clear.
+            // operand-stack content.
             flushAllHints(es);
             emitLocalsWriteBack(es);
             size_t exitTarget = (target == 0) ? resumeOffset : target;
@@ -482,7 +345,7 @@ namespace vm::jit
                                       uint8_t* outOffendingOpcode)
     {
         // MYT-148: helper to record bailout reason + opcode for the caller
-        // (OSRManager) to attach to the LoopProfile. Single place to update.
+        // (OSRManager) to attach to the LoopProfile.
         auto reportBailout = [&](OSRBailoutReason reason, uint8_t opcode = 0)
         {
             if (outReason) *outReason = reason;
@@ -528,7 +391,7 @@ namespace vm::jit
         if (!emitOSRBody(cc, ctxPtr, program, frame, localSlotInfos,
                          localCount, loopStartOffset, loopEndOffset,
                          jumpBackOffset, typeFeedback,
-                         &codeCache,  // MYT-315
+                         &codeCache,
                          &inlineFieldICHits, &inlineFieldICMisses,
                          &inlineFieldSetICHits, &inlineFieldSetICMisses,
                          &inlineDecisions,

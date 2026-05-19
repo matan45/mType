@@ -779,6 +779,12 @@
     <ClCompile Include="vm\runtime\VirtualMachineDispatch.cpp">
       <Filter>vm\runtime</Filter>
     </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineDispatch_Routing.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineDispatch_Special.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
     <ClCompile Include="vm\runtime\VirtualMachineFields.cpp">
       <Filter>vm\runtime</Filter>
     </ClCompile>
@@ -789,6 +795,9 @@
       <Filter>vm\runtime</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\VirtualMachineInteropConstruct.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineInteropConstruct_Args.cpp">
       <Filter>vm\runtime</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\VirtualMachineJit.cpp">
@@ -804,6 +813,9 @@
       <Filter>vm\runtime</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\VirtualMachineLoop.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachine_Lifecycle.cpp">
       <Filter>vm\runtime</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\context\ExecutionContext.cpp">
@@ -831,6 +843,12 @@
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\FunctionExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\FunctionExecutor_Lambda.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\FunctionExecutor_Static.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\InlineCacheExecutor.cpp">

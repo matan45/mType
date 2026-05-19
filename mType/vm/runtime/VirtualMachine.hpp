@@ -516,6 +516,14 @@ namespace vm::runtime
         // Instruction dispatch
         void executeInstruction(const bytecode::BytecodeProgram::Instruction& instr);
 
+        // Split-file dispatch fall-throughs. Primary executeInstruction falls
+        // through to dispatchExtendedOps for object/iterator/primitive/array
+        // opcodes, and from there to dispatchSpecialOps for type/lambda/
+        // exception/async/debug/profile opcodes. Splitting the giant switch
+        // across TUs keeps each .cpp under the 500-line cap.
+        void dispatchExtendedOps(const bytecode::BytecodeProgram::Instruction& instr);
+        void dispatchSpecialOps(const bytecode::BytecodeProgram::Instruction& instr);
+
         // Extracted dispatch helpers (reduce executeInstruction size)
         void trySpecializeArithmetic(const bytecode::BytecodeProgram::Instruction& instr,
                                      bytecode::OpCode intOpcode, bytecode::OpCode floatOpcode);
