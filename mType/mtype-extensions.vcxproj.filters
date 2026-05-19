@@ -356,6 +356,18 @@
     <ClCompile Include="debugger\VMVariableInspector.cpp">
       <Filter>debugger</Filter>
     </ClCompile>
+    <ClCompile Include="debugger\VMVariableInspector_Collect.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\VMVariableInspector_Find.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\VMVariableInspector_Format.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\VMVariableInspector_Globals.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
     <ClCompile Include="debugger\VariableInspector.cpp">
       <Filter>debugger</Filter>
     </ClCompile>

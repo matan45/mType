@@ -212,6 +212,12 @@
     <ClCompile Include="optimizer\passes\DeadCodeEliminationPass.cpp">
       <Filter>optimizer\passes</Filter>
     </ClCompile>
+    <ClCompile Include="optimizer\passes\DeadCodeEliminationPass_Branching.cpp">
+      <Filter>optimizer\passes</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\DeadCodeEliminationPass_Statements.cpp">
+      <Filter>optimizer\passes</Filter>
+    </ClCompile>
     <ClCompile Include="optimizer\passes\EscapeAnalysisPass.cpp">
       <Filter>optimizer\passes</Filter>
     </ClCompile>

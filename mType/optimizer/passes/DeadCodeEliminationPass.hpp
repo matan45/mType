@@ -44,6 +44,19 @@ namespace optimizer::passes {
 				const std::vector<std::unique_ptr<ast::ASTNode>>& statements
 			);
 
+			// visitClassNode extraction: rebuild constructors/methods and
+			// populate a fresh ClassNode preserving non-body attributes.
+			std::vector<std::unique_ptr<ast::ASTNode>> transformClassChildren(
+				const std::vector<std::unique_ptr<ast::ASTNode>>& children,
+				bool& anyTransformed
+			);
+			static void populateRebuiltClass(
+				ast::nodes::classes::ClassNode* newClass,
+				ast::nodes::classes::ClassNode* original,
+				std::vector<std::unique_ptr<ast::ASTNode>>&& constructors,
+				std::vector<std::unique_ptr<ast::ASTNode>>&& methods
+			);
+
 		public:
 			explicit DCETransformer(base::OptimizationContext* ctx, size_t& count);
 
