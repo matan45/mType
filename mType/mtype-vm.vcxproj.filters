@@ -162,6 +162,9 @@
     <ClInclude Include="vm\compiler\types\TypeInferenceEngine.hpp">
       <Filter>vm\compiler\types</Filter>
     </ClInclude>
+    <ClInclude Include="vm\compiler\types\TypeNameValidator.hpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\types\TypeValidator.hpp">
       <Filter>vm\compiler\types</Filter>
     </ClInclude>
@@ -500,6 +503,9 @@
     <ClCompile Include="vm\compiler\types\TypeInferenceEngine.cpp">
       <Filter>vm\compiler\types</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\types\TypeNameValidator.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\types\TypeValidator.cpp">
       <Filter>vm\compiler\types</Filter>
     </ClCompile>
@@ -527,7 +533,16 @@
     <ClCompile Include="vm\compiler\visitors\ClassCompiler.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ClassCompiler_Member.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ClassCompiler_New.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\visitors\ClassMethodCallCompiler.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ClassMethodCallCompiler_Instance.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\ControlFlowCompiler.cpp">
@@ -539,7 +554,19 @@
     <ClCompile Include="vm\compiler\visitors\FunctionCallHelper.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\FunctionCallHelper_Emit.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\FunctionCallHelper_Inference.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\visitors\FunctionCompiler.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\FunctionCompiler_Lambda.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\FunctionCompiler_Return.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\GenericScopeHelper.cpp">
@@ -558,6 +585,15 @@
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\StatementCompiler.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\StatementCompiler_Assignment.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\StatementCompiler_LambdaValidation.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\StatementCompiler_VarStorage.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\TryStatementHelper.cpp">

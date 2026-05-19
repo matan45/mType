@@ -6,6 +6,7 @@
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../MethodSignature.hpp"
 #include "../validation/ReturnPathValidator.hpp"
+#include "../types/TypeNameValidator.hpp"
 #include <iostream>
 namespace vm::compiler::visitors
 {
@@ -180,56 +181,6 @@ namespace vm::compiler::visitors
         }
     }
 
-    bool MethodCompilerHelper::isValidTypeName(const std::string& typeName,
-                                                const std::vector<std::string>& validGenericParams)
-    {
-        std::string baseTypeName = ::types::TypeConversionUtils::stripNullable(typeName);
-
-        // Handle array types: int[], Item[][], etc.
-        // Strip all array brackets to get the element type
-        size_t bracketPos = baseTypeName.find('[');
-        if (bracketPos != std::string::npos)
-        {
-            baseTypeName = baseTypeName.substr(0, bracketPos);
-        }
-
-        // Extract base type name (handle generics like "List<T>", "Array<K>")
-        size_t anglePos = baseTypeName.find('<');
-        if (anglePos != std::string::npos)
-        {
-            baseTypeName = baseTypeName.substr(0, anglePos);
-        }
-
-        // Check if base type is a primitive type (including Array for array types, object for generic constraints, and Promise for async/await)
-        if (baseTypeName == "int" || baseTypeName == "float" || baseTypeName == "string" ||
-            baseTypeName == "bool" || baseTypeName == "void" || baseTypeName == "Array" ||
-            baseTypeName == "object" || baseTypeName == "Promise")
-        {
-            return true;
-        }
-
-        // Check if it's a declared generic type parameter (check element type for arrays)
-        for (const auto& genericParam : validGenericParams)
-        {
-            if (baseTypeName == genericParam)
-            {
-                return true;
-            }
-        }
-
-        // Check if base type is an existing class or interface
-        if (ctx.env->findClass(baseTypeName) != nullptr)
-        {
-            return true;
-        }
-        if (ctx.env->findInterface(baseTypeName) != nullptr)
-        {
-            return true;
-        }
-
-        return false;
-    }
-
     MethodCompilerHelper::MethodParameters MethodCompilerHelper::collectMethodParameters(ast::MethodNode* node, bool isStatic)
     {
         MethodParameters result;
@@ -279,7 +230,7 @@ namespace vm::compiler::visitors
             result.paramNullable.push_back(paramIsNullable);
 
             // Validate parameter type exists
-            if (!isValidTypeName(paramTypeStr, validGenericParams))
+            if (!vm::compiler::types::isValidTypeName(paramTypeStr, validGenericParams, *ctx.env))
             {
                 throw errors::TypeException(
                     "Undefined type '" + paramTypeStr + "' in parameter '" + param.first + "'. " +
@@ -298,7 +249,7 @@ namespace vm::compiler::visitors
         }
 
         // Validate return type exists
-        if (!isValidTypeName(result.returnTypeStr, validGenericParams))
+        if (!vm::compiler::types::isValidTypeName(result.returnTypeStr, validGenericParams, *ctx.env))
         {
             throw errors::TypeException(
                 "Undefined type '" + result.returnTypeStr + "' in return type. " +
