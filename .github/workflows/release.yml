@@ -121,7 +121,7 @@ jobs:
           Copy-Item bin/mType/Release/x64/mtype-launcher.exe $stage/
           Copy-Item bin/mtpm/Release/x64/mtpm.exe $stage/
           Copy-Item bin/mtype-language-server/Release/x64/mtype-language-server.exe $stage/
-          Copy-Item mType/tests/testFiles/lib "$stage/lib" -Recurse
+
           Copy-Item docs "$stage/docs" -Recurse
           Copy-Item README.md,LICENSE,CHANGELOG.md $stage/
           Compress-Archive -Path "$stage/*" -DestinationPath "dist/${{ matrix.archive }}" -Force
@@ -135,7 +135,6 @@ jobs:
           cp bin/mType/Release/x64/mtype-launcher "$stage/"
           cp bin/mtpm/Release/x64/mtpm "$stage/"
           cp bin/mtype-language-server/Release/x64/mtype-language-server "$stage/"
-          cp -R mType/tests/testFiles/lib "$stage/lib"
           cp -R docs "$stage/docs"
           cp README.md LICENSE CHANGELOG.md "$stage/"
           tar -czf "dist/${{ matrix.archive }}" -C dist "mType-${{ github.ref_name }}-${{ matrix.name }}"

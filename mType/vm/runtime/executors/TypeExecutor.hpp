@@ -9,6 +9,12 @@
 #include "../../../value/ValueObject.hpp"
 #include <functional>
 #include <unordered_set>
+#include <vector>
+
+namespace runtimeTypes::klass
+{
+    class InterfaceDefinition;
+}
 
 namespace vm::runtime
 {
@@ -104,6 +110,41 @@ namespace vm::runtime
             const value::Value& val,
             const std::string& targetTypeName,
             environment::Environment* env);
+
+        // Per-receiver-shape instanceof helpers, dispatched from
+        // checkInstanceofObject.
+        static bool checkInstanceofArray(
+            const value::Value& val,
+            const std::string& targetTypeName);
+        static bool checkInstanceofObjectInstance(
+            const value::Value& val,
+            const std::string& targetTypeName,
+            environment::Environment* env);
+        static bool checkInstanceofValueObject(
+            const value::Value& val,
+            const std::string& targetTypeName,
+            environment::Environment* env);
+        // Shared matching logic for both ObjectInstance and ValueObject
+        // receivers (90% identical paths reduced to one implementation).
+        static bool matchClassAgainstTarget(
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
+            const std::string& className,
+            const std::unordered_map<std::string, std::string>& objBindings,
+            const std::string& targetTypeName,
+            environment::Environment* env);
+
+        // MYT-44 helpers for parameterized-interface matching. Promoted from
+        // anonymous-namespace to private statics so both _Instanceof.cpp and
+        // _Interface.cpp (which both walk the interface hierarchy) can share
+        // a single implementation without a private subheader.
+        static std::string trimString(const std::string& s);
+        static std::vector<std::string> splitTopLevelTypeArgs(const std::string& params);
+        static std::string substituteTypeExpression(
+            const std::string& expr,
+            const std::unordered_map<std::string, std::string>& bindings);
+        static std::unordered_map<std::string, std::string> rebindForInterface(
+            const runtimeTypes::klass::InterfaceDefinition* ifaceDef,
+            const std::string& substitutedParams);
 
         // Resolve a type-parameter name (e.g. "T") to its bound concrete type
         // name via the current receiver's generic bindings. Throws a clean

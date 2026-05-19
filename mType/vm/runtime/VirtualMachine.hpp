@@ -371,6 +371,16 @@ namespace vm::runtime
         vm::jit::JitCompiler* getJitCompiler() const { return jitCompiler.get(); }
         vm::jit::OSRManager* getOSRManager() const { return osrManager.get(); }
         void printJitStats() const;
+
+    private:
+        // Per-category sections of printJitStats. Split out for readability;
+        // each prints one labeled block.
+        void printJitFunctionProfilingStats() const;
+        void printJitCompilationStats() const;
+        void printJitFieldIcStats() const;
+        void printJitInlineDecisionStats() const;
+        void printJitLoopOsrStats() const;
+    public:
         vm::jit::ic::InlineCacheTable* getInlineCacheTable() const { return inlineCacheTable.get(); }
         vm::jit::ic::TypeFeedbackCollector* getTypeFeedbackCollector() const { return typeFeedbackCollector.get(); }
 
@@ -416,6 +426,25 @@ namespace vm::runtime
                                           size_t savedStackSize,
                                           const bytecode::BytecodeProgram* savedProgram,
                                           bool switchedProgram);
+
+        // Shared exception-unwind for runJitMiniInterpret: pops back to
+        // savedCallStackDepth releasing stack-promoted allocations, restores
+        // instruction pointer, drains the operand stack to savedStackSize,
+        // and restores executionCtx->program if it was switched.
+        void restoreJitMiniInterpretState(size_t savedIP,
+                                           size_t savedCallStackDepth,
+                                           size_t savedStackSize,
+                                           const bytecode::BytecodeProgram* savedProgram,
+                                           bool switchedProgram);
+
+        // MYT-254 in-scope UserException dispatch path. Returns true if the
+        // exception was dispatched to a covering handler in the current frame
+        // (caller should `continue` the loop); false if the exception must
+        // unwind past the mini-interpret frame.
+        bool tryDispatchInScopeJitUserException(
+            errors::UserException& e,
+            size_t savedCallStackDepth,
+            const bytecode::BytecodeProgram* jitCurrentProgram);
 
     public:
 
@@ -486,6 +515,14 @@ namespace vm::runtime
 
         // Instruction dispatch
         void executeInstruction(const bytecode::BytecodeProgram::Instruction& instr);
+
+        // Split-file dispatch fall-throughs. Primary executeInstruction falls
+        // through to dispatchExtendedOps for object/iterator/primitive/array
+        // opcodes, and from there to dispatchSpecialOps for type/lambda/
+        // exception/async/debug/profile opcodes. Splitting the giant switch
+        // across TUs keeps each .cpp under the 500-line cap.
+        void dispatchExtendedOps(const bytecode::BytecodeProgram::Instruction& instr);
+        void dispatchSpecialOps(const bytecode::BytecodeProgram::Instruction& instr);
 
         // Extracted dispatch helpers (reduce executeInstruction size)
         void trySpecializeArithmetic(const bytecode::BytecodeProgram::Instruction& instr,

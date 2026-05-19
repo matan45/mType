@@ -96,6 +96,9 @@
     <ClInclude Include="vm\bytecode\BytecodeProgram.hpp">
       <Filter>vm\bytecode</Filter>
     </ClInclude>
+    <ClInclude Include="vm\bytecode\BytecodeProgramReadValidators.hpp">
+      <Filter>vm\bytecode</Filter>
+    </ClInclude>
     <ClInclude Include="vm\bytecode\ExceptionTable.hpp">
       <Filter>vm\bytecode</Filter>
     </ClInclude>
@@ -160,6 +163,9 @@
       <Filter>vm\compiler\types</Filter>
     </ClInclude>
     <ClInclude Include="vm\compiler\types\TypeInferenceEngine.hpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\compiler\types\TypeNameValidator.hpp">
       <Filter>vm\compiler\types</Filter>
     </ClInclude>
     <ClInclude Include="vm\compiler\types\TypeValidator.hpp">
@@ -437,10 +443,31 @@
     <ClCompile Include="vm\bytecode\BytecodeProgram.cpp">
       <Filter>vm\bytecode</Filter>
     </ClCompile>
+    <ClCompile Include="vm\bytecode\BytecodeProgram_Edit.cpp">
+      <Filter>vm\bytecode</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\bytecode\BytecodeProgram_SerializeRead.cpp">
+      <Filter>vm\bytecode</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\bytecode\BytecodeProgram_SerializeReadMeta.cpp">
+      <Filter>vm\bytecode</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\bytecode\BytecodeProgram_SerializeWrite.cpp">
+      <Filter>vm\bytecode</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\bytecode\BytecodeProgram_Tables.cpp">
+      <Filter>vm\bytecode</Filter>
+    </ClCompile>
     <ClCompile Include="vm\bytecode\ExceptionTable.cpp">
       <Filter>vm\bytecode</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\BytecodeCompiler.cpp">
+      <Filter>vm\compiler</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\BytecodeCompiler_VisitDispatch.cpp">
+      <Filter>vm\compiler</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\BytecodeCompiler_VisitImports.cpp">
       <Filter>vm\compiler</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\ImportHelper.cpp">
@@ -470,7 +497,16 @@
     <ClCompile Include="vm\compiler\overload\OverloadResolutionHelper.cpp">
       <Filter>vm\compiler\overload</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\overload\OverloadResolutionHelper_Function.cpp">
+      <Filter>vm\compiler\overload</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\overload\OverloadResolutionHelper_Static.cpp">
+      <Filter>vm\compiler\overload</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\overload\OverloadResolver.cpp">
+      <Filter>vm\compiler\overload</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\overload\OverloadResolver_Phases.cpp">
       <Filter>vm\compiler\overload</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\registration\AnnotationRetention.cpp">
@@ -480,6 +516,18 @@
       <Filter>vm\compiler\registration</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\registration\ClassRegistrar.cpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\registration\ClassRegistrar_Linking.cpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\registration\ClassRegistrar_Metadata.cpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\registration\ClassRegistrar_OverrideValidation.cpp">
+      <Filter>vm\compiler\registration</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\registration\ClassRegistrar_RegisterSingle.cpp">
       <Filter>vm\compiler\registration</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\registration\FunctionRegistrar.cpp">
@@ -500,10 +548,31 @@
     <ClCompile Include="vm\compiler\types\TypeInferenceEngine.cpp">
       <Filter>vm\compiler\types</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\types\TypeInferenceEngine_Binary.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\types\TypeInferenceEngine_ClassNames.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\types\TypeInferenceEngine_Functions.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\types\TypeInferenceEngine_Nullable.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\types\TypeNameValidator.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\types\TypeValidator.cpp">
       <Filter>vm\compiler\types</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\types\TypeValidator_Operations.cpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\validation\CompileTimeValidator.cpp">
+      <Filter>vm\compiler\validation</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\validation\CompileTimeValidator_Completeness.cpp">
       <Filter>vm\compiler\validation</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\validation\FieldInitializationValidator.cpp">
@@ -527,19 +596,49 @@
     <ClCompile Include="vm\compiler\visitors\ClassCompiler.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ClassCompiler_Member.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ClassCompiler_New.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\visitors\ClassMethodCallCompiler.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ClassMethodCallCompiler_Instance.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\ControlFlowCompiler.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ControlFlowCompiler_ForEach.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ControlFlowCompiler_Loops.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\visitors\ExpressionCompiler.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ExpressionCompiler_BinaryOp.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\FunctionCallHelper.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\FunctionCallHelper_Emit.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\FunctionCallHelper_Inference.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\visitors\FunctionCompiler.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\FunctionCompiler_Lambda.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\FunctionCompiler_Return.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\GenericScopeHelper.cpp">
@@ -551,6 +650,9 @@
     <ClCompile Include="vm\compiler\visitors\MethodCompilerHelper.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\MethodCompilerHelper_Body.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\visitors\ParameterValidator.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
@@ -560,7 +662,19 @@
     <ClCompile Include="vm\compiler\visitors\StatementCompiler.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\StatementCompiler_Assignment.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\StatementCompiler_LambdaValidation.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\StatementCompiler_VarStorage.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\visitors\TryStatementHelper.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\TryStatementHelper_Finally.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\optimization\BytecodeOptimizationConfig.cpp">
@@ -665,6 +779,12 @@
     <ClCompile Include="vm\runtime\VirtualMachineDispatch.cpp">
       <Filter>vm\runtime</Filter>
     </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineDispatch_Routing.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineDispatch_Special.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
     <ClCompile Include="vm\runtime\VirtualMachineFields.cpp">
       <Filter>vm\runtime</Filter>
     </ClCompile>
@@ -677,10 +797,25 @@
     <ClCompile Include="vm\runtime\VirtualMachineInteropConstruct.cpp">
       <Filter>vm\runtime</Filter>
     </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineInteropConstruct_Args.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
     <ClCompile Include="vm\runtime\VirtualMachineJit.cpp">
       <Filter>vm\runtime</Filter>
     </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineJitInterop.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineJitSpecialize.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineJitStats.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
     <ClCompile Include="vm\runtime\VirtualMachineLoop.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachine_Lifecycle.cpp">
       <Filter>vm\runtime</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\context\ExecutionContext.cpp">
@@ -710,7 +845,28 @@
     <ClCompile Include="vm\runtime\executors\FunctionExecutor.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\runtime\executors\FunctionExecutor_Lambda.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\FunctionExecutor_Static.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
     <ClCompile Include="vm\runtime\executors\InlineCacheExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\InlineCacheExecutor_FieldIC.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\InlineCacheExecutor_FusedIC.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\InlineCacheExecutor_MethodCached.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\InlineCacheExecutor_MethodIC.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\InlineCacheExecutor_PolyIC.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\LambdaExecutor.cpp">
@@ -722,7 +878,28 @@
     <ClCompile Include="vm\runtime\executors\ObjectExecutor.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ObjectExecutor_Fields.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ObjectExecutor_Iteration.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ObjectExecutor_MethodsDispatch.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ObjectExecutor_MethodsSpecial.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
     <ClCompile Include="vm\runtime\executors\ObjectInstanceHelper.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ObjectInstanceHelper_New.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ObjectInstanceHelper_SuperCtor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ObjectInstanceHelper_SuperMember.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\PrimitiveMethodExecutor.cpp">
@@ -732,6 +909,15 @@
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\TypeExecutor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\TypeExecutor_Cast.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\TypeExecutor_Instanceof.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\TypeExecutor_Interface.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\VariableExecutor.cpp">

@@ -1,6 +1,5 @@
 #include "ScriptAPI.hpp"
 #include <cstddef>
-#include <cstdint>
 #include "../environment/registry/ClassDefinition.hpp"
 #include "../value/ObjectInstance.hpp"
 #include "../value/ValueShim.hpp"
@@ -13,18 +12,11 @@
 #include "../errors/ClassNotFoundException.hpp"
 #include "../errors/FieldNotFoundException.hpp"
 #include "../errors/FinalModificationException.hpp"
-#include "../errors/TypeConversionException.hpp"
-#include "../errors/ReturnException.hpp"
 #include "../errors/RuntimeException.hpp"
 #include "../vm/runtime/VirtualMachine.hpp"
-#include "../vm/runtime/executors/TypeExecutor.hpp"
 #include "../vm/bytecode/BytecodeProgram.hpp"
 #include "../runtime/EventLoop.hpp"
 #include "../value/PromiseValue.hpp"
-#include "../value/NativeArray.hpp"
-#include "../reflection/ReflectionHandle.hpp"
-#include "../types/UnifiedType.hpp"
-#include <iostream>
 
 namespace services
 {
@@ -46,8 +38,6 @@ namespace services
             // ScriptAPI is interop / not hot-path, so wrapping the raw pointer
             // in an aliasing shared_ptr with a no-op deleter is acceptable —
             // lifetime stays with the owning CallFrame::stackObjects array.
-            // This keeps every downstream caller's `instance->method()` and
-            // `instance.get()` paths unchanged.
             if (value::isStackObject(v))
             {
                 auto* raw = value::asObjectInstanceRaw(v);
@@ -90,7 +80,6 @@ namespace services
 
     value::Value ScriptAPI::callFunction(const std::string& functionName, const std::vector<value::Value>& args)
     {
-        // Try to find a native function first
         auto nativeRegistry = environment->getNativeRegistry();
         if (nativeRegistry && nativeRegistry->hasNativeFunction(functionName))
         {
@@ -102,7 +91,6 @@ namespace services
             }
         }
 
-        // Otherwise use VM to invoke the function
         if (vm && program)
         {
             return vm->executeFunction(functionName, args);
@@ -117,7 +105,6 @@ namespace services
     {
         auto instance = asObjectInstance(object, "ScriptAPI::callMethod");
 
-        // Use VM for method invocation
         if (vm)
         {
             // Check if method is async — if so, schedule via EventLoop
@@ -135,7 +122,6 @@ namespace services
                 );
                 eventLoop->setTaskVM(taskId, vmShared);
 
-                // Return the task's result promise so caller can check completion
                 auto task = eventLoop->getTask(taskId);
                 if (task && task->resultPromise)
                 {
@@ -160,7 +146,6 @@ namespace services
             throw errors::ClassNotFoundException(className);
         }
 
-        // Use VM for static method invocation
         if (vm)
         {
             // Check if method is async — if so, schedule via EventLoop
@@ -211,7 +196,6 @@ namespace services
 
     value::Value ScriptAPI::getStaticField(const std::string& className, const std::string& fieldName)
     {
-        // Use VM for static field access
         if (vm)
         {
             return vm->getStaticField(className, fieldName);
@@ -237,14 +221,12 @@ namespace services
                                    const std::string& fieldName,
                                    const value::Value& value)
     {
-        // Use VM for static field access
         if (vm)
         {
             vm->setStaticField(className, fieldName, value);
             return;
         }
 
-        // Fall back to direct field access if VM not available
         auto classDef = environment->findClass(className);
         if (!classDef)
         {
@@ -296,13 +278,11 @@ namespace services
     {
         auto instance = asObjectInstance(object, "ScriptAPI::getField");
 
-        // Use VM for field access
         if (vm)
         {
             return vm->getField(instance, fieldName);
         }
 
-        // Fall back to direct field access if VM not available
         auto fieldDef = instance->getField(fieldName);
         if (!fieldDef)
         {
@@ -318,14 +298,12 @@ namespace services
     {
         auto instance = asObjectInstance(object, "ScriptAPI::setField");
 
-        // Use VM for field access
         if (vm)
         {
             vm->setField(instance, fieldName, value);
             return;
         }
 
-        // Fall back to direct field access if VM not available
         auto fieldDef = instance->getField(fieldName);
         if (!fieldDef)
         {
@@ -343,7 +321,6 @@ namespace services
     value::Value ScriptAPI::createObject(const std::string& className,
                                          const std::vector<value::Value>& constructorArgs)
     {
-        // Use VM for object creation
         if (vm)
         {
             return vm->createObject(className, constructorArgs);
@@ -374,130 +351,4 @@ namespace services
         auto instance = asObjectInstance(object, "ScriptAPI::getObjectClassName");
         return instance->getClassDefinition()->getName();
     }
-
-    // ================================================================
-    // MYT-42 — generic type metadata / Class FFI
-    // ================================================================
-
-    api::Class ScriptAPI::getClass(const value::Value& object)
-    {
-        auto instance = asObjectInstance(object, "ScriptAPI::getClass");
-
-        // Reconstruct the canonical parameterized name using the same
-        // helper the bytecode INSTANCEOF op uses — this guarantees the
-        // string we pass to Class.forName lines up with what the language
-        // side would produce (e.g. "Box<Int>" with ", " spacing).
-        // MYT-208: helper takes raw ObjectInstance* — pass the shared_ptr's
-        // underlying pointer (lifetime is the caller's `instance`).
-        std::string canonicalName =
-            vm::runtime::TypeExecutor::reconstructObjectFullType(instance.get());
-        if (canonicalName.empty())
-        {
-            canonicalName = instance->getClassDefinition()->getName();
-        }
-
-        // Route through the same reflection path as language-side
-        // Class.forName — same ReflectionHandleRegistry, same interning,
-        // same handle identity.
-        value::Value raw = callStaticMethod(
-            "Class", "forName", { value::Value(canonicalName) });
-        return api::Class(std::move(raw));
-    }
-
-    api::Class ScriptAPI::classOf(const std::string& typeName)
-    {
-        value::Value raw = callStaticMethod(
-            "Class", "forName", { value::Value(typeName) });
-        return api::Class(std::move(raw));
-    }
-
-    std::vector<api::Class> ScriptAPI::getGenericArguments(const value::Value& object)
-    {
-        // Route through the language surface: Class.getTypeArguments()
-        // returns Class[] via the same __reflect_getTypeArguments native
-        // that powers the language path, so identity is preserved.
-        api::Class cls = getClass(object);
-        value::Value argsArray = callMethod(cls.asValue(), "getTypeArguments", {});
-
-        // Class.getTypeArguments() always returns a Class[] — at the VM
-        // level a shared_ptr<NativeArray> with object elements. Anything
-        // else is an internal invariant violation and must fail loudly
-        // rather than silently return an empty vector.
-        if (!value::isNativeArray(argsArray))
-        {
-            throw errors::ObjectException(
-                "Class.getTypeArguments() returned an unexpected value shape "
-                "(expected NativeArray)",
-                "Class", "ScriptAPI::getGenericArguments");
-        }
-        auto array = value::asNativeArray(argsArray);
-        if (!array)
-        {
-            throw errors::ObjectException(
-                "Class.getTypeArguments() returned a null array",
-                "Class", "ScriptAPI::getGenericArguments");
-        }
-
-        std::vector<api::Class> result;
-        result.reserve(array->size());
-        for (size_t i = 0; i < array->size(); ++i)
-        {
-            // Each element must be a Class ObjectInstance — the api::Class
-            // ctor throws with a clear message if that invariant is ever
-            // violated (e.g. if Class.mt is ever refactored to return
-            // something other than Class[]).
-            result.emplace_back(array->get(i));
-        }
-        return result;
-    }
-
-    bool ScriptAPI::isInstanceOf(const value::Value& object,
-                                 const std::string& fullyParameterizedType)
-    {
-        // Shared code path with bytecode INSTANCEOF — same routine in
-        // TypeExecutor handles primitives, parameterized objects, and the
-        // interface hierarchy walk.
-        return vm::runtime::TypeExecutor::checkInstanceOfByName(
-            object, fullyParameterizedType, environment);
-    }
-
-    bool ScriptAPI::isInstanceOf(const value::Value& object, const api::Class& cls)
-    {
-        // Hot-path implementation — read the Class's `_nativeHandle`
-        // field directly and resolve the canonical name through
-        // ReflectionHandleRegistry. No VM round-trip, no bytecode
-        // invocation. For closed handles (parameterized types) we use
-        // the reified UnifiedType's canonical string; for open handles
-        // we use the ClassDefinition's raw name. Both paths produce the
-        // same string the language-side Class.getName() would.
-        auto instance = asObjectInstance(cls.asValue(), "ScriptAPI::isInstanceOf");
-        value::Value handleVal = instance->getFieldValue("_nativeHandle");
-        if (!value::isInt(handleVal))
-        {
-            throw errors::ObjectException(
-                "Class._nativeHandle is missing or not an int",
-                "Class", "ScriptAPI::isInstanceOf");
-        }
-        int64_t handle = value::asInt(handleVal);
-
-        auto& registry = reflection::ReflectionHandleRegistry::instance();
-        std::string name;
-        auto reified = registry.getReifiedType(handle);
-        if (reified)
-        {
-            name = reified->toCanonicalString();
-        }
-        else
-        {
-            auto classDef = registry.getClass(handle);
-            if (!classDef)
-            {
-                throw errors::RuntimeException(
-                    "ScriptAPI::isInstanceOf: invalid class handle");
-            }
-            name = classDef->getName();
-        }
-        return isInstanceOf(object, name);
-    }
 }
-

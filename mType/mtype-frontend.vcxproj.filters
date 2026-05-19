@@ -75,6 +75,9 @@
     <ClInclude Include="optimizer\passes\EscapeAnalysisPass.hpp">
       <Filter>optimizer\passes</Filter>
     </ClInclude>
+    <ClInclude Include="optimizer\passes\EscapeAnalysisPass_Internal.hpp">
+      <Filter>optimizer\passes</Filter>
+    </ClInclude>
     <ClInclude Include="optimizer\passes\StructuralEqualitySynthesisPass.hpp">
       <Filter>optimizer\passes</Filter>
     </ClInclude>
@@ -179,6 +182,9 @@
     <ClCompile Include="lexer\Lexer.cpp">
       <Filter>lexer</Filter>
     </ClCompile>
+    <ClCompile Include="lexer\Lexer_Tokens.cpp">
+      <Filter>lexer</Filter>
+    </ClCompile>
     <ClCompile Include="lexer\SourceLocationTracker.cpp">
       <Filter>lexer</Filter>
     </ClCompile>
@@ -209,10 +215,22 @@
     <ClCompile Include="optimizer\passes\ConstantFoldingPass.cpp">
       <Filter>optimizer\passes</Filter>
     </ClCompile>
+    <ClCompile Include="optimizer\passes\ConstantFoldingPass_Operators.cpp">
+      <Filter>optimizer\passes</Filter>
+    </ClCompile>
     <ClCompile Include="optimizer\passes\DeadCodeEliminationPass.cpp">
       <Filter>optimizer\passes</Filter>
     </ClCompile>
+    <ClCompile Include="optimizer\passes\DeadCodeEliminationPass_Branching.cpp">
+      <Filter>optimizer\passes</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\DeadCodeEliminationPass_Statements.cpp">
+      <Filter>optimizer\passes</Filter>
+    </ClCompile>
     <ClCompile Include="optimizer\passes\EscapeAnalysisPass.cpp">
+      <Filter>optimizer\passes</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\EscapeAnalysisPass_Detection.cpp">
       <Filter>optimizer\passes</Filter>
     </ClCompile>
     <ClCompile Include="optimizer\passes\StructuralEqualitySynthesisPass.cpp">

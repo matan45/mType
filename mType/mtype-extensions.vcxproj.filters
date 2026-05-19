@@ -81,6 +81,9 @@
     <ClInclude Include="debugger\DebugExpressionEvaluator.hpp">
       <Filter>debugger</Filter>
     </ClInclude>
+    <ClInclude Include="debugger\DebugExpressionEvaluator_Internal.hpp">
+      <Filter>debugger</Filter>
+    </ClInclude>
     <ClInclude Include="debugger\DebugHookHelper.hpp">
       <Filter>debugger</Filter>
     </ClInclude>
@@ -347,16 +350,37 @@
     <ClCompile Include="debugger\DebugExpressionEvaluator.cpp">
       <Filter>debugger</Filter>
     </ClCompile>
+    <ClCompile Include="debugger\DebugExpressionEvaluator_Scope.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
     <ClCompile Include="debugger\DebugHookHelper.cpp">
       <Filter>debugger</Filter>
     </ClCompile>
     <ClCompile Include="debugger\DebugProtocol.cpp">
       <Filter>debugger</Filter>
     </ClCompile>
+    <ClCompile Include="debugger\DebugProtocol_Dispatch.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
     <ClCompile Include="debugger\VMVariableInspector.cpp">
       <Filter>debugger</Filter>
     </ClCompile>
+    <ClCompile Include="debugger\VMVariableInspector_Collect.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\VMVariableInspector_Find.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\VMVariableInspector_Format.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\VMVariableInspector_Globals.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
     <ClCompile Include="debugger\VariableInspector.cpp">
+      <Filter>debugger</Filter>
+    </ClCompile>
+    <ClCompile Include="debugger\VariableInspector_Types.cpp">
       <Filter>debugger</Filter>
     </ClCompile>
     <ClCompile Include="gc\CycleDetector.cpp">
@@ -383,6 +407,9 @@
     <ClCompile Include="json\JsonDeserializer.cpp">
       <Filter>json</Filter>
     </ClCompile>
+    <ClCompile Include="json\JsonDeserializer_Collections.cpp">
+      <Filter>json</Filter>
+    </ClCompile>
     <ClCompile Include="json\JsonNatives.cpp">
       <Filter>json</Filter>
     </ClCompile>
@@ -390,6 +417,9 @@
       <Filter>json</Filter>
     </ClCompile>
     <ClCompile Include="json\JsonSerializer.cpp">
+      <Filter>json</Filter>
+    </ClCompile>
+    <ClCompile Include="json\JsonSerializer_Collections.cpp">
       <Filter>json</Filter>
     </ClCompile>
     <ClCompile Include="json\JsonValue.cpp">
@@ -443,6 +473,15 @@
     <ClCompile Include="project\ProjectBuilder.cpp">
       <Filter>project</Filter>
     </ClCompile>
+    <ClCompile Include="project\ProjectBuilder_Compile.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\ProjectBuilder_Executable.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
+    <ClCompile Include="project\ProjectBuilder_Library.cpp">
+      <Filter>project</Filter>
+    </ClCompile>
     <ClCompile Include="project\ProjectConfigParser.cpp">
       <Filter>project</Filter>
     </ClCompile>
@@ -485,13 +524,22 @@
     <ClCompile Include="reflection\ReflectionHandle.cpp">
       <Filter>reflection</Filter>
     </ClCompile>
+    <ClCompile Include="reflection\ReflectionHandle_Accessors.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
     <ClCompile Include="reflection\ReflectionNatives.cpp">
       <Filter>reflection</Filter>
     </ClCompile>
     <ClCompile Include="reflection\ReflectionNatives_Class.cpp">
       <Filter>reflection</Filter>
     </ClCompile>
+    <ClCompile Include="reflection\ReflectionNatives_Class_Members.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
     <ClCompile Include="reflection\ReflectionNatives_CtorAnnotation.cpp">
+      <Filter>reflection</Filter>
+    </ClCompile>
+    <ClCompile Include="reflection\ReflectionNatives_CtorAnnotation_Bind.cpp">
       <Filter>reflection</Filter>
     </ClCompile>
     <ClCompile Include="reflection\ReflectionNatives_Field.cpp">
@@ -518,10 +566,16 @@
     <ClCompile Include="services\BytecodeService.cpp">
       <Filter>services</Filter>
     </ClCompile>
+    <ClCompile Include="services\BytecodeService_Metadata.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
     <ClCompile Include="services\FileReader.cpp">
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="services\ImportManager.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\ImportManager_Resolution.cpp">
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="services\ImportResolver.cpp">
@@ -536,13 +590,22 @@
     <ClCompile Include="services\ScriptAPI.cpp">
       <Filter>services</Filter>
     </ClCompile>
+    <ClCompile Include="services\ScriptAPI_Reflection.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
     <ClCompile Include="services\ScriptInterpreter.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\ScriptInterpreter_Api.cpp">
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="validation\AnnotationUsageValidator.cpp">
       <Filter>validation</Filter>
     </ClCompile>
     <ClCompile Include="validation\AnnotationValidator.cpp">
+      <Filter>validation</Filter>
+    </ClCompile>
+    <ClCompile Include="validation\AnnotationValidator_Constraints.cpp">
       <Filter>validation</Filter>
     </ClCompile>
     <ClCompile Include="validation\builtins\BuiltInAnnotations.cpp">

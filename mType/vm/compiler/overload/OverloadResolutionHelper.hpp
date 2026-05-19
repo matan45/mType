@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <unordered_map>
 
 namespace vm::compiler::overload
 {
@@ -106,5 +107,14 @@ namespace vm::compiler::overload
         std::string buildMangledFunctionName(
             const std::string& functionName,
             const std::vector<std::pair<std::string, value::ParameterType>>& parameters);
+
+        /**
+         * Substitutes generic type parameters in a type string.
+         * Example: substituteTypeParameters("Wrapper<T>", {{"T", "Int"}}) => "Wrapper<Int>"
+         * Promoted to a static method so both _Static and _Function TUs can call it.
+         */
+        static std::string substituteTypeParameters(
+            const std::string& typeStr,
+            const std::unordered_map<std::string, std::string>& substitutions);
     };
 }

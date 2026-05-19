@@ -2,13 +2,8 @@
 #include "JitContext.hpp"
 #include <cstddef>
 #include "../../value/ValueType.hpp"
+#include "../bytecode/BytecodeProgram.hpp"
 #include <cstdint>
-
-// Forward declaration
-namespace vm::bytecode {
-    class BytecodeProgram;
-    struct FunctionNameHandle;
-}
 
 namespace vm::jit
 {
@@ -206,23 +201,20 @@ namespace vm::jit
     // accessors) cross the threshold and take the direct path.
     constexpr size_t MIN_DIRECT_CALL_INSTRUCTION_COUNT = 15;
 
-    // MYT-322: free-function direct JIT-to-JIT dispatch. Unlike
-    // jit_call_method_direct (which still recomputes the qualified name and
-    // walks loadedPrograms per call), this helper takes the pre-interned
-    // frame name and pre-resolved callee programIndex as parameters — the
-    // IC cold path in jit_call_function_ic populates them on
-    // CachedInstructionState once. Library callees route correctly because
-    // both fields describe the callee program, not the caller. Per
-    // [[project_myt200_sharedptr_returnbyvalue_cost]] the helper is
-    // void-returning; results travel via ctx->returnValue /
-    // ctx->pendingException, matching jit_call_method_direct.
-    void jit_call_function_direct(JitContext* ctx,
-                                   const void* cachedJit,
-                                   const bytecode::BytecodeProgram* calleeProgram,
-                                   const void* funcMetadata,
-                                   bytecode::FunctionNameHandle frameName,
-                                   size_t calleeProgramIndex,
-                                   size_t argCount);
+    // Free-function direct JIT-to-JIT dispatch counterpart to
+    // jit_call_method_direct. Caller pre-resolves frame name and callee
+    // programIndex; library callees route correctly because both describe
+    // the callee. Void-returning — results travel via ctx->returnValue /
+    // ctx->pendingException.
+    struct JitDirectCallArgs {
+        const void* cachedJit;
+        const bytecode::BytecodeProgram* calleeProgram;
+        const void* funcMetadata;
+        bytecode::FunctionNameHandle frameName;
+        size_t calleeProgramIndex;
+        size_t argCount;
+    };
+    void jit_call_function_direct(JitContext* ctx, const JitDirectCallArgs& args);
 
     // Protocol fast leaves for hot generic `K.hashCode()` / `K.equals(K)`
     // call sites. The JIT emitter shape-guards the receiver before calling

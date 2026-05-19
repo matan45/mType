@@ -320,6 +320,18 @@
     <ClCompile Include="environment\registry\ClassDefinition.cpp">
       <Filter>environment\registry</Filter>
     </ClCompile>
+    <ClCompile Include="environment\registry\ClassDefinition_Fields.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\ClassDefinition_Hierarchy.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\ClassDefinition_Interfaces.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
+    <ClCompile Include="environment\registry\ClassDefinition_Methods.cpp">
+      <Filter>environment\registry</Filter>
+    </ClCompile>
     <ClCompile Include="environment\registry\ClassRegistry.cpp">
       <Filter>environment\registry</Filter>
     </ClCompile>
@@ -420,6 +432,9 @@
       <Filter>value</Filter>
     </ClCompile>
     <ClCompile Include="value\ObjectInstancePool.cpp">
+      <Filter>value</Filter>
+    </ClCompile>
+    <ClCompile Include="value\ObjectInstance_Init.cpp">
       <Filter>value</Filter>
     </ClCompile>
     <ClCompile Include="value\SpecializedCollections.cpp">

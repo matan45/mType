@@ -7,11 +7,19 @@
 #include "../../../environment/Environment.hpp"
 #include "../variables/VariableTracker.hpp"
 #include "../variables/GlobalVariableRegistry.hpp"
+#include "../../../token/TokenType.hpp"
 #include "NullNarrowingTracker.hpp"
 #include <string>
 #include <memory>
 #include <unordered_map>
 #include <vector>
+
+namespace ast::nodes::expressions
+{
+    class ArrayCreationNode;
+    class ArrayLiteralNode;
+    class AwaitExpression;
+}
 
 namespace vm::compiler::types
 {
@@ -106,5 +114,47 @@ namespace vm::compiler::types
         std::string inferIndexAccessClassName(ast::nodes::expressions::IndexAccessNode* indexAccess) const;
         std::string inferMemberAccessClassName(ast::MemberAccessNode* memberAccess) const;
         std::string inferMethodCallClassName(ast::MethodCallNode* methodCall) const;
+
+        // Shared operator-overloading detection used by both type and className
+        // inference. Sets outLeftClassName to the boxed receiver class when
+        // overloading applies; returns false when the expression evaluates as
+        // a primitive binary operation.
+        bool tryBinaryOperatorOverload(
+            ast::BinaryOpNode* binOp,
+            value::ValueType leftType,
+            value::ValueType rightType,
+            std::string& outLeftClassName) const;
+
+        // Per-operator-category helpers for inferBinaryOperationType
+        value::ValueType inferOverloadedBinaryType(token::TokenType op) const;
+        value::ValueType inferArithmeticBinaryType(
+            token::TokenType op,
+            value::ValueType leftType,
+            value::ValueType rightType) const;
+        value::ValueType inferBitwiseBinaryType(
+            token::TokenType op,
+            value::ValueType leftType,
+            value::ValueType rightType) const;
+
+        // Resolve instance-method overload (className::methodName) by argument
+        // arity and type compatibility. Mirrors findOverloadMetadata for the
+        // method-call path; used by inferMethodCallClassName.
+        const bytecode::BytecodeProgram::FunctionMetadata* findInstanceMethodMetadata(
+            const std::string& className,
+            ast::MethodCallNode* methodCall) const;
+
+        // Per-node-kind className helpers for inferExpressionClassName
+        std::string inferArrayCreationClassName(
+            ast::nodes::expressions::ArrayCreationNode* arrCreate) const;
+        std::string inferArrayLiteralClassName(
+            ast::nodes::expressions::ArrayLiteralNode* arrayLit) const;
+        std::string inferBinaryOpClassName(ast::BinaryOpNode* binOp) const;
+        std::string inferAwaitClassName(
+            ast::nodes::expressions::AwaitExpression* awaitExpr) const;
+
+        // Per-node-kind nullable helpers for inferExpressionNullable
+        bool inferVariableNullable(ast::VariableNode* varNode) const;
+        bool inferMethodCallNullable(ast::MethodCallNode* methodCall) const;
+        bool inferMemberAccessNullable(ast::MemberAccessNode* memberAccess) const;
     };
 }

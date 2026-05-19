@@ -5,8 +5,7 @@
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 #include "../../MethodSignature.hpp"
-#include "../validation/ReturnPathValidator.hpp"
-#include <iostream>
+
 namespace vm::compiler::visitors
 {
     MethodCompilerHelper::MethodCompilerHelper(CompilerContext& context)
@@ -16,30 +15,27 @@ namespace vm::compiler::visitors
 
     void MethodCompilerHelper::compileDefaultConstructor(ast::ClassNode* node)
     {
-        // Emit JUMP to skip over default constructor during main execution
         size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP, node);
         size_t constructorStart = ctx.program.getCurrentOffset();
 
-        // Default constructor has only 'this' as parameter
         std::vector<std::string> paramNames = {"this"};
 
-        // Generate constructor name for exception table tracking (no slash for default constructor)
         std::string className = node->getClassName();
-        std::string constructorName = className + "::<init>"; // No slash for default constructor with no params
+        std::string constructorName = className + "::<init>";
 
-        // Pre-register constructor metadata so exception tables can be added during initialization
+        // Pre-register so exception tables can be added during initialization.
         bytecode::BytecodeProgram::FunctionMetadata tempMetadata;
         tempMetadata.name = constructorName;
         tempMetadata.startOffset = constructorStart;
-        tempMetadata.instructionCount = 0;  // Will be updated after compilation
-        tempMetadata.localCount = 0;        // Will be updated after compilation
-        tempMetadata.parameterCount = 1;    // Just 'this'
+        tempMetadata.instructionCount = 0;
+        tempMetadata.localCount = 0;
+        tempMetadata.parameterCount = 1;
         tempMetadata.returnType = "object";
         tempMetadata.isStatic = false;
         tempMetadata.isNative = false;
         ctx.program.registerFunction(constructorName, tempMetadata);
 
-        // Enter function frame (MYT-112: isConstructor=true allows bare `return;`)
+        // MYT-112: isConstructor=true allows bare `return;`.
         ctx.functionFrameManager.enterFunctionFrame(constructorName,
                                                     "object",
                                                     ctx.variableTracker.getNextLocalSlot(),
@@ -49,44 +45,36 @@ namespace vm::compiler::visitors
                                                     true);
         ctx.variableTracker.beginScope();
 
-        // Track 'this' as local
         ctx.variableTracker.declareLocal("this", value::ValueType::OBJECT,
                                          node->getClassName());
 
-        // Update max local slot
         ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
 
-        // If parent class exists and has a default constructor, call it
         if (node->hasParentClass())
         {
             std::string parentClassName = node->getParentClassName();
             auto parentClassDef = ctx.env->getClassRegistry()->findClass(parentClassName);
             if (parentClassDef)
             {
-                // Check if parent has a default constructor (0 args)
                 auto parentDefaultCtor = parentClassDef->findConstructor(0);
                 if (parentDefaultCtor)
                 {
-                    // Call parent's default constructor: super()
                     std::string currentClassName = node->getClassName();
                     size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
                     ctx.emitter.emitWithLocation(bytecode::OpCode::SUPER_CONSTRUCTOR,
                                      static_cast<uint64_t>(classNameIndex),
-                                     static_cast<uint64_t>(0), node); // 0 arguments
+                                     static_cast<uint64_t>(0), node);
                 }
             }
         }
 
-        // Initialize instance fields with their default values
         initializeInstanceFields(node);
 
-        // Return 'this'
         ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
         ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
 
         size_t localCount = ctx.functionFrameManager.getLocalCount();
 
-        // Capture local variable names for debugging (before exiting frame)
         const auto& locals = ctx.variableTracker.getLocals();
         std::vector<std::string> localVarNames(localCount);
         for (const auto& local : locals)
@@ -103,7 +91,7 @@ namespace vm::compiler::visitors
         size_t constructorEnd = ctx.program.getCurrentOffset();
         ctx.emitter.patchJump(skipJump);
 
-        // Update default constructor metadata (preserving exception table from initialization)
+        // Preserve exception table built during initialization.
         auto* existingMetadata = const_cast<bytecode::BytecodeProgram::FunctionMetadata*>(
             ctx.program.getFunction(constructorName)
         );
@@ -113,25 +101,23 @@ namespace vm::compiler::visitors
         metadata.startOffset = constructorStart;
         metadata.instructionCount = constructorEnd - constructorStart;
         metadata.localCount = localCount;
-        metadata.parameterCount = 1; // Just 'this'
+        metadata.parameterCount = 1;
         metadata.parameterNames = paramNames;
         metadata.returnType = "object";
         metadata.isStatic = false;
         metadata.isNative = false;
         metadata.localVariableNames = localVarNames;
 
-        // Preserve exception table built during initialization
         if (existingMetadata) {
             metadata.exceptionTable = existingMetadata->exceptionTable;
         }
 
         ctx.program.registerFunction(metadata.name, metadata);
 
-        // If this is a generic class, also register with full generic name
         if (node->isGeneric())
         {
             std::string fullClassName = node->getFullClassName();
-            std::string genericConstructorName = fullClassName + "::<init>"; // No slash for empty signature
+            std::string genericConstructorName = fullClassName + "::<init>";
             metadata.name = genericConstructorName;
             ctx.program.registerFunction(genericConstructorName, metadata);
         }
@@ -153,16 +139,12 @@ namespace vm::compiler::visitors
         {
             if (auto* fieldNode = dynamic_cast<ast::FieldNode*>(fieldPtr.get()))
             {
-                // Only initialize instance fields (not static)
                 if (!fieldNode->getIsStatic() && fieldNode->getInitialValue())
                 {
-                    // Load 'this' FIRST (which is in local slot 0)
                     ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, fieldNode);
 
-                    // Compile the initializer expression (pushes value)
                     fieldNode->getInitialValue()->accept(ctx.visitor);
 
-                    // Store in field via class-targeted opcode.
                     std::string fieldName = fieldNode->getName();
                     size_t fieldNameIndex = ctx.program.getConstantPool().addString(fieldName);
                     ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD_TYPED,
@@ -180,312 +162,10 @@ namespace vm::compiler::visitors
         }
     }
 
-    bool MethodCompilerHelper::isValidTypeName(const std::string& typeName,
-                                                const std::vector<std::string>& validGenericParams)
-    {
-        std::string baseTypeName = ::types::TypeConversionUtils::stripNullable(typeName);
-
-        // Handle array types: int[], Item[][], etc.
-        // Strip all array brackets to get the element type
-        size_t bracketPos = baseTypeName.find('[');
-        if (bracketPos != std::string::npos)
-        {
-            baseTypeName = baseTypeName.substr(0, bracketPos);
-        }
-
-        // Extract base type name (handle generics like "List<T>", "Array<K>")
-        size_t anglePos = baseTypeName.find('<');
-        if (anglePos != std::string::npos)
-        {
-            baseTypeName = baseTypeName.substr(0, anglePos);
-        }
-
-        // Check if base type is a primitive type (including Array for array types, object for generic constraints, and Promise for async/await)
-        if (baseTypeName == "int" || baseTypeName == "float" || baseTypeName == "string" ||
-            baseTypeName == "bool" || baseTypeName == "void" || baseTypeName == "Array" ||
-            baseTypeName == "object" || baseTypeName == "Promise")
-        {
-            return true;
-        }
-
-        // Check if it's a declared generic type parameter (check element type for arrays)
-        for (const auto& genericParam : validGenericParams)
-        {
-            if (baseTypeName == genericParam)
-            {
-                return true;
-            }
-        }
-
-        // Check if base type is an existing class or interface
-        if (ctx.env->findClass(baseTypeName) != nullptr)
-        {
-            return true;
-        }
-        if (ctx.env->findInterface(baseTypeName) != nullptr)
-        {
-            return true;
-        }
-
-        return false;
-    }
-
-    MethodCompilerHelper::MethodParameters MethodCompilerHelper::collectMethodParameters(ast::MethodNode* node, bool isStatic)
-    {
-        MethodParameters result;
-
-        // Build list of valid generic type parameter names
-        std::vector<std::string> validGenericParams;
-
-        // Add class-level generic parameters
-        if (ctx.currentClassNode && ctx.currentClassNode->isGeneric())
-        {
-            for (const auto& param : ctx.currentClassNode->getGenericParameters())
-            {
-                validGenericParams.push_back(param.name);
-            }
-        }
-
-        // Add method-level generic parameters
-        if (node->isGeneric())
-        {
-            for (const auto& param : node->getGenericTypeParameters())
-            {
-                validGenericParams.push_back(param.name);
-            }
-        }
-
-        // Get parameters with type information
-        auto genericParams = node->getGenericParameters();
-
-        // For instance methods, 'this' is implicitly the first parameter
-        if (!isStatic)
-        {
-            result.paramNames.push_back("this");
-            result.paramTypes.push_back(ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "object");
-            result.paramNullable.push_back(false); // 'this' is never nullable
-        }
-
-        // Add method parameters with full type names (including class names for objects)
-        for (const auto& param : genericParams)
-        {
-            result.paramNames.push_back(param.first);
-            // Use toString() to get the full type name, then strip nullable suffix
-            std::string paramTypeStr = param.second->toString();
-            bool paramIsNullable = param.second->isNullable();
-            // Strip '?' from type string - nullable tracked separately
-            paramTypeStr = ::types::TypeConversionUtils::stripNullable(paramTypeStr);
-            result.paramTypes.push_back(paramTypeStr);
-            result.paramNullable.push_back(paramIsNullable);
-
-            // Validate parameter type exists
-            if (!isValidTypeName(paramTypeStr, validGenericParams))
-            {
-                throw errors::TypeException(
-                    "Undefined type '" + paramTypeStr + "' in parameter '" + param.first + "'. " +
-                    "Type must be a primitive, declared generic parameter, or existing class/interface.",
-                    node->getLocation()
-                );
-            }
-        }
-
-        // Convert return type to string, preserving class names for object types
-        auto genericReturnType = node->getGenericReturnType();
-        if (genericReturnType) {
-            result.returnTypeStr = genericReturnType->toString();
-        } else {
-            result.returnTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(node->getReturnType());
-        }
-
-        // Validate return type exists
-        if (!isValidTypeName(result.returnTypeStr, validGenericParams))
-        {
-            throw errors::TypeException(
-                "Undefined type '" + result.returnTypeStr + "' in return type. " +
-                "Type must be a primitive, declared generic parameter, or existing class/interface.",
-                node->getLocation()
-            );
-        }
-
-        return result;
-    }
-
-    MethodCompilerHelper::MethodBodyInfo MethodCompilerHelper::compileMethodBodyWithFrame(ast::MethodNode* node, const MethodParameters& params,
-                                                                                          bool isStatic, const std::string& qualifiedMethodName)
-    {
-        // Use the passed-in qualified method name (with signature for overloaded methods)
-        // This ensures exception tables are registered with the same name used at runtime
-
-        // Enter function frame for local variable tracking
-        ctx.functionFrameManager.enterFunctionFrame(qualifiedMethodName,
-                                                    params.returnTypeStr,
-                                                    ctx.variableTracker.getNextLocalSlot(),
-                                                    ctx.variableTracker.getCurrentScopeDepth(),
-                                                    false,
-                                                    node->getIsAsync());
-        ctx.variableTracker.beginScope(); // Method body scope
-
-        // Track parameters as locals (including 'this' for instance methods)
-        if (!isStatic)
-        {
-            // Add 'this' parameter
-            ctx.variableTracker.declareLocal("this", value::ValueType::OBJECT,
-                                             ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "");
-        }
-
-        // Add actual method parameters with their types
-        auto genericParams = node->getGenericParameters();
-        for (const auto& param : genericParams)
-        {
-            // Extract type from GenericType for variable tracking
-            if (param.second->isGenericParameter())
-            {
-                // Generic type parameter (like T, E) - treat as object for now
-                // Strip nullable suffix '?' from className - nullability is tracked separately
-                std::string paramClassName = ::types::TypeConversionUtils::stripNullable(param.second->toString());
-                ctx.variableTracker.declareLocal(param.first, value::ValueType::OBJECT,
-                                                 paramClassName, param.second->isNullable());
-            }
-            else
-            {
-                // Concrete type
-                value::ValueType concreteType = param.second->getConcreteType();
-                std::string className = (concreteType == value::ValueType::OBJECT)
-                    ? ::types::TypeConversionUtils::stripNullable(param.second->toString()) : "";
-                ctx.variableTracker.declareLocal(param.first, concreteType, className,
-                                                 param.second->isNullable());
-            }
-        }
-
-        // Update max local slot after parameters
-        ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
-
-        // Validate return paths for non-void methods
-        auto* body = node->getBodyPtr();
-        if (body)
-        {
-            std::string className = ctx.currentClassNode ? ctx.currentClassNode->getClassName() + "::" : "";
-            std::string methodName = className + node->getName();
-
-            validation::ReturnPathValidator::validateMethodReturns(
-                body,
-                node->getReturnType(),
-                params.returnTypeStr,
-                methodName,
-                node->getLocation()
-            );
-        }
-
-        // MYT-274 Phase 2: structural-equality fast emit. If this is a
-        // synthesized hashCode/equals on an int-only no-parent class, emit
-        // a single fused opcode and skip body compilation entirely. The
-        // synthesizer still generates the AST body as a fallback for the
-        // cases where the fast path is ineligible (super-compose, non-int
-        // fields, etc.).
-        bool fastEmitted = tryEmitStructuralFastBody(node);
-
-        // Compile method body
-        if (body && !fastEmitted)
-        {
-            body->accept(ctx.visitor);
-        }
-
-        // Emit implicit return for void methods
-        bool isVoidMethod = (node->getReturnType() == value::ValueType::VOID);
-        bool isAsyncVoidMethod = (node->getIsAsync() && params.returnTypeStr == "Promise<void>");
-
-        if (isVoidMethod || isAsyncVoidMethod)
-        {
-            ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
-            if (node->getIsAsync())
-            {
-                ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
-            }
-            ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
-        }
-
-        // Calculate local count before exiting frame
-        size_t localCount = ctx.functionFrameManager.getLocalCount();
-
-        // Capture local variable names for debugging (before exiting frame)
-        const auto& locals = ctx.variableTracker.getLocals();
-        std::vector<std::string> localVarNames(localCount);
-        for (const auto& local : locals)
-        {
-            if (local.slot < localCount)
-            {
-                localVarNames[local.slot] = local.name;
-            }
-        }
-
-        ctx.variableTracker.endScope();
-        ctx.functionFrameManager.exitFunctionFrame();
-
-        return MethodBodyInfo{ localCount, localVarNames };
-    }
-
-    void MethodCompilerHelper::finalizeMethodCompilation(ast::MethodNode* node, const MethodParameters& params,
-                                                          size_t methodStart, size_t skipJump, const MethodBodyInfo& bodyInfo, bool isStatic)
-    {
-        // Patch skip jump to current position (after method)
-        ctx.emitter.patchJump(skipJump);
-
-        // Build qualified method name via MethodSignature so the format stays
-        // in lockstep with ClassRegistrar's MYT-279 pre-registration. Skip
-        // "this" for instance methods — it's added implicitly during compile.
-        std::string qualifiedMethodName = node->getName();
-        if (ctx.currentClassNode)
-        {
-            std::vector<std::string> sigTypes(
-                params.paramTypes.begin() + (isStatic ? 0 : 1),
-                params.paramTypes.end());
-            qualifiedMethodName = vm::MethodSignature(node->getName(), sigTypes)
-                .toMangledName(ctx.currentClassNode->getClassName(), isStatic);
-        }
-
-        // Update method metadata (preserving exception table from body compilation)
-        auto* existingMetadata = const_cast<bytecode::BytecodeProgram::FunctionMetadata*>(
-            ctx.program.getFunction(qualifiedMethodName)
-        );
-
-        bytecode::BytecodeProgram::FunctionMetadata metadata;
-        metadata.name = qualifiedMethodName;
-        metadata.startOffset = methodStart;
-        metadata.instructionCount = ctx.program.getCurrentOffset() - methodStart;
-        metadata.localCount = bodyInfo.localCount;
-        metadata.parameterCount = params.paramNames.size();
-        metadata.parameterNames = params.paramNames;
-        metadata.parameterTypes = params.paramTypes;
-        metadata.parameterNullable = params.paramNullable;
-        metadata.returnType = params.returnTypeStr;
-        metadata.isStatic = isStatic;
-        metadata.isNative = false;
-        metadata.isAsync = node->getIsAsync();
-        metadata.localVariableNames = bodyInfo.localVarNames;
-
-        // Store generic type parameters for generic methods
-        if (node->isGeneric())
-        {
-            const auto& genericParams = node->getGenericTypeParameters();
-            for (const auto& param : genericParams)
-            {
-                metadata.genericTypeParameters.push_back(param.name);
-            }
-        }
-
-        // Preserve exception table built during body compilation
-        if (existingMetadata) {
-            metadata.exceptionTable = existingMetadata->exceptionTable;
-        }
-        
-        ctx.program.registerFunction(qualifiedMethodName, metadata);
-    }
-
     value::Value MethodCompilerHelper::compileMethod(ast::MethodNode* node)
     {
         bool isStatic = node->getIsStatic();
 
-        // Set instance/static method context
         bool wasInInstanceMethod = ctx.inInstanceMethod;
         bool wasInStaticMethod = ctx.inStaticMethod;
         ast::MethodNode* wasMethodNode = ctx.currentMethodNode;
@@ -493,15 +173,13 @@ namespace vm::compiler::visitors
         ctx.inStaticMethod = isStatic;
         ctx.currentMethodNode = node;
 
-        // Synchronize TypeInferenceEngine with class context for field type inference
         ctx.typeInference.setCurrentClassContext(ctx.currentClassNode, ctx.inInstanceMethod);
 
-        // Handle generic methods - store generic type parameter names
         if (node->isGeneric())
         {
             const auto& genericParams = node->getGenericTypeParameters();
 
-            // Validate: method-level generic parameters should not shadow class-level ones
+            // Method-level generic parameters must not shadow class-level ones.
             if (ctx.currentClassNode && ctx.currentClassNode->isGeneric())
             {
                 const auto& classGenericParams = ctx.currentClassNode->getGenericParameters();
@@ -524,30 +202,25 @@ namespace vm::compiler::visitors
 
             for (const auto& param : genericParams)
             {
-                size_t paramNameIndex = ctx.program.getConstantPool().addString(param.name);
-                // Generic type parameters are available at runtime for type resolution
+                ctx.program.getConstantPool().addString(param.name);
             }
         }
 
-        // Emit JUMP to skip over method body during main execution
         size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP, node);
         size_t methodStart = ctx.program.getCurrentOffset();
 
-        // MYT-161: Emit PROFILE_ENTER as the method's first instruction,
-        // mirroring FunctionCompiler.cpp:44 for standalone functions.
-        // Without this, methods are never profiled as hot functions, which
-        // means jitCompiler->compile is never invoked for them, which means
-        // jitCodeCache has no entry, which means CALL_METHOD's IC direct-JIT
-        // dispatch (MYT-161 Phase A) can never fire. JIT treats PROFILE_ENTER
-        // as a no-op (JitCompiler_StackOps.cpp:302) so this is free in JIT.
+        // MYT-161: PROFILE_ENTER as method's first instruction, mirroring
+        // FunctionCompiler.cpp for standalone functions. Without this, methods
+        // are never profiled hot, jitCompiler->compile is never invoked,
+        // jitCodeCache stays empty, and CALL_METHOD's IC direct-JIT dispatch
+        // can never fire. JIT treats PROFILE_ENTER as a no-op so it's free.
         ctx.program.emit(bytecode::OpCode::PROFILE_ENTER);
 
-        // Collect method parameters and return type
         MethodParameters params = collectMethodParameters(node, isStatic);
 
-        // Pre-register method metadata so exception tables can be added during body compilation.
-        // Routed through MethodSignature so the mangled name matches both
-        // finalizeMethodCompilation's overwrite and ClassRegistrar's MYT-279
+        // Pre-register so exception tables can be added during body compilation.
+        // MYT-279: route through MethodSignature so the mangled name matches
+        // both finalizeMethodCompilation's overwrite and ClassRegistrar's
         // pre-registration. Skip "this" for instance methods.
         std::string qualifiedMethodName = node->getName();
         if (ctx.currentClassNode)
@@ -562,9 +235,9 @@ namespace vm::compiler::visitors
         bytecode::BytecodeProgram::FunctionMetadata tempMetadata;
         tempMetadata.name = qualifiedMethodName;
         tempMetadata.startOffset = methodStart;
-        tempMetadata.instructionCount = 0;  // Will be updated after compilation
-        tempMetadata.localCount = 0;        // Will be updated after compilation
-        tempMetadata.parameterCount = params.paramNames.size();  // Set correct count now
+        tempMetadata.instructionCount = 0;
+        tempMetadata.localCount = 0;
+        tempMetadata.parameterCount = params.paramNames.size();
         tempMetadata.parameterNames = params.paramNames;
         tempMetadata.parameterTypes = params.paramTypes;
         tempMetadata.parameterNullable = params.paramNullable;
@@ -575,18 +248,14 @@ namespace vm::compiler::visitors
 
         ctx.program.registerFunction(qualifiedMethodName, tempMetadata);
 
-        // Compile method body with frame management (pass mangled name for exception tables)
         MethodBodyInfo bodyInfo = compileMethodBodyWithFrame(node, params, isStatic, qualifiedMethodName);
 
-        // Restore instance/static method context
         ctx.inInstanceMethod = wasInInstanceMethod;
         ctx.inStaticMethod = wasInStaticMethod;
         ctx.currentMethodNode = wasMethodNode;
 
-        // Restore TypeInferenceEngine class context
         ctx.typeInference.setCurrentClassContext(ctx.currentClassNode, ctx.inInstanceMethod);
 
-        // Finalize method compilation (patch jump, register metadata)
         finalizeMethodCompilation(node, params, methodStart, skipJump, bodyInfo, isStatic);
 
         return std::monostate{};
@@ -596,43 +265,34 @@ namespace vm::compiler::visitors
     {
         const auto& params = node->getParametersWithTypes();
 
-        // Set instance method context (constructors are like instance methods)
         bool wasInInstanceMethod = ctx.inInstanceMethod;
         ctx.inInstanceMethod = true;
 
-        // Synchronize TypeInferenceEngine with class context for field type inference
         ctx.typeInference.setCurrentClassContext(ctx.currentClassNode, ctx.inInstanceMethod);
 
-        // Emit JUMP to skip over constructor body during main execution
         size_t skipJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP, node);
 
-        // Constructor starts here
         size_t constructorStart = ctx.program.getCurrentOffset();
 
-        // Get parameters
         std::vector<std::string> paramNames;
-        paramNames.push_back("this"); // 'this' is always the first parameter for constructors
+        paramNames.push_back("this");
         for (const auto& param : params)
         {
             paramNames.push_back(param.first);
         }
 
-        // Constructor returns an object instance
         std::string returnTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(value::ValueType::OBJECT);
 
-        // Generate constructor name with type signature for overload resolution
         std::string className = ctx.currentClassNode ? ctx.currentClassNode->getClassName() : "";
 
-        // Build type signature from parameters
-        // MYT-282: ParameterType overload — preserves `int[]` etc. for
-        // ARRAY-tag parameters in constructor overload-resolution keys.
+        // MYT-282: ParameterType overload preserves `int[]` etc. for ARRAY-tag
+        // parameters in constructor overload-resolution keys.
         std::string typeSignature;
         for (size_t i = 0; i < params.size(); ++i) {
             if (i > 0) typeSignature += ",";
             typeSignature += ::types::TypeConversionUtils::getTypeDisplayName(params[i].second);
         }
 
-        // Only add slash if we have a signature
         std::string constructorName;
         if (typeSignature.empty()) {
             constructorName = className + "::<init>";
@@ -640,20 +300,18 @@ namespace vm::compiler::visitors
             constructorName = className + "::<init>/" + typeSignature;
         }
 
-        // Pre-register constructor metadata so exception tables can be added during body compilation
         bytecode::BytecodeProgram::FunctionMetadata tempMetadata;
         tempMetadata.name = constructorName;
         tempMetadata.startOffset = constructorStart;
-        tempMetadata.instructionCount = 0;  // Will be updated after compilation
-        tempMetadata.localCount = 0;        // Will be updated after compilation
-        tempMetadata.parameterCount = paramNames.size();  // Set correct count now
+        tempMetadata.instructionCount = 0;
+        tempMetadata.localCount = 0;
+        tempMetadata.parameterCount = paramNames.size();
         tempMetadata.parameterNames = paramNames;
         tempMetadata.returnType = returnTypeStr;
         tempMetadata.isStatic = false;
         tempMetadata.isNative = false;
         ctx.program.registerFunction(constructorName, tempMetadata);
 
-        // Enter function frame for local variable tracking
         // MYT-112: isConstructor=true allows bare `return;` inside the body.
         ctx.functionFrameManager.enterFunctionFrame(constructorName,
                                                     returnTypeStr,
@@ -662,23 +320,21 @@ namespace vm::compiler::visitors
                                                     false,
                                                     false,
                                                     true);
-        ctx.variableTracker.beginScope(); // Constructor body scope
+        ctx.variableTracker.beginScope();
 
-        // Track parameters as locals (including 'this')
         for (const auto& paramName : paramNames)
         {
             ctx.variableTracker.declareLocal(paramName, value::ValueType::VOID, "");
         }
 
-        // Update max local slot
         ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
 
-        // BEFORE super() call: Assign constructor parameters to matching instance fields
-        // This ensures polymorphic methods called in parent constructors see correct field values.
-        // Final fields are skipped — they must be assigned exactly once, either in their inline
-        // initializer (prologue SET_FIELD) or via an explicit `this.X = ...` in the ctor body.
-        // Auto-binding them would be the *first* write, causing the user's explicit assignment
-        // to trip the instance-final check.
+        // Assign constructor parameters to matching instance fields BEFORE
+        // super() so polymorphic methods called in parent constructors see
+        // correct field values. Final fields are skipped — they must be
+        // assigned exactly once, either via inline initializer or explicit
+        // `this.X = ...`; auto-binding them would be the *first* write,
+        // tripping the instance-final check on the user's explicit assignment.
         if (ctx.currentClassNode)
         {
             const auto& fields = ctx.currentClassNode->getFields();
@@ -686,22 +342,17 @@ namespace vm::compiler::visitors
             {
                 const std::string& paramName = params[i].first;
 
-                // Check if there's an instance field with the same name
                 for (const auto& field : fields)
                 {
-                    // Cast to FieldNode to access field-specific methods
                     auto* fieldNode = dynamic_cast<ast::FieldNode*>(field.get());
                     if (fieldNode && !fieldNode->getIsStatic() && !fieldNode->getIsFinal()
                         && fieldNode->getName() == paramName)
                     {
-                        // Load 'this' (slot 0) - object goes on stack first
                         ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
 
-                        // Load the parameter value (parameters start at slot 1, after 'this')
                         ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL,
                                                    static_cast<uint64_t>(i + 1), node);
 
-                        // Set the field (pops value, then object)
                         size_t fieldNameIndex = ctx.program.getConstantPool().addString(paramName);
                         ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD,
                                                    static_cast<uint64_t>(fieldNameIndex), node);
@@ -711,7 +362,6 @@ namespace vm::compiler::visitors
             }
         }
 
-        // Handle super constructor call
         if (ctx.currentClassNode && ctx.currentClassNode->hasParentClass())
         {
             std::string parentClassName = ctx.currentClassNode->getParentClassName();
@@ -719,7 +369,6 @@ namespace vm::compiler::visitors
 
             if (node->hasSuperInitializer())
             {
-                // Explicit super() call - compile it
                 auto* superInit = node->getSuperInitializer();
                 if (superInit)
                 {
@@ -728,47 +377,39 @@ namespace vm::compiler::visitors
             }
             else if (parentClassDef)
             {
-                // No explicit super() - automatically call parent's default constructor if it exists
                 auto parentDefaultCtor = parentClassDef->findConstructor(0);
                 if (parentDefaultCtor)
                 {
-                    // Emit SUPER_CONSTRUCTOR call with 0 arguments
                     std::string currentClassName = ctx.currentClassNode->getClassName();
                     size_t classNameIndex = ctx.program.getConstantPool().addString(currentClassName);
                     ctx.emitter.emitWithLocation(bytecode::OpCode::SUPER_CONSTRUCTOR,
                                      static_cast<uint64_t>(classNameIndex),
-                                     static_cast<uint64_t>(0), node); // 0 arguments
+                                     static_cast<uint64_t>(0), node);
                 }
             }
         }
 
-        // Initialize instance fields with their default values (before constructor body)
         if (ctx.currentClassNode)
         {
             initializeInstanceFields(ctx.currentClassNode);
         }
 
-        // Compile constructor body
         auto* body = node->getBodyPtr();
         if (body)
         {
             body->accept(ctx.visitor);
         }
 
-        // Restore instance method context
         ctx.inInstanceMethod = wasInInstanceMethod;
 
-        // Restore TypeInferenceEngine class context
         ctx.typeInference.setCurrentClassContext(ctx.currentClassNode, ctx.inInstanceMethod);
 
-        // Constructors implicitly return 'this'
+        // Constructors implicitly return 'this'.
         ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
         ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
 
-        // Calculate local count before exiting frame
         size_t localCount = ctx.functionFrameManager.getLocalCount();
 
-        // Capture local variable names for debugging (before exiting frame)
         const auto& locals = ctx.variableTracker.getLocals();
         std::vector<std::string> localVarNames(localCount);
         for (const auto& local : locals)
@@ -779,15 +420,14 @@ namespace vm::compiler::visitors
             }
         }
 
-        ctx.variableTracker.endScope(); // End constructor body scope
+        ctx.variableTracker.endScope();
         ctx.functionFrameManager.exitFunctionFrame();
 
         size_t constructorEnd = ctx.program.getCurrentOffset();
 
-        // Patch skip jump to here (after constructor)
         ctx.emitter.patchJump(skipJump);
 
-        // Update constructor metadata (preserving exception table from body compilation)
+        // Preserve exception table built during body compilation.
         auto* existingMetadata = const_cast<bytecode::BytecodeProgram::FunctionMetadata*>(
             ctx.program.getFunction(constructorName)
         );
@@ -804,14 +444,12 @@ namespace vm::compiler::visitors
         metadata.localVariableNames = localVarNames;
         metadata.isNative = false;
 
-        // Preserve exception table built during body compilation
         if (existingMetadata) {
             metadata.exceptionTable = existingMetadata->exceptionTable;
         }
 
         ctx.program.registerFunction(constructorName, metadata);
 
-        // If this is a generic class, also register with full generic name
         if (ctx.currentClassNode && ctx.currentClassNode->isGeneric())
         {
             std::string fullClassName = ctx.currentClassNode->getFullClassName();
@@ -821,102 +459,4 @@ namespace vm::compiler::visitors
 
         return std::monostate{};
     }
-
-    // MYT-274 Phase 2: emit a single fused STRUCT_HASH_INT or STRUCT_EQ_INT
-    // opcode for synthesized hashCode/equals on a class that:
-    //   - is the synthesizer's int-only no-parent shape (every own field is
-    //     a concrete int, class has no in-program parent class).
-    // Slot indices are derived from the AST field-declaration order
-    // (non-static instance fields). This matches ClassDefinition's own
-    // fieldIndexMap construction order in ClassRegistrar, since fields
-    // are registered in declaration order.
-    bool MethodCompilerHelper::tryEmitStructuralFastBody(ast::MethodNode* node)
-    {
-        if (!node || !node->isSynthetic()) return false;
-        if (!ctx.currentClassNode) return false;
-
-        const std::string& methodName = node->getName();
-        const bool isHash = (methodName == "hashCode" && node->getParameterCount() == 0);
-        const bool isEq = (methodName == "equals" && node->getParameterCount() == 1);
-        if (!isHash && !isEq) return false;
-
-        // Skip when there's a user-defined parent class (in-program
-        // inheritance). The synthesizer's super-compose path needs the
-        // SuperMethodCallNode dispatch which the fused opcode doesn't
-        // implement; fall through to the regular AST body.
-        if (ctx.currentClassNode->hasParentClass())
-        {
-            const std::string& parentName = ctx.currentClassNode->getParentClassName();
-            if (!parentName.empty() && parentName != "Object")
-            {
-                return false;
-            }
-        }
-
-        // Walk own instance fields in declaration order. All must be int;
-        // record their slot indices. Static fields don't get slots.
-        std::vector<size_t> slotIndices;
-        size_t slotCounter = 0;
-        for (const auto& fieldAst : ctx.currentClassNode->getFields())
-        {
-            auto* field = dynamic_cast<ast::nodes::classes::FieldNode*>(fieldAst.get());
-            if (!field) continue;
-            if (field->getIsStatic()) continue;
-
-            auto genericType = field->getGenericType();
-            if (!genericType) return false;
-            if (genericType->isParameterized()) return false;
-            if (genericType->isNullable()) return false;
-            if (genericType->isGenericParameter()) return false;
-            if (genericType->getConcreteType() != value::ValueType::INT) return false;
-
-            slotIndices.push_back(slotCounter);
-            ++slotCounter;
-        }
-        if (slotIndices.empty()) return false;
-
-        // Phase 2 v2: fused opcodes have a JIT helper-call emit path
-        // (jit_struct_hash_int / jit_struct_eq_int) plus an interpreter
-        // executor, so emit them for any int-only-no-parent class. The
-        // body shrinks from ~12-25 generic ops (Phase 1 Horner expression)
-        // to 2-3 ops (LOAD_LOCAL + fused op + RETURN_VALUE), well under
-        // INLINE_SIZE_LIMIT, and the inliner picks them up at MONO/POLY
-        // call sites in HashMap.put/containsKey/get. The helper does the
-        // field reads + Horner accumulation in a single C++ loop,
-        // avoiding the per-field operand-stack churn of the inlined
-        // Horner expression.
-
-        if (isHash)
-        {
-            // STRUCT_HASH_INT operands: [fieldCount, slot0, slot1, ...].
-            // The opcode expects `this` on the stack: emit LOAD_LOCAL 0,
-            // then the fused op, then RETURN_VALUE.
-            ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
-            std::vector<uint64_t> operands;
-            operands.reserve(1 + slotIndices.size());
-            operands.push_back(static_cast<uint64_t>(slotIndices.size()));
-            for (size_t s : slotIndices) operands.push_back(static_cast<uint64_t>(s));
-            ctx.program.emit(bytecode::OpCode::STRUCT_HASH_INT, operands);
-            ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
-            return true;
-        }
-
-        // isEq: STRUCT_EQ_INT operands: [ownerClassNameIdx, fieldCount, slot...].
-        // Stack: ..., this, other. Emit LOAD_LOCAL 0 (this), LOAD_LOCAL 1
-        // (other), then the fused op, then RETURN_VALUE.
-        const size_t classNameIdx = ctx.program.getConstantPool().addString(
-            ctx.currentClassNode->getClassName());
-
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 1u, node);
-        std::vector<uint64_t> operands;
-        operands.reserve(2 + slotIndices.size());
-        operands.push_back(static_cast<uint64_t>(classNameIdx));
-        operands.push_back(static_cast<uint64_t>(slotIndices.size()));
-        for (size_t s : slotIndices) operands.push_back(static_cast<uint64_t>(s));
-        ctx.program.emit(bytecode::OpCode::STRUCT_EQ_INT, operands);
-        ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
-        return true;
-    }
 }
-

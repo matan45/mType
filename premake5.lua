@@ -569,6 +569,7 @@ project "mtype-language-server-lib"
       "mType/errors/AccessViolationException.cpp",
 
       "mType/lexer/Lexer.cpp",
+      "mType/lexer/Lexer_Tokens.cpp",
       "mType/lexer/BracketBalancer.cpp",
       "mType/lexer/SourceLocationTracker.cpp",
       "mType/lexer/TokenFactory.cpp",
@@ -616,6 +617,7 @@ project "mtype-language-server-lib"
 
       "mType/services/FileReader.cpp",
       "mType/services/ImportManager.cpp",
+      "mType/services/ImportManager_Resolution.cpp",
 
       -- MYT-309: pulled in so the LSP can resolve `@pkg/...` imports
       -- via mt_modules/ — same scan the runtime uses through
@@ -640,6 +642,10 @@ project "mtype-language-server-lib"
       "mType/environment/registry/FunctionDefinition.cpp",
       "mType/environment/registry/VariableDefinition.cpp",
       "mType/environment/registry/ClassDefinition.cpp",
+      "mType/environment/registry/ClassDefinition_Fields.cpp",
+      "mType/environment/registry/ClassDefinition_Methods.cpp",
+      "mType/environment/registry/ClassDefinition_Hierarchy.cpp",
+      "mType/environment/registry/ClassDefinition_Interfaces.cpp",
       "mType/environment/registry/ConstructorDefinition.cpp",
       "mType/environment/registry/FieldDefinition.cpp",
       "mType/environment/registry/InterfaceDefinition.cpp",

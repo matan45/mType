@@ -48,9 +48,6 @@ namespace vm::compiler::visitors
                                    size_t currentFrameStart, const std::vector<variables::VariableTracker::LocalVariable>& currentLocals,
                                    const std::string& lambdaFuncName);
 
-        // Type validation helper
-        bool isValidTypeName(const std::string& typeName, const std::vector<std::string>& validGenericParams);
-
         // MYT-280: returns true iff `name` is a generic type parameter currently
         // in scope (free function, method, or enclosing class) AND that parameter
         // MAY be instantiated with a nullable type — i.e. it has no constraint

@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace debugger
@@ -80,6 +82,25 @@ namespace debugger
 
         // Helper to get the type name of a value
         std::string getTypeName(const value::Value& val);
+
+        // Frame-classification helpers (promoted from an anonymous namespace
+        // so the split _Find.cpp / _Collect.cpp translation units can share them).
+        static bool isTopLevelScriptFrame(std::shared_ptr<vm::runtime::VirtualMachine> vm,
+                                          const vm::runtime::CallFrame& frame);
+        static std::unordered_map<std::string, size_t> collectTopLevelLocalSlots(
+            std::shared_ptr<vm::runtime::VirtualMachine> vm);
+
+        // getLocalVariables per-frame-kind orchestrators (defined in
+        // VMVariableInspector_Collect.cpp). Instance methods because they call
+        // valueToDebugVariable which mutates refId state.
+        void collectTopLevelScriptLocals(std::shared_ptr<vm::runtime::VirtualMachine> vm,
+                                         std::vector<DebugVariable>& variables);
+        void collectLambdaFrameLocals(std::shared_ptr<vm::runtime::VirtualMachine> vm,
+                                      const vm::runtime::CallFrame& frame,
+                                      std::vector<DebugVariable>& variables);
+        void collectFunctionFrameLocals(std::shared_ptr<vm::runtime::VirtualMachine> vm,
+                                        const vm::runtime::CallFrame& frame,
+                                        std::vector<DebugVariable>& variables);
 
         // Reference ID management for expandable variables
         // NOTE: Using int64_t to prevent overflow in long-running debug sessions

@@ -1,15 +1,19 @@
 #pragma once
 #include "../../../ast/ASTNode.hpp"
+#include "../../../ast/GenericType.hpp"
 #include "../../../ast/nodes/classes/ClassNode.hpp"
 #include "../../../environment/Environment.hpp"
+#include "../../../environment/registry/MethodDefinition.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"
 #include "../../../types/UnifiedType.hpp"
 #include "../../../types/TypeSubstitutionService.hpp"
+#include "../../../value/ParameterType.hpp"
 #include "InterfaceRegistrar.hpp"
 #include "ClassInheritanceValidator.hpp"
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace vm::compiler::validation
 {
@@ -68,6 +72,27 @@ namespace vm::compiler::registration
 
         // Helper methods
         void registerSingleClass(ast::ClassNode* classNode);
+        void registerSingleClassConstructors(
+            ast::ClassNode* classNode,
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef
+        );
+        void registerSingleClassMethods(
+            ast::ClassNode* classNode,
+            const std::string& className,
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef
+        );
+        void registerSingleClassFields(
+            ast::ClassNode* classNode,
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef
+        );
+        // Resolves a method's generic parameter declaration to a runtime
+        // ParameterType, dispatching on whether the name is a registered
+        // class/interface, an array form, or an actual generic type parameter.
+        value::ParameterType resolveMethodParameterType(
+            const std::string& className,
+            const ast::GenericType* genericType
+        ) const;
+
         void linkSingleClass(ast::ClassNode* classNode);
         void checkCircularInheritance(
             const std::string& className,
@@ -88,6 +113,51 @@ namespace vm::compiler::registration
             std::shared_ptr<runtimeTypes::klass::ClassDefinition> childClass,
             std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass,
             ast::ClassNode* classNode
+        ) const;
+
+        // Per-error-class override validation helpers. Each throws on failure
+        // with the original SourceLocation preserved so diagnostics point at
+        // the offending method, not at the validator entry-point.
+        void validateOverrideInvariance(
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> childClass,
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass,
+            const std::string& methodName,
+            const std::vector<std::pair<std::string, value::ParameterType>>& paramsWithoutThis,
+            const std::vector<std::shared_ptr<runtimeTypes::klass::MethodDefinition>>& parentMethodOverloads,
+            ast::ClassNode* classNode,
+            const ast::SourceLocation& classLocation
+        ) const;
+        void validateOverrideFinal(
+            std::shared_ptr<runtimeTypes::klass::MethodDefinition> parentMethod,
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> childClass,
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass,
+            const std::string& methodName,
+            const std::vector<std::pair<std::string, value::ParameterType>>& paramsWithoutThis,
+            const ast::SourceLocation& methodLocation
+        ) const;
+        void validateOverrideAccessNarrowing(
+            std::shared_ptr<runtimeTypes::klass::MethodDefinition> childMethod,
+            std::shared_ptr<runtimeTypes::klass::MethodDefinition> parentMethod,
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> childClass,
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass,
+            const std::string& methodName,
+            const ast::SourceLocation& methodLocation
+        ) const;
+        void validateOverrideParameterShape(
+            std::shared_ptr<runtimeTypes::klass::MethodDefinition> childMethod,
+            std::shared_ptr<runtimeTypes::klass::MethodDefinition> parentMethod,
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> childClass,
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass,
+            const std::string& methodName,
+            const ast::SourceLocation& methodLocation
+        ) const;
+        void validateOverrideReturnType(
+            std::shared_ptr<runtimeTypes::klass::MethodDefinition> childMethod,
+            std::shared_ptr<runtimeTypes::klass::MethodDefinition> parentMethod,
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> childClass,
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> parentClass,
+            const std::string& methodName,
+            const ast::SourceLocation& methodLocation
         ) const;
 
         // Generic type substitution

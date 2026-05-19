@@ -1,34 +1,16 @@
 #include "ConstantFoldingPass.hpp"
 #include <chrono>
 #include <cstddef>
-#include "constant_folding/ConstantEvaluator.hpp"
 #include "../OptimizationResult.hpp"
-#include "../../ast/nodes/expressions/IntegerNode.hpp"
-#include "../../ast/nodes/expressions/FloatNode.hpp"
-#include "../../ast/nodes/expressions/BoolNode.hpp"
-#include "../../ast/nodes/expressions/StringNode.hpp"
-#include "../../ast/nodes/expressions/NullNode.hpp"
-#include "../../ast/nodes/expressions/BinaryExpNode.hpp"
-#include "../../ast/nodes/expressions/UnaryExpNode.hpp"
-#include "../../ast/nodes/expressions/TernaryExpNode.hpp"
-#include "../../ast/nodes/expressions/CastExpression.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../ast/nodes/statements/BlockNode.hpp"
-#include "../../ast/nodes/classes/ClassNode.hpp"
 #include "../../ast/nodes/functions/FunctionNode.hpp"
-#include "../../value/StringPool.hpp"
 
 namespace optimizer::passes
 {
     using namespace ast;
-    using namespace constant_folding;
-    using value::Value;
-    using value::InternedString;
-    using token::TokenType;
     using errors::SourceLocation;
-
-    // ==================== CFTransformer Implementation ====================
 
     ConstantFoldingPass::CFTransformer::CFTransformer(
         base::OptimizationContext* ctx,
@@ -36,305 +18,6 @@ namespace optimizer::passes
     ) : ASTTransformer(ctx), foldedExpressionsCount(count)
     {
     }
-
-    bool ConstantFoldingPass::CFTransformer::isLiteralNode(ast::ASTNode* node) const
-    {
-        if (!node) return false;
-
-        return dynamic_cast<ast::nodes::expressions::IntegerNode*>(node) != nullptr ||
-            dynamic_cast<ast::nodes::expressions::FloatNode*>(node) != nullptr ||
-            dynamic_cast<ast::nodes::expressions::BoolNode*>(node) != nullptr ||
-            dynamic_cast<ast::nodes::expressions::StringNode*>(node) != nullptr ||
-            dynamic_cast<ast::nodes::expressions::NullNode*>(node) != nullptr;
-    }
-
-    std::optional<Value> ConstantFoldingPass::CFTransformer::extractLiteralValue(ast::ASTNode* node)
-    {
-        if (!node) return std::nullopt;
-
-        if (auto* intNode = dynamic_cast<ast::nodes::expressions::IntegerNode*>(node))
-        {
-            return Value(intNode->getValue());
-        }
-        if (auto* floatNode = dynamic_cast<ast::nodes::expressions::FloatNode*>(node))
-        {
-            return Value(floatNode->getValue());
-        }
-        if (auto* boolNode = dynamic_cast<ast::nodes::expressions::BoolNode*>(node))
-        {
-            return Value(boolNode->getValue());
-        }
-        if (auto* strNode = dynamic_cast<ast::nodes::expressions::StringNode*>(node))
-        {
-            return Value(strNode->getValue());
-        }
-        if (dynamic_cast<ast::nodes::expressions::NullNode*>(node))
-        {
-            return Value(std::monostate{});
-        }
-
-        return std::nullopt;
-    }
-
-    std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::createLiteralNode(
-        const Value& value,
-        const SourceLocation& loc
-    )
-    {
-        if (value::isInt(value))
-        {
-            return std::make_unique<ast::nodes::expressions::IntegerNode>(value::asInt(value), loc);
-        }
-        if (value::isFloat(value))
-        {
-            return std::make_unique<ast::nodes::expressions::FloatNode>(value::asFloat(value), loc);
-        }
-        if (value::isBool(value))
-        {
-            return std::make_unique<ast::nodes::expressions::BoolNode>(value::asBool(value), loc);
-        }
-        if (value::isString(value))
-        {
-            return std::make_unique<ast::nodes::expressions::StringNode>(value::asString(value), loc);
-        }
-        if (value::isInternedString(value))
-        {
-            return std::make_unique<ast::nodes::expressions::StringNode>(
-                value::asInternedString(value).getString(), loc);
-        }
-        if (value::isVoid(value) ||
-            value::isNullType(value))
-        {
-            return std::make_unique<ast::nodes::expressions::NullNode>(loc);
-        }
-
-        return nullptr;
-    }
-
-    // ==================== Binary Operation Folding ====================
-
-    std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::tryFoldBinaryOp(
-        BinaryOpNode* node
-    )
-    {
-        // First, recursively transform children (bottom-up)
-        auto leftChild = transformChild(node->getLeft());
-        auto rightChild = transformChild(node->getRight());
-
-        // Extract constant values from children
-        auto leftValue = extractLiteralValue(leftChild.get());
-        auto rightValue = extractLiteralValue(rightChild.get());
-
-
-        // If both operands are literals, try to fold
-        if (leftValue && rightValue)
-        {
-            auto result = ConstantEvaluator::evaluateBinaryOp(
-                *leftValue,
-                *rightValue,
-                node->getOperator()
-            );
-
-            if (result)
-            {
-                auto foldedNode = createLiteralNode(*result, node->getLocation());
-                if (foldedNode)
-                {
-                    foldedExpressionsCount++;
-                    modified = true;
-
-                    return foldedNode;
-                }
-            }
-        }
-
-        // Couldn't fold - reconstruct with transformed children
-        auto newNode = std::make_unique<ast::nodes::expressions::BinaryExpNode>(
-            std::move(leftChild),
-            node->getOperator(),
-            std::move(rightChild),
-            node->getLocation()
-        );
-        return newNode;
-    }
-
-    // ==================== Unary Operation Folding ====================
-
-    std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::tryFoldUnaryOp(
-        UnaryOpNode* node
-    )
-    {
-        // Don't fold increment/decrement operations (they have side effects)
-        if (node->getOperator() == TokenType::INCREMENT ||
-            node->getOperator() == TokenType::DECREMENT)
-        {
-            // Just recursively transform the operand
-            auto operand = transformChild(node->getOperand());
-            auto newNode = std::make_unique<ast::nodes::expressions::UnaryExpNode>(
-                node->getOperator(),
-                std::move(operand),
-                node->getPosition(),
-                node->getLocation()
-            );
-            return newNode;
-        }
-
-        // Transform child (bottom-up)
-        auto operandChild = transformChild(node->getOperand());
-
-        // Extract constant value
-        auto operandValue = extractLiteralValue(operandChild.get());
-
-        // If operand is a literal, try to fold
-        if (operandValue)
-        {
-            auto result = ConstantEvaluator::evaluateUnaryOp(
-                *operandValue,
-                node->getOperator()
-            );
-
-            if (result)
-            {
-                auto foldedNode = createLiteralNode(*result, node->getLocation());
-                if (foldedNode)
-                {
-                    foldedExpressionsCount++;
-                    modified = true;
-
-
-                    return foldedNode;
-                }
-            }
-        }
-
-        // Couldn't fold - reconstruct with transformed child
-        auto newNode = std::make_unique<ast::nodes::expressions::UnaryExpNode>(
-            node->getOperator(),
-            std::move(operandChild),
-            node->getPosition(),
-            node->getLocation()
-        );
-        return newNode;
-    }
-
-    // ==================== Ternary Operation Folding ====================
-
-    std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::tryFoldTernary(
-        TernaryOpNode* node
-    )
-    {
-        // Transform condition (bottom-up)
-        auto condition = transformChild(node->getCondition());
-
-        // Extract condition value
-        auto conditionValue = extractLiteralValue(condition.get());
-
-        // If condition is a constant boolean, fold to one branch
-        if (conditionValue && value::isBool(*conditionValue))
-        {
-            bool condBool = value::asBool(*conditionValue);
-
-            if (condBool)
-            {
-                // Condition is true - return true branch
-                auto trueExpr = transformChild(node->getTrueExpression());
-                foldedExpressionsCount++;
-                modified = true;
-                return trueExpr;
-            }
-            else
-            {
-                auto falseExpr = transformChild(node->getFalseExpression());
-                foldedExpressionsCount++;
-                modified = true;
-                return falseExpr;
-            }
-        }
-
-        // Couldn't fold - transform all children and reconstruct
-        auto trueExpr = transformChild(node->getTrueExpression());
-        auto falseExpr = transformChild(node->getFalseExpression());
-
-        auto newNode = std::make_unique<ast::nodes::expressions::TernaryExpNode>(
-            std::move(condition),
-            std::move(trueExpr),
-            std::move(falseExpr),
-            node->getLocation()
-        );
-        return newNode;
-    }
-
-    // ==================== Type Cast Folding ====================
-
-    std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::tryFoldCast(
-        CastExpression* node
-    )
-    {
-        // Transform expression (bottom-up)
-        auto expr = transformChild(node->getExpression());
-
-        // Extract value
-        auto exprValue = extractLiteralValue(expr.get());
-
-        // Only fold primitive type casts
-        if (exprValue && node->getTargetType())
-        {
-            const auto* targetType = node->getTargetType();
-
-            // Map GenericType to ValueType for primitive types
-            ValueType targetValueType;
-            bool isPrimitive = false;
-
-            if (targetType->getBaseTypeName() == "int")
-            {
-                targetValueType = ValueType::INT;
-                isPrimitive = true;
-            }
-            else if (targetType->getBaseTypeName() == "float")
-            {
-                targetValueType = ValueType::FLOAT;
-                isPrimitive = true;
-            }
-            else if (targetType->getBaseTypeName() == "bool")
-            {
-                targetValueType = ValueType::BOOL;
-                isPrimitive = true;
-            }
-            else if (targetType->getBaseTypeName() == "String")
-            {
-                targetValueType = ValueType::STRING;
-                isPrimitive = true;
-            }
-
-            if (isPrimitive)
-            {
-                auto result = ConstantEvaluator::evaluateTypeCast(*exprValue, targetValueType);
-
-                if (result)
-                {
-                    auto foldedNode = createLiteralNode(*result, node->getLocation());
-                    if (foldedNode)
-                    {
-                        foldedExpressionsCount++;
-                        modified = true;
-
-
-                        return foldedNode;
-                    }
-                }
-            }
-        }
-
-        // Couldn't fold - reconstruct with transformed expression
-        auto newNode = std::make_unique<ast::nodes::expressions::CastExpression>(
-            std::move(expr),
-            node->getTargetTypeShared(),
-            node->getLocation()
-        );
-        return newNode;
-    }
-
-    // ==================== Expression Visitor Overrides ====================
 
     std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitBinaryOpNode(
         BinaryOpNode* node
@@ -364,16 +47,10 @@ namespace optimizer::passes
         return tryFoldCast(node);
     }
 
-    // ==================== Container Node Visitors (Recursive Traversal) ====================
-
     std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitProgramNode(
         ProgramNode* node
     )
     {
-        // Track folded expressions before transforming children
-        size_t foldedBefore = foldedExpressionsCount;
-
-        // Transform all statements (this will descend into functions)
         std::vector<std::unique_ptr<ast::ASTNode>> transformedStatements;
         transformedStatements.reserve(node->getStatements().size());
 
@@ -383,9 +60,7 @@ namespace optimizer::passes
             transformedStatements.push_back(std::move(transformed));
         }
 
-        // Always return transformed tree to preserve cloned state
-        // Even if no constant folding occurred, cloning may have preserved important flags
-
+        // Always return transformed tree to preserve cloned state, even if no folding occurred.
         return std::make_unique<ProgramNode>(std::move(transformedStatements), node->getLocation());
     }
 
@@ -393,10 +68,6 @@ namespace optimizer::passes
         BlockNode* node
     )
     {
-        // Track folded expressions before transforming children
-        size_t foldedBefore = foldedExpressionsCount;
-
-        // Transform all statements
         std::vector<std::unique_ptr<ast::ASTNode>> transformedStatements;
         transformedStatements.reserve(node->getStatements().size());
 
@@ -406,7 +77,6 @@ namespace optimizer::passes
             transformedStatements.push_back(std::move(transformed));
         }
 
-        // Always return transformed tree to preserve cloned state
         return std::make_unique<BlockNode>(std::move(transformedStatements), node->getLocation());
     }
 
@@ -414,22 +84,18 @@ namespace optimizer::passes
         FunctionNode* node
     )
     {
-        // Transform the function body
         auto body = node->getBodyPtr();
         if (!body)
         {
-            return nullptr; // No body
+            return nullptr;
         }
 
-        // Track folded expressions before transforming children
         size_t foldedBefore = foldedExpressionsCount;
 
         auto transformedBody = transformChild(body);
 
-        // Only create new node if expressions were folded in children
         if (foldedExpressionsCount > foldedBefore)
         {
-            // Convert unique_ptr to shared_ptr for FunctionNode constructor
             std::shared_ptr<ast::ASTNode> transformedBodyShared = std::move(transformedBody);
 
             auto transformedFunction = std::make_unique<FunctionNode>(
@@ -442,16 +108,14 @@ namespace optimizer::passes
                 node->getLocation()
             );
 
-            // Preserve visibility modifier
             transformedFunction->setVisibility(node->getVisibility());
 
-            // Preserve annotations (e.g., @Throw, @Script)
             for (const auto& annotation : node->getAnnotations())
             {
                 transformedFunction->addAnnotation(annotation);
             }
 
-            // MYT-110: preserve per-parameter annotations through folding.
+            // Preserve per-parameter annotations through folding.
             transformedFunction->setParameterAnnotations(
                 std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>>(
                     node->getParameterAnnotations()));
@@ -459,7 +123,7 @@ namespace optimizer::passes
             return transformedFunction;
         }
 
-        return nullptr; // No changes
+        return nullptr;
     }
 
     std::unique_ptr<ast::ASTNode> ConstantFoldingPass::CFTransformer::visitMethodNode(
@@ -501,20 +165,16 @@ namespace optimizer::passes
         AssignmentNode* node
     )
     {
-        // Transform the value expression
         auto value = node->getValue();
         if (!value)
         {
             return nullptr;
         }
 
-        // Track folded expressions before transforming children
         size_t foldedBefore = foldedExpressionsCount;
 
         auto transformedValue = transformChild(value);
 
-
-        // Only create new node if expressions were folded in children
         if (foldedExpressionsCount > foldedBefore)
         {
             auto newAssignment = std::make_unique<ast::nodes::statements::AssignmentNode>(
@@ -556,13 +216,10 @@ namespace optimizer::passes
         return ASTTransformer::visitArrayLiteralNode(node);
     }
 
-    // ==================== ConstantFoldingPass Implementation ====================
-
     ConstantFoldingPass::ConstantFoldingPass()
         : OptimizationPass("ConstantFolding", base::PassType::TRANSFORMATION),
           foldedExpressions(0)
     {
-        // No dependencies for constant folding
         dependencies = {};
     }
 
@@ -571,16 +228,14 @@ namespace optimizer::passes
         base::OptimizationContext& context
     )
     {
-        // Reset metrics
         foldedExpressions = 0;
         transformationCount = 0;
 
-        // Create transformer and run
         auto startTime = std::chrono::high_resolution_clock::now();
 
         CFTransformer transformer(&context, foldedExpressions);
 
-        // Manual dispatch - check node type and call appropriate visit method
+        // Manual dispatch — check node type and call the appropriate visit method.
         std::unique_ptr<ast::ASTNode> result;
         if (auto* programNode = dynamic_cast<ProgramNode*>(node.get()))
         {
@@ -598,16 +253,13 @@ namespace optimizer::passes
         auto endTime = std::chrono::high_resolution_clock::now();
         executionTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
 
-        // Update transformation count
         transformationCount = foldedExpressions;
 
-        // Mark context as modified if we folded any expressions
         if (transformer.wasModified())
         {
             context.setModified(true);
         }
 
-        // If transformation occurred, return transformed node; otherwise return original
         if (result)
         {
             return result;
@@ -638,4 +290,4 @@ namespace optimizer::passes
         transformationCount = 0;
         executionTime = std::chrono::milliseconds(0);
     }
-} // namespace optimizer::passes
+}

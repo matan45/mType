@@ -26,7 +26,6 @@ namespace vm::compiler::visitors
                           ArrayCompiler& arrayComp);
         ~ExpressionCompiler() = default;
 
-        // Expression compilation methods
         value::Value compileBinaryOp(ast::BinaryOpNode* node);
         value::Value compileUnaryOp(ast::UnaryOpNode* node);
         value::Value compileTernaryOp(ast::TernaryOpNode* node);
@@ -39,14 +38,12 @@ namespace vm::compiler::visitors
         LiteralCompiler& literalCompiler;
         ArrayCompiler& arrayCompiler;
 
-        // Phase 4: Operator overloading helper
-        // Returns true if operator overloading was applied, false otherwise
         bool tryEmitOperatorOverloading(ast::BinaryOpNode* node,
                                        ast::ASTNode* left,
                                        ast::ASTNode* right,
                                        token::TokenType op);
 
-        // String interpolation optimization: flatten PLUS chains into STRING_BUILD
+        // Flattens PLUS chains into a single STRING_BUILD when any operand is a string.
         bool tryEmitStringBuild(ast::BinaryOpNode* node);
         void flattenStringConcat(ast::ASTNode* node, std::vector<ast::ASTNode*>& segments);
     };
