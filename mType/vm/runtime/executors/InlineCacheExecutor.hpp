@@ -18,6 +18,24 @@ namespace vm::runtime
     class FunctionExecutor;
     class VirtualMachine;
 
+    // MYT-333: argument pack for dispatchDirectFromCachedTarget. Three call
+    // sites (MONO hit in handleCallMethodIC, CACHED hit, POLY_CACHED hit)
+    // assemble the same 8-field tuple; pack them in a stack-local struct so
+    // the dispatcher's signature stays compact and call sites can use
+    // designated initializers. `definingClassName` is a reference into the
+    // IC side-table entry which outlives the call.
+    struct CachedDispatchTarget
+    {
+        const bytecode::BytecodeProgram::FunctionMetadata* funcMeta;
+        size_t startOffset;
+        const bytecode::BytecodeProgram* program;
+        size_t programIndex;
+        bytecode::FunctionNameHandle qualifiedName;
+        const std::string& definingClassName;
+        value::Value objectValue;
+        size_t argCount;
+    };
+
     class InlineCacheExecutor
     {
     public:
@@ -206,18 +224,48 @@ namespace vm::runtime
 
     private:
         // Shared dispatch body used by the MONO-hit branch of handleCallMethodIC and
-        // by handleCallMethodCached. Pops args + receiver, pushes a CallFrame, and
-        // sets the instruction pointer to the callee's start offset (minus one, the
-        // dispatch loop increments). Assumes funcMeta is non-native with a non-zero
-        // startOffset (callers pre-filter).
-        void dispatchDirectFromCachedTarget(
-            const bytecode::BytecodeProgram::FunctionMetadata* funcMeta,
-            size_t startOffset,
-            const bytecode::BytecodeProgram* program,
-            size_t programIndex,
-            bytecode::FunctionNameHandle qualifiedName,
-            const std::string& definingClassName,
-            value::Value objectValue,
+        // by handleCallMethodCached / handleCallMethodPolyCached. Pops args +
+        // receiver, pushes a CallFrame, and sets the instruction pointer to the
+        // callee's start offset (minus one, the dispatch loop increments). Assumes
+        // target.funcMeta is non-native with a non-zero startOffset (callers
+        // pre-filter).
+        void dispatchDirectFromCachedTarget(const CachedDispatchTarget& target);
+
+        // MYT-333: handleCallMethodIC decomposition helpers.
+        //
+        // resolveICReceiverClass classifies the peeked receiver into a
+        // ClassDefinition shape. Returns false for non-IC-able receivers
+        // (lambdas, primitives, nulls) — caller must fall back to the generic
+        // CALL_METHOD handler.
+        bool resolveICReceiverClass(
+            const value::Value& receiver,
+            const runtimeTypes::klass::ClassDefinition*& outClassDef,
+            bool& outIsValueObject);
+
+        // tryICDispatch consults the IC cache for the current IP, runs the
+        // protocol-fast path on hit, and either direct-dispatches via
+        // dispatchDirectFromCachedTarget or bails out to the generic handler
+        // for cached-but-undispatchable entries (native callees, value-object
+        // receivers). Returns true on dispatch (direct or via bailout) — caller
+        // skips populate. Returns false on cache miss — caller falls through
+        // to slowMethodLookup.
+        bool tryICDispatch(
+            const bytecode::BytecodeProgram::Instruction& instr,
+            vm::jit::ic::MethodInlineCache& cache,
+            const runtimeTypes::klass::ClassDefinition* classDef,
+            bool receiverIsValueObject,
+            const value::Value& receiverValue,
+            size_t argCount);
+
+        // slowMethodLookup runs the IC-miss slow path: delegates to the
+        // generic CALL_METHOD handler (which actually performs the call),
+        // then resolves the callee and populates the IC for next time. Drives
+        // tryPromoteToCached / tryPromoteToPolyCached / POLY→MEGA demotion.
+        void slowMethodLookup(
+            const bytecode::BytecodeProgram::Instruction& instr,
+            size_t icKey,
+            const runtimeTypes::klass::ClassDefinition* classDef,
+            bool receiverIsValueObject,
             size_t argCount);
 
         // MYT-173: promote CALL_METHOD -> CALL_METHOD_CACHED once the IC at the

@@ -773,6 +773,21 @@
     <ClCompile Include="vm\runtime\executors\InlineCacheExecutor.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\runtime\executors\InlineCacheExecutor_FieldIC.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\InlineCacheExecutor_FusedIC.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\InlineCacheExecutor_MethodCached.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\InlineCacheExecutor_MethodIC.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\InlineCacheExecutor_PolyIC.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
     <ClCompile Include="vm\runtime\executors\LambdaExecutor.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
@@ -782,7 +797,28 @@
     <ClCompile Include="vm\runtime\executors\ObjectExecutor.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ObjectExecutor_Fields.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ObjectExecutor_Iteration.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ObjectExecutor_MethodsDispatch.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ObjectExecutor_MethodsSpecial.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
     <ClCompile Include="vm\runtime\executors\ObjectInstanceHelper.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ObjectInstanceHelper_New.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ObjectInstanceHelper_SuperCtor.cpp">
+      <Filter>vm\runtime\executors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\executors\ObjectInstanceHelper_SuperMember.cpp">
       <Filter>vm\runtime\executors</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\executors\PrimitiveMethodExecutor.cpp">
