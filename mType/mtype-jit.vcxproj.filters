@@ -366,6 +366,12 @@
     <ClInclude Include="vm\jit\JitCompiler.hpp">
       <Filter>vm\jit</Filter>
     </ClInclude>
+    <ClInclude Include="vm\jit\JitCompiler_ControlFlow.hpp">
+      <Filter>vm\jit</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\jit\JitCompiler_Shapes.hpp">
+      <Filter>vm\jit</Filter>
+    </ClInclude>
     <ClInclude Include="vm\jit\JitContext.hpp">
       <Filter>vm\jit</Filter>
     </ClInclude>
@@ -596,10 +602,43 @@
     <ClCompile Include="vm\jit\JitCodeCache.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_ArithBool.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_ArithFloat.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_ArithGeneric.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_ArithInt.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_ArithInvoke.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_ArithInvokeBool.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_ArithInvokeFloat.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_ArithInvokeInt.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
     <ClCompile Include="vm\jit\JitCompiler_Arithmetic.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
     <ClCompile Include="vm\jit\JitCompiler_Arrays.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_Binop.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_Boxing.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_Calls.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
     <ClCompile Include="vm\jit\JitCompiler_ControlFlow.cpp">
@@ -611,10 +650,22 @@
     <ClCompile Include="vm\jit\JitCompiler_EmitHelpers.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_Frame.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_Locals.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
     <ClCompile Include="vm\jit\JitCompiler_OSR.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
     <ClCompile Include="vm\jit\JitCompiler_Objects.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_Returns.cpp">
+      <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\JitCompiler_Shapes.cpp">
       <Filter>vm\jit</Filter>
     </ClCompile>
     <ClCompile Include="vm\jit\JitCompiler_StackModel.cpp">

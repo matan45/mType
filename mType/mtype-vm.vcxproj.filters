@@ -758,6 +758,15 @@
     <ClCompile Include="vm\runtime\VirtualMachineJit.cpp">
       <Filter>vm\runtime</Filter>
     </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineJitInterop.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineJitSpecialize.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineJitStats.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
     <ClCompile Include="vm\runtime\VirtualMachineLoop.cpp">
       <Filter>vm\runtime</Filter>
     </ClCompile>
