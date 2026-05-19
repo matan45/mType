@@ -464,6 +464,12 @@
     <ClCompile Include="vm\compiler\BytecodeCompiler.cpp">
       <Filter>vm\compiler</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\BytecodeCompiler_VisitDispatch.cpp">
+      <Filter>vm\compiler</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\BytecodeCompiler_VisitImports.cpp">
+      <Filter>vm\compiler</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\ImportHelper.cpp">
       <Filter>vm\compiler</Filter>
     </ClCompile>
@@ -590,7 +596,16 @@
     <ClCompile Include="vm\compiler\visitors\ControlFlowCompiler.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ControlFlowCompiler_ForEach.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ControlFlowCompiler_Loops.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
     <ClCompile Include="vm\compiler\visitors\ExpressionCompiler.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\ExpressionCompiler_BinaryOp.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\FunctionCallHelper.cpp">
@@ -639,6 +654,9 @@
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\compiler\visitors\TryStatementHelper.cpp">
+      <Filter>vm\compiler\visitors</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\compiler\visitors\TryStatementHelper_Finally.cpp">
       <Filter>vm\compiler\visitors</Filter>
     </ClCompile>
     <ClCompile Include="vm\optimization\BytecodeOptimizationConfig.cpp">
