@@ -8,6 +8,7 @@
 #include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../../ast/nodes/expressions/ArrayLiteralNode.hpp"
 #include "../../../ast/nodes/expressions/ArrayCreationNode.hpp"
+#include "../../../ast/nodes/expressions/TernaryExpNode.hpp"
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../../ast/nodes/classes/MethodCallNode.hpp"
@@ -353,6 +354,19 @@ namespace vm::compiler::types
         return unwrapPromise(inferExpressionClassName(innerExpr));
     }
 
+    std::string TypeInferenceEngine::inferTernaryClassName(
+        ast::nodes::expressions::TernaryExpNode* ternary) const
+    {
+        std::string trueClassName = inferExpressionClassName(ternary->getTrueExpression());
+        std::string falseClassName = inferExpressionClassName(ternary->getFalseExpression());
+
+        if (!trueClassName.empty() && trueClassName == falseClassName) {
+            return trueClassName;
+        }
+
+        return "";
+    }
+
     std::string TypeInferenceEngine::inferExpressionClassName(ast::ASTNode* node) const
     {
         if (!node) return "";
@@ -399,6 +413,10 @@ namespace vm::compiler::types
 
         if (auto* awaitExpr = dynamic_cast<ast::nodes::expressions::AwaitExpression*>(node)) {
             return inferAwaitClassName(awaitExpr);
+        }
+
+        if (auto* ternary = dynamic_cast<ast::nodes::expressions::TernaryExpNode*>(node)) {
+            return inferTernaryClassName(ternary);
         }
 
         return "";

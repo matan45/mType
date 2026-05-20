@@ -19,6 +19,7 @@ namespace ast::nodes::expressions
     class ArrayCreationNode;
     class ArrayLiteralNode;
     class AwaitExpression;
+    class TernaryExpNode;
 }
 
 namespace vm::compiler::types
@@ -106,6 +107,7 @@ namespace vm::compiler::types
         value::ValueType inferMethodCallType(ast::MethodCallNode* methodCall) const;
         value::ValueType inferBinaryOperationType(ast::BinaryOpNode* binOp) const;
         value::ValueType inferIndexAccessType(ast::nodes::expressions::IndexAccessNode* indexAccess) const;
+        value::ValueType inferTernaryType(ast::nodes::expressions::TernaryExpNode* ternary) const;
 
         // Helper methods for inferExpressionClassName
         std::string inferCastClassName(ast::CastExpression* castExpr) const;
@@ -151,6 +153,7 @@ namespace vm::compiler::types
         std::string inferBinaryOpClassName(ast::BinaryOpNode* binOp) const;
         std::string inferAwaitClassName(
             ast::nodes::expressions::AwaitExpression* awaitExpr) const;
+        std::string inferTernaryClassName(ast::nodes::expressions::TernaryExpNode* ternary) const;
 
         // Per-node-kind nullable helpers for inferExpressionNullable
         bool inferVariableNullable(ast::VariableNode* varNode) const;
