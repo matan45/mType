@@ -33,7 +33,6 @@
     "onLanguage:mtype-compiled",
     "onLanguage:mtproj",
     "onLanguage:mtworkspace",
-    "onLanguage:mtproj-lock",
     "onCommand:mtype.run",
     "onCommand:mtype.build",
     "onCommand:mtype.buildLib",
@@ -98,8 +97,7 @@
       {
         "id": "mtproj-lock",
         "aliases": [
-          "mType Lockfile",
-          "mtproj.lock"
+          "mType Lockfile"
         ],
         "filenames": [
           "mtproj.lock"

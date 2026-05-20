@@ -28,9 +28,6 @@
     "mtproj": "mtproj-file",
     "mtworkspace": "mtworkspace-file"
   },
-  "fileNames": {
-    "mtproj.lock": "mtproj-lock-file"
-  },
   "languageIds": {
     "mtype": "mtype-file",
     "mtype-compiled": "mtc-file",

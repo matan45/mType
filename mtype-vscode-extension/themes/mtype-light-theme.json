@@ -240,7 +240,7 @@
       }
     },
     {
-      "name": "JSON Property Names (.mtproj.lock)",
+      "name": "JSON Property Names",
       "scope": [
         "support.type.property-name.json",
         "meta.structure.dictionary.json support.type.property-name.json"
@@ -250,7 +250,7 @@
       }
     },
     {
-      "name": "JSON Strings (.mtproj.lock)",
+      "name": "JSON Strings",
       "scope": [
         "string.quoted.double.json",
         "meta.structure.dictionary.value.json string.quoted.double.json"
@@ -260,7 +260,7 @@
       }
     },
     {
-      "name": "JSON Numbers and Constants (.mtproj.lock)",
+      "name": "JSON Numbers and Constants",
       "scope": [
         "constant.numeric.json",
         "constant.language.json"
@@ -270,7 +270,7 @@
       }
     },
     {
-      "name": "JSON Punctuation (.mtproj.lock)",
+      "name": "JSON Punctuation",
       "scope": [
         "punctuation.definition.dictionary.begin.json",
         "punctuation.definition.dictionary.end.json",
