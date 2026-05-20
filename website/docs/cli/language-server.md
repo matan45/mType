@@ -19,6 +19,7 @@ sidebar_position: 5
 - Formatting
 - Diagnostics
 - Semantic tokens
+- Call hierarchy (prepare, incoming calls, outgoing calls) — direct syntactic calls for top-level functions, methods, and constructors; hybrid resolution (class-pinned for `Class::m()`, `new C()`, `super.m()`, `this.m()`; name-only otherwise); lambdas are transparent (calls inside attribute to the enclosing real callable); scans documents loaded in the editor
 
 ## Build
 

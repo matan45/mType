@@ -214,6 +214,9 @@ Then send LSP messages via stdin. For debugging, check your editor's LSP client 
 | `textDocument/inlayHint` | ✅ Implemented | Parameter-name hints for user-defined calls (function/method/constructor) and inferred-type hints for untyped lambda parameters (MYT-295) |
 | `textDocument/documentSymbol` | ✅ Implemented | Hierarchical outline of classes, interfaces, functions, constructors, methods, and fields. Powers the editor outline view and breadcrumbs (MYT-296) |
 | `workspace/symbol` | ✅ Implemented | Workspace-wide symbol search over top-level classes, interfaces, and functions; case-insensitive prefix matching shared with completion and auto-import (empty query returns no results, same as the prefix matcher). Powers VS Code's "Go to Symbol in Workspace" (Ctrl+T) (MYT-297) |
+| `textDocument/prepareCallHierarchy` | ✅ Implemented | Resolves cursor to callable items (top-level functions, methods, constructors). Accepts both declarations and call sites; returns multiple items on name-only ambiguity (MYT-299) |
+| `callHierarchy/incomingCalls` | ✅ Implemented | Direct callers grouped by enclosing callable. Hybrid resolution (class-pinned for `Class::m()`, `new C()`, `super.m()`, `this.m()`; name-only otherwise). Lambdas transparent — calls inside attribute to the enclosing real callable. Scans documents loaded in the editor (MYT-299) |
+| `callHierarchy/outgoingCalls` | ✅ Implemented | Direct calls from the selected callable's body. Walks through nested lambdas; super-method calls resolve via the inheritance chain. Overloads collapse into a single hierarchy item (MYT-299) |
 
 ## Architecture
 

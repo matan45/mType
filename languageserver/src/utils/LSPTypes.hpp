@@ -480,6 +480,76 @@ struct DocumentSymbol {
     }
 };
 
+// MYT-299 — `textDocument/prepareCallHierarchy` returns CallHierarchyItem[].
+// `data` carries an opaque identity blob the client echoes back on
+// `callHierarchy/incomingCalls` and `callHierarchy/outgoingCalls`, so the
+// server can re-resolve the target without re-parsing the cursor's
+// original context. We store `{kind, className, name}` there.
+struct CallHierarchyItem {
+    std::string name;
+    SymbolKind kind;
+    std::optional<std::string> detail;
+    std::string uri;
+    Range range;
+    Range selectionRange;
+    std::optional<json> data;
+
+    json toJson() const {
+        json j = {
+            {"name", name},
+            {"kind", static_cast<int>(kind)},
+            {"uri", uri},
+            {"range", range},
+            {"selectionRange", selectionRange}
+        };
+        if (detail) j["detail"] = *detail;
+        if (data) j["data"] = *data;
+        return j;
+    }
+};
+
+inline void from_json(const json& j, CallHierarchyItem& item) {
+    j.at("name").get_to(item.name);
+    item.kind = static_cast<SymbolKind>(j.at("kind").get<int>());
+    if (j.contains("detail") && j.at("detail").is_string()) {
+        item.detail = j.at("detail").get<std::string>();
+    }
+    j.at("uri").get_to(item.uri);
+    j.at("range").get_to(item.range);
+    j.at("selectionRange").get_to(item.selectionRange);
+    if (j.contains("data")) {
+        item.data = j.at("data");
+    }
+}
+
+struct CallHierarchyIncomingCall {
+    CallHierarchyItem from;
+    std::vector<Range> fromRanges;
+
+    json toJson() const {
+        json arr = json::array();
+        for (const auto& r : fromRanges) arr.push_back(r);
+        return json{
+            {"from", from.toJson()},
+            {"fromRanges", arr}
+        };
+    }
+};
+
+struct CallHierarchyOutgoingCall {
+    CallHierarchyItem to;
+    std::vector<Range> fromRanges;
+
+    json toJson() const {
+        json arr = json::array();
+        for (const auto& r : fromRanges) arr.push_back(r);
+        return json{
+            {"to", to.toJson()},
+            {"fromRanges", arr}
+        };
+    }
+};
+
 // MYT-297 — Flat workspace/symbol response entry (LSP SymbolInformation).
 // We stay on the legacy SymbolInformation[] shape rather than the 3.17
 // WorkspaceSymbol[] form so the response is self-contained — no

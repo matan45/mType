@@ -1,47 +1,63 @@
 ---
 name: refactor
-description: Code refactoring and cleanup discipline for mType. Use when asked to refactor, simplify, split oversized methods or classes, reorganize files by feature/domain, extract reusable utilities, reduce method parameters, remove redundant comments, remove MYT ticket comments, or remove dead code while preserving behavior.
+description: Code refactoring discipline for the mType C++ engine and the mtype-vscode-extension TypeScript codebase. Use when the user asks to refactor, simplify, split oversized files (.cpp/.hpp/.ts), extract helpers, inline/rename across files, restructure folder layout, apply Visitor/Strategy/Factory or other SOLID-driven patterns, consolidate duplication, or reduce parameter lists — while preserving behavior.
 ---
 
 # Refactor
 
-Refactor in small, behavior-preserving steps. Read the surrounding code first, identify the current seams and tests, then make the smallest change that improves locality without changing public behavior.
+Refactor in small, behavior-preserving steps. Read surrounding code, identify current seams and tests, then make the smallest change that improves locality without changing public behavior.
 
-## Limits
+Scope of this skill — all C++/TypeScript code in the repo:
+- `mType/` — core engine (lexer, parser, AST, VM, JIT, runtime).
+- `languageserver/src/` — LSP server (handlers, document manager, workspace symbol index).
+- `packagemanager/src/` — mtpm (dependency resolver, lockfile, git source).
+- `mtype-vscode-extension/src/` — VS Code client extension (TypeScript).
 
-Use these limits as hard review gates for touched code:
+For language-design work on `.mt` source itself, use a different skill.
 
-- Methods must be 50 lines or shorter. Extract helper methods or split the workflow into named steps.
-- `.cpp` files must be 500 lines or shorter. Split large implementations into focused feature/domain files.
-- Methods must take no more than 5 parameters. Use a config or params struct for related inputs.
-- Classes and implementation files must live in feature/domain folders. Do not add unrelated files to a flat shared dump.
+## Hard limits (review gates)
 
-## Utility Extraction
+- Methods/functions: **≤ 50 lines**.
+- `.cpp`, `.hpp`, and `.ts` files: **≤ 500 lines**, except for documented deep-module exceptions in `CLAUDE.md` (top-level parsers, `TypeParser.cpp`, `StatementTypeDetector.cpp`). Test infrastructure under `mType/tests/` and `languageserver/tests/` is exempt by design — registration-heavy code, not behavior. Never invent new exceptions silently — if a file must exceed 500 lines, justify it and add it to `CLAUDE.md`.
+- Parameters: **≤ 5**. Bundle related inputs into a params struct/interface.
+- Classes live in feature/domain folders, never a flat shared dump.
 
-- Move standalone reusable helpers into dedicated utility classes or focused helper modules.
-- Keep utility classes single-purpose. Do not create catch-all utility buckets.
-- Update all call sites when moving helpers, and remove the old declarations/includes once unused.
-- Prefer existing project naming, folder layout, and helper patterns before introducing a new utility location.
+Enumerate current violators before planning:
+```
+powershell -ExecutionPolicy Bypass -File .claude/skills/refactor/scripts/check-file-sizes.ps1
+```
+Exit 0 = clean, exit 1 = hard violations exist (documented exceptions are noted but don't fail).
 
-## Comment Cleanup
+## Plan-first checklist
 
-- Remove comments that only restate the code, narrate obvious control flow, or describe stale implementation history.
-- Keep comments that explain non-obvious intent, invariants, ABI/runtime constraints, security constraints, or external compatibility.
-- Remove `MYT-*` ticket references from comments in touched areas. Preserve the useful technical explanation by rewriting the comment without the ticket marker.
-- Delete commented-out code instead of leaving it as documentation.
+Do not start editing until every box below is checked.
 
-## Dead Code Cleanup
+1. **Scope locked** — name the target files and the single refactor type (split / extract / inline / rename / restructure / pattern). Mixing types in one pass is the #1 source of regressions.
+2. **Behavior contract written** — list what must stay observable: public methods, exception types thrown, bytecode opcodes emitted, on-disk layout. This is what tests must still prove after the refactor.
+3. **Affected call sites listed** — `Grep` for every symbol you intend to move/rename. Note headers, `.cpp` includes, registration sites (`BytecodeCompiler/registration/`), test files, the VS Code extension's parser references.
+4. **Tests located** — find the suite covering the touched code (`mType/tests/suites/`, extension tests). If none, write one *before* moving code so the refactor has a safety net.
+5. **Build status baseline** — the user runs the build (see [feedback_user_runs_build](../../memory/feedback_user_runs_build.md)). Confirm baseline is green before refactoring.
+6. **Single PR-sized step** — if the change would touch >10 files or cross module boundaries, split into sequential refactors and reconfirm after each.
 
-- Remove unused functions, classes, branches, local variables, declarations, includes, feature flags, and obsolete helpers only after confirming they are not referenced.
-- Confirm dead code with search, compiler diagnostics, tests, and nearby architecture. Do not delete code solely because it looks unused.
-- If code is public API, plugin-facing, reflection-facing, test-discovered, or dynamically referenced, keep it unless there is clear evidence it is dead.
-- Remove corresponding tests only when they test deleted dead behavior; otherwise update tests to cover the surviving interface.
+## Operation playbook
 
-## Process
+Pick exactly one — see [REFERENCE.md](REFERENCE.md) for full mechanics, mType-specific anchors, and worked examples:
 
-1. Inspect the relevant files, call sites, and tests before editing.
-2. Define the behavior that must stay unchanged.
-3. Apply one focused refactor at a time.
-4. Update includes, declarations, build files, and call sites together.
-5. Run the narrowest useful tests, then broaden if shared behavior changed.
-6. Report any limit that remains violated and why it was left for a separate refactor.
+- **Split oversized file** — extract cohesive subset to a sibling file/folder, update includes/imports, keep the public type unchanged.
+- **Extract / inline / rename** — mechanical refactors with full call-site sweep. Renaming a registered class name (`runtimeTypes/klass/`) also touches the bytecode constant pool — handle deliberately.
+- **Restructure module layout** — move files between context folders. Update `premake5.lua` filters / `tsconfig.json` paths, and verify the build picks up the new locations.
+- **Pattern-driven (SOLID)** — apply Visitor / Strategy / Factory / Observer. Justify against `CLAUDE.md`'s SOLID guidance and the deletion test (if removing the abstraction concentrates complexity in one place, keep it; if it just relocates it across N callers, drop it).
+
+## After every refactor
+
+- Run the narrowest useful test suite, then broaden if shared behavior changed.
+- Remove stale `MYT-*` ticket comments and commented-out code in touched regions; preserve genuine "why" comments.
+- Delete dead includes, declarations, and helpers proved unused — confirm via `Grep`, not just intuition. Public-API / plugin-facing / reflection-facing code stays unless evidence is overwhelming.
+- Report any limit still violated and **why** it was deferred to a separate refactor. Don't leave silent violations.
+
+## Anti-patterns
+
+- Mixing rename + restructure + split in one commit — bisect-hostile.
+- Extracting helpers "for testability" that have no second caller and never will — that's pass-through code; the deletion test fails. See [improve-codebase-architecture](../improve-codebase-architecture/SKILL.md).
+- Adding `// removed X` or `_unused` placeholder comments instead of deleting cleanly.
+- Refactoring a file you haven't read end-to-end. The 500-line limit makes this cheap; honor it.

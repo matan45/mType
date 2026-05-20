@@ -55,6 +55,11 @@ namespace mtype::lsp
         // populated at initialise so cross-file symbol search sees the
         // same pool as completion, references, and rename.
         workspaceSymbolHandler_ = std::make_unique<WorkspaceSymbolHandler>(workspaceIndex_);
+        // MYT-299 — call hierarchy provider. Shares workspaceIndex_ for
+        // future cross-file extensions; v1 scans only DocumentManager's
+        // open documents.
+        callHierarchyHandler_ = std::make_unique<CallHierarchyHandler>(
+            documentManager_.get(), workspaceIndex_);
 
         // Set up diagnostics publisher
         diagnosticsHandler_->setPublisher(
@@ -206,6 +211,18 @@ namespace mtype::lsp
         {
             handleWorkspaceSymbol(id, params);
         }
+        else if (method == "textDocument/prepareCallHierarchy")
+        {
+            handlePrepareCallHierarchy(id, params);
+        }
+        else if (method == "callHierarchy/incomingCalls")
+        {
+            handleCallHierarchyIncomingCalls(id, params);
+        }
+        else if (method == "callHierarchy/outgoingCalls")
+        {
+            handleCallHierarchyOutgoingCalls(id, params);
+        }
         else
         {
             sendError(id, -32601, "Method not found: " + method);
@@ -344,7 +361,12 @@ namespace mtype::lsp
             // existing MYT-47 workspace symbol index. Boolean form (no
             // workspaceSymbol/resolve) — responses already carry full
             // locations.
-            {"workspaceSymbolProvider", true}
+            {"workspaceSymbolProvider", true},
+            // MYT-299 — call hierarchy (prepare + incomingCalls +
+            // outgoingCalls). v1 covers direct syntactic calls between
+            // top-level functions, class methods, and constructors. See
+            // CallHierarchyHandler for the scope/resolution rules.
+            {"callHierarchyProvider", true}
         };
 
         json result = {
@@ -828,6 +850,54 @@ namespace mtype::lsp
             for (const auto& sym : symbols) {
                 result.push_back(sym.toJson());
             }
+            sendResponse(id, result);
+        } catch (const std::exception&) {
+            sendResponse(id, json::array());
+        }
+    }
+
+    void MTypeLanguageServer::handlePrepareCallHierarchy(const json& id, const json& params)
+    {
+        // MYT-299 — `textDocument/prepareCallHierarchy` returns a list of
+        // CallHierarchyItem (possibly empty, possibly multiple for an
+        // ambiguous name-only call site). LSP spec allows `null` for "no
+        // callable at cursor"; VS Code accepts an empty array as the same
+        // signal, which matches the defensive shape of the other handlers.
+        try {
+            std::string uri = params["textDocument"]["uri"];
+            Position pos;
+            pos.line = params["position"]["line"].get<int>();
+            pos.character = params["position"]["character"].get<int>();
+
+            auto items = callHierarchyHandler_->handlePrepare(uri, pos);
+            json result = json::array();
+            for (const auto& it : items) result.push_back(it.toJson());
+            sendResponse(id, result);
+        } catch (const std::exception&) {
+            sendResponse(id, json::array());
+        }
+    }
+
+    void MTypeLanguageServer::handleCallHierarchyIncomingCalls(const json& id, const json& params)
+    {
+        try {
+            CallHierarchyItem item = params["item"].get<CallHierarchyItem>();
+            auto calls = callHierarchyHandler_->handleIncoming(item);
+            json result = json::array();
+            for (const auto& c : calls) result.push_back(c.toJson());
+            sendResponse(id, result);
+        } catch (const std::exception&) {
+            sendResponse(id, json::array());
+        }
+    }
+
+    void MTypeLanguageServer::handleCallHierarchyOutgoingCalls(const json& id, const json& params)
+    {
+        try {
+            CallHierarchyItem item = params["item"].get<CallHierarchyItem>();
+            auto calls = callHierarchyHandler_->handleOutgoing(item);
+            json result = json::array();
+            for (const auto& c : calls) result.push_back(c.toJson());
             sendResponse(id, result);
         } catch (const std::exception&) {
             sendResponse(id, json::array());
