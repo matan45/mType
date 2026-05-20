@@ -1,6 +1,8 @@
 #include "SemanticTokensHandler.hpp"
 #include <algorithm>
+#include <cctype>
 #include <sstream>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace mtype::lsp {
@@ -80,6 +82,13 @@ void SemanticTokensHandler::pushToken(std::vector<RawToken>& tokens,
     tokens.push_back({line, startChar, length, type, modifiers});
 }
 
+bool SemanticTokensHandler::hasTokenAt(const std::vector<RawToken>& tokens,
+                                       int line, int startChar, int length) {
+    return std::any_of(tokens.begin(), tokens.end(), [&](const RawToken& tok) {
+        return tok.line == line && tok.startChar == startChar && tok.length == length;
+    });
+}
+
 // ---------- Constructor — pre-compile all regexes ----------
 
 SemanticTokensHandler::SemanticTokensHandler(DocumentManager* docMgr)
@@ -91,7 +100,9 @@ SemanticTokensHandler::SemanticTokensHandler(DocumentManager* docMgr)
     , classRegex_(R"(\b(value\s+|abstract\s+)?class\s+(\w+))")
     , interfaceRegex_(R"(\binterface\s+(\w+))")
     , methodRegex_(R"(\b(static\s+)?(async\s+)?function\s+(\w+)\s*\()")
+    , parameterRegex_(R"mt(\b(?:final\s+)?([A-Za-z_]\w*(?:\s*<[^,(){}]*>)?(?:\s*\[\])?)\s+([A-Za-z_]\w*)\b(?=\s*[,)]))mt")
     , varRegex_(R"(\b(?:public|private|protected)?\s*(?:static\s+)?(?:final\s+)?(\w+(?:<[^>]+>)?)\s+(\w+)\s*[;=])")
+    , memberAccessRegex_(R"((\.|::)\s*([A-Za-z_]\w*))")
     // Single alternation — no per-keyword/per-modifier regex construction.
     // Keywords that are also modifiers are excluded here; they are handled
     // solely by tokenizeModifiers to avoid duplicate tokens at the same position.
@@ -132,22 +143,162 @@ SemanticTokens SemanticTokensHandler::handleSemanticTokensFull(const std::string
         knownClasses.push_back(t);
     }
 
+    auto countBraces = [](const std::string& sourceLine, char brace) {
+        std::string line = sourceLine;
+        size_t comment = line.find("//");
+        if (comment != std::string::npos) {
+            line = line.substr(0, comment);
+        }
+
+        int count = 0;
+        bool inString = false;
+        for (size_t i = 0; i < line.size(); i++) {
+            char c = line[i];
+            if (c == '"' && (i == 0 || line[i - 1] != '\\')) {
+                inString = !inString;
+            }
+            if (!inString && c == brace) {
+                count++;
+            }
+        }
+        return count;
+    };
+
+    auto findLineCommentStart = [](const std::string& sourceLine) -> size_t {
+        bool inString = false;
+        char stringDelimiter = '\0';
+
+        for (size_t i = 0; i + 1 < sourceLine.size(); i++) {
+            char c = sourceLine[i];
+            if ((c == '"' || c == '\'') && (i == 0 || sourceLine[i - 1] != '\\')) {
+                if (inString && c == stringDelimiter) {
+                    inString = false;
+                    stringDelimiter = '\0';
+                } else if (!inString) {
+                    inString = true;
+                    stringDelimiter = c;
+                }
+            }
+
+            if (!inString && c == '/' && sourceLine[i + 1] == '/') {
+                return i;
+            }
+        }
+
+        return std::string::npos;
+    };
+
+    auto maskStringLiterals = [](const std::string& sourceLine,
+                                 int currentLine,
+                                 std::vector<RawToken>& rawTokens) {
+        std::string masked = sourceLine;
+
+        for (size_t i = 0; i < sourceLine.size(); i++) {
+            char quote = sourceLine[i];
+            if (quote != '"' && quote != '\'') continue;
+            if (i > 0 && sourceLine[i - 1] == '\\') continue;
+
+            size_t end = i + 1;
+            while (end < sourceLine.size()) {
+                if (sourceLine[end] == quote && sourceLine[end - 1] != '\\') {
+                    end++;
+                    break;
+                }
+                end++;
+            }
+
+            pushToken(rawTokens, currentLine,
+                      static_cast<int>(i),
+                      static_cast<int>(end - i),
+                      encodeTokenType("string"), 0);
+
+            for (size_t j = i; j < end && j < masked.size(); j++) {
+                masked[j] = ' ';
+            }
+
+            i = end == 0 ? i : end - 1;
+        }
+
+        return masked;
+    };
+
+    bool pendingClassBody = false;
+    bool pendingFunctionBody = false;
+    int classDepth = 0;
+    int functionDepth = 0;
+    std::unordered_set<std::string> localSymbols;
+    std::unordered_set<std::string> parameterSymbols;
+
     // Process each line
     std::istringstream stream(doc->content);
     std::string line;
     int lineIndex = 0;
 
     while (std::getline(stream, line)) {
-        tokenizeAnnotations(line, lineIndex, tokens);
-        tokenizeAnnotationDeclarations(line, lineIndex, tokens);
-        tokenizeClassDeclarations(line, lineIndex, tokens);
-        tokenizeInterfaceDeclarations(line, lineIndex, tokens);
-        tokenizeMethodDeclarations(line, lineIndex, tokens);
-        tokenizeVariableDeclarations(line, lineIndex, tokens);
-        tokenizeKeywords(line, lineIndex, tokens);
-        tokenizeTypes(line, lineIndex, knownClasses, tokens);
-        tokenizeModifiers(line, lineIndex, tokens);
-        tokenizeFunctionCalls(line, lineIndex, tokens);
+        size_t lineCommentStart = findLineCommentStart(line);
+        std::string codeLine = lineCommentStart == std::string::npos
+            ? line
+            : line.substr(0, lineCommentStart);
+        std::string semanticLine = maskStringLiterals(codeLine, lineIndex, tokens);
+        bool classMemberContext = classDepth > 0 && functionDepth == 0 && !pendingFunctionBody;
+        if (std::regex_search(semanticLine, methodRegex_)) {
+            localSymbols.clear();
+            parameterSymbols.clear();
+        }
+
+        tokenizeAnnotations(semanticLine, lineIndex, tokens);
+        tokenizeAnnotationDeclarations(semanticLine, lineIndex, tokens);
+        tokenizeClassDeclarations(semanticLine, lineIndex, tokens);
+        tokenizeInterfaceDeclarations(semanticLine, lineIndex, tokens);
+        tokenizeMethodDeclarations(semanticLine, lineIndex, tokens);
+        tokenizeParameters(semanticLine, lineIndex, parameterSymbols, tokens);
+        tokenizeVariableDeclarations(semanticLine, lineIndex, classMemberContext, localSymbols, tokens);
+        tokenizeKeywords(semanticLine, lineIndex, tokens);
+        tokenizeTypes(semanticLine, lineIndex, knownClasses, tokens);
+        tokenizeMemberAccess(semanticLine, lineIndex, tokens);
+        tokenizeModifiers(semanticLine, lineIndex, tokens);
+        tokenizeFunctionCalls(semanticLine, lineIndex, tokens);
+        tokenizeSymbolUsages(semanticLine, lineIndex, parameterSymbols, localSymbols, tokens);
+        if (lineCommentStart != std::string::npos) {
+            tokenizeLineComment(line, lineIndex, lineCommentStart, tokens);
+        }
+
+        if (std::regex_search(semanticLine, classRegex_)
+            || std::regex_search(semanticLine, interfaceRegex_)
+            || std::regex_search(semanticLine, annotationDeclRegex_)) {
+            pendingClassBody = true;
+        }
+        if (std::regex_search(semanticLine, methodRegex_)) {
+            pendingFunctionBody = true;
+        }
+
+        int opens = countBraces(semanticLine, '{');
+        int closes = countBraces(semanticLine, '}');
+        for (int i = 0; i < opens; i++) {
+            if (pendingFunctionBody) {
+                functionDepth++;
+                pendingFunctionBody = false;
+            } else if (pendingClassBody) {
+                classDepth++;
+                pendingClassBody = false;
+            } else if (functionDepth > 0) {
+                functionDepth++;
+            } else if (classDepth > 0) {
+                classDepth++;
+            }
+        }
+        for (int i = 0; i < closes; i++) {
+            if (functionDepth > 0) {
+                functionDepth--;
+                if (functionDepth == 0) {
+                    localSymbols.clear();
+                    parameterSymbols.clear();
+                }
+            } else if (classDepth > 0) {
+                classDepth--;
+            }
+        }
+
         lineIndex++;
     }
 
@@ -192,6 +343,17 @@ void SemanticTokensHandler::tokenizeAnnotations(const std::string& line, int lin
                   static_cast<int>((*it)[0].length()),
                   encodeTokenType("decorator"), 0);
     }
+}
+
+void SemanticTokensHandler::tokenizeLineComment(const std::string& line, int lineIndex,
+                                                 size_t commentStart,
+                                                 std::vector<RawToken>& tokens) const {
+    if (commentStart >= line.size()) return;
+
+    pushToken(tokens, lineIndex,
+              static_cast<int>(commentStart),
+              static_cast<int>(line.size() - commentStart),
+              encodeTokenType("comment"), 0);
 }
 
 void SemanticTokensHandler::tokenizeClassDeclarations(const std::string& line, int lineIndex,
@@ -308,7 +470,35 @@ void SemanticTokensHandler::tokenizeMethodDeclarations(const std::string& line, 
     }
 }
 
+void SemanticTokensHandler::tokenizeParameters(const std::string& line, int lineIndex,
+                                                std::unordered_set<std::string>& parameterSymbols,
+                                                std::vector<RawToken>& tokens) const {
+    auto begin = std::sregex_iterator(line.begin(), line.end(), parameterRegex_);
+    auto end = std::sregex_iterator();
+
+    for (auto it = begin; it != end; ++it) {
+        std::string typeName = (*it)[1].str();
+        std::string paramName = (*it)[2].str();
+
+        static const std::unordered_set<std::string> skipTypes = {
+            "if", "while", "for", "switch", "catch", "return", "new", "function",
+            "class", "interface", "annotation", "public", "private", "protected",
+            "static", "final", "abstract", "async"
+        };
+        if (skipTypes.count(typeName)) continue;
+        parameterSymbols.insert(paramName);
+
+        pushToken(tokens, lineIndex,
+                  static_cast<int>(it->position(2)),
+                  static_cast<int>(paramName.length()),
+                  encodeTokenType("parameter"),
+                  encodeTokenModifiers({"declaration"}));
+    }
+}
+
 void SemanticTokensHandler::tokenizeVariableDeclarations(const std::string& line, int lineIndex,
+                                                          bool classMemberContext,
+                                                          std::unordered_set<std::string>& localSymbols,
                                                           std::vector<RawToken>& tokens) const {
     auto begin = std::sregex_iterator(line.begin(), line.end(), varRegex_);
     auto end = std::sregex_iterator();
@@ -324,10 +514,86 @@ void SemanticTokensHandler::tokenizeVariableDeclarations(const std::string& line
         std::vector<std::string> mods = {"declaration"};
         if (isStatic) mods.push_back("static");
         if (isFinal) mods.push_back("readonly");
+        if (!classMemberContext) {
+            localSymbols.insert(varName);
+        }
 
         pushToken(tokens, lineIndex, namePos, static_cast<int>(varName.length()),
-                  encodeTokenType("variable"),
+                  encodeTokenType(classMemberContext ? "property" : "variable"),
                   encodeTokenModifiers(mods));
+    }
+}
+
+void SemanticTokensHandler::tokenizeSymbolUsages(
+    const std::string& line,
+    int lineIndex,
+    const std::unordered_set<std::string>& parameterSymbols,
+    const std::unordered_set<std::string>& localSymbols,
+    std::vector<RawToken>& tokens) const {
+    static const std::unordered_set<std::string> skipWords = {
+        "if", "else", "while", "for", "do", "switch", "case", "default", "break",
+        "continue", "return", "try", "catch", "finally", "throw", "match", "await",
+        "class", "interface", "annotation", "extends", "implements", "import", "from",
+        "as", "new", "this", "super", "null", "true", "false", "function",
+        "constructor", "public", "private", "protected", "static", "final", "const",
+        "abstract", "async", "value", "int", "float", "string", "bool", "void",
+        "object", "Object"
+    };
+
+    static const std::regex identifierRegex(R"(\b[A-Za-z_]\w*\b)");
+    auto begin = std::sregex_iterator(line.begin(), line.end(), identifierRegex);
+    auto end = std::sregex_iterator();
+
+    for (auto it = begin; it != end; ++it) {
+        std::string name = (*it)[0].str();
+        if (skipWords.count(name)) continue;
+
+        bool isParameter = parameterSymbols.count(name) > 0;
+        bool isLocal = localSymbols.count(name) > 0;
+        if (!isParameter && !isLocal) continue;
+
+        int pos = static_cast<int>(it->position());
+        int length = static_cast<int>(name.length());
+        if (hasTokenAt(tokens, lineIndex, pos, length)) continue;
+
+        size_t start = static_cast<size_t>(pos);
+        size_t after = start + static_cast<size_t>(length);
+
+        bool afterDot = start > 0 && line[start - 1] == '.';
+        bool afterStaticAccess = start >= 2 && line[start - 1] == ':' && line[start - 2] == ':';
+        if (afterDot || afterStaticAccess) continue;
+
+        size_t next = after;
+        while (next < line.size() && std::isspace(static_cast<unsigned char>(line[next]))) {
+            next++;
+        }
+        if (next < line.size() && line[next] == '(') continue;
+
+        pushToken(tokens, lineIndex, pos, length,
+                  encodeTokenType(isParameter ? "parameter" : "variable"), 0);
+    }
+}
+
+void SemanticTokensHandler::tokenizeMemberAccess(const std::string& line, int lineIndex,
+                                                  std::vector<RawToken>& tokens) const {
+    auto begin = std::sregex_iterator(line.begin(), line.end(), memberAccessRegex_);
+    auto end = std::sregex_iterator();
+
+    for (auto it = begin; it != end; ++it) {
+        std::string memberName = (*it)[2].str();
+        int namePos = static_cast<int>(it->position(2));
+        size_t afterName = static_cast<size_t>(namePos + static_cast<int>(memberName.length()));
+
+        while (afterName < line.size() && std::isspace(static_cast<unsigned char>(line[afterName]))) {
+            afterName++;
+        }
+
+        if (afterName < line.size() && line[afterName] == '(') {
+            continue;
+        }
+
+        pushToken(tokens, lineIndex, namePos, static_cast<int>(memberName.length()),
+                  encodeTokenType("property"), 0);
     }
 }
 

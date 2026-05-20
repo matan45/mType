@@ -1,6 +1,7 @@
 {
   "name": "mType Light",
   "type": "light",
+  "semanticHighlighting": true,
   "colors": {
     "editor.background": "#ffffff",
     "editor.foreground": "#24292f",
@@ -17,6 +18,32 @@
     "statusBar.foreground": "#ffffff",
     "titleBar.activeBackground": "#f6f8fa",
     "titleBar.activeForeground": "#24292f"
+  },
+  "semanticTokenColors": {
+    "variable": "#24292f",
+    "variable.declaration": "#24292f",
+    "variable.modification": "#24292f",
+    "variable.readonly": "#24292f",
+    "variable.static": "#24292f",
+    "parameter": "#24292f",
+    "parameter.declaration": "#24292f",
+    "property": "#953800",
+    "property.declaration": "#953800",
+    "property.modification": "#953800",
+    "class": "#953800",
+    "interface": "#953800",
+    "type": "#953800",
+    "function": "#6639ba",
+    "method": "#6639ba",
+    "keyword": "#cf222e",
+    "modifier": "#cf222e",
+    "comment": {
+      "foreground": "#6e7781",
+      "italic": true
+    },
+    "number": "#0550ae",
+    "string": "#116329",
+    "operator": "#0550ae"
   },
   "tokenColors": [
     {
@@ -145,10 +172,9 @@
       }
     },
     {
-      "name": "Members and Assignments",
+      "name": "Members",
       "scope": [
         "variable.other.member.mtype",
-        "variable.other.assignment.mtype",
         "variable.language.this.mtype"
       ],
       "settings": {
@@ -204,14 +230,13 @@
       }
     },
     {
-      "name": "Generics",
+      "name": "Generic Angle Brackets",
       "scope": [
-        "meta.generic.mtype",
         "punctuation.definition.generic.begin.mtype",
         "punctuation.definition.generic.end.mtype"
       ],
       "settings": {
-        "foreground": "#953800"
+        "foreground": "#116329"
       }
     }
   ]

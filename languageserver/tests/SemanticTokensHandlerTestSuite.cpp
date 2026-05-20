@@ -64,6 +64,17 @@ static int countTokensAt(const std::vector<DecodedToken>& tokens, int line, int 
     return count;
 }
 
+static bool hasTokenAt(const std::vector<DecodedToken>& tokens,
+                       int line, int startChar, int length, int tokenType) {
+    return std::any_of(tokens.begin(), tokens.end(),
+        [&](const DecodedToken& t) {
+            return t.line == line
+                && t.startChar == startChar
+                && t.length == length
+                && t.tokenType == tokenType;
+        });
+}
+
 void SemanticTokensHandlerTestSuite::registerTests(LspTestHarness& harness) {
 
     harness.addTest("legend has correct number of token types", []() {
@@ -188,6 +199,159 @@ void SemanticTokensHandlerTestSuite::registerTests(LspTestHarness& harness) {
             "expected function token for 'print'");
         require(hasToken(decoded, 1, functionType, 3),
             "expected function token for 'foo'");
+    });
+
+    harness.addTest("tokenizes member access fields as properties", []() {
+        auto docMgr = makeDocManager("file:///test.mt",
+            "function run(): void {\n"
+            "    u.cooldownLeft = u.cooldownLeft - dt;\n"
+            "    win.isOpen();\n"
+            "}\n");
+        SemanticTokensHandler handler(docMgr.get());
+
+        auto tokens = handler.handleSemanticTokensFull("file:///test.mt");
+        auto decoded = decodeTokens(tokens);
+
+        int propertyType = tokenTypeIndex("property");
+        require(hasTokenAt(decoded, 1, 6, 12, propertyType),
+            "expected property token for first 'cooldownLeft'");
+        require(hasTokenAt(decoded, 1, 23, 12, propertyType),
+            "expected property token for second 'cooldownLeft'");
+        require(!hasTokenAt(decoded, 2, 8, 6, propertyType),
+            "method calls should not be tokenized as properties");
+    });
+
+    harness.addTest("tokenizes function parameter names as parameters", []() {
+        std::string signature = "public static function find(Registry reg, float wx, float wy): int {";
+        auto docMgr = makeDocManager("file:///test.mt", signature + "\n}\n");
+        SemanticTokensHandler handler(docMgr.get());
+
+        auto tokens = handler.handleSemanticTokensFull("file:///test.mt");
+        auto decoded = decodeTokens(tokens);
+
+        int parameterType = tokenTypeIndex("parameter");
+        require(hasTokenAt(decoded, 0, static_cast<int>(signature.find("reg")), 3, parameterType),
+            "expected parameter token for 'reg'");
+        require(hasTokenAt(decoded, 0, static_cast<int>(signature.find("wx")), 2, parameterType),
+            "expected parameter token for 'wx'");
+        require(hasTokenAt(decoded, 0, static_cast<int>(signature.find("wy")), 2, parameterType),
+            "expected parameter token for 'wy'");
+    });
+
+    harness.addTest("tokenizes parameter usages in calls and expressions", []() {
+        std::string callLine = "    Query::overlapAABB(world, wx - 0.4, wy + 0.4);";
+        auto docMgr = makeDocManager("file:///test.mt",
+            "public static function pick(World world, float wx, float wy): int {\n"
+            + callLine + "\n"
+            "    return 0;\n"
+            "}\n");
+        SemanticTokensHandler handler(docMgr.get());
+
+        auto tokens = handler.handleSemanticTokensFull("file:///test.mt");
+        auto decoded = decodeTokens(tokens);
+
+        int parameterType = tokenTypeIndex("parameter");
+        require(hasTokenAt(decoded, 1, static_cast<int>(callLine.find("world")), 5, parameterType),
+            "expected parameter usage token for 'world'");
+        require(hasTokenAt(decoded, 1, static_cast<int>(callLine.find("wx")), 2, parameterType),
+            "expected parameter usage token for 'wx'");
+        require(hasTokenAt(decoded, 1, static_cast<int>(callLine.find("wy")), 2, parameterType),
+            "expected parameter usage token for 'wy'");
+    });
+
+    harness.addTest("tokenizes local usages inside control expressions and blocks", []() {
+        auto docMgr = makeDocManager("file:///test.mt",
+            "function run(): void {\n"
+            "    int i = 0;\n"
+            "    int n = 3;\n"
+            "    int best = 0;\n"
+            "    while (i < n) {\n"
+            "        int d2 = i + best;\n"
+            "        if (d2 < best) { best = d2; }\n"
+            "        i = i + 1;\n"
+            "    }\n"
+            "}\n");
+        SemanticTokensHandler handler(docMgr.get());
+
+        auto tokens = handler.handleSemanticTokensFull("file:///test.mt");
+        auto decoded = decodeTokens(tokens);
+
+        int variableType = tokenTypeIndex("variable");
+        require(hasTokenAt(decoded, 4, 11, 1, variableType),
+            "expected local usage token for 'i' in while condition");
+        require(hasTokenAt(decoded, 4, 15, 1, variableType),
+            "expected local usage token for 'n' in while condition");
+        require(hasTokenAt(decoded, 6, 12, 2, variableType),
+            "expected local usage token for 'd2' in if condition");
+        require(hasTokenAt(decoded, 6, 17, 4, variableType),
+            "expected local usage token for 'best' in if condition");
+        require(hasTokenAt(decoded, 6, 25, 4, variableType),
+            "expected local usage token for 'best' in if block");
+    });
+
+    harness.addTest("comments suppress code tokens inside them", []() {
+        std::string comment = "// Return the player BaseBuilding closest to (wx, wy).";
+        auto docMgr = makeDocManager("file:///test.mt",
+            "class BaseBuilding {}\n" + comment + "\n");
+        SemanticTokensHandler handler(docMgr.get());
+
+        auto tokens = handler.handleSemanticTokensFull("file:///test.mt");
+        auto decoded = decodeTokens(tokens);
+
+        int commentType = tokenTypeIndex("comment");
+        int classType = tokenTypeIndex("class");
+        int baseBuildingPos = static_cast<int>(comment.find("BaseBuilding"));
+
+        require(hasTokenAt(decoded, 1, 0, static_cast<int>(comment.length()), commentType),
+            "expected full line-comment token");
+        require(!hasTokenAt(decoded, 1, baseBuildingPos, 12, classType),
+            "type names inside comments should not be emitted as class tokens");
+    });
+
+    harness.addTest("strings suppress code tokens inside them", []() {
+        std::string importLine = "import * from \"@mtype-box2d/Body.mt\";";
+        auto docMgr = makeDocManager("file:///test.mt",
+            "class Body {}\n" + importLine + "\n");
+        SemanticTokensHandler handler(docMgr.get());
+
+        auto tokens = handler.handleSemanticTokensFull("file:///test.mt");
+        auto decoded = decodeTokens(tokens);
+
+        int stringType = tokenTypeIndex("string");
+        int classType = tokenTypeIndex("class");
+        int quotePos = static_cast<int>(importLine.find('"'));
+        int bodyPos = static_cast<int>(importLine.find("Body"));
+
+        require(hasTokenAt(decoded, 1, quotePos,
+                           static_cast<int>(importLine.find_last_of('"') - quotePos + 1),
+                           stringType),
+            "expected full import path string token");
+        require(!hasTokenAt(decoded, 1, bodyPos, 4, classType),
+            "type-like names inside strings should not be emitted as class tokens");
+    });
+
+    harness.addTest("tokenizes class fields as properties and locals as variables", []() {
+        auto docMgr = makeDocManager("file:///test.mt",
+            "class Unit {\n"
+            "    public float cooldownLeft;\n"
+            "    public static int count;\n"
+            "    public static function run(): void {\n"
+            "        int local = 0;\n"
+            "    }\n"
+            "}\n");
+        SemanticTokensHandler handler(docMgr.get());
+
+        auto tokens = handler.handleSemanticTokensFull("file:///test.mt");
+        auto decoded = decodeTokens(tokens);
+
+        int propertyType = tokenTypeIndex("property");
+        int variableType = tokenTypeIndex("variable");
+        require(hasTokenAt(decoded, 1, 17, 12, propertyType),
+            "expected class field 'cooldownLeft' to be a property");
+        require(hasTokenAt(decoded, 2, 22, 5, propertyType),
+            "expected static class field 'count' to be a property");
+        require(hasTokenAt(decoded, 4, 12, 5, variableType),
+            "expected function local 'local' to remain a variable");
     });
 
     harness.addTest("does not tokenize control keywords as function calls", []() {

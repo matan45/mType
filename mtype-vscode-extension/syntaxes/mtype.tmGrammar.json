@@ -14,7 +14,6 @@
     { "include": "#types" },
     { "include": "#functions" },
     { "include": "#members" },
-    { "include": "#variables" },
     { "include": "#operators" },
     { "include": "#punctuation" }
   ],
@@ -190,6 +189,19 @@
           }
         },
         {
+          "name": "meta.variable.generic.declaration.mtype",
+          "match": "\\b(?:(public|private|protected)\\s+)?(?:(static|final|const)\\s+)?(?!(?:if|else|while|for|do|switch|case|default|break|continue|return|try|catch|finally|throw|match|await|class|interface|annotation|extends|implements|import|from|as|new|this|super|null|function|constructor|isClassOf|in)\\b)([A-Za-z_][A-Za-z0-9_]*)\\s*(<)([^;=(){}]+)(>)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(?=[;=])",
+          "captures": {
+            "1": { "name": "storage.modifier.visibility.mtype" },
+            "2": { "name": "storage.modifier.mtype" },
+            "3": { "name": "storage.type.mtype" },
+            "4": { "name": "punctuation.definition.generic.begin.mtype" },
+            "5": { "name": "storage.type.mtype" },
+            "6": { "name": "punctuation.definition.generic.end.mtype" },
+            "7": { "name": "variable.other.declaration.mtype" }
+          }
+        },
+        {
           "name": "meta.variable.declaration.mtype",
           "match": "\\b(?:(public|private|protected)\\s+)?(?:(static|final|const)\\s+)?(?!(?:if|else|while|for|do|switch|case|default|break|continue|return|try|catch|finally|throw|match|await|class|interface|annotation|extends|implements|import|from|as|new|this|super|null|function|constructor|isClassOf|in)\\b)([A-Za-z_][A-Za-z0-9_]*(?:\\s*<[^;=(){}]*>)?(?:\\s*\\[\\])?)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(?=[;=])",
           "captures": {
@@ -197,6 +209,18 @@
             "2": { "name": "storage.modifier.mtype" },
             "3": { "name": "storage.type.mtype" },
             "4": { "name": "variable.other.declaration.mtype" }
+          }
+        },
+        {
+          "name": "meta.parameter.generic.mtype",
+          "match": "\\b(?:(final)\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*(<)([^,(){}]+)(>)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b(?=\\s*[,\\)])",
+          "captures": {
+            "1": { "name": "storage.modifier.mtype" },
+            "2": { "name": "storage.type.mtype" },
+            "3": { "name": "punctuation.definition.generic.begin.mtype" },
+            "4": { "name": "storage.type.mtype" },
+            "5": { "name": "punctuation.definition.generic.end.mtype" },
+            "6": { "name": "variable.parameter.mtype" }
           }
         },
         {
@@ -274,7 +298,7 @@
       "patterns": [
         {
           "name": "meta.generic.mtype",
-          "begin": "<",
+          "begin": "(?<=[A-Za-z0-9_])<",
           "beginCaptures": {
             "0": { "name": "punctuation.definition.generic.begin.mtype" }
           },
@@ -326,17 +350,6 @@
           "captures": {
             "1": { "name": "variable.language.this.mtype" },
             "2": { "name": "variable.other.member.mtype" }
-          }
-        }
-      ]
-    },
-    "variables": {
-      "patterns": [
-        {
-          "name": "variable.other.assignment.mtype",
-          "match": "\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(?=(?:\\+=|-=|\\*=|/=|%=|=)(?!=))",
-          "captures": {
-            "1": { "name": "variable.other.assignment.mtype" }
           }
         }
       ]

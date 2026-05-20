@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <regex>
 #include <string>
+#include <unordered_set>
 #include <vector>
 #include "../utils/LSPTypes.hpp"
 #include "../DocumentManager.hpp"
@@ -40,6 +41,7 @@ private:
 
     // Tokenization passes — each appends to the supplied vector
     void tokenizeAnnotations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
+    void tokenizeLineComment(const std::string& line, int lineIndex, size_t commentStart, std::vector<RawToken>& tokens) const;
     void tokenizeClassDeclarations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
     // `annotation Foo { ... }` declarations — colors both the
     // `annotation` keyword and the type name. Mirrors the
@@ -47,7 +49,18 @@ private:
     void tokenizeAnnotationDeclarations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
     void tokenizeInterfaceDeclarations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
     void tokenizeMethodDeclarations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
-    void tokenizeVariableDeclarations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
+    void tokenizeParameters(const std::string& line, int lineIndex,
+                            std::unordered_set<std::string>& parameterSymbols,
+                            std::vector<RawToken>& tokens) const;
+    void tokenizeVariableDeclarations(const std::string& line, int lineIndex,
+                                      bool classMemberContext,
+                                      std::unordered_set<std::string>& localSymbols,
+                                      std::vector<RawToken>& tokens) const;
+    void tokenizeMemberAccess(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
+    void tokenizeSymbolUsages(const std::string& line, int lineIndex,
+                              const std::unordered_set<std::string>& parameterSymbols,
+                              const std::unordered_set<std::string>& localSymbols,
+                              std::vector<RawToken>& tokens) const;
     void tokenizeKeywords(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
     void tokenizeTypes(const std::string& line, int lineIndex,
                        const std::vector<std::string>& knownClasses,
@@ -59,6 +72,7 @@ private:
     static int encodeTokenType(const std::string& type);
     static int encodeTokenModifiers(const std::vector<std::string>& mods);
     static void pushToken(std::vector<RawToken>& tokens, int line, int startChar, int length, int type, int modifiers);
+    static bool hasTokenAt(const std::vector<RawToken>& tokens, int line, int startChar, int length);
 
     // Pre-compiled regexes (built once in constructor)
     std::regex annotationRegex_;
@@ -66,7 +80,9 @@ private:
     std::regex classRegex_;
     std::regex interfaceRegex_;
     std::regex methodRegex_;
+    std::regex parameterRegex_;
     std::regex varRegex_;
+    std::regex memberAccessRegex_;
     std::regex keywordRegex_;           // single alternation for all keywords
     std::regex modifierRegex_;          // single alternation for all modifiers
     std::regex functionCallRegex_;
