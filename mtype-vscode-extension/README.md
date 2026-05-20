@@ -426,6 +426,7 @@ This extension automatically activates for:
 - **`.mtc` files**: mType compiled bytecode files
 - **`.mtproj` files**: mType project manifest (XML)
 - **`.mtworkspace` files**: mType workspace manifest (XML)
+- **`mtproj.lock` files**: mType package-manager lockfile (JSON)
 
 ## Development
 

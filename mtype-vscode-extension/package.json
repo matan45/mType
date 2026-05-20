@@ -33,6 +33,7 @@
     "onLanguage:mtype-compiled",
     "onLanguage:mtproj",
     "onLanguage:mtworkspace",
+    "onLanguage:mtproj-lock",
     "onCommand:mtype.run",
     "onCommand:mtype.build",
     "onCommand:mtype.buildLib",
@@ -93,6 +94,16 @@
           ".mtworkspace"
         ],
         "configuration": "./language-configuration/mtype-xml-configuration.json"
+      },
+      {
+        "id": "mtproj-lock",
+        "aliases": [
+          "mType Lockfile",
+          "mtproj.lock"
+        ],
+        "filenames": [
+          "mtproj.lock"
+        ]
       }
     ],
     "grammars": [
@@ -115,6 +126,11 @@
         "language": "mtworkspace",
         "scopeName": "source.mtype.workspace",
         "path": "./syntaxes/mtworkspace.tmGrammar.json"
+      },
+      {
+        "language": "mtproj-lock",
+        "scopeName": "source.json.mtproj-lock",
+        "path": "./syntaxes/mtproj-lock.tmGrammar.json"
       }
     ],
     "breakpoints": [

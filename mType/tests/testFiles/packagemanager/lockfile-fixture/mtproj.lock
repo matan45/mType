@@ -1,0 +1,15 @@
+{
+    "packages": {
+        "mTypeLib": {
+            "integrity": "sha256-54c81e6ddaabfc8781ee3395606acdf0a207addb1dc8d21eb573e1ad69026263",
+            "resolved": "file://mtype\\registry\\mTypeLib\\0.0.1",
+            "version": "0.0.1"
+        },
+        "mtype-sfml": {
+            "integrity": "sha256-6a35da08ff4f66ca029d248bd0b9fbc7d415d4c52d9d99a4ddb9aa32bc2fcf1f",
+            "resolved": "file://mtype\\registry\\mtype-sfml\\0.0.1",
+            "version": "0.0.1"
+        }
+    },
+    "version": 1
+}

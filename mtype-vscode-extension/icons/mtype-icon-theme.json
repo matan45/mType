@@ -12,6 +12,9 @@
     "mtworkspace-file": {
       "iconPath": "./mtworkspace-file.svg"
     },
+    "mtproj-lock-file": {
+      "iconPath": "./mtproj-lock-file.svg"
+    },
     "mtype-folder": {
       "iconPath": "./mtype-folder.svg"
     },
@@ -25,11 +28,15 @@
     "mtproj": "mtproj-file",
     "mtworkspace": "mtworkspace-file"
   },
+  "fileNames": {
+    "mtproj.lock": "mtproj-lock-file"
+  },
   "languageIds": {
     "mtype": "mtype-file",
     "mtype-compiled": "mtc-file",
     "mtproj": "mtproj-file",
-    "mtworkspace": "mtworkspace-file"
+    "mtworkspace": "mtworkspace-file",
+    "mtproj-lock": "mtproj-lock-file"
   },
   "folder": "mtype-folder",
   "folderExpanded": "mtype-folder-open"

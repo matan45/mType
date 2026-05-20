@@ -240,6 +240,51 @@
       }
     },
     {
+      "name": "JSON Property Names (.mtproj.lock)",
+      "scope": [
+        "support.type.property-name.json",
+        "meta.structure.dictionary.json support.type.property-name.json"
+      ],
+      "settings": {
+        "foreground": "#953800"
+      }
+    },
+    {
+      "name": "JSON Strings (.mtproj.lock)",
+      "scope": [
+        "string.quoted.double.json",
+        "meta.structure.dictionary.value.json string.quoted.double.json"
+      ],
+      "settings": {
+        "foreground": "#116329"
+      }
+    },
+    {
+      "name": "JSON Numbers and Constants (.mtproj.lock)",
+      "scope": [
+        "constant.numeric.json",
+        "constant.language.json"
+      ],
+      "settings": {
+        "foreground": "#0550ae"
+      }
+    },
+    {
+      "name": "JSON Punctuation (.mtproj.lock)",
+      "scope": [
+        "punctuation.definition.dictionary.begin.json",
+        "punctuation.definition.dictionary.end.json",
+        "punctuation.definition.array.begin.json",
+        "punctuation.definition.array.end.json",
+        "punctuation.separator.dictionary.key-value.json",
+        "punctuation.separator.dictionary.pair.json",
+        "punctuation.separator.array.json"
+      ],
+      "settings": {
+        "foreground": "#0550ae"
+      }
+    },
+    {
       "name": "XML Tag Names (.mtproj / .mtworkspace)",
       "scope": [
         "entity.name.tag.xml",
