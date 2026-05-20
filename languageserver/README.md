@@ -218,6 +218,8 @@ Then send LSP messages via stdin. For debugging, check your editor's LSP client 
 | `callHierarchy/incomingCalls` | ✅ Implemented | Direct callers grouped by enclosing callable. Hybrid resolution (class-pinned for `Class::m()`, `new C()`, `super.m()`, `this.m()`; name-only otherwise). Lambdas transparent — calls inside attribute to the enclosing real callable. Scans documents loaded in the editor (MYT-299) |
 | `callHierarchy/outgoingCalls` | ✅ Implemented | Direct calls from the selected callable's body. Walks through nested lambdas; super-method calls resolve via the inheritance chain. Overloads collapse into a single hierarchy item (MYT-299) |
 
+**Invoking call hierarchy in VS Code:** place the cursor on a function / method / constructor name (declaration or call site) and use **Shift+Alt+H**, right-click → **Show Call Hierarchy**, or Command Palette → **Calls: Show Call Hierarchy**. The panel's ↑ / ↓ icons switch between incoming and outgoing calls.
+
 ## Architecture
 
 The language server is built in C++ and reuses mType's existing components:

@@ -21,6 +21,16 @@ sidebar_position: 5
 - Semantic tokens
 - Call hierarchy (prepare, incoming calls, outgoing calls) — direct syntactic calls for top-level functions, methods, and constructors; hybrid resolution (class-pinned for `Class::m()`, `new C()`, `super.m()`, `this.m()`; name-only otherwise); lambdas are transparent (calls inside attribute to the enclosing real callable); scans documents loaded in the editor
 
+## Using Call Hierarchy
+
+Place the cursor on a function, method, or constructor name (declaration or call site) and invoke any of:
+
+- Right-click → **Show Call Hierarchy**
+- Keyboard: **Shift+Alt+H** (VS Code default)
+- Command Palette → **Calls: Show Call Hierarchy**
+
+A panel opens with two toggles at the top: **↑ Callers** (incoming) and **↓ Callees** (outgoing). Each row drills in recursively; clicking a row jumps to that call site. Cursor on a non-callable (variable, type annotation, keyword) is a silent no-op.
+
 ## Build
 
 The language server is built as part of the main solution build:
