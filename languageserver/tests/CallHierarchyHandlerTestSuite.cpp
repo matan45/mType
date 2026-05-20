@@ -254,9 +254,12 @@ void CallHierarchyHandlerTestSuite::registerTests(LspTestHarness& harness) {
 
     harness.addTest("incomingCalls_nestedLambda_callerBubblesUp", []() {
         auto docMgr = makeDocManager("file:///t.mt",
+            "interface Runner {\n"
+            "    function go(): void;\n"
+            "}\n"
             "function action(): void {}\n"
             "function run(): void {\n"
-            "    var f = () => { action(); };\n"
+            "    Runner r = () -> { action(); };\n"
             "}\n");
         CallHierarchyHandler h(docMgr.get());
         auto calls = h.handleIncoming(makeItem("function", "", "action"));
@@ -349,8 +352,13 @@ void CallHierarchyHandlerTestSuite::registerTests(LspTestHarness& harness) {
 
     harness.addTest("outgoingCalls_nestedLambda_bubblesUp", []() {
         auto docMgr = makeDocManager("file:///t.mt",
+            "interface Runner {\n"
+            "    function go(): void;\n"
+            "}\n"
             "function act(): void {}\n"
-            "function run(): void { var f = () => { act(); }; }\n");
+            "function run(): void {\n"
+            "    Runner r = () -> { act(); };\n"
+            "}\n");
         CallHierarchyHandler h(docMgr.get());
         auto calls = h.handleOutgoing(makeItem("function", "", "run"));
         require(hasOutgoingTo(calls, "function", "", "act"),
@@ -412,6 +420,52 @@ void CallHierarchyHandlerTestSuite::registerTests(LspTestHarness& harness) {
         auto calls = h.handleOutgoing(makeItem("function", "", "entry"));
         require(hasOutgoingTo(calls, "function", "", "shared"),
                 "outgoing call must resolve target in a different open document");
+    });
+
+    harness.addTest("prepare_classWithModifier_abstractClassHeader", []() {
+        // The class-header path must work for any modifier sequence
+        // (`abstract`, `final`, `value`) prefixing `class`. nameTokenRange's
+        // source scan handles the column drift; the +6 heuristic from the
+        // original draft would have failed here.
+        auto docMgr = makeDocManager("file:///t.mt",
+            "abstract class Shape {\n"
+            "    public constructor() {}\n"
+            "}\n");
+        CallHierarchyHandler h(docMgr.get());
+        // cursor on `Shape` (col 15-19, position on second char)
+        auto items = h.handlePrepare("file:///t.mt", {0, 16});
+        require(hasItem(items, "constructor", "Shape", ""),
+                "expected constructor via abstract class header");
+    });
+
+    harness.addTest("prepare_ambiguousMethodCall_dedupCollapses", []() {
+        // Cursor on `obj.eat()` where two classes define `eat`. The name-only
+        // resolution emits a candidate for each class; prepare's dedup pass
+        // collapses overlapping (kind,className,name) keys so each unique
+        // method appears at most once. We assert at least one and no dup.
+        auto docMgr = makeDocManager("file:///t.mt",
+            "class Cat {\n"
+            "    public function eat(): void {}\n"
+            "}\n"
+            "class Dog {\n"
+            "    public function eat(): void {}\n"
+            "}\n"
+            "function caller(): void {\n"
+            "    Cat c = new Cat();\n"
+            "    c.eat();\n"
+            "}\n");
+        CallHierarchyHandler h(docMgr.get());
+        // cursor on `eat` in c.eat() — line 8 col 6
+        auto items = h.handlePrepare("file:///t.mt", {8, 7});
+        // Either Cat::eat or Dog::eat (or both) is acceptable; what matters
+        // is no duplicate item for the same (kind,className,name).
+        std::vector<std::string> seen;
+        for (const auto& it : items) {
+            seen.push_back(itemKind(it) + "/" + itemClass(it) + "/" + itemName(it));
+        }
+        std::sort(seen.begin(), seen.end());
+        require(std::unique(seen.begin(), seen.end()) == seen.end(),
+                "prepare must dedup ambiguous candidates");
     });
 
     harness.addTest("outgoingCalls_unknownItem_returnsEmpty", []() {

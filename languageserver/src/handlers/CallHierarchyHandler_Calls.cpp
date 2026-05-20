@@ -149,7 +149,7 @@ std::vector<CallHierarchyIncomingCall> collectIncoming(const ItemId& itemId,
                                 static_cast<int>(funcs.size() ? funcs.size() : 1));
                             itemBuilt = true;
                         }
-                        auto [nm, r] = callFromRange(call);
+                        auto [nm, r] = callFromRange(call, doc);
                         recordCall(key, callerItem, r);
                     }
                 });
@@ -174,7 +174,7 @@ std::vector<CallHierarchyIncomingCall> collectIncoming(const ItemId& itemId,
                                     static_cast<int>(ms.size() ? ms.size() : 1));
                                 itemBuilt = true;
                             }
-                            auto [nm, r] = callFromRange(call);
+                            auto [nm, r] = callFromRange(call, doc);
                             recordCall(key, callerItem, r);
                         }
                     });
@@ -198,7 +198,7 @@ std::vector<CallHierarchyIncomingCall> collectIncoming(const ItemId& itemId,
                                     static_cast<int>(cs.size() ? cs.size() : 1));
                                 itemBuilt = true;
                             }
-                            auto [nm, r] = callFromRange(call);
+                            auto [nm, r] = callFromRange(call, doc);
                             recordCall(key, callerItem, r);
                         }
                     });
@@ -214,7 +214,7 @@ std::vector<CallHierarchyIncomingCall> collectIncoming(const ItemId& itemId,
                                         static_cast<int>(cs.size() ? cs.size() : 1));
                                     itemBuilt = true;
                                 }
-                                auto [nm, r] = callFromRange(call);
+                                auto [nm, r] = callFromRange(call, doc);
                                 recordCall(key, callerItem, r);
                             }
                         });
@@ -262,11 +262,12 @@ std::vector<CallHierarchyOutgoingCall> CallHierarchyHandler::handleOutgoing(
     std::unordered_map<std::string, TargetAcc> byTarget;
 
     for (const auto& entry : bodies) {
+        const Document* entryDoc = documentManager_->getDocument(entry.uri);
         CallWalker walker([&](::ast::ASTNode* call) {
             auto targets = resolveCall(call, documentManager_, entry.enclosingClass);
             for (const auto& t : targets) {
                 std::string key = groupKey(t.kind, t.className, t.name);
-                auto [nm, r] = callFromRange(call);
+                auto [nm, r] = callFromRange(call, entryDoc);
                 auto it = byTarget.find(key);
                 if (it == byTarget.end()) {
                     TargetAcc acc;

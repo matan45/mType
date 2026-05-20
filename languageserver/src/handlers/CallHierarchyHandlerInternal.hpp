@@ -19,6 +19,8 @@
 #include "../../../mType/ast/nodes/expressions/VariableNode.hpp"
 
 #include <algorithm>
+#include <cctype>
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <string>
@@ -47,6 +49,65 @@ inline Position toLspPosition(const ::errors::SourceLocation& loc) {
 inline Range tokenRange(const ::errors::SourceLocation& loc, std::size_t length) {
     Position start = toLspPosition(loc);
     return Range{start, Position{start.line, start.character + static_cast<int>(length)}};
+}
+
+// Source-text scan that locates an identifier token on a specific line.
+// mType AST SourceLocations are inconsistent — FunctionNode/ClassNode/
+// MethodCallNode point at the name token, but MethodNode points at the
+// pre-modifier start, and FunctionCallNode/NewNode point AFTER `)`. Rather
+// than special-case each, we look up the actual name in the source text.
+// Returns -1 if not found.
+inline int findTokenColumn(const std::string& content, int line0Based,
+                            const std::string& name, int startCol0Based) {
+    if (name.empty()) return -1;
+    int curLine = 0;
+    std::size_t lineStart = 0;
+    while (curLine < line0Based && lineStart < content.size()) {
+        std::size_t nl = content.find('\n', lineStart);
+        if (nl == std::string::npos) return -1;
+        lineStart = nl + 1;
+        ++curLine;
+    }
+    std::size_t lineEnd = content.find('\n', lineStart);
+    if (lineEnd == std::string::npos) lineEnd = content.size();
+    std::size_t search = lineStart;
+    if (startCol0Based > 0) {
+        search = lineStart + static_cast<std::size_t>(startCol0Based);
+        if (search > lineEnd) return -1;
+    }
+    while (search < lineEnd) {
+        std::size_t pos = content.find(name, search);
+        if (pos == std::string::npos || pos >= lineEnd) return -1;
+        char prev = pos > lineStart ? content[pos - 1] : ' ';
+        char next = pos + name.size() < lineEnd ? content[pos + name.size()] : ' ';
+        bool wordBoundaryPrev = !(std::isalnum(static_cast<unsigned char>(prev)) || prev == '_');
+        bool wordBoundaryNext = !(std::isalnum(static_cast<unsigned char>(next)) || next == '_');
+        if (wordBoundaryPrev && wordBoundaryNext) {
+            return static_cast<int>(pos - lineStart);
+        }
+        search = pos + 1;
+    }
+    return -1;
+}
+
+// Range for an identifier token whose declaration/call lives at `loc`.
+// Falls back to tokenRange(loc, name.size()) if the source scan misses.
+inline Range nameTokenRange(const Document* doc, const ::errors::SourceLocation& loc,
+                             const std::string& name) {
+    if (doc) {
+        int line = std::max(0, loc.getLine() - 1);
+        int startCol = std::max(0, loc.getColumn() - 1);
+        // Search from the location's column first; if not found, retry from
+        // the line start (handles MethodNode, NewNode, FunctionCallNode where
+        // the location may be on a later token).
+        int col = findTokenColumn(doc->content, line, name, startCol);
+        if (col < 0) col = findTokenColumn(doc->content, line, name, 0);
+        if (col >= 0) {
+            return Range{Position{line, col},
+                         Position{line, col + static_cast<int>(name.size())}};
+        }
+    }
+    return tokenRange(loc, name.size());
 }
 
 inline bool rangeContains(const Range& r, const Position& p) {
@@ -94,6 +155,10 @@ inline nc::ClassNode* findClassByName(const Document* doc, const std::string& na
     return nullptr;
 }
 
+// Returns the first class matching `name` across every open document. If
+// the same class name lives in two open files the earlier-scanned doc
+// wins; v1 accepts that collision per Q3 (open-docs-only). A real fix
+// requires module/namespace identity, which mType doesn't expose yet.
 inline std::pair<nc::ClassNode*, std::string> findClassEverywhere(DocumentManager* mgr,
                                                                   const std::string& name) {
     if (!mgr) return {nullptr, ""};
@@ -248,7 +313,16 @@ inline std::vector<ResolvedTarget> resolveCall(::ast::ASTNode* call,
                                                 const std::string& enclosingClass) {
     std::vector<ResolvedTarget> out;
     if (auto* fc = dynamic_cast<nf::FunctionCallNode*>(call)) {
-        out.push_back({kKindFunction, "", fc->getFunctionName()});
+        // mType parses `ClassName::method(...)` (without generic args) as a
+        // FunctionCallNode whose functionName carries the `::` qualifier.
+        // Treat it as a class-pinned static method per Q2.
+        const std::string& fnName = fc->getFunctionName();
+        std::size_t scope = fnName.rfind("::");
+        if (scope != std::string::npos) {
+            out.push_back({kKindMethod, fnName.substr(0, scope), fnName.substr(scope + 2)});
+            return out;
+        }
+        out.push_back({kKindFunction, "", fnName});
         return out;
     }
     if (auto* nn = dynamic_cast<nc::NewNode*>(call)) {
@@ -289,7 +363,9 @@ inline std::vector<ResolvedTarget> resolveCall(::ast::ASTNode* call,
             out.push_back({kKindMethod, enclosingClass, name});
             return out;
         }
-        // Name-only: every class with a method of that name across open docs.
+        // Receiver isn't a bare `this` / class identifier (e.g., chained
+        // `getX().y()`, a field access, an indexed expression). Q2 falls
+        // back to name-only matching here — no static-type inference in v1.
         if (mgr) {
             for (const auto& uri : mgr->getAllOpenUris()) {
                 auto* doc = mgr->getDocument(uri);
@@ -306,28 +382,35 @@ inline std::vector<ResolvedTarget> resolveCall(::ast::ASTNode* call,
 }
 
 // Extract the call-name range used as `fromRange` in incomingCalls /
-// outgoingCalls aggregation. The call node's location points at the
-// name token for FunctionCallNode and MethodCallNode (per the parser);
-// for NewNode/Super*CallNode we approximate by using the call's
-// location with the relevant name's length.
-inline std::pair<std::string, Range> callFromRange(::ast::ASTNode* call) {
+// outgoingCalls aggregation. mType parser SourceLocations are not aligned
+// to the call's name token for FunctionCallNode/NewNode/Super*CallNode
+// (they point AFTER `)` or at the `super` keyword), so we resolve via a
+// source-text scan against the document's line.
+//
+// For static FunctionCallNodes whose name is `ClassName::method` (the
+// shape produced by parseScopeResolution), we strip the qualifier and
+// scan for the method-name token.
+inline std::pair<std::string, Range> callFromRange(::ast::ASTNode* call, const Document* doc) {
     if (auto* fc = dynamic_cast<nf::FunctionCallNode*>(call)) {
-        return {fc->getFunctionName(), tokenRange(fc->getLocation(), fc->getFunctionName().size())};
+        std::string name = fc->getFunctionName();
+        std::size_t scope = name.rfind("::");
+        std::string lookup = scope == std::string::npos ? name : name.substr(scope + 2);
+        return {name, nameTokenRange(doc, fc->getLocation(), lookup)};
     }
     if (auto* mc = dynamic_cast<nc::MethodCallNode*>(call)) {
-        return {mc->getMethodName(), tokenRange(mc->getLocation(), mc->getMethodName().size())};
+        return {mc->getMethodName(), nameTokenRange(doc, mc->getLocation(), mc->getMethodName())};
     }
     if (auto* smc = dynamic_cast<nc::SuperMethodCallNode*>(call)) {
-        return {smc->getMethodName(), tokenRange(smc->getLocation(), smc->getMethodName().size())};
+        return {smc->getMethodName(), nameTokenRange(doc, smc->getLocation(), smc->getMethodName())};
     }
     if (auto* nn = dynamic_cast<nc::NewNode*>(call)) {
-        return {nn->getClassName(), tokenRange(nn->getLocation(), nn->getClassName().size())};
+        return {nn->getClassName(), nameTokenRange(doc, nn->getLocation(), nn->getClassName())};
     }
     if (auto* tcc = dynamic_cast<nc::ThisConstructorCallNode*>(call)) {
-        return {"this", tokenRange(tcc->getLocation(), 4)};
+        return {"this", nameTokenRange(doc, tcc->getLocation(), "this")};
     }
     if (auto* scc = dynamic_cast<nc::SuperConstructorCallNode*>(call)) {
-        return {"super", tokenRange(scc->getLocation(), 5)};
+        return {"super", nameTokenRange(doc, scc->getLocation(), "super")};
     }
     return {"", Range{}};
 }

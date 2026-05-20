@@ -76,6 +76,26 @@ void CallWalker::walk(::ast::ASTNode* n) {
     if (auto* lam = dynamic_cast<ne::LambdaNode*>(n)) {
         walk(lam->getBody()); return;
     }
+    // Declarations: descend into their bodies so a whole-program walk (from
+    // prepare's call-site search) reaches calls inside methods/functions/
+    // constructors. Incoming/outgoing pre-extract the body and never see
+    // these nodes directly.
+    if (auto* fn = dynamic_cast<nf::FunctionNode*>(n)) {
+        walk(fn->getBodyPtr()); return;
+    }
+    if (auto* cls = dynamic_cast<nc::ClassNode*>(n)) {
+        for (const auto& m : cls->getMethods()) walk(m.get());
+        for (const auto& c : cls->getConstructors()) walk(c.get());
+        return;
+    }
+    if (auto* mn = dynamic_cast<nc::MethodNode*>(n)) {
+        walk(mn->getBodyPtr()); return;
+    }
+    if (auto* cn = dynamic_cast<nc::ConstructorNode*>(n)) {
+        walk(cn->getBodyPtr());
+        if (auto* sup = cn->getSuperInitializer()) walk(sup);
+        return;
+    }
     if (auto* ifn = dynamic_cast<ns::IfNode*>(n)) {
         walk(ifn->getCondition());
         walk(ifn->getThenStatement());
@@ -191,9 +211,9 @@ CallHierarchyHandler::CallHierarchyHandler(
 
 namespace {
 
-// On a declaration site: cursor is inside the declaration's name token.
-// Returns CallHierarchyItem(s) for matched declarations. May return
-// multiple when the name shadows itself across classes (rare but legal).
+// Resolve a cursor sitting on a callable declaration's name token. Returns
+// at most one item: the early returns short-circuit on the first match,
+// since a declaration name is unambiguous at a single cursor position.
 void appendDeclarationsAtCursor(const std::string& uri,
                                 const Document* doc,
                                 const std::string& word,
@@ -203,29 +223,22 @@ void appendDeclarationsAtCursor(const std::string& uri,
     auto* prog = getProgram(doc);
     if (!prog) return;
 
-    // Top-level functions.
     auto funcs = collectFunctionsByName(doc, word);
-    if (!funcs.empty()) {
-        for (auto* fn : funcs) {
-            Range r = tokenRange(fn->getLocation(), fn->getName().size());
-            if (rangeContains(r, pos)) {
-                out.push_back(itemForFunction(uri, fn, static_cast<int>(funcs.size())));
-                return;
-            }
+    for (auto* fn : funcs) {
+        if (rangeContains(nameTokenRange(doc, fn->getLocation(), fn->getName()), pos)) {
+            out.push_back(itemForFunction(uri, fn, static_cast<int>(funcs.size())));
+            return;
         }
     }
 
-    // Methods / constructors / class headers.
     for (auto* cls : collectClasses(doc)) {
         auto methods = collectMethodsByName(cls, word);
         for (auto* m : methods) {
-            Range r = tokenRange(m->getLocation(), m->getName().size());
-            if (rangeContains(r, pos)) {
+            if (rangeContains(nameTokenRange(doc, m->getLocation(), m->getName()), pos)) {
                 out.push_back(itemForMethod(uri, cls->getClassName(), m, static_cast<int>(methods.size())));
                 return;
             }
         }
-        // Constructor keyword (`constructor` token).
         if (word == "constructor") {
             auto ctors = collectConstructors(cls);
             for (auto* c : ctors) {
@@ -237,42 +250,27 @@ void appendDeclarationsAtCursor(const std::string& uri,
             }
         }
         // Class header: cursor on `Foo` in `class Foo {` → constructor item if
-        // an explicit constructor exists. We approximate the class-name range
-        // as the same line as ClassNode::getLocation(), with name length —
-        // ClassNode::getLocation() points at the `class` keyword, so the name
-        // appears 6 chars later (after `class `).
+        // an explicit constructor exists. ClassNode::getLocation() points at
+        // the class-name token directly, so we use it without an offset.
         if (cls->getClassName() == word) {
             auto ctors = collectConstructors(cls);
-            if (!ctors.empty()) {
-                Position start = toLspPosition(cls->getLocation());
-                Range nameR{Position{start.line, start.character + 6},
-                            Position{start.line, start.character + 6 + static_cast<int>(word.size())}};
-                if (rangeContains(nameR, pos)) {
-                    out.push_back(itemForConstructor(uri, cls->getClassName(), ctors.front(),
-                                                     static_cast<int>(ctors.size())));
-                    return;
-                }
+            if (!ctors.empty() && rangeContains(
+                    nameTokenRange(doc, cls->getLocation(), cls->getClassName()), pos)) {
+                out.push_back(itemForConstructor(uri, cls->getClassName(), ctors.front(),
+                                                 static_cast<int>(ctors.size())));
+                return;
             }
         }
     }
 }
 
 // Determine the enclosing class for a position (used for `this.method()`
-// resolution at call sites in prepare). Returns "" for top-level positions.
+// resolution at call sites in prepare). Best-effort: picks the last
+// class header at or before the cursor's line. We don't have a class
+// end-location so positions between classes attribute to the previous one;
+// acceptable for v1.
 std::string enclosingClassAt(const Document* doc, const Position& pos) {
     if (!doc) return "";
-    for (auto* cls : collectClasses(doc)) {
-        // Cheap heuristic: same line or after the class header, and before any
-        // sibling class declaration. We don't have the class's end location,
-        // so we use line >= class header line.
-        Position start = toLspPosition(cls->getLocation());
-        if (pos.line >= start.line) {
-            // Best-effort — pick the last class whose header is at or before
-            // the cursor line. If two classes are declared in the same file,
-            // the latter wins for positions after it.
-        }
-    }
-    // Simple linear pick: last class header at or before the cursor line.
     nc::ClassNode* picked = nullptr;
     int pickedLine = -1;
     for (auto* cls : collectClasses(doc)) {
@@ -285,14 +283,18 @@ std::string enclosingClassAt(const Document* doc, const Position& pos) {
     return picked ? picked->getClassName() : "";
 }
 
-// Find call sites at the cursor. We approximate by checking whether the
-// cursor is within the name-token range of any call node in the doc.
+// Find call sites at the cursor. mType call-node SourceLocations are not
+// aligned to the name token (FunctionCallNode/NewNode point AFTER `)`),
+// so we match by cursor word + a line scan that picks the occurrence
+// containing the cursor — handles `Box b = new Box();` where `Box`
+// appears twice on the same line.
 void appendCallSitesAtCursor(const std::string& uri,
                              const Document* doc,
                              const Position& pos,
+                             const std::string& word,
                              DocumentManager* mgr,
                              std::vector<CallHierarchyItem>& out) {
-    if (!doc) return;
+    if (!doc || word.empty()) return;
     auto* prog = getProgram(doc);
     if (!prog) return;
 
@@ -300,8 +302,20 @@ void appendCallSitesAtCursor(const std::string& uri,
     ::ast::ASTNode* hit = nullptr;
     CallWalker walker([&](::ast::ASTNode* call) {
         if (hit) return;
-        auto [name, range] = callFromRange(call);
-        if (!name.empty() && rangeContains(range, pos)) hit = call;
+        auto [name, _r] = callFromRange(call, doc);
+        if (name.empty()) return;
+        std::size_t scope = name.rfind("::");
+        std::string lookup = scope == std::string::npos ? name : name.substr(scope + 2);
+        if (lookup != word) return;
+        int start = 0;
+        while (true) {
+            int col = findTokenColumn(doc->content, pos.line, lookup, start);
+            if (col < 0) break;
+            Range r{Position{pos.line, col},
+                    Position{pos.line, col + static_cast<int>(lookup.size())}};
+            if (rangeContains(r, pos)) { hit = call; return; }
+            start = col + 1;
+        }
     });
     walker.walk(prog);
     if (!hit) return;
@@ -353,7 +367,7 @@ std::vector<CallHierarchyItem> CallHierarchyHandler::handlePrepare(const std::st
     }
 
     // Otherwise, resolve as a call site.
-    appendCallSitesAtCursor(uri, doc, position, documentManager_, out);
+    appendCallSitesAtCursor(uri, doc, position, word, documentManager_, out);
 
     // De-duplicate by (kind, className, name) — Q8 collapses overloads,
     // and a name-only call may have produced overlapping candidates.
