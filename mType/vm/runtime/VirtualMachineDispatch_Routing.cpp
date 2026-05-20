@@ -7,6 +7,8 @@
 #include "executors/PrimitiveMethodExecutor.hpp"
 #include "executors/VariableExecutor.hpp"
 #include "../../errors/RuntimeException.hpp"
+#include "../../value/ObjectInstancePool.hpp"
+#include "RuntimeFlags.hpp"
 
 namespace vm::runtime
 {
@@ -22,6 +24,49 @@ namespace vm::runtime
             break;
         case OpCode::NEW_STACK: objectExecutor->handleNewStack(instr);
             break;
+        case OpCode::STACK_SCOPE_ENTER:
+        {
+            // Per-scope NEW_STACK lifetime. Pushes the current
+            // stackObjectsCount onto the frame's scope stack. Compiler only
+            // emits this when the enclosing block transitively contains a
+            // NEW_STACK, so we never pay it on cold blocks.
+            if (RuntimeFlags::disableStackScopeRelease) break;
+            if (!callStack.empty())
+            {
+                auto& f = callStack.back();
+                if (f.stackObjectScopeDepth < CallFrame::kStackObjectScopeStackCap)
+                {
+                    f.stackObjectScopeStack[f.stackObjectScopeDepth++] =
+                        static_cast<uint16_t>(f.stackObjectsCount);
+                }
+            }
+            break;
+        }
+        case OpCode::STACK_SCOPE_LEAVE:
+        {
+            // Symmetric pop: releases pool slots allocated since the matching
+            // ENTER and restores stackObjectsCount. If the matching ENTER was
+            // skipped because the scope-stack was full, the LEAVE is a no-op
+            // — leaves slots in place until frame teardown (degrades to
+            // current behavior; correct, just no scope-level reclamation).
+            if (RuntimeFlags::disableStackScopeRelease) break;
+            if (!callStack.empty())
+            {
+                auto& f = callStack.back();
+                if (f.stackObjectScopeDepth > 0)
+                {
+                    size_t saved = static_cast<size_t>(
+                        f.stackObjectScopeStack[--f.stackObjectScopeDepth]);
+                    auto& pool = value::ObjectInstancePool::getInstance();
+                    for (size_t i = saved; i < f.stackObjectsCount; ++i)
+                    {
+                        if (f.stackObjects[i]) pool.releaseRaw(f.stackObjects[i]);
+                    }
+                    f.stackObjectsCount = saved;
+                }
+            }
+            break;
+        }
         case OpCode::NEW_VALUE_OBJECT: objectExecutor->handleNewValueObject(instr);
             break;
         case OpCode::OBJECT_TO_VALUE: objectExecutor->handleObjectToValue(instr);

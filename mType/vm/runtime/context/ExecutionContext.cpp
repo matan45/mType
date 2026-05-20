@@ -9,13 +9,18 @@ namespace vm::runtime
 
     void CallFrame::releaseStackObjects() noexcept
     {
-        if (stackObjectsCount == 0) return;
+        if (stackObjectsCount == 0)
+        {
+            stackObjectScopeDepth = 0;
+            return;
+        }
         auto& pool = value::ObjectInstancePool::getInstance();
         for (size_t i = 0; i < stackObjectsCount; ++i)
         {
             if (stackObjects[i]) pool.releaseRaw(stackObjects[i]);
         }
         stackObjectsCount = 0;
+        stackObjectScopeDepth = 0;
     }
 
 

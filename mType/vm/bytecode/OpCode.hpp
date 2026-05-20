@@ -144,6 +144,14 @@ namespace vm::bytecode
         // ObjectInstance* tracked in CallFrame::stackObjects and released at
         // frame teardown. Serializable (emitted by BytecodeCompiler).
         NEW_STACK,
+        // Per-scope NEW_STACK slot release. Wraps a block / loop body whose
+        // subtree transitively contains a NEW_STACK so the pool slots are
+        // returned at scope-exit (per-iteration, not at frame teardown).
+        // Without these, a top-level hot loop hits CallFrame::kStackObjectsCap
+        // after 32 iterations and every subsequent NEW_STACK falls back to
+        // the heap path. No operands.
+        STACK_SCOPE_ENTER,
+        STACK_SCOPE_LEAVE,
         GET_FIELD,          // Get object field (operand: field name index)
         SET_FIELD,          // Set object field (operand: field name index)
         GET_FIELD_FAST,     // Get field with cached offset
@@ -529,6 +537,8 @@ namespace vm::bytecode
 
             case OpCode::NEW_OBJECT: return "NEW_OBJECT";
             case OpCode::NEW_STACK: return "NEW_STACK";
+            case OpCode::STACK_SCOPE_ENTER: return "STACK_SCOPE_ENTER";
+            case OpCode::STACK_SCOPE_LEAVE: return "STACK_SCOPE_LEAVE";
             case OpCode::GET_FIELD: return "GET_FIELD";
             case OpCode::SET_FIELD: return "SET_FIELD";
             case OpCode::GET_FIELD_FAST: return "GET_FIELD_FAST";

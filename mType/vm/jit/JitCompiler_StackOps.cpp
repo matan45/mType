@@ -143,6 +143,8 @@ namespace vm::jit
 
             static_cast<uint8_t>(OpCode::NEW_OBJECT),
             static_cast<uint8_t>(OpCode::NEW_STACK),   // MYT-134
+            static_cast<uint8_t>(OpCode::STACK_SCOPE_ENTER),
+            static_cast<uint8_t>(OpCode::STACK_SCOPE_LEAVE),
             static_cast<uint8_t>(OpCode::NEW_ARRAY),
             static_cast<uint8_t>(OpCode::NEW_ARRAY_MULTI),
             static_cast<uint8_t>(OpCode::ARRAY_GET),

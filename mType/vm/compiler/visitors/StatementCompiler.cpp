@@ -105,9 +105,23 @@ namespace vm::compiler::visitors
             }
         }
 
+        // Per-scope NEW_STACK release: emit ENTER before this block's
+        // statements and LEAVE after, but only when the block actually
+        // contains a promoted NEW (EscapeAnalysisPass marks this) and only
+        // when we're in a scope that isn't the function body itself
+        // (function frames release their stackObjects at teardown).
+        const bool emitStackScope =
+            kEmitStackScopeOps && shouldManageScope && node->containsStackAlloc();
+
         if (shouldManageScope)
         {
             ctx.variableTracker.beginScope();
+        }
+
+        if (emitStackScope)
+        {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STACK_SCOPE_ENTER, node);
+            ctx.loopManager.notifyStackScopeEnter();
         }
 
         const auto& statements = node->getStatements();
@@ -116,6 +130,12 @@ namespace vm::compiler::visitors
             size_t offsetBefore = ctx.program.getCurrentOffset();
             stmt->accept(ctx.visitor);
             emitStatementCleanup(stmt.get(), offsetBefore);
+        }
+
+        if (emitStackScope)
+        {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STACK_SCOPE_LEAVE, node);
+            ctx.loopManager.notifyStackScopeLeave();
         }
 
         if (shouldManageScope)

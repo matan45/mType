@@ -9,6 +9,7 @@ namespace vm::compiler::control
         LoopContext ctx;
         ctx.loopStart = loopStart;
         ctx.continueTarget = (continueTarget == SIZE_MAX) ? loopStart : continueTarget;
+        ctx.stackScopeDepthAtEntry = currentStackScopeDepth;
         loopStack.push_back(ctx);
     }
 
@@ -79,5 +80,12 @@ namespace vm::compiler::control
             throw errors::RuntimeException("Not in a loop context");
         }
         return loopStack.back().continueJumps;
+    }
+
+    uint32_t LoopContextManager::getStackScopeDepthDeltaForBreak() const
+    {
+        if (loopStack.empty()) return 0;
+        const uint32_t entry = loopStack.back().stackScopeDepthAtEntry;
+        return currentStackScopeDepth > entry ? (currentStackScopeDepth - entry) : 0;
     }
 }

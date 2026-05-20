@@ -7,6 +7,7 @@
 #include "../../ast/nodes/statements/ProgramNode.hpp"
 #include "../../ast/nodes/statements/BlockNode.hpp"
 #include "../../ast/nodes/statements/AssignmentNode.hpp"
+#include "../../ast/nodes/functions/ReturnNode.hpp"
 #include "../../ast/nodes/statements/IfNode.hpp"
 #include "../../ast/nodes/statements/WhileNode.hpp"
 #include "../../ast/nodes/statements/DoWhileNode.hpp"
@@ -195,6 +196,123 @@ namespace optimizer::passes
         namespace func = ast::nodes::functions;
         namespace klass = ast::nodes::classes;
 
+        // Post-pass: after Phase 3 has flipped each non-escaping NewNode's
+        // isStackAllocated bit, walk every AST subtree and mark each
+        // BlockNode whose descendants transitively contain a stack-allocated
+        // NewNode. The bytecode compiler uses this bit to gate
+        // STACK_SCOPE_ENTER / STACK_SCOPE_LEAVE emission so cold blocks pay
+        // zero overhead. Returns true if `node`'s subtree contains a
+        // promoted NewNode.
+        bool markBlocksContainingStackAlloc(ast::ASTNode* node);
+
+        bool markBlocksContainingStackAlloc(ast::ASTNode* node)
+        {
+            if (!node) return false;
+
+            // Leaf: NewNode itself reports its own promotion bit.
+            if (auto* newN = dynamic_cast<klass::NewNode*>(node))
+            {
+                bool found = newN->getIsStackAllocated();
+                // Constructor arguments may themselves contain nested news;
+                // walk for transitive marking on enclosing blocks.
+                for (const auto& arg : newN->getArguments())
+                    found = markBlocksContainingStackAlloc(arg.get()) || found;
+                return found;
+            }
+
+            // BlockNode: aggregate children, set the flag on self.
+            if (auto* b = dynamic_cast<stmt::BlockNode*>(node))
+            {
+                bool found = false;
+                for (const auto& s : b->getStatements())
+                    found = markBlocksContainingStackAlloc(s.get()) || found;
+                if (found) b->setContainsStackAlloc(true);
+                return found;
+            }
+
+            // Structural recursion for control-flow constructs.
+            if (auto* p = dynamic_cast<stmt::ProgramNode*>(node))
+            {
+                bool found = false;
+                for (const auto& s : p->getStatements())
+                    found = markBlocksContainingStackAlloc(s.get()) || found;
+                return found;
+            }
+            if (auto* i = dynamic_cast<stmt::IfNode*>(node))
+            {
+                bool a = markBlocksContainingStackAlloc(i->getThenStatement());
+                bool b = markBlocksContainingStackAlloc(i->getElseStatement());
+                return a || b;
+            }
+            if (auto* w = dynamic_cast<stmt::WhileNode*>(node))
+                return markBlocksContainingStackAlloc(w->getBody());
+            if (auto* d = dynamic_cast<stmt::DoWhileNode*>(node))
+                return markBlocksContainingStackAlloc(d->getBody());
+            if (auto* f = dynamic_cast<stmt::ForNode*>(node))
+            {
+                bool a = markBlocksContainingStackAlloc(f->getInitialization());
+                bool b = markBlocksContainingStackAlloc(f->getBody());
+                return a || b;
+            }
+            if (auto* fe = dynamic_cast<stmt::ForEachNode*>(node))
+                return markBlocksContainingStackAlloc(fe->getBody());
+            if (auto* t = dynamic_cast<stmt::TryNode*>(node))
+            {
+                bool a = markBlocksContainingStackAlloc(t->getTryBlock());
+                bool b = false;
+                for (const auto& c : t->getCatchBlocks())
+                    b = markBlocksContainingStackAlloc(c->getBody()) || b;
+                bool c = markBlocksContainingStackAlloc(t->getFinallyBlock());
+                return a || b || c;
+            }
+            if (auto* cls = dynamic_cast<klass::ClassNode*>(node))
+            {
+                // Mark inside each method/constructor body independently —
+                // the per-block bit there gates per-iteration release inside
+                // those bodies. Stack-allocs in one method don't propagate
+                // to the class node.
+                for (const auto& ctor : cls->getConstructors())
+                    markBlocksContainingStackAlloc(ctor.get());
+                for (const auto& m : cls->getMethods())
+                    markBlocksContainingStackAlloc(m.get());
+                return false;
+            }
+            if (auto* fn = dynamic_cast<func::FunctionNode*>(node))
+            {
+                markBlocksContainingStackAlloc(fn->getBodyPtr());
+                return false;
+            }
+            if (auto* m = dynamic_cast<klass::MethodNode*>(node))
+            {
+                markBlocksContainingStackAlloc(m->getBodyPtr());
+                return false;
+            }
+            if (auto* ctor = dynamic_cast<klass::ConstructorNode*>(node))
+            {
+                markBlocksContainingStackAlloc(ctor->getBodyPtr());
+                return false;
+            }
+            // AssignmentNode: candidates Phase 1 only flips NewNode flags when
+            // the AssignmentNode's RHS is a direct NewNode, so the post-pass
+            // must descend into the RHS expression to discover the promoted
+            // NewNode. Without this case `Point p = new Point(...)` inside a
+            // for-body would never propagate up to the enclosing BlockNode.
+            if (auto* assign = dynamic_cast<stmt::AssignmentNode*>(node))
+                return markBlocksContainingStackAlloc(assign->getValue());
+            // Same for `return new T(...)` — the NewNode lives on the return
+            // expression. EA could still promote it if it doesn't escape (the
+            // returned value escapes by definition, but defensive recursion
+            // keeps the post-pass symmetric with Phase 1's reachability set).
+            if (auto* ret = dynamic_cast<ast::nodes::functions::ReturnNode*>(node))
+                return markBlocksContainingStackAlloc(ret->getReturnValue());
+
+            // Anything else (expression nodes, simple statements): we don't
+            // need to mark scope on it directly, but we also don't recurse
+            // into general expression trees here — NewNode candidacy lives
+            // only in well-formed AssignmentNode initializers anyway.
+            return false;
+        }
+
         // Walk the top-level AST and launch a per-body analyzer on every
         // function/method/constructor/lambda. ProgramNode is also treated as
         // a body (scripts can declare locals at top level — see
@@ -261,6 +379,12 @@ namespace optimizer::passes
         auto startTime = std::chrono::high_resolution_clock::now();
 
         runOnAllBodies(node.get(), stackPromotions);
+
+        // Post-pass: mark every BlockNode whose subtree contains a
+        // stack-allocated NewNode so the bytecode compiler can wrap it with
+        // STACK_SCOPE_ENTER / STACK_SCOPE_LEAVE for per-iteration release.
+        if (stackPromotions > 0)
+            markBlocksContainingStackAlloc(node.get());
 
         auto endTime = std::chrono::high_resolution_clock::now();
         executionTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);

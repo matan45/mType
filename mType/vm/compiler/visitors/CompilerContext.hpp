@@ -24,6 +24,14 @@
 namespace vm::compiler
 {
     class BytecodeCompiler;  // Forward declaration
+
+    // Compile-time gate for per-scope STACK_SCOPE_ENTER / STACK_SCOPE_LEAVE
+    // emission around blocks containing NEW_STACK allocations. Flip to false
+    // to validate that the new opcodes are inert (no .mtc format change risk
+    // — the compiler simply stops emitting them). Independent of the
+    // runtime `--no-stack-scope-release` flag, which forces the interpreter
+    // and JIT to treat already-emitted opcodes as no-ops.
+    inline constexpr bool kEmitStackScopeOps = true;
 }
 
 namespace vm::compiler::validation

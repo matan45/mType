@@ -2791,6 +2791,12 @@
     <None Include="tests\testFiles\benchmarks\bitwise_tight_loop.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\box_unbox_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\box_unbox_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\boxed_bool_dispatch_hot.expected">
       <Filter>testFiles\benchmarks</Filter>
     </None>
@@ -9881,6 +9887,30 @@
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\returnWithNamespace.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\stackScope_breakContinue_pass.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\stackScope_breakContinue_pass.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\stackScope_loopBody_pass.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\stackScope_loopBody_pass.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\stackScope_nested_pass.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\stackScope_nested_pass.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\stackScope_throwInLoop_pass.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\stackScope_throwInLoop_pass.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
     <None Include="tests\testFiles\integration\pass\staticGenericMethodsSerialization.expected">

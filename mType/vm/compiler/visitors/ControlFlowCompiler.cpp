@@ -433,12 +433,21 @@ namespace vm::compiler::visitors
 
     value::Value ControlFlowCompiler::compileBreak(ast::BreakNode* node)
     {
+        // Synthesize one STACK_SCOPE_LEAVE per active stack-scope between
+        // the current emission point and the enclosing loop's entry depth
+        // so pool slots allocated inside the loop body are returned before
+        // the break jump. Switch contexts are not stack-scope-emitting so
+        // only the loop branch needs the delta.
         // IMPORTANT: Check switch context first! When a switch is nested in a
         // loop, break should exit the switch, not the loop.
         if (ctx.switchManager.isInSwitch()) {
             size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
             ctx.switchManager.registerBreak(breakJump);
         } else if (ctx.loopManager.isInLoop()) {
+            const uint32_t leaveCount = ctx.loopManager.getStackScopeDepthDeltaForBreak();
+            for (uint32_t i = 0; i < leaveCount; ++i) {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::STACK_SCOPE_LEAVE, node);
+            }
             // If we're in a try block with a finally (but NOT already inside
             // the finally), register the break jump with the exception manager
             // so the finally block creates a trampoline that executes finally
@@ -460,6 +469,14 @@ namespace vm::compiler::visitors
     {
         if (!ctx.loopManager.isInLoop()) {
             throw errors::ParseException("Continue outside of loop");
+        }
+
+        // Same stack-scope unwind as compileBreak: emit one LEAVE per active
+        // scope inside the current loop body so re-entering the body via the
+        // continue target leaves stackObjectsCount at the loop-entry value.
+        const uint32_t leaveCount = ctx.loopManager.getStackScopeDepthDeltaForBreak();
+        for (uint32_t i = 0; i < leaveCount; ++i) {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STACK_SCOPE_LEAVE, node);
         }
 
         // If we're in a try block with a finally (but NOT already inside the

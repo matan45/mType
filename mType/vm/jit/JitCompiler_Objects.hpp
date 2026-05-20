@@ -123,6 +123,12 @@ namespace vm::jit
                           const bytecode::BytecodeProgram::Instruction& instr);
     bool emitNewStackOp(JitEmissionState& s,
                          const bytecode::BytecodeProgram::Instruction& instr);
+    // STACK_SCOPE_ENTER / STACK_SCOPE_LEAVE — per-block release of NEW_STACK
+    // slots so the CallFrame::stackObjects cap stops dominating top-level
+    // hot loops. Both emit a single cc.invoke into a runtime helper; the
+    // hot empty-slice path inside the helper costs ~5-10 cycles.
+    bool emitStackScopeEnterOp(JitEmissionState& s);
+    bool emitStackScopeLeaveOp(JitEmissionState& s);
     bool emitCreatePromiseOp(JitEmissionState& s);
     bool emitObjectToValueCreatePromiseOp(JitEmissionState& s);
     bool emitAwaitOp(JitEmissionState& s);

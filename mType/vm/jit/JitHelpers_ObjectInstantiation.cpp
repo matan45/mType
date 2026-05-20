@@ -7,6 +7,7 @@
 #include "../runtime/utils/TypeArgResolution.hpp"
 #include "../runtime/utils/BoxingUtils.hpp"
 #include "../runtime/VirtualMachine.hpp"
+#include "../runtime/RuntimeFlags.hpp"
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../../environment/registry/ClassDefinition.hpp"
 #include "guards/DeoptimizationHandler.hpp"
@@ -297,6 +298,44 @@ namespace vm::jit
         {
             ctx->pendingException = std::current_exception();
         }
+    }
+
+    // Per-scope NEW_STACK release helpers. Hot path: JIT calls these once per
+    // block entry / exit when the block contains a NEW_STACK. ENTER stashes
+    // the current count; LEAVE returns pool slots accumulated since the
+    // matching ENTER. Cheaper than letting CallFrame::kStackObjectsCap saturate
+    // and falling back to heap allocation.
+    void jit_stack_scope_enter(JitContext* ctx)
+    {
+        if (vm::runtime::RuntimeFlags::disableStackScopeRelease) return;
+        if (!ctx->vm) return;
+        auto& callStack = ctx->vm->getCallStackMutable();
+        if (callStack.empty()) return;
+        auto& f = callStack.back();
+        if (f.stackObjectScopeDepth < vm::runtime::CallFrame::kStackObjectScopeStackCap)
+        {
+            f.stackObjectScopeStack[f.stackObjectScopeDepth++] =
+                static_cast<uint16_t>(f.stackObjectsCount);
+        }
+    }
+
+    void jit_stack_scope_leave(JitContext* ctx)
+    {
+        if (vm::runtime::RuntimeFlags::disableStackScopeRelease) return;
+        if (!ctx->vm) return;
+        auto& callStack = ctx->vm->getCallStackMutable();
+        if (callStack.empty()) return;
+        auto& f = callStack.back();
+        if (f.stackObjectScopeDepth == 0) return;
+        size_t saved = static_cast<size_t>(
+            f.stackObjectScopeStack[--f.stackObjectScopeDepth]);
+        if (saved >= f.stackObjectsCount) return;
+        auto& pool = value::ObjectInstancePool::getInstance();
+        for (size_t i = saved; i < f.stackObjectsCount; ++i)
+        {
+            if (f.stackObjects[i]) pool.releaseRaw(f.stackObjects[i]);
+        }
+        f.stackObjectsCount = saved;
     }
 
     // Calls VirtualMachine::createStackObject which hits the trivial-ctor fast
