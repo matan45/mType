@@ -828,6 +828,9 @@
     <ClInclude Include="tests\suites\ScriptApiNativeTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\SparseMultiArrayTestSuite.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\StreamTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
@@ -954,6 +957,9 @@
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ScriptApiNativeTestSuite.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\SparseMultiArrayTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\StreamTestSuite.cpp">

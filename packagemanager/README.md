@@ -20,11 +20,12 @@ On Linux/macOS, generate makefiles with `premake5 gmake2` and `make`.
 ## Commands
 
 ```
-mtpm install                                            # install all deps from .mtproj
+mtpm install [--force-resolve]                          # install all deps from .mtproj
 mtpm add <name>@<version> [--source github:user/repo]   # add and install one package
 mtpm remove <name>                                      # remove a package
 mtpm list                                               # show installed packages
 mtpm init <name> <version>                              # scaffold mtpkg.json
+mtpm publish [--force] [--git-tag] [dir]                # publish current package to the local registry
 mtpm --help | --version
 ```
 
@@ -82,7 +83,7 @@ Written alongside the `.mtproj` after every install. Format:
 }
 ```
 
-A fresh lockfile is reused on subsequent installs without re-resolving the dependency tree. Integrity hashes are computed but not yet verified (see MYT-306).
+A fresh lockfile is reused on subsequent installs without re-resolving the dependency tree. SHA-256 integrity hashes are verified against the on-disk registry contents on every install — a mismatch aborts the install with `"Integrity mismatch for <name>@<version>"`.
 
 ## Registry layout
 
@@ -124,8 +125,15 @@ The build pulls in a handful of shared mType sources (`ProjectConfigParser`, `Xm
 
 There is no test runner inside `mtpm` itself. The library code is exercised by `PackageManagerTestSuite` at `../mType/tests/suites/PackageManagerTestSuite.cpp`, run via the main `mType.exe` test runner. Fixtures live at `../mType/tests/testFiles/packagemanager/{project,registry}/` and cover SemVer, manifest round-trips, lockfile serialization, SHA-256 hashing, dependency resolution (including circular detection), and the installer. The `mtpm` CLI argument parsing in `Main.cpp` is not currently covered end-to-end.
 
-## Known gaps
+## VS Code integration
 
-- **MYT-304** — `mt_modules/` aliases are not yet auto-merged into `ImportManager`. After `mtpm install`, imports like `import @mathlib/foo` only resolve if you also add a matching `<Alias>` to your `.mtproj`.
-- **MYT-305** — No VS Code extension surface; all operations are CLI today.
-- **MYT-306** — No `mtpm publish`; lockfile integrity is recorded but not verified on install. HTTP registry support and lockfile signing are out of scope until those land.
+The `mtype-language-support` extension exposes the package manager as commands and a tree view:
+
+- `mType: Install Packages` / `Add Package…` / `Remove Package…` / `List Packages` (command palette and explorer context menu on `.mtproj` files)
+- **mType Modules** view in the explorer, populated from `mt_modules/` and refreshed after every command
+
+The extension shells out to the `mtpm` binary located via `mType.packageManager.path` (or the default path next to the extension).
+
+## Import resolution
+
+After `mtpm install`, the `ImportManager` automatically picks up `mt_modules/` — `import @mathlib/foo` resolves to `mt_modules/@mathlib/foo.mt` without any `<Alias>` declaration in the `.mtproj`. Aliases remain available for opt-in renames.

@@ -21,6 +21,7 @@
 #include "handlers/RenameHandler.hpp"
 #include "handlers/SignatureHelpHandler.hpp"
 #include "handlers/SemanticTokensHandler.hpp"
+#include "handlers/CallHierarchyHandler.hpp"
 #include "analysis/WorkspaceSymbolIndex.hpp"
 #include "utils/JsonRpc.hpp"
 #include "utils/LSPTypes.hpp"
@@ -64,6 +65,13 @@ private:
     void handleInlayHint(const json& id, const json& params);
     void handleDocumentSymbol(const json& id, const json& params);
     void handleWorkspaceSymbol(const json& id, const json& params);
+    // MYT-299 — Call hierarchy: prepare resolves the cursor to a callable
+    // CallHierarchyItem; incomingCalls / outgoingCalls round-trip through
+    // its opaque `data` blob to walk the call graph (direct syntactic
+    // calls only, no dynamic dispatch).
+    void handlePrepareCallHierarchy(const json& id, const json& params);
+    void handleCallHierarchyIncomingCalls(const json& id, const json& params);
+    void handleCallHierarchyOutgoingCalls(const json& id, const json& params);
 
     // Utility methods
     void sendResponse(const json& id, const json& result);
@@ -87,6 +95,7 @@ private:
     std::unique_ptr<InlayHintHandler> inlayHintHandler_;
     std::unique_ptr<DocumentSymbolHandler> documentSymbolHandler_;
     std::unique_ptr<WorkspaceSymbolHandler> workspaceSymbolHandler_;
+    std::unique_ptr<CallHierarchyHandler> callHierarchyHandler_;
     std::shared_ptr<ProjectConfigProvider> projectConfig_;
 
     // MYT-47 — workspace-wide symbol index used by the missing-import

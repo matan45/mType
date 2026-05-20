@@ -14,11 +14,11 @@ public:
     std::vector<CodeLens> handleCodeLens(const std::string& uri);
 
 private:
-    // Count references to a class or interface
-    int countReferences(const std::string& symbolName, const std::string& uri);
+    // Count references to a class or interface in the current document.
+    int countReferences(const std::string& symbolName, const Document* doc, int declarationLine);
 
-    // Find all usages of a symbol in the document
-    std::vector<Location> findUsages(const std::string& symbolName, const Document* doc);
+    // Find all usages of a symbol in the current document.
+    std::vector<Location> findUsages(const std::string& symbolName, const Document* doc, int declarationLine);
 
     DocumentManager* documentManager_;
 };

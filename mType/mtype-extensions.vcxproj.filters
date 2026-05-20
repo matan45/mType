@@ -93,6 +93,9 @@
     <ClInclude Include="debugger\DebuggerConstants.hpp">
       <Filter>debugger</Filter>
     </ClInclude>
+    <ClInclude Include="debugger\DebuggerFormatUtils.hpp">
+      <Filter>debugger</Filter>
+    </ClInclude>
     <ClInclude Include="debugger\VMVariableInspector.hpp">
       <Filter>debugger</Filter>
     </ClInclude>

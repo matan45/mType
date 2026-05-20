@@ -1,0 +1,36 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Blue gradient for the "M" -->
+    <linearGradient id="blueGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#42A5F5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1565C0;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Blue capital "M" letter -->
+  <text x="16" y="22"
+        font-family="Arial Black, Arial, sans-serif"
+        font-size="22"
+        font-weight="900"
+        text-anchor="middle"
+        fill="url(#blueGradient)"
+        style="text-shadow: 0 2px 4px rgba(0,0,0,0.3);">M</text>
+
+  <!-- Small padlock in top-right corner to mark this as a lockfile -->
+  <g transform="translate(22, 2)">
+    <!-- Shackle -->
+    <path d="M 2 5 Q 2 0, 4 0 Q 6 0, 6 5" stroke="#F57F17" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    <!-- Body -->
+    <rect x="0" y="4" width="8" height="6" rx="1" fill="#FBC02D"/>
+    <!-- Keyhole -->
+    <circle cx="4" cy="7" r="0.8" fill="#5D4037"/>
+  </g>
+
+  <!-- "LOCK" tag underneath to distinguish from .mtproj source files -->
+  <text x="16" y="30"
+        font-family="Arial, sans-serif"
+        font-size="6"
+        font-weight="700"
+        text-anchor="middle"
+        fill="#1565C0">LOCK</text>
+</svg>

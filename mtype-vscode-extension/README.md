@@ -116,6 +116,8 @@ Open any `.mt` or `.mtc` file to automatically enable syntax highlighting for:
 - **Annotations**: @Override, @Script, @Throw, and custom annotations
 - **Functions & Classes**: With generic type parameter support
 
+`.mtproj` (project manifest) and `.mtworkspace` (workspace manifest) files get XML syntax highlighting — tags, attributes, attribute values, and `<!-- comments -->` are all colored. The status bar identifies them as "mType Project" / "mType Workspace". Highlighting is delegated to VS Code's built-in XML grammar, so the built-in XML extension must be enabled (it ships enabled by default).
+
 ### IntelliSense & Code Completion
 
 Trigger completion with **Ctrl+Space** or by typing. The extension provides:
@@ -422,6 +424,9 @@ This extension automatically activates for:
 
 - **`.mt` files**: mType source files
 - **`.mtc` files**: mType compiled bytecode files
+- **`.mtproj` files**: mType project manifest (XML)
+- **`.mtworkspace` files**: mType workspace manifest (XML)
+- **`mtproj.lock` files**: mType package-manager lockfile (JSON)
 
 ## Development
 

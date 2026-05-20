@@ -39,6 +39,7 @@
 #include "../tests/suites/PluginTestSuite.hpp"
 #include "../tests/suites/ExecutorIsolationTestSuite.hpp"
 #include "../tests/suites/BytecodeOptimizationTestSuite.hpp"
+#include "../tests/suites/SparseMultiArrayTestSuite.hpp"
 
 #include "../gc/GC.hpp"
 #include "../services/ScriptInterpreter.hpp"
@@ -214,6 +215,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<BytecodeOptimizationTestSuite>();
     }
+    else if (suiteName == "sparse-array" || suiteName == "sparse-multi-array" || suiteName == "sparsemultiarray")
+    {
+        return std::make_unique<SparseMultiArrayTestSuite>();
+    }
     return nullptr;
 }
 
@@ -259,6 +264,7 @@ void printAvailableTestSuites()
     std::cout << "  plugin       - Native Plugin Loader Test Suite (MYT-289)\n";
     std::cout << "  executor     - Executor Isolation Test Suite (ExecutionContext deepening)\n";
     std::cout << "  bytecode-opt - Bytecode Optimization Pass Pipeline Test Suite\n";
+    std::cout << "  sparse-array - SparseMultiArray Test Suite\n";
 }
 
 int runSpecificTestSuite(const std::string& suiteName,
@@ -347,6 +353,7 @@ int runAllTests(constants::ExecutionMode execMode, bool jitEnabled)
     suites.push_back(std::make_unique<PluginTestSuite>());
     suites.push_back(std::make_unique<ExecutorIsolationTestSuite>());
     suites.push_back(std::make_unique<BytecodeOptimizationTestSuite>());
+    suites.push_back(std::make_unique<SparseMultiArrayTestSuite>());
 
     int totalFailures = 0;
     int totalErrors   = 0;

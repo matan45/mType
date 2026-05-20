@@ -7,6 +7,7 @@
 #include <memory>
 #include <stdexcept>
 #include <algorithm>
+#include <functional>
 
 namespace value
 {
@@ -201,6 +202,19 @@ namespace value
             // Value::operator== is tag+content dispatched (see ValueType.hpp),
             // so this delegates to the standard equality semantics.
             return a == b;
+        }
+
+        // Inverse of calculateLinearIndex (row-major). `localLinear` is in
+        // [0, calculateTotalSize()); caller has already subtracted
+        // getEffectiveOffset() so the result is in this view's coordinates.
+        std::vector<size_t> decodeLocalLinearIndex(size_t localLinear) const
+        {
+            std::vector<size_t> indices(dimensions_.size());
+            for (size_t i = 0; i < dimensions_.size(); ++i)
+            {
+                indices[i] = (localLinear / strides_[i]) % dimensions_[i];
+            }
+            return indices;
         }
 
         /**
@@ -498,6 +512,68 @@ namespace value
                 currentMode_,
                 memoryUsed
             };
+        }
+
+        /**
+         * @brief Iterate every non-default entry, calling cb(indices, value).
+         *
+         * View-aware: walks only this view's window of the root's storage,
+         * and the callback receives this view's local indices (not parent
+         * coordinates). Order is unspecified — hash-bucket order in SPARSE
+         * mode, row-major in DENSE. Void return, no early-exit; callers
+         * that need a cap should count and skip inside the callback.
+         * Inherits the class's non-thread-safe contract.
+         */
+        void forEachNonDefault(
+            const std::function<void(const std::vector<size_t>& indices,
+                                     const Value& value)>& cb) const
+        {
+            if (dimensions_.empty()) return;
+
+            const size_t offset    = getEffectiveOffset();
+            const size_t viewSize  = calculateTotalSize();
+            const StorageMode mode = getEffectiveMode();
+
+            switch (mode)
+            {
+            case StorageMode::DENSE:
+                {
+                    const auto& dense = getDenseDataStorage();
+                    const size_t end = std::min(offset + viewSize, dense.size());
+                    for (size_t eff = offset; eff < end; ++eff)
+                    {
+                        if (!valuesEqual(dense[eff], defaultValue_))
+                        {
+                            cb(decodeLocalLinearIndex(eff - offset), dense[eff]);
+                        }
+                    }
+                }
+                break;
+
+            case StorageMode::SPARSE:
+                {
+                    const auto& sparse = getSparseDataStorage();
+                    if (!isView())
+                    {
+                        for (const auto& [eff, val] : sparse)
+                        {
+                            cb(decodeLocalLinearIndex(eff), val);
+                        }
+                    }
+                    else
+                    {
+                        const size_t endExclusive = offset + viewSize;
+                        for (const auto& [eff, val] : sparse)
+                        {
+                            if (eff >= offset && eff < endExclusive)
+                            {
+                                cb(decodeLocalLinearIndex(eff - offset), val);
+                            }
+                        }
+                    }
+                }
+                break;
+            }
         }
 
         // Common interface inherited from MultiArrayBase:

@@ -31,6 +31,8 @@
   "activationEvents": [
     "onLanguage:mtype",
     "onLanguage:mtype-compiled",
+    "onLanguage:mtproj",
+    "onLanguage:mtworkspace",
     "onCommand:mtype.run",
     "onCommand:mtype.build",
     "onCommand:mtype.buildLib",
@@ -69,6 +71,37 @@
           ".mtc"
         ],
         "configuration": "./language-configuration/mtype-configuration.json"
+      },
+      {
+        "id": "mtproj",
+        "aliases": [
+          "mType Project",
+          "mtproj"
+        ],
+        "extensions": [
+          ".mtproj"
+        ],
+        "configuration": "./language-configuration/mtype-xml-configuration.json"
+      },
+      {
+        "id": "mtworkspace",
+        "aliases": [
+          "mType Workspace",
+          "mtworkspace"
+        ],
+        "extensions": [
+          ".mtworkspace"
+        ],
+        "configuration": "./language-configuration/mtype-xml-configuration.json"
+      },
+      {
+        "id": "mtproj-lock",
+        "aliases": [
+          "mType Lockfile"
+        ],
+        "filenames": [
+          "mtproj.lock"
+        ]
       }
     ],
     "grammars": [
@@ -81,6 +114,21 @@
         "language": "mtype-compiled",
         "scopeName": "source.mtype.compiled",
         "path": "./syntaxes/mtype.tmGrammar.json"
+      },
+      {
+        "language": "mtproj",
+        "scopeName": "source.mtype.project",
+        "path": "./syntaxes/mtproj.tmGrammar.json"
+      },
+      {
+        "language": "mtworkspace",
+        "scopeName": "source.mtype.workspace",
+        "path": "./syntaxes/mtworkspace.tmGrammar.json"
+      },
+      {
+        "language": "mtproj-lock",
+        "scopeName": "source.json.mtproj-lock",
+        "path": "./syntaxes/mtproj-lock.tmGrammar.json"
       }
     ],
     "breakpoints": [

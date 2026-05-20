@@ -53,7 +53,11 @@ namespace debugger
 
     DebugVariable VMVariableInspector::valueToDebugVariable(const std::string& name, const value::Value& val)
     {
-        bool expandable = value::isNativeArray(val) || value::isAnyObject(val);
+        bool expandable = value::isNativeArray(val)
+            || value::isAnyObject(val)
+            || value::isFlatMultiArray(val)
+            || value::isSparseMultiArray(val)
+            || value::isFlatMultiObjectArray(val);
 
         int64_t refId = 0;
         if (expandable)

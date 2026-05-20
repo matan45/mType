@@ -1,58 +1,43 @@
 {
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "mType",
+  "scopeName": "source.mtype",
   "patterns": [
-    {
-      "include": "#keywords"
-    },
-    {
-      "include": "#strings"
-    },
-    {
-      "include": "#comments"
-    },
-    {
-      "include": "#numbers"
-    },
-    {
-      "include": "#types"
-    },
-    {
-      "include": "#functions"
-    },
-    {
-      "include": "#classes"
-    },
-    {
-      "include": "#namespaces"
-    },
-    {
-      "include": "#annotations"
-    },
-    {
-      "include": "#collections"
-    },
-    {
-      "include": "#operators"
-    },
-    {
-      "include": "#variables"
-    }
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#annotations" },
+    { "include": "#imports" },
+    { "include": "#declarations" },
+    { "include": "#keywords" },
+    { "include": "#numbers" },
+    { "include": "#collections" },
+    { "include": "#types" },
+    { "include": "#functions" },
+    { "include": "#members" },
+    { "include": "#operators" },
+    { "include": "#punctuation" }
   ],
   "repository": {
-    "keywords": {
+    "comments": {
       "patterns": [
         {
-          "name": "keyword.control.mtype",
-          "match": "\\b(if|else|while|for|do|switch|case|default|break|continue|function|return|try|catch|finally|throw|match)\\b"
+          "name": "comment.block.mtype",
+          "begin": "/\\*",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.comment.begin.mtype" }
+          },
+          "end": "\\*/",
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.comment.end.mtype" }
+          }
         },
         {
-          "name": "keyword.other.mtype",
-          "match": "\\b(class|interface|annotation|value|extends|implements|import|new|this|super|null|static|final|function|constructor|return|isClassOf|private|public|protected|await|async|from|abstract)\\b"
-        },
-        {
-          "name": "constant.language.mtype",
-          "match": "\\b(true|false)\\b"
+          "name": "comment.line.double-slash.mtype",
+          "begin": "//",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.comment.mtype" }
+          },
+          "end": "$"
         }
       ]
     },
@@ -61,64 +46,227 @@
         {
           "name": "string.interpolated.mtype",
           "begin": "\\$\"",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.string.begin.mtype" }
+          },
           "end": "\"",
-          "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.mtype" } },
-          "endCaptures": { "0": { "name": "punctuation.definition.string.end.mtype" } },
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.string.end.mtype" }
+          },
           "patterns": [
             { "name": "constant.character.escape.mtype", "match": "\\\\." },
             {
               "name": "meta.interpolation.mtype",
               "begin": "\\{",
+              "beginCaptures": {
+                "0": { "name": "punctuation.section.interpolation.begin.mtype" }
+              },
               "end": "\\}",
-              "beginCaptures": { "0": { "name": "punctuation.section.interpolation.begin.mtype" } },
-              "endCaptures": { "0": { "name": "punctuation.section.interpolation.end.mtype" } },
-              "patterns": [ { "include": "$self" } ]
+              "endCaptures": {
+                "0": { "name": "punctuation.section.interpolation.end.mtype" }
+              },
+              "patterns": [
+                { "include": "$self" }
+              ]
             }
           ]
         },
         {
           "name": "string.quoted.double.mtype",
           "begin": "\"",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.string.begin.mtype" }
+          },
           "end": "\"",
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.string.end.mtype" }
+          },
           "patterns": [
-            {
-              "name": "constant.character.escape.mtype",
-              "match": "\\\\."
-            }
+            { "name": "constant.character.escape.mtype", "match": "\\\\." }
           ]
         },
         {
           "name": "string.quoted.single.mtype",
           "begin": "'",
+          "beginCaptures": {
+            "0": { "name": "punctuation.definition.string.begin.mtype" }
+          },
           "end": "'",
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.string.end.mtype" }
+          },
           "patterns": [
-            {
-              "name": "constant.character.escape.mtype",
-              "match": "\\\\."
-            }
+            { "name": "constant.character.escape.mtype", "match": "\\\\." }
           ]
         }
       ]
     },
-    "comments": {
+    "annotations": {
       "patterns": [
         {
-          "name": "comment.line.double-slash.mtype",
-          "begin": "//",
-          "end": "$"
+          "name": "meta.annotation.mtype",
+          "match": "(@)([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": { "name": "punctuation.definition.annotation.mtype" },
+            "2": { "name": "entity.name.tag.annotation.mtype" }
+          }
+        }
+      ]
+    },
+    "imports": {
+      "patterns": [
+        {
+          "name": "meta.import.mtype",
+          "begin": "\\b(import)\\b",
+          "beginCaptures": {
+            "1": { "name": "keyword.control.import.mtype" }
+          },
+          "end": "(?=;|$)",
+          "patterns": [
+            { "name": "keyword.operator.wildcard.mtype", "match": "\\*" },
+            { "name": "keyword.control.import.from.mtype", "match": "\\b(from|as)\\b" },
+            { "include": "#strings" },
+            { "name": "entity.name.type.imported.mtype", "match": "\\b[A-Z][A-Za-z0-9_]*\\b" },
+            { "name": "variable.other.import-alias.mtype", "match": "\\b[a-z_][A-Za-z0-9_]*\\b" },
+            { "include": "#punctuation" }
+          ]
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "name": "meta.class.mtype",
+          "match": "\\b(?:(value|abstract)\\s+)?(class)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": { "name": "storage.modifier.mtype" },
+            "2": { "name": "keyword.declaration.class.mtype" },
+            "3": { "name": "entity.name.type.class.mtype" }
+          }
         },
         {
-          "name": "comment.block.mtype",
-          "begin": "/\\*",
-          "end": "\\*/"
+          "name": "meta.interface.mtype",
+          "match": "\\b(interface)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": { "name": "keyword.declaration.interface.mtype" },
+            "2": { "name": "entity.name.type.interface.mtype" }
+          }
+        },
+        {
+          "name": "meta.annotation.declaration.mtype",
+          "match": "\\b(annotation)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": { "name": "keyword.declaration.annotation.mtype" },
+            "2": { "name": "entity.name.type.annotation.mtype" }
+          }
+        },
+        {
+          "name": "meta.method.declaration.mtype",
+          "match": "\\b(?:(public|private|protected)\\s+)?(?:(static|final|abstract)\\s+)?(function)\\s+(?:(async)\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()",
+          "captures": {
+            "1": { "name": "storage.modifier.visibility.mtype" },
+            "2": { "name": "storage.modifier.mtype" },
+            "3": { "name": "keyword.declaration.function.mtype" },
+            "4": { "name": "storage.modifier.async.mtype" },
+            "5": { "name": "entity.name.function.method.mtype" }
+          }
+        },
+        {
+          "name": "meta.function.declaration.mtype",
+          "match": "\\b(function)\\s+(?:(async)\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()",
+          "captures": {
+            "1": { "name": "keyword.declaration.function.mtype" },
+            "2": { "name": "storage.modifier.async.mtype" },
+            "3": { "name": "entity.name.function.mtype" }
+          }
+        },
+        {
+          "name": "meta.constructor.declaration.mtype",
+          "match": "\\b(?:(public|private|protected)\\s+)?(constructor)\\s*(?=\\()",
+          "captures": {
+            "1": { "name": "storage.modifier.visibility.mtype" },
+            "2": { "name": "entity.name.function.constructor.mtype" }
+          }
+        },
+        {
+          "name": "meta.variable.generic.declaration.mtype",
+          "match": "\\b(?:(public|private|protected)\\s+)?(?:(static|final|const)\\s+)?(?!(?:if|else|while|for|do|switch|case|default|break|continue|return|try|catch|finally|throw|match|await|class|interface|annotation|extends|implements|import|from|as|new|this|super|null|function|constructor|isClassOf|in)\\b)([A-Za-z_][A-Za-z0-9_]*)\\s*(<)([^;=(){}]+)(>)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(?=[;=])",
+          "captures": {
+            "1": { "name": "storage.modifier.visibility.mtype" },
+            "2": { "name": "storage.modifier.mtype" },
+            "3": { "name": "storage.type.mtype" },
+            "4": { "name": "punctuation.definition.generic.begin.mtype" },
+            "5": { "name": "storage.type.mtype" },
+            "6": { "name": "punctuation.definition.generic.end.mtype" },
+            "7": { "name": "variable.other.declaration.mtype" }
+          }
+        },
+        {
+          "name": "meta.variable.declaration.mtype",
+          "match": "\\b(?:(public|private|protected)\\s+)?(?:(static|final|const)\\s+)?(?!(?:if|else|while|for|do|switch|case|default|break|continue|return|try|catch|finally|throw|match|await|class|interface|annotation|extends|implements|import|from|as|new|this|super|null|function|constructor|isClassOf|in)\\b)([A-Za-z_][A-Za-z0-9_]*(?:\\s*<[^;=(){}]*>)?(?:\\s*\\[\\])?)\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*(?=[;=])",
+          "captures": {
+            "1": { "name": "storage.modifier.visibility.mtype" },
+            "2": { "name": "storage.modifier.mtype" },
+            "3": { "name": "storage.type.mtype" },
+            "4": { "name": "variable.other.declaration.mtype" }
+          }
+        },
+        {
+          "name": "meta.parameter.generic.mtype",
+          "match": "\\b(?:(final)\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*(<)([^,(){}]+)(>)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b(?=\\s*[,\\)])",
+          "captures": {
+            "1": { "name": "storage.modifier.mtype" },
+            "2": { "name": "storage.type.mtype" },
+            "3": { "name": "punctuation.definition.generic.begin.mtype" },
+            "4": { "name": "storage.type.mtype" },
+            "5": { "name": "punctuation.definition.generic.end.mtype" },
+            "6": { "name": "variable.parameter.mtype" }
+          }
+        },
+        {
+          "name": "meta.parameter.mtype",
+          "match": "\\b(?:(final)\\s+)?([A-Za-z_][A-Za-z0-9_]*(?:\\s*<[^,(){}]*>)?(?:\\s*\\[\\])?)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b(?=\\s*[,\\)])",
+          "captures": {
+            "1": { "name": "storage.modifier.mtype" },
+            "2": { "name": "storage.type.mtype" },
+            "3": { "name": "variable.parameter.mtype" }
+          }
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.mtype",
+          "match": "\\b(if|else|while|for|do|switch|case|default|break|continue|return|try|catch|finally|throw|match|await)\\b"
+        },
+        {
+          "name": "keyword.other.mtype",
+          "match": "\\b(class|interface|annotation|extends|implements|import|from|as|new|this|super|null|function|constructor|isClassOf|in)\\b"
+        },
+        {
+          "name": "storage.modifier.mtype",
+          "match": "\\b(public|private|protected|static|final|const|abstract|async|value)\\b"
+        },
+        {
+          "name": "constant.language.boolean.mtype",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "constant.language.null.mtype",
+          "match": "\\b(null)\\b"
         }
       ]
     },
     "numbers": {
       "patterns": [
         {
-          "name": "constant.numeric.decimal.mtype",
-          "match": "\\b\\d+\\.\\d+([eE][+-]?\\d+)?\\b"
+          "name": "constant.numeric.hex.mtype",
+          "match": "\\b0[xX][0-9a-fA-F]+\\b"
+        },
+        {
+          "name": "constant.numeric.float.mtype",
+          "match": "\\b\\d+\\.\\d+(?:[eE][+-]?\\d+)?[fF]?\\b"
         },
         {
           "name": "constant.numeric.integer.mtype",
@@ -130,305 +278,95 @@
       "patterns": [
         {
           "name": "storage.type.primitive.mtype",
-          "match": "\\b(int|float|string|bool|void|object)\\b"
+          "match": "\\b(int|float|string|bool|void|object|Object)\\b"
+        },
+        {
+          "name": "storage.type.standard.mtype",
+          "match": "\\b(Int|Float|Bool|String|Box|Promise|Class|Method|Field|Constructor|Annotation|Exception|RuntimeException)\\b"
         },
         {
           "name": "storage.type.collection.mtype",
-          "match": "\\b(Array|Set|Map|Stack|Queue)\\b"
-        }
-      ]
-    },
-    "functions": {
-      "patterns": [
-        {
-          "name": "entity.name.function.mtype",
-          "match": "\\b(?!(if|else|while|for|do|switch|case|default|break|continue|return|try|catch|finally|throw|match|class|import|new|this|null|static|final|function|constructor|isClassOf|private|public|protected|await|async|from|abstract)\\b)([a-zA-Z_][a-zA-Z0-9_]*)\\s*(?=\\()",
-          "captures": {
-            "2": {
-              "name": "entity.name.function.mtype"
-            }
-          }
-        },
-        {
-          "name": "meta.function.declaration.mtype",
-          "begin": "^\\s*(?:(static|final|private|public|protected|async|abstract)\\s+)?(?!(if|else|while|for|do|switch|case|default|break|continue|return|try|catch|finally|throw|match|class|import|new|this|null|static|final|function|constructor|isClassOf|private|public|protected|await|async|from|abstract)\\b)([a-zA-Z_][a-zA-Z0-9_<>]*)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*\\(",
-          "beginCaptures": {
-            "1": {
-              "name": "keyword.other.mtype"
-            },
-            "3": {
-              "name": "storage.type.mtype"
-            },
-            "4": {
-              "name": "entity.name.function.mtype"
-            }
-          },
-          "end": "\\)",
-          "patterns": [
-            {
-              "include": "#function-parameters"
-            }
-          ]
-        }
-      ]
-    },
-    "function-parameters": {
-      "patterns": [
-        {
-          "match": "\\b(final)\\s+([a-zA-Z_][a-zA-Z0-9_<>]*)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\b",
-          "captures": {
-            "1": {
-              "name": "keyword.other.mtype"
-            },
-            "2": {
-              "name": "storage.type.mtype"
-            },
-            "3": {
-              "name": "variable.parameter.mtype"
-            }
-          }
-        },
-        {
-          "match": "\\b([a-zA-Z_][a-zA-Z0-9_<>]*)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\b",
-          "captures": {
-            "1": {
-              "name": "storage.type.mtype"
-            },
-            "2": {
-              "name": "variable.parameter.mtype"
-            }
-          }
-        }
-      ]
-    },
-    "variables": {
-      "patterns": [
-        {
-          "name": "variable.other.data-member.return.mtype",
-          "match": "\\breturn\\s+(\\w+)\\b(?!\\s*\\()",
-          "captures": {
-            "1": {
-              "name": "variable.other.member.mtype"
-            }
-          }
-        },
-        {
-          "name": "variable.other.local.declaration.mtype",
-          "match": "\\b(?:int|float|string|bool|void)\\s+(\\w+)\\s*=",
-          "captures": {
-            "1": {
-              "name": "variable.other.local.mtype"
-            }
-          }
-        },
-        {
-          "name": "variable.other.local.usage.mtype",
-          "match": "\\b(?:int|float|string|bool|void)\\s+(\\w+)\\s*;",
-          "captures": {
-            "1": {
-              "name": "variable.other.local.mtype"
-            }
-          }
-        },
-        {
-          "name": "variable.other.data-member.assignment.mtype",
-          "match": "\\b(id|name|count|value|data|index|size|length|width|height|age|price|total|amount)\\s*=",
-          "captures": {
-            "1": {
-              "name": "variable.other.member.mtype"
-            }
-          }
-        },
-        {
-          "name": "variable.other.member.mtype",
-          "match": "\\bthis\\.([a-zA-Z_][a-zA-Z0-9_]*)\\b",
-          "captures": {
-            "1": {
-              "name": "variable.other.member.mtype"
-            }
-          }
-        },
-        {
-          "name": "variable.other.field.mtype",
-          "match": "^\\s*(?:(static|private|public|protected|abstract)\\s+)?(?:(final)\\s+)?(?!(if|else|while|for|do|switch|case|default|break|continue|return|try|catch|finally|throw|match|class|import|new|this|null|static|final|function|constructor|isClassOf|private|public|protected|await|async|from|abstract)\\b)([a-zA-Z_][a-zA-Z0-9_]*(?:<[a-zA-Z0-9_,\\s<>]*>)?)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*[;=]",
-          "captures": {
-            "1": {
-              "name": "keyword.other.mtype"
-            },
-            "2": {
-              "name": "keyword.other.mtype"
-            },
-            "4": {
-              "name": "storage.type.mtype"
-            },
-            "5": {
-              "name": "variable.other.field.mtype"
-            }
-          }
-        },
-        {
-          "name": "variable.other.field.simple.mtype",
-          "match": "^\\s*(?!(if|else|while|for|do|switch|case|default|break|continue|return|try|catch|finally|throw|match|class|import|new|this|null|static|final|function|constructor|isClassOf|private|public|protected|await|async|from|abstract)\\b)([a-zA-Z_][a-zA-Z0-9_]*(?:<[a-zA-Z0-9_,\\s<>]*>)?)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\s*;",
-          "captures": {
-            "1": {
-              "name": "storage.type.mtype"
-            },
-            "2": {
-              "name": "variable.other.field.mtype"
-            }
-          }
-        },
-        {
-          "name": "variable.other.member.access.mtype",
-          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)(?=\\.[a-zA-Z_][a-zA-Z0-9_]*\\s*\\()",
-          "captures": {
-            "1": {
-              "name": "variable.other.member.mtype"
-            }
-          }
-        },
-        {
-          "name": "variable.other.member.standalone.mtype",
-          "match": "(?<!\\.)\\b([a-zA-Z_][a-zA-Z0-9_]*)(?=\\s*\\.[a-zA-Z_])",
-          "captures": {
-            "1": {
-              "name": "variable.other.member.mtype"
-            }
-          }
-        },
-        {
-          "name": "variable.other.assignment.mtype",
-          "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*)\\s*=",
-          "captures": {
-            "1": {
-              "name": "variable.other.assignment.mtype"
-            }
-          }
-        },
-        {
-          "name": "variable.other.instance.mtype",
-          "match": "(?<!\\b(?:int|float|string|bool|void|object|final)\\s+)\\b(?!(if|else|while|for|do|switch|case|default|break|continue|return|try|catch|finally|throw|match|class|import|new|this|null|static|final|function|constructor|true|false|int|float|string|bool|void|object|Array|Set|Map|Stack|Queue|isClassOf|private|public|protected|await|async|from|abstract)\\b)([a-zA-Z_][a-zA-Z0-9_]*)\\b(?!\\s*[\\(\\.])",
-          "captures": {
-            "1": {
-              "name": "variable.other.member.mtype"
-            }
-          }
-        }
-      ]
-    },
-    "classes": {
-      "patterns": [
-        {
-          "name": "meta.class.mtype",
-          "begin": "\\b(class)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\b",
-          "beginCaptures": {
-            "1": {
-              "name": "keyword.other.mtype"
-            },
-            "2": {
-              "name": "entity.name.type.class.mtype"
-            }
-          },
-          "end": "(?<=\\})",
-          "patterns": [
-            {
-              "include": "$self"
-            }
-          ]
-        },
-        {
-          "name": "meta.annotation.declaration.mtype",
-          "begin": "\\b(annotation)\\s+([a-zA-Z_][a-zA-Z0-9_]*)\\b",
-          "beginCaptures": {
-            "1": {
-              "name": "keyword.other.mtype"
-            },
-            "2": {
-              "name": "entity.name.type.class.mtype"
-            }
-          },
-          "end": "(?<=\\})",
-          "patterns": [
-            {
-              "include": "$self"
-            }
-          ]
+          "match": "\\b(Array|List|ArrayList|LinkedList|Set|HashSet|Map|HashMap|Stack|Queue|Stream)\\b"
         },
         {
           "name": "entity.name.type.class.mtype",
-          "match": "\\b[A-Z][a-zA-Z0-9_]*\\b"
-        }
-      ]
-    },
-    "annotations": {
-      "patterns": [
-        {
-          "name": "meta.annotation.override.mtype",
-          "match": "(@)(Override)\\b",
-          "captures": {
-            "1": {
-              "name": "punctuation.definition.annotation.mtype"
-            },
-            "2": {
-              "name": "storage.type.annotation.override.mtype"
-            }
-          }
-        },
-        {
-          "name": "meta.annotation.script.mtype",
-          "match": "(@)(Script)\\b",
-          "captures": {
-            "1": {
-              "name": "punctuation.definition.annotation.mtype"
-            },
-            "2": {
-              "name": "storage.type.annotation.script.mtype"
-            }
-          }
-        },
-        {
-          "name": "meta.annotation.mtype",
-          "match": "@([a-zA-Z_][a-zA-Z0-9_]*)",
-          "captures": {
-            "1": {
-              "name": "entity.name.tag.mtype"
-            }
-          }
+          "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
         }
       ]
     },
     "collections": {
       "patterns": [
         {
-          "name": "meta.collection.generic.mtype",
-          "begin": "\\b(Array|Set|Map|Stack|Queue)\\s*<",
+          "name": "meta.generic.mtype",
+          "begin": "(?<=[A-Za-z0-9_])<",
           "beginCaptures": {
-            "1": {
-              "name": "storage.type.collection.mtype"
-            }
+            "0": { "name": "punctuation.definition.generic.begin.mtype" }
           },
           "end": ">",
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.generic.end.mtype" }
+          },
           "patterns": [
-            {
-              "include": "#types"
-            },
-            {
-              "name": "punctuation.separator.comma.mtype",
-              "match": ","
-            }
+            { "include": "#types" },
+            { "include": "#punctuation" }
           ]
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "entity.name.function.static.mtype",
+          "match": "\\b([A-Z][A-Za-z0-9_]*)(::)([A-Za-z_][A-Za-z0-9_]*)\\s*(?=\\()",
+          "captures": {
+            "1": { "name": "entity.name.type.class.mtype" },
+            "2": { "name": "punctuation.separator.namespace.mtype" },
+            "3": { "name": "entity.name.function.static.mtype" }
+          }
+        },
+        {
+          "name": "entity.name.function.method.mtype",
+          "match": "(?<=\\.)[A-Za-z_][A-Za-z0-9_]*\\s*(?=\\()"
+        },
+        {
+          "name": "entity.name.function.mtype",
+          "match": "\\b(?!(if|while|for|switch|catch|function|constructor|return|new|this|super|await)\\b)[A-Za-z_][A-Za-z0-9_]*\\s*(?=\\()"
+        }
+      ]
+    },
+    "members": {
+      "patterns": [
+        {
+          "name": "variable.language.this.mtype",
+          "match": "\\b(this|super)\\b"
+        },
+        {
+          "name": "variable.other.member.mtype",
+          "match": "(?<=\\.)[A-Za-z_][A-Za-z0-9_]*\\b(?!\\s*\\()"
+        },
+        {
+          "name": "variable.other.member.mtype",
+          "match": "\\b(this|super)\\.([A-Za-z_][A-Za-z0-9_]*)\\b",
+          "captures": {
+            "1": { "name": "variable.language.this.mtype" },
+            "2": { "name": "variable.other.member.mtype" }
+          }
         }
       ]
     },
     "operators": {
       "patterns": [
         {
-          "name": "keyword.operator.arithmetic.mtype",
-          "match": "(\\+|\\-|\\*|\\/|\\%|\\+\\+|\\-\\-)"
+          "name": "keyword.operator.arrow.mtype",
+          "match": "(->|=>)"
+        },
+        {
+          "name": "punctuation.separator.namespace.mtype",
+          "match": "::"
         },
         {
           "name": "keyword.operator.comparison.mtype",
-          "match": "(==|!=|<|<=|>|>=)"
+          "match": "(==|!=|<=|>=|<|>)"
         },
         {
           "name": "keyword.operator.logical.mtype",
@@ -436,7 +374,11 @@
         },
         {
           "name": "keyword.operator.assignment.mtype",
-          "match": "(=|\\+=|\\-=|\\*=|\\/=|\\%=)"
+          "match": "(\\+=|-=|\\*=|/=|%=|=)"
+        },
+        {
+          "name": "keyword.operator.arithmetic.mtype",
+          "match": "(\\+\\+|--|\\+|-|\\*|/|%)"
         },
         {
           "name": "keyword.operator.ternary.mtype",
@@ -445,10 +387,18 @@
         {
           "name": "keyword.operator.member-access.mtype",
           "match": "\\."
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.terminator.statement.mtype",
+          "match": ";"
         },
         {
-          "name": "punctuation.separator.namespace.mtype",
-          "match": "::"
+          "name": "punctuation.separator.comma.mtype",
+          "match": ","
         },
         {
           "name": "punctuation.brace.curly.mtype",
@@ -461,13 +411,8 @@
         {
           "name": "punctuation.brace.square.mtype",
           "match": "[\\[\\]]"
-        },
-        {
-          "name": "punctuation.brace.angle.mtype",
-          "match": "[<>]"
         }
       ]
     }
-  },
-  "scopeName": "source.mtype"
+  }
 }

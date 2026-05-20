@@ -15,8 +15,12 @@
 #include <iostream>
 #include <sstream>
 #include "DebuggerConstants.hpp"
+#include "DebuggerFormatUtils.hpp"
 #include "../value/ObjectInstance.hpp"
 #include "../value/NativeArray.hpp"
+#include "../value/FlatMultiArray.hpp"
+#include "../value/SparseMultiArray.hpp"
+#include "../value/arrays/object/FlatMultiObjectArray.hpp"
 #include "../value/StringPool.hpp"
 #include "../value/ValueShim.hpp"
 
@@ -83,6 +87,23 @@ namespace debugger
             }
         }
 
+        std::string formatDimsLabel(const std::vector<size_t>& dims, const char* suffix)
+        {
+            std::string s = "[";
+            for (size_t i = 0; i < dims.size(); ++i)
+            {
+                if (i > 0) s += "x";
+                s += std::to_string(dims[i]);
+            }
+            if (suffix && *suffix)
+            {
+                s += " ";
+                s += suffix;
+            }
+            s += "]";
+            return s;
+        }
+
         std::optional<std::string> tryFormatComposite(const value::Value& val)
         {
             if (value::isAnyObject(val))
@@ -107,15 +128,21 @@ namespace debugger
             }
             if (value::isFlatMultiArray(val))
             {
-                return std::string{"<multi-array>"};
+                auto arr = value::asFlatMultiArray(val);
+                if (!arr) return std::string{"[null]"};
+                return formatDimsLabel(arr->getDimensions(), nullptr);
             }
             if (value::isSparseMultiArray(val))
             {
-                return std::string{"<sparse-array>"};
+                auto arr = value::asSparseMultiArray(val);
+                if (!arr) return std::string{"[null]"};
+                return formatDimsLabel(arr->getDimensions(), "sparse");
             }
             if (value::isFlatMultiObjectArray(val))
             {
-                return std::string{"<object-array>"};
+                auto arr = value::asFlatMultiObjectArray(val);
+                if (!arr) return std::string{"[null]"};
+                return formatDimsLabel(arr->getDimensions(), "objects");
             }
             if (value::isPromise(val) || value::isPromiseInt(val))
             {
@@ -238,6 +265,61 @@ namespace debugger
         }
 
         template <typename ToVar>
+        void collectSparseMultiArrayChildren(const value::Value& val,
+                                             ToVar&& toVar,
+                                             std::vector<DebugVariable>& children)
+        {
+            auto arr = value::asSparseMultiArray(val);
+            if (!arr) return;
+            auto dims = arr->getDimensions();
+            if (dims.empty()) return;
+
+            const auto stats = arr->getSparsityStats();
+            std::string dimInfo = "Dimensions: ";
+            for (size_t i = 0; i < dims.size(); ++i)
+            {
+                if (i > 0) dimInfo += " x ";
+                dimInfo += std::to_string(dims[i]);
+            }
+            dimInfo += " | Non-default: " + std::to_string(stats.nonDefaultElements) +
+                       " / " + std::to_string(stats.totalElements);
+            children.push_back(DebugVariable("[sparsity]", dimInfo, "info", false, 0));
+
+            // Walk non-default entries via the iterator. Local `total` counter
+            // because stats.nonDefaultElements overcounts for views (they forward
+            // updates to the root).
+            const size_t cap = constants::MAX_ARRAY_DISPLAY_ELEMENTS;
+            size_t shown = 0;
+            size_t total = 0;
+            try
+            {
+                arr->forEachNonDefault(
+                    [&](const std::vector<size_t>& indices, const value::Value& v) {
+                        ++total;
+                        if (shown < cap)
+                        {
+                            children.push_back(toVar(formatMultiDimIndex(indices), v));
+                            ++shown;
+                        }
+                    });
+            }
+            catch (const std::exception& e)
+            {
+                std::cerr << "VMVariableInspector::getVariableChildren() - SparseMultiArray iter: "
+                          << e.what() << "\n";
+                children.push_back(DebugVariable("[error]", "<iteration failed>", "unknown", false, 0));
+                return;
+            }
+            if (total > shown)
+            {
+                children.push_back(DebugVariable(
+                    "[...]",
+                    "(" + std::to_string(total - shown) + " more elements)",
+                    "info", false, 0));
+            }
+        }
+
+        template <typename ToVar>
         void collectObjectChildren(const value::Value& val,
                                    ToVar&& toVar,
                                    std::vector<DebugVariable>& children)
@@ -293,6 +375,20 @@ namespace debugger
             if (value::isNativeArray(val))
             {
                 collectArrayChildren(val, toVar, children);
+            }
+            else if (value::isFlatMultiArray(val))
+            {
+                collectFlatMultiChildren(value::asFlatMultiArray(val),
+                                         "FlatMultiArray", toVar, children);
+            }
+            else if (value::isSparseMultiArray(val))
+            {
+                collectSparseMultiArrayChildren(val, toVar, children);
+            }
+            else if (value::isFlatMultiObjectArray(val))
+            {
+                collectFlatMultiChildren(value::asFlatMultiObjectArray(val),
+                                         "FlatMultiObjectArray", toVar, children);
             }
             else if (value::isAnyObject(val))
             {
