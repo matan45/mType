@@ -533,6 +533,8 @@ namespace tests::testSuite
                                   benchmarkPath + "async_await_tight_loop.mt");
         addOutputVerificationTest("Benchmark: bitwise_tight_loop",
                                   benchmarkPath + "bitwise_tight_loop.mt");
+        addOutputVerificationTest("Benchmark: box_unbox_hot",
+                                  benchmarkPath + "box_unbox_hot.mt");
         addOutputVerificationTest("Benchmark: boxed_bool_dispatch_hot",
                                   benchmarkPath + "boxed_bool_dispatch_hot.mt");
         addOutputVerificationTest("Benchmark: boxed_primitive_dispatch_hot",

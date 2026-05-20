@@ -17,7 +17,7 @@ namespace detail
 {
     constexpr const char* BENCHMARKS_REL = "mType/tests/testFiles/benchmarks";
 
-    inline constexpr std::array<const char*, 60> CANONICAL_SCRIPTS = {
+    inline constexpr std::array<const char*, 61> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -130,6 +130,12 @@ namespace detail
         // / pure-String makes regressions in either path attributable.
         "boxed_bool_dispatch_hot.mt",
         "boxed_string_dispatch_hot.mt",
+        // Box/unbox pressure micro: chases an int through Box<Int>(new Int(i))
+        // every iteration so allocation + generic-field T=Int load + value-class
+        // unwrap form a clean signal for the JitCompiler_Boxing.cpp emit surface.
+        // Companion to boxed_*_dispatch_hot — those measure method dispatch on
+        // boxed receivers; this one isolates the boxing-pressure cost.
+        "box_unbox_hot.mt",
         // Isolation benchmark for non-generic CALL_STATIC dispatch.
         // Companion to generic_dispatch_hot.mt; strips BIND_TYPE_ARGS and
         // INSTANCEOF_TYPEPARAM so the measured cost is purely the
