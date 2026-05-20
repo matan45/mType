@@ -1,0 +1,6 @@
+peek after push 1: 1
+peek after push 2: 2
+peek after push 3: 3
+peek after pop: 2
+peek after push 99: 99
+peek after two pops: 1

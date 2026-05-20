@@ -1,0 +1,4 @@
+first add: true
+dup add: false
+size: 1
+contains 5: true

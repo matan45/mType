@@ -101,6 +101,52 @@ namespace tests::testSuite
         addOutputVerificationTest("ForEach Over User Class Array",
                                   passPath + "forEachClassArray.mt");
 
+        // === POLYMORPHIC / INHERITANCE ITERATION ===
+        addOutputVerificationTest("ForEach Polymorphic Elements",
+                                  passPath + "forEachPolymorphicElements.mt");
+
+        addOutputVerificationTest("ForEach Interface-Typed Loop Var",
+                                  passPath + "forEachInterfaceTypedLoopVar.mt");
+
+        // === ITERATION OVER EXPRESSION RESULTS ===
+        addOutputVerificationTest("ForEach Ternary Result",
+                                  passPath + "forEachTernaryResult.mt");
+
+        addOutputVerificationTest("ForEach Cast Result",
+                                  passPath + "forEachCastResult.mt");
+
+        // === CONCURRENT MODIFICATION ===
+        addOutputVerificationTest("ForEach Read Field Mutated In Body",
+                                  passPath + "forEachReadFieldMutatedInBody.mt");
+
+        // === HOT-LOOP / JIT VARIANTS ===
+        addOutputVerificationTest("ForEach int[] HotLoop",
+                                  passPath + "forEachIntArrayHotLoop.mt");
+
+        addOutputVerificationTest("ForEach ArrayList<Int> HotLoop",
+                                  passPath + "forEachArrayListHotLoop.mt");
+
+        // === NULLABLE ELEMENT TYPES ===
+        addOutputVerificationTest("ForEach Nullable Element Type",
+                                  passPath + "forEachNullableElementType.mt");
+
+        // === LOOP-VARIABLE SEMANTICS ===
+        addOutputVerificationTest("ForEach Loop Var Reassign Allowed",
+                                  passPath + "forEachLoopVarReassign.mt");
+
+        // === CANARIES (MYT-NEW: NESTED GENERIC FOREACH) ===
+        // These are kept failing on purpose until MYT-NEW lands. The bug:
+        // outer for-each over a nested-generic collection binds the row
+        // correctly, but the inner for-each then types the element as Object
+        // and rejects with MT-E2007. See
+        // memory:project_foreach_loses_nested_generic_type and
+        // memory:feedback_keep_failing_canary_tests.
+        addOutputVerificationTest("CANARY ForEach Nested Generic Collection",
+                                  passPath + "forEachNestedGenericCollection.mt");
+
+        addOutputVerificationTest("CANARY ForEach Nested int[][] 2D",
+                                  passPath + "forEachNestedIntArray2D.mt");
+
         // Add error tests for iterator type safety
         addTestFromFile("For-Each on Non-Iterable Type",
                        errorPath + "forEachNonIterable.mt",
@@ -116,6 +162,21 @@ namespace tests::testSuite
 
         addTestFromFile("For-Each on Null Collection",
                        errorPath + "forEachNullCollection.mt",
+                       TestType::ERROR_EXPECTED);
+
+        // === ADDED ERROR PATHS ===
+        // Pin with expectedErrorSubstring after first build captures actual
+        // what() strings.
+        addTestFromFile("For-Each Structural Mutation Of Source",
+                       errorPath + "forEachMutateUnderlyingList.mt",
+                       TestType::ERROR_EXPECTED);
+
+        addTestFromFile("For-Each Non-Nullable Var Over Nullable Source",
+                       errorPath + "forEachNonNullableOverNullableSource.mt",
+                       TestType::ERROR_EXPECTED);
+
+        addTestFromFile("For-Each Final Loop Var Rejects Reassignment",
+                       errorPath + "forEachFinalLoopVarReassign.mt",
                        TestType::ERROR_EXPECTED);
     }
 }

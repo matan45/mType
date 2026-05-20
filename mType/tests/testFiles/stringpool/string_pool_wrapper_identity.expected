@@ -1,0 +1,5 @@
+wrapper equals: true
+raw eq via getValue: true
+raw eq literal: true
+concat getValue eq literal: true
+wrapped upper eq HELLO: true

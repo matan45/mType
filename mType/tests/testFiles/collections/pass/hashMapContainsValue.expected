@@ -1,0 +1,3 @@
+contains 100: true
+contains 200: true
+contains 999: false

@@ -20,6 +20,7 @@ namespace tests::testSuite
     private:
         // Test file paths for string pool specific tests
         inline static const std::string stringPoolPath = "mType/tests/testFiles/stringpool/";
+        inline static const std::string errorPath = "mType/tests/testFiles/stringpool/error/";
 
     public:
         explicit StringPoolTestSuite() : TestSuite("StringPool Test Suite") {}

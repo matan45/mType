@@ -1,0 +1,6 @@
+empty: true
+size: 0
+dequeue empty null: true
+peek empty null: true
+dequeue after enqueue: 5
+dequeue empty again null: true

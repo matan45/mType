@@ -1,0 +1,9 @@
+size after adds: 4
+contains 3: true
+size after remove 2: 3
+contains 2: false
+contains 3: true
+size after removeFirst+removeLast: 1
+first: 3
+contains 1: false
+contains 4: false

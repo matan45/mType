@@ -1,0 +1,3 @@
+contains null: true
+contains 100: true
+noNulls contains null: false
