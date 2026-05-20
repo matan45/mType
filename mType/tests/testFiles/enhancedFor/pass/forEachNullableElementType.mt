@@ -1,6 +1,8 @@
-// Edge: for-each over an array whose element slots may be null. Body uses a
-// null guard before dereferencing. Verifies both the null and non-null branches
-// execute in their declared iteration order.
+// Edge: Box[] elements default to null; for-each binds each slot to a
+// Box? loop var. Verifies both null and non-null slots iterate in order.
+// Mirrors the implicit-null pattern from
+// nullSafety/pass/arrayElementNullThenReassign.mt — `Box?[]` declaration
+// syntax isn't accepted (parser rejects with "Expected variable name").
 class Box {
     public int value;
     constructor(int v) {
@@ -9,11 +11,11 @@ class Box {
 }
 
 function main(): void {
-    Box?[] arr = new Box?[4];
+    Box[] arr = new Box[4];
     arr[0] = new Box(1);
-    arr[1] = null;
+    // arr[1] left implicitly null
     arr[2] = new Box(3);
-    arr[3] = null;
+    // arr[3] left implicitly null
 
     int nulls = 0;
     int sum = 0;

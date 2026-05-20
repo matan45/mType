@@ -1,4 +1,4 @@
-// CANARY (MYT-NEW): nested generic for-each loses inner element type.
+// CANARY (MYT-350): nested generic for-each loses inner element type.
 // Outer for-each over ArrayList<ArrayList<Int>> binds `row` as ArrayList<Int>
 // (its declared loop-variable type), but the inner for-each then types `v` as
 // Object and rejects with MT-E2007. See
@@ -31,5 +31,5 @@ function main(): void {
 
 main();
 
-// Expected output (when MYT-NEW is fixed):
+// Expected output (when MYT-350 is fixed):
 // sum=33

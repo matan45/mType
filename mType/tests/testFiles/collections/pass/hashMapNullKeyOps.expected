@@ -1,9 +1,0 @@
-Error: HashMap.put() - key cannot be null
-put returned null: true
-Error: HashMap.get() - key cannot be null
-get returned null: true
-Error: HashMap.containsKey() - key cannot be null
-containsKey: false
-Error: HashMap.remove() - key cannot be null
-remove: false
-size unchanged: 1

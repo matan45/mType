@@ -78,6 +78,6 @@ namespace tests::testSuite
         addTestFromFile("String Relational GE Rejected",
                         errorPath + "string_compare_ge_error.mt",
                         TestType::ERROR_EXPECTED,
-                        "MT-E5005");
+                        "GE requires numeric operands");
     }
 }

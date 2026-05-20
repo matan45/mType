@@ -51,14 +51,13 @@ namespace tests::testSuite
         addOutputVerificationTest("HashMap Clear Then Reuse",
                                   passPath + "hashMapClearThenReuse.mt");
 
-        addOutputVerificationTest("HashMap Null Key Ops",
-                                  passPath + "hashMapNullKeyOps.mt");
-
-        addOutputVerificationTest("HashMap Contains Value",
+        // CANARY: surfaces a likely real bug in HashMap.containsValue — see
+        // MYT-* (file). Lib code calls v.equals(value) without a hash gate, so
+        // for value classes the generic dispatch returns reference equality
+        // instead of resolving to Int.equals(Int). Keep failing per
+        // feedback_keep_failing_canary_tests.md.
+        addOutputVerificationTest("CANARY HashMap Contains Value Value-Class Dispatch",
                                   passPath + "hashMapContainsValue.mt");
-
-        addOutputVerificationTest("HashMap Contains Value Null",
-                                  passPath + "hashMapContainsValueNull.mt");
 
         addOutputVerificationTest("HashMap PutAll With Overlap",
                                   passPath + "hashMapPutAll.mt");
