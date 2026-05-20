@@ -1,8 +1,172 @@
 #include "CodeLensHandler.hpp"
+#include "../../../mType/ast/nodes/classes/ClassNode.hpp"
+#include "../../../mType/ast/nodes/classes/InterfaceNode.hpp"
+#include "../../../mType/ast/nodes/statements/ProgramNode.hpp"
+#include <algorithm>
 #include <regex>
 #include <sstream>
 
 namespace mtype::lsp {
+
+namespace {
+
+struct LocalLensSymbol {
+    std::string name;
+    int line;
+    int column;
+};
+
+int toLspLine(const errors::SourceLocation& loc) {
+    return std::max(0, loc.getLine() - 1);
+}
+
+int toLspColumn(const errors::SourceLocation& loc) {
+    return std::max(0, loc.getColumn() - 1);
+}
+
+std::string lineAt(const std::string& content, int targetLine) {
+    std::istringstream stream(content);
+    std::string line;
+    int lineNum = 0;
+    while (std::getline(stream, line)) {
+        if (lineNum == targetLine) {
+            return line;
+        }
+        lineNum++;
+    }
+    return "";
+}
+
+int findNameColumn(const std::string& content,
+                   const std::string& name,
+                   int line,
+                   int fallbackColumn) {
+    std::string text = lineAt(content, line);
+    if (text.empty()) {
+        return fallbackColumn;
+    }
+
+    auto start = static_cast<std::size_t>(std::max(0, fallbackColumn));
+    auto pos = text.find(name, start);
+    if (pos == std::string::npos) {
+        pos = text.find(name);
+    }
+    return pos == std::string::npos ? fallbackColumn : static_cast<int>(pos);
+}
+
+std::vector<LocalLensSymbol> collectLocalLensSymbols(const Document* doc) {
+    std::vector<LocalLensSymbol> symbols;
+    if (!doc || !doc->isParsed || doc->ast.empty()) {
+        return symbols;
+    }
+
+    auto* program = dynamic_cast<ast::nodes::statements::ProgramNode*>(doc->ast[0].get());
+    if (!program) {
+        return symbols;
+    }
+
+    for (const auto& statement : program->getStatements()) {
+        ast::ASTNode* node = statement.get();
+        if (!node) {
+            continue;
+        }
+
+        if (auto* cls = dynamic_cast<ast::nodes::classes::ClassNode*>(node)) {
+            const int line = toLspLine(cls->getLocation());
+            const int fallbackColumn = toLspColumn(cls->getLocation());
+            symbols.push_back(LocalLensSymbol{
+                cls->getClassName(),
+                line,
+                findNameColumn(doc->content, cls->getClassName(), line, fallbackColumn)
+            });
+        } else if (auto* iface = dynamic_cast<ast::nodes::classes::InterfaceNode*>(node)) {
+            const int line = toLspLine(iface->getLocation());
+            const int fallbackColumn = toLspColumn(iface->getLocation());
+            symbols.push_back(LocalLensSymbol{
+                iface->getName(),
+                line,
+                findNameColumn(doc->content, iface->getName(), line, fallbackColumn)
+            });
+        }
+    }
+
+    return symbols;
+}
+
+std::string maskCommentsAndStrings(const std::string& content) {
+    std::string masked = content;
+    enum class State {
+        Code,
+        LineComment,
+        BlockComment,
+        String
+    };
+
+    State state = State::Code;
+    char quote = '\0';
+
+    for (std::size_t i = 0; i < masked.size(); ++i) {
+        char c = masked[i];
+
+        switch (state) {
+            case State::Code:
+                if (c == '/' && i + 1 < masked.size() && masked[i + 1] == '/') {
+                    masked[i] = ' ';
+                    masked[i + 1] = ' ';
+                    ++i;
+                    state = State::LineComment;
+                } else if (c == '/' && i + 1 < masked.size() && masked[i + 1] == '*') {
+                    masked[i] = ' ';
+                    masked[i + 1] = ' ';
+                    ++i;
+                    state = State::BlockComment;
+                } else if (c == '"' || c == '\'') {
+                    quote = c;
+                    masked[i] = ' ';
+                    state = State::String;
+                }
+                break;
+
+            case State::LineComment:
+                if (c == '\n' || c == '\r') {
+                    state = State::Code;
+                } else {
+                    masked[i] = ' ';
+                }
+                break;
+
+            case State::BlockComment:
+                if (c == '*' && i + 1 < masked.size() && masked[i + 1] == '/') {
+                    masked[i] = ' ';
+                    masked[i + 1] = ' ';
+                    ++i;
+                    state = State::Code;
+                } else if (c != '\n' && c != '\r') {
+                    masked[i] = ' ';
+                }
+                break;
+
+            case State::String:
+                if (c == '\\' && i + 1 < masked.size()) {
+                    masked[i] = ' ';
+                    if (masked[i + 1] != '\n' && masked[i + 1] != '\r') {
+                        masked[i + 1] = ' ';
+                    }
+                    ++i;
+                } else if (c == quote) {
+                    masked[i] = ' ';
+                    state = State::Code;
+                } else if (c != '\n' && c != '\r') {
+                    masked[i] = ' ';
+                }
+                break;
+        }
+    }
+
+    return masked;
+}
+
+} // namespace
 
 // Helper function to URL decode a string
 static std::string urlDecode(const std::string& str) {
@@ -37,44 +201,21 @@ std::vector<CodeLens> CodeLensHandler::handleCodeLens(const std::string& uri) {
     std::vector<CodeLens> lenses;
 
     auto doc = documentManager_->getDocument(uri);
-    if (!doc || !doc->environment) {
+    if (!doc) {
         return lenses;
     }
 
-    auto classRegistry = doc->environment->getClassRegistry();
-    auto interfaceRegistry = doc->environment->getInterfaceRegistry();
-    if (!classRegistry && !interfaceRegistry) {
-        return lenses;
-    }
-
-    const std::string decodedCurrentUri = urlDecode(uri);
-
-    // For each locally declared class/interface, create a code lens with a
-    // reference count. Imported symbols are also present in symbolLocations,
-    // but their source line numbers belong to other files; rendering them in
-    // this document puts lenses over unrelated statements or comments.
-    for (const auto& [symbolName, location] : doc->symbolLocations) {
-        if (location.uri != uri && urlDecode(location.uri) != decodedCurrentUri) {
+    for (const auto& symbol : collectLocalLensSymbols(doc)) {
+        int refCount = countReferences(symbol.name, doc, symbol.line);
+        if (refCount == 0) {
             continue;
         }
 
-        // Check if it's a class or interface
-        bool isClass = classRegistry && classRegistry->hasClass(symbolName);
-        bool isInterface = interfaceRegistry && interfaceRegistry->hasInterface(symbolName);
-
-        if (!isClass && !isInterface) {
-            continue; // Skip non-class/interface symbols
-        }
-
-        // Count references to this symbol
-        int refCount = countReferences(symbolName, uri);
-
-        // Create code lens
         CodeLens lens;
         // Place range at start of line (character 0) so it renders above the declaration
-        lens.range.start.line = location.line;
+        lens.range.start.line = symbol.line;
         lens.range.start.character = 0;
-        lens.range.end.line = location.line;
+        lens.range.end.line = symbol.line;
         lens.range.end.character = 0;
 
         // Create command to show references using custom mtype.showReferences command
@@ -87,7 +228,7 @@ std::vector<CodeLens> CodeLensHandler::handleCodeLens(const std::string& uri) {
         cmd.command = "mtype.showReferences"; // Use custom command that converts JSON to VS Code types
 
         // Find actual reference locations
-        std::vector<Location> refLocations = findUsages(symbolName, doc);
+        std::vector<Location> refLocations = findUsages(symbol.name, doc, symbol.line);
         // Decode URI for VS Code command
         std::string decodedUri = urlDecode(uri);
 
@@ -96,8 +237,8 @@ std::vector<CodeLens> CodeLensHandler::handleCodeLens(const std::string& uri) {
         args.push_back(decodedUri);
 
         json positionJson = {
-            {"line", location.line},
-            {"character", location.column}
+            {"line", symbol.line},
+            {"character", symbol.column}
         };
         args.push_back(positionJson);
 
@@ -116,65 +257,22 @@ std::vector<CodeLens> CodeLensHandler::handleCodeLens(const std::string& uri) {
     return lenses;
 }
 
-int CodeLensHandler::countReferences(const std::string& symbolName, const std::string& uri) {
-    int count = 0;
-
-    auto doc = documentManager_->getDocument(uri);
+int CodeLensHandler::countReferences(const std::string& symbolName, const Document* doc, int declarationLine) {
     if (!doc) {
-        return count;
+        return 0;
     }
 
-    const std::string& content = doc->content;
-
-    // Patterns to look for:
-    // 1. "new ClassName" or "new ClassName<"
-    // 2. "implements InterfaceName" or "extends ClassName"
-    // 3. ": ClassName" (type annotations)
-    // 4. Variable declarations like "ClassName var"
-
-    // Use regex to find references
-    // Word boundary to ensure we match whole words only
-    std::string pattern = "\\b" + symbolName + "\\b";
-    std::regex symbolRegex(pattern);
-
-    std::string line;
-    std::istringstream stream(content);
-    int lineNum = 0;
-
-    while (std::getline(stream, line)) {
-        // Count matches in this line
-        auto words_begin = std::sregex_iterator(line.begin(), line.end(), symbolRegex);
-        auto words_end = std::sregex_iterator();
-
-        for (std::sregex_iterator i = words_begin; i != words_end; ++i) {
-            std::smatch match = *i;
-            size_t matchPos = match.position();
-
-            // Skip the declaration line itself (where the class/interface is defined)
-            if (auto it = doc->symbolLocations.find(symbolName); it != doc->symbolLocations.end()) {
-                if (lineNum == it->second.line) {
-                    // This is the declaration, skip this match
-                    continue;
-                }
-            }
-
-            count++;
-        }
-
-        lineNum++;
-    }
-
-    return count;
+    return static_cast<int>(findUsages(symbolName, doc, declarationLine).size());
 }
 
-std::vector<Location> CodeLensHandler::findUsages(const std::string& symbolName, const Document* doc) {
+std::vector<Location> CodeLensHandler::findUsages(const std::string& symbolName, const Document* doc, int declarationLine) {
     std::vector<Location> locations;
 
     if (!doc) {
         return locations;
     }
 
-    const std::string& content = doc->content;
+    const std::string content = maskCommentsAndStrings(doc->content);
 
     // Use regex to find all references to the symbol
     std::string pattern = "\\b" + symbolName + "\\b";
@@ -193,12 +291,8 @@ std::vector<Location> CodeLensHandler::findUsages(const std::string& symbolName,
             std::smatch match = *i;
             size_t matchPos = match.position();
 
-            // Skip the declaration line itself
-            if (auto it = doc->symbolLocations.find(symbolName); it != doc->symbolLocations.end()) {
-                if (lineNum == it->second.line) {
-                    // This is the declaration, skip this match
-                    continue;
-                }
+            if (lineNum == declarationLine) {
+                continue;
             }
 
             // Create a location for this reference
