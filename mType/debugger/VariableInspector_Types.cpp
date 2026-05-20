@@ -6,6 +6,20 @@
 
 namespace debugger {
 
+    namespace {
+        // Render multi-dim indices as "[i,j,k]"; rank 1 yields "[i]", identical
+        // to the previous single-dim format, so single-rank arrays don't regress.
+        std::string formatMultiDimIndex(const std::vector<size_t>& indices) {
+            std::string s = "[";
+            for (size_t i = 0; i < indices.size(); ++i) {
+                if (i > 0) s += ",";
+                s += std::to_string(indices[i]);
+            }
+            s += "]";
+            return s;
+        }
+    }
+
     DebugVariable VariableInspector::formatObjectInstance(
         const std::string& name,
         std::shared_ptr<runtimeTypes::klass::ObjectInstance> obj) {
@@ -243,50 +257,41 @@ namespace debugger {
             0
         ));
 
-        if (stats.currentMode == value::SparseMultiArray::StorageMode::SPARSE &&
-            stats.nonDefaultElements > 0) {
+        // Walk every non-default entry via the iterator (both DENSE and SPARSE).
+        // `total` is a local counter — stats.nonDefaultElements would overcount
+        // for views, which forward their counts to the root.
+        const size_t cap = constants::MAX_ARRAY_DISPLAY_ELEMENTS;
+        size_t shown = 0;
+        size_t total = 0;
 
-            // TODO: SparseMultiArray needs a public iterator over non-default
-            // entries before this can list them; for now just report the count.
+        try {
+            arr->forEachNonDefault(
+                [&](const std::vector<size_t>& indices, const value::Value& v) {
+                    ++total;
+                    if (shown < cap) {
+                        elements.push_back(formatValue(formatMultiDimIndex(indices), v));
+                        ++shown;
+                    }
+                });
+        } catch (...) {
             elements.push_back(DebugVariable(
-                "[mode]",
-                "SPARSE mode with " + std::to_string(stats.nonDefaultElements) + " set values",
+                "[error]",
+                "<iteration failed>",
+                "unknown",
+                false,
+                0
+            ));
+            return elements;
+        }
+
+        if (total > shown) {
+            elements.push_back(DebugVariable(
+                "[...]",
+                "(" + std::to_string(total - shown) + " more elements)",
                 "info",
                 false,
                 0
             ));
-        } else if (stats.currentMode == value::SparseMultiArray::StorageMode::DENSE) {
-            size_t firstDimSize = dims[0];
-            size_t displayCount = std::min(firstDimSize, constants::MAX_ARRAY_DISPLAY_ELEMENTS);
-
-            for (size_t i = 0; i < displayCount; ++i) {
-                try {
-                    std::vector<size_t> indices(dims.size(), 0);
-                    indices[0] = i;
-                    value::Value element = arr->get(indices);
-
-                    std::string indexName = "[" + std::to_string(i) + "]";
-                    elements.push_back(formatValue(indexName, element));
-                } catch (...) {
-                    elements.push_back(DebugVariable(
-                        "[" + std::to_string(i) + "]",
-                        "<error>",
-                        "unknown",
-                        false,
-                        0
-                    ));
-                }
-            }
-
-            if (firstDimSize > displayCount) {
-                elements.push_back(DebugVariable(
-                    "[...]",
-                    "(" + std::to_string(firstDimSize - displayCount) + " more elements)",
-                    "info",
-                    false,
-                    0
-                ));
-            }
         }
 
         return elements;
