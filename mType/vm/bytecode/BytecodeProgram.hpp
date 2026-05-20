@@ -418,6 +418,30 @@ namespace vm::bytecode
         };
         mutable std::vector<PrimitiveWrapperResolution> primitiveWrapperCache;
 
+        // MYT-TBD (box/unbox perf): per-(className constant index, argCount)
+        // cache for JIT NEW_OBJECT allocation sites. A hot generic allocation
+        // like `new Box<Int>(...)` previously reparsed the generic class name,
+        // looked up the class, selected the same constructor, and copied the
+        // same trivial-constructor assignment table every iteration. The JIT
+        // helper now resolves that once and reuses it when the constructor
+        // choice is unambiguous for the arity.
+        //
+        // `resolved && !trivialConstructorFastPath && !defaultNoCtorFastPath`
+        // means "known unsafe for the direct path"; callers must fall back to
+        // VirtualMachine::createObject to preserve overload/access/error
+        // behavior.
+        struct ObjectConstructionResolution
+        {
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef;
+            std::unordered_map<std::string, std::string> genericTypeBindings;
+            std::vector<std::pair<size_t, size_t>> trivialFieldIndexAssignments;
+            size_t argCount = 0;
+            bool resolved = false;
+            bool trivialConstructorFastPath = false;
+            bool defaultNoCtorFastPath = false;
+        };
+        mutable std::unordered_map<uint64_t, ObjectConstructionResolution> objectConstructionCache;
+
     private:
 
         // MYT-313: program-owned stable copies of operand slices for JIT helpers
