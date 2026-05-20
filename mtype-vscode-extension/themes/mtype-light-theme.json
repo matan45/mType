@@ -238,6 +238,62 @@
       "settings": {
         "foreground": "#116329"
       }
+    },
+    {
+      "name": "XML Tag Names (.mtproj / .mtworkspace)",
+      "scope": [
+        "entity.name.tag.xml",
+        "entity.name.tag.localname.xml",
+        "meta.tag.xml entity.name.tag",
+        "entity.name.tag"
+      ],
+      "settings": {
+        "foreground": "#cf222e"
+      }
+    },
+    {
+      "name": "XML Attribute Names",
+      "scope": [
+        "entity.other.attribute-name.xml",
+        "entity.other.attribute-name.localname.xml",
+        "entity.other.attribute-name"
+      ],
+      "settings": {
+        "foreground": "#953800"
+      }
+    },
+    {
+      "name": "XML Attribute Values / Strings",
+      "scope": [
+        "string.quoted.double.xml",
+        "string.quoted.single.xml"
+      ],
+      "settings": {
+        "foreground": "#116329"
+      }
+    },
+    {
+      "name": "XML Tag Punctuation",
+      "scope": [
+        "punctuation.definition.tag.xml",
+        "punctuation.definition.tag.begin.xml",
+        "punctuation.definition.tag.end.xml",
+        "punctuation.separator.key-value.xml"
+      ],
+      "settings": {
+        "foreground": "#0550ae"
+      }
+    },
+    {
+      "name": "XML Preprocessor (<?xml ?>)",
+      "scope": [
+        "meta.tag.preprocessor.xml",
+        "entity.name.tag.xml entity.name.tag.localname.xml",
+        "keyword.other.doctype.xml"
+      ],
+      "settings": {
+        "foreground": "#6639ba"
+      }
     }
   ]
 }

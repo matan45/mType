@@ -27,7 +27,9 @@
   },
   "languageIds": {
     "mtype": "mtype-file",
-    "mtype-compiled": "mtc-file"
+    "mtype-compiled": "mtc-file",
+    "mtproj": "mtproj-file",
+    "mtworkspace": "mtworkspace-file"
   },
   "folder": "mtype-folder",
   "folderExpanded": "mtype-folder-open"
