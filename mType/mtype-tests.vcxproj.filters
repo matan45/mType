@@ -5134,18 +5134,6 @@
     <None Include="tests\testFiles\collections\pass\hashMapContainsValue.mt">
       <Filter>testFiles\collections\pass</Filter>
     </None>
-    <None Include="tests\testFiles\collections\pass\hashMapContainsValueNull.expected">
-      <Filter>testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\hashMapContainsValueNull.mt">
-      <Filter>testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\hashMapNullKeyOps.expected">
-      <Filter>testFiles\collections\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\collections\pass\hashMapNullKeyOps.mt">
-      <Filter>testFiles\collections\pass</Filter>
-    </None>
     <None Include="tests\testFiles\collections\pass\hashMapPutAll.expected">
       <Filter>testFiles\collections\pass</Filter>
     </None>
@@ -5983,13 +5971,7 @@
     <None Include="tests\testFiles\enhancedFor\error\forEachFinalLoopVarReassign.mt">
       <Filter>testFiles\enhancedFor\error</Filter>
     </None>
-    <None Include="tests\testFiles\enhancedFor\error\forEachMutateUnderlyingList.mt">
-      <Filter>testFiles\enhancedFor\error</Filter>
-    </None>
     <None Include="tests\testFiles\enhancedFor\error\forEachNonIterable.mt">
-      <Filter>testFiles\enhancedFor\error</Filter>
-    </None>
-    <None Include="tests\testFiles\enhancedFor\error\forEachNonNullableOverNullableSource.mt">
       <Filter>testFiles\enhancedFor\error</Filter>
     </None>
     <None Include="tests\testFiles\enhancedFor\error\forEachNullCollection.mt">
