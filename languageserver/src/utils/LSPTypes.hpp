@@ -97,10 +97,10 @@ struct CompletionItem {
     std::optional<std::string> sortText;
     std::optional<std::string> filterText;
     std::optional<TextEdit> textEdit;
-    // MYT-51 — auto-import completion items attach a TextEdit that
-    // inserts the missing `import ... from "..."` line when the user
-    // accepts the completion. LSP spec models this as an array; VS
-    // Code applies all entries silently alongside the main insert.
+    // Auto-import completion items attach a TextEdit that inserts the
+    // missing `import ... from "..."` line when the user accepts the
+    // completion. LSP spec models this as an array; VS Code applies all
+    // entries silently alongside the main insert.
     std::vector<TextEdit> additionalTextEdits;
     // Per-item characters that, when typed by the user, commit this
     // completion before the trailing character is inserted. Methods
@@ -179,7 +179,7 @@ struct Diagnostic {
     std::string message;
     std::optional<std::string> source;
 
-    // Extended LSP fields used by the unified diagnostic system (MYT-35).
+    // Extended LSP fields used by the unified diagnostic system.
     // `code` is a string (we publish "MT-E1001"-style ids) but the spec
     // also allows int — we store as json so round-tripping works either way.
     std::optional<json> code;
@@ -412,8 +412,8 @@ enum class InlayHintKind {
     Parameter = 2
 };
 
-// MYT-295 — Inlay hints attach short annotations (parameter names at
-// call sites, inferred lambda parameter types) inline in the editor.
+// Inlay hints attach short annotations (parameter names at call sites,
+// inferred lambda parameter types) inline in the editor.
 // v1 emits Position+label+kind only; padding flags are populated when
 // the editor benefits from visual separation. `tooltip` is reserved
 // for future resolveProvider support and unused in v1.
@@ -438,7 +438,7 @@ struct InlayHint {
     }
 };
 
-// MYT-296 — LSP SymbolKind subset used for textDocument/documentSymbol.
+// LSP SymbolKind subset used for textDocument/documentSymbol.
 // Integer values track the LSP 3.17 spec — do not renumber.
 enum class SymbolKind {
     Class = 5,
@@ -451,8 +451,8 @@ enum class SymbolKind {
     Variable = 13
 };
 
-// MYT-296 — Hierarchical document symbol. `range` covers the whole
-// declaration (including body); `selectionRange` covers just the name
+// Hierarchical document symbol. `range` covers the whole declaration
+// (including body); `selectionRange` covers just the name
 // token so editors can highlight the identifier on click. `children`
 // is recursive: class members live under their owning class.
 struct DocumentSymbol {
@@ -480,7 +480,7 @@ struct DocumentSymbol {
     }
 };
 
-// MYT-299 — `textDocument/prepareCallHierarchy` returns CallHierarchyItem[].
+// `textDocument/prepareCallHierarchy` returns CallHierarchyItem[].
 // `data` carries an opaque identity blob the client echoes back on
 // `callHierarchy/incomingCalls` and `callHierarchy/outgoingCalls`, so the
 // server can re-resolve the target without re-parsing the cursor's
@@ -550,7 +550,7 @@ struct CallHierarchyOutgoingCall {
     }
 };
 
-// MYT-297 — Flat workspace/symbol response entry (LSP SymbolInformation).
+// Flat workspace/symbol response entry (LSP SymbolInformation).
 // We stay on the legacy SymbolInformation[] shape rather than the 3.17
 // WorkspaceSymbol[] form so the response is self-contained — no
 // workspaceSymbol/resolve round-trip needed — and works in every client.

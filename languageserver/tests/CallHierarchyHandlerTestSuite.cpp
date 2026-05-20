@@ -128,8 +128,8 @@ void CallHierarchyHandlerTestSuite::registerTests(LspTestHarness& harness) {
             "}\n"
             "Box b = new Box();\n");
         CallHierarchyHandler h(docMgr.get());
-        // cursor on `Box` in `new Box()` — line 3, column 12
-        auto items = h.handlePrepare("file:///t.mt", {3, 13});
+        // cursor on `Box` in `new Box()` — line 3, column 12 (start of `Box`)
+        auto items = h.handlePrepare("file:///t.mt", {3, 12});
         require(hasItem(items, "constructor", "Box", ""), "expected constructor Box from new site");
     });
 

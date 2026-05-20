@@ -15,6 +15,7 @@
 #include <iostream>
 #include <sstream>
 #include "DebuggerConstants.hpp"
+#include "DebuggerFormatUtils.hpp"
 #include "../value/ObjectInstance.hpp"
 #include "../value/NativeArray.hpp"
 #include "../value/FlatMultiArray.hpp"
@@ -98,18 +99,6 @@ namespace debugger
             {
                 s += " ";
                 s += suffix;
-            }
-            s += "]";
-            return s;
-        }
-
-        std::string formatMultiDimIndex(const std::vector<size_t>& indices)
-        {
-            std::string s = "[";
-            for (size_t i = 0; i < indices.size(); ++i)
-            {
-                if (i > 0) s += ",";
-                s += std::to_string(indices[i]);
             }
             s += "]";
             return s;
@@ -276,47 +265,6 @@ namespace debugger
         }
 
         template <typename ToVar>
-        void collectFlatMultiArrayChildren(const value::Value& val,
-                                           ToVar&& toVar,
-                                           std::vector<DebugVariable>& children)
-        {
-            auto arr = value::asFlatMultiArray(val);
-            if (!arr) return;
-            auto dims = arr->getDimensions();
-            if (dims.empty()) return;
-
-            // List first-dim slices. For rank > 1, each entry is itself a
-            // sub-array view (recursively expandable); for rank 1, it's a scalar.
-            const size_t firstDim = dims[0];
-            const size_t limit = std::min(firstDim, constants::MAX_ARRAY_DISPLAY_ELEMENTS);
-            const bool nested = arr->getRank() > 1;
-
-            for (size_t i = 0; i < limit; ++i)
-            {
-                try
-                {
-                    std::string name = "[" + std::to_string(i) + "]";
-                    value::Value element = nested
-                        ? value::Value(arr->getSubArray(i))
-                        : arr->get(std::vector<size_t>{i});
-                    children.push_back(toVar(name, element));
-                }
-                catch (const std::exception& e)
-                {
-                    std::cerr << "VMVariableInspector::getVariableChildren() - FlatMultiArray["
-                              << i << "]: " << e.what() << "\n";
-                }
-            }
-            if (firstDim > limit)
-            {
-                children.push_back(DebugVariable(
-                    "[...]",
-                    "(" + std::to_string(firstDim - limit) + " more elements)",
-                    "info", false, 0));
-            }
-        }
-
-        template <typename ToVar>
         void collectSparseMultiArrayChildren(const value::Value& val,
                                              ToVar&& toVar,
                                              std::vector<DebugVariable>& children)
@@ -367,45 +315,6 @@ namespace debugger
                 children.push_back(DebugVariable(
                     "[...]",
                     "(" + std::to_string(total - shown) + " more elements)",
-                    "info", false, 0));
-            }
-        }
-
-        template <typename ToVar>
-        void collectFlatMultiObjectArrayChildren(const value::Value& val,
-                                                 ToVar&& toVar,
-                                                 std::vector<DebugVariable>& children)
-        {
-            auto arr = value::asFlatMultiObjectArray(val);
-            if (!arr) return;
-            auto dims = arr->getDimensions();
-            if (dims.empty()) return;
-
-            const size_t firstDim = dims[0];
-            const size_t limit = std::min(firstDim, constants::MAX_ARRAY_DISPLAY_ELEMENTS);
-            const bool nested = arr->getRank() > 1;
-
-            for (size_t i = 0; i < limit; ++i)
-            {
-                try
-                {
-                    std::string name = "[" + std::to_string(i) + "]";
-                    value::Value element = nested
-                        ? value::Value(arr->getSubArray(i))
-                        : arr->get(std::vector<size_t>{i});
-                    children.push_back(toVar(name, element));
-                }
-                catch (const std::exception& e)
-                {
-                    std::cerr << "VMVariableInspector::getVariableChildren() - FlatMultiObjectArray["
-                              << i << "]: " << e.what() << "\n";
-                }
-            }
-            if (firstDim > limit)
-            {
-                children.push_back(DebugVariable(
-                    "[...]",
-                    "(" + std::to_string(firstDim - limit) + " more elements)",
                     "info", false, 0));
             }
         }
@@ -469,7 +378,8 @@ namespace debugger
             }
             else if (value::isFlatMultiArray(val))
             {
-                collectFlatMultiArrayChildren(val, toVar, children);
+                collectFlatMultiChildren(value::asFlatMultiArray(val),
+                                         "FlatMultiArray", toVar, children);
             }
             else if (value::isSparseMultiArray(val))
             {
@@ -477,7 +387,8 @@ namespace debugger
             }
             else if (value::isFlatMultiObjectArray(val))
             {
-                collectFlatMultiObjectArrayChildren(val, toVar, children);
+                collectFlatMultiChildren(value::asFlatMultiObjectArray(val),
+                                         "FlatMultiObjectArray", toVar, children);
             }
             else if (value::isAnyObject(val))
             {

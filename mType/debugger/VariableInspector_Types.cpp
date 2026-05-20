@@ -2,23 +2,10 @@
 #include <algorithm>
 #include <cstddef>
 #include "DebuggerConstants.hpp"
+#include "DebuggerFormatUtils.hpp"
 #include "../value/ValueShim.hpp"
 
 namespace debugger {
-
-    namespace {
-        // Render multi-dim indices as "[i,j,k]"; rank 1 yields "[i]", identical
-        // to the previous single-dim format, so single-rank arrays don't regress.
-        std::string formatMultiDimIndex(const std::vector<size_t>& indices) {
-            std::string s = "[";
-            for (size_t i = 0; i < indices.size(); ++i) {
-                if (i > 0) s += ",";
-                s += std::to_string(indices[i]);
-            }
-            s += "]";
-            return s;
-        }
-    }
 
     DebugVariable VariableInspector::formatObjectInstance(
         const std::string& name,

@@ -266,9 +266,12 @@ void appendDeclarationsAtCursor(const std::string& uri,
 
 // Determine the enclosing class for a position (used for `this.method()`
 // resolution at call sites in prepare). Best-effort: picks the last
-// class header at or before the cursor's line. We don't have a class
-// end-location so positions between classes attribute to the previous one;
-// acceptable for v1.
+// class header at or before the cursor's line.
+//
+// KNOWN LIMITATION: we don't have a class end-location, so a top-level
+// function declared between two classes is misattributed to the
+// preceding class. Fix requires extending ClassNode with a body-end
+// position (or scanning to the matching `}`) before this check.
 std::string enclosingClassAt(const Document* doc, const Position& pos) {
     if (!doc) return "";
     nc::ClassNode* picked = nullptr;

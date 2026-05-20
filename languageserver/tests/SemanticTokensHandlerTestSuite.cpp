@@ -330,6 +330,37 @@ void SemanticTokensHandlerTestSuite::registerTests(LspTestHarness& harness) {
             "type-like names inside strings should not be emitted as class tokens");
     });
 
+    harness.addTest("backslash-escape in string does not leak into trailing code", []() {
+        // Regression: an escaped backslash like "\\" was misclassified as a
+        // still-escaped closing quote by the look-behind scanner, which left
+        // the trailing `int x = 5` unmasked.
+        std::string source = "String s = \"\\\\\"; int x = 5;";
+        auto docMgr = makeDocManager("file:///test.mt", source + "\n");
+        SemanticTokensHandler handler(docMgr.get());
+
+        auto tokens = handler.handleSemanticTokensFull("file:///test.mt");
+        auto decoded = decodeTokens(tokens);
+
+        int stringType = tokenTypeIndex("string");
+        int firstQuotePos = static_cast<int>(source.find('"'));
+        int closingQuotePos = static_cast<int>(source.find('"', firstQuotePos + 1));
+        require(closingQuotePos > firstQuotePos, "test pre-condition: two quotes present");
+
+        // The string token must cover exactly the four characters: "\\"
+        require(hasTokenAt(decoded, 0, firstQuotePos,
+                           closingQuotePos - firstQuotePos + 1,
+                           stringType),
+            "expected string token to span exactly the escaped-backslash literal");
+
+        // After the closing quote, `int` and `x` must still be tokenizable
+        // — proves the masker terminated the string correctly. We only
+        // assert that no string token covers them.
+        int intPos = static_cast<int>(source.find("int"));
+        require(intPos > closingQuotePos, "test pre-condition: int is after closing quote");
+        require(!hasTokenAt(decoded, 0, intPos, 3, stringType),
+            "trailing 'int' must not be masked into a string token");
+    });
+
     harness.addTest("tokenizes class fields as properties and locals as variables", []() {
         auto docMgr = makeDocManager("file:///test.mt",
             "class Unit {\n"

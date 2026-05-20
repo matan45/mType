@@ -9,7 +9,7 @@
 
 namespace mtype::lsp {
 
-// MYT-299 — Call hierarchy support: prepare → incomingCalls / outgoingCalls.
+// Call hierarchy support: prepare → incomingCalls / outgoingCalls.
 //
 // v1 scope (see plan): top-level functions, class methods (instance and
 // static), constructors with an explicit ConstructorNode. Resolution is

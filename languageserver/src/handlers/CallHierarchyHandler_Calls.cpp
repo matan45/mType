@@ -45,7 +45,21 @@ std::vector<BodyEntry> bodiesForItem(const ItemId& id, DocumentManager* mgr) {
     return out;
 }
 
-CallHierarchyItem itemFromTarget(const ResolvedTarget& t, DocumentManager* mgr) {
+using ClassLookup = std::pair<nc::ClassNode*, std::string>;
+using ClassCache  = std::unordered_map<std::string, ClassLookup>;
+
+const ClassLookup& cachedClassLookup(ClassCache& cache,
+                                     DocumentManager* mgr,
+                                     const std::string& className) {
+    auto it = cache.find(className);
+    if (it != cache.end()) return it->second;
+    auto inserted = cache.emplace(className, findClassEverywhere(mgr, className));
+    return inserted.first->second;
+}
+
+CallHierarchyItem itemFromTarget(const ResolvedTarget& t,
+                                 DocumentManager* mgr,
+                                 ClassCache& classCache) {
     if (t.kind == kKindFunction) {
         for (const auto& uri : mgr->getAllOpenUris()) {
             auto* doc = mgr->getDocument(uri);
@@ -56,7 +70,7 @@ CallHierarchyItem itemFromTarget(const ResolvedTarget& t, DocumentManager* mgr) 
             }
         }
     } else if (t.kind == kKindMethod) {
-        auto [cls, uri] = findClassEverywhere(mgr, t.className);
+        const auto& [cls, uri] = cachedClassLookup(classCache, mgr, t.className);
         if (cls) {
             auto ms = collectMethodsByName(cls, t.name);
             if (!ms.empty()) {
@@ -64,7 +78,7 @@ CallHierarchyItem itemFromTarget(const ResolvedTarget& t, DocumentManager* mgr) 
             }
         }
     } else if (t.kind == kKindConstructor) {
-        auto [cls, uri] = findClassEverywhere(mgr, t.className);
+        const auto& [cls, uri] = cachedClassLookup(classCache, mgr, t.className);
         if (cls) {
             auto cs = collectConstructors(cls);
             if (!cs.empty()) {
@@ -261,6 +275,11 @@ std::vector<CallHierarchyOutgoingCall> CallHierarchyHandler::handleOutgoing(
     };
     std::unordered_map<std::string, TargetAcc> byTarget;
 
+    // Cache findClassEverywhere lookups across all targets resolved in
+    // this request — many targets (different methods on the same class)
+    // share a className and would otherwise re-scan every open document.
+    ClassCache classCache;
+
     for (const auto& entry : bodies) {
         const Document* entryDoc = documentManager_->getDocument(entry.uri);
         CallWalker walker([&](::ast::ASTNode* call) {
@@ -271,7 +290,7 @@ std::vector<CallHierarchyOutgoingCall> CallHierarchyHandler::handleOutgoing(
                 auto it = byTarget.find(key);
                 if (it == byTarget.end()) {
                     TargetAcc acc;
-                    acc.item = itemFromTarget(t, documentManager_);
+                    acc.item = itemFromTarget(t, documentManager_, classCache);
                     // Drop synthetic stubs (target not found) — Q9 / Q1.
                     if (!acc.item.data) continue;
                     acc.ranges.push_back(r);

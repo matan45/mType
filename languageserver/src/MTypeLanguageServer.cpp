@@ -21,15 +21,14 @@ namespace mtype::lsp
     MTypeLanguageServer::MTypeLanguageServer()
     {
         documentManager_ = std::make_unique<DocumentManager>();
-        // MYT-47 — workspace symbol index, populated lazily during
+        // workspace symbol index, populated lazily during
         // handleInitialize once we know the workspace root.
         workspaceIndex_ = std::make_shared<analysis::WorkspaceSymbolIndex>();
         reindexDebouncer_ = std::make_shared<ReindexDebouncer>();
 
-        // MYT-51 — the completion handler shares the same workspace
-        // symbol index as the code-action handler so the auto-import
-        // completion branch and the missing-import quick fix see the
-        // same symbol pool.
+        // completion handler shares the same workspace symbol index as
+        // the code-action handler so the auto-import completion branch
+        // and the missing-import quick fix see the same symbol pool.
         completionHandler_ = std::make_unique<CompletionHandler>(
             documentManager_.get(), workspaceIndex_);
         diagnosticsHandler_ = std::make_unique<DiagnosticsHandler>(documentManager_.get());
@@ -41,8 +40,8 @@ namespace mtype::lsp
         formattingHandler_ = std::make_unique<FormattingHandler>();
         referencesHandler_ = std::make_unique<ReferencesHandler>(
             documentManager_.get(), workspaceIndex_);
-        // MYT-294 — rename walks every open document via documentManager_;
-        // it does not consult the workspace index because the index only
+        // rename walks every open document via documentManager_; it
+        // does not consult the workspace index because the index only
         // tracks files that *declare* top-level symbols, missing files
         // that only *use* the symbol being renamed.
         renameHandler_ = std::make_unique<RenameHandler>(
@@ -51,13 +50,13 @@ namespace mtype::lsp
         semanticTokensHandler_ = std::make_unique<SemanticTokensHandler>(documentManager_.get());
         inlayHintHandler_ = std::make_unique<InlayHintHandler>(documentManager_.get());
         documentSymbolHandler_ = std::make_unique<DocumentSymbolHandler>(documentManager_.get());
-        // MYT-297 — workspace/symbol shares the same workspace index
-        // populated at initialise so cross-file symbol search sees the
-        // same pool as completion, references, and rename.
+        // workspace/symbol shares the same workspace index populated
+        // at initialise so cross-file symbol search sees the same pool
+        // as completion, references, and rename.
         workspaceSymbolHandler_ = std::make_unique<WorkspaceSymbolHandler>(workspaceIndex_);
-        // MYT-299 — call hierarchy provider. Shares workspaceIndex_ for
-        // future cross-file extensions; v1 scans only DocumentManager's
-        // open documents.
+        // call hierarchy provider. Shares workspaceIndex_ for future
+        // cross-file extensions; v1 scans only DocumentManager's open
+        // documents.
         callHierarchyHandler_ = std::make_unique<CallHierarchyHandler>(
             documentManager_.get(), workspaceIndex_);
 
@@ -276,11 +275,11 @@ namespace mtype::lsp
         {
             projectConfig_->loadFromWorkspace(workspaceRoot);
 
-            // MYT-47 — kick off the initial workspace symbol scan in a
-            // background thread. The future is shared with the index so
-            // request handlers (the missing-import quick fix and the
-            // auto-import completion branch) can short-block early
-            // requests via WorkspaceSymbolIndex::waitForReady().
+            // Kick off the initial workspace symbol scan in a background
+            // thread. The future is shared with the index so request
+            // handlers (the missing-import quick fix and the auto-import
+            // completion branch) can short-block early requests via
+            // WorkspaceSymbolIndex::waitForReady().
             auto idx = workspaceIndex_;
             std::string root = workspaceRoot;
             workspaceIndexReady_ = std::async(std::launch::async,
@@ -293,7 +292,7 @@ namespace mtype::lsp
         // Share project config with handlers
         diagnosticsHandler_->setProjectConfig(projectConfig_);
         documentManager_->setProjectConfig(projectConfig_);
-        // MYT-309 — path-completion needs the alias map to surface `@pkg`
+        // Path-completion needs the alias map to surface `@pkg`
         // suggestions when the user types `@` inside an import string.
         completionHandler_->setProjectConfig(projectConfig_);
 
@@ -323,7 +322,7 @@ namespace mtype::lsp
             {"documentFormattingProvider", true},
             {"documentRangeFormattingProvider", false}, // TODO: Implement
             {"referencesProvider", true},
-            // MYT-294 — `prepareProvider` lets clients call
+            // `prepareProvider` lets clients call
             // `textDocument/prepareRename` to validate the cursor before
             // popping the rename UI; we return null when the symbol is
             // not renameable so the editor can show a localized error.
@@ -348,23 +347,23 @@ namespace mtype::lsp
                     {"full", true}
                 }
             },
-            // MYT-295 — inlay hints (parameter-name + lambda-param type).
-            // v1 does not implement `inlayHint/resolve`, so we advertise
-            // the boolean form rather than `{resolveProvider: true}`.
+            // Inlay hints (parameter-name + lambda-param type). v1 does
+            // not implement `inlayHint/resolve`, so we advertise the
+            // boolean form rather than `{resolveProvider: true}`.
             {"inlayHintProvider", true},
-            // MYT-296 — document symbols / outline. Hierarchical
-            // DocumentSymbol[] is preferred over the flat
-            // SymbolInformation[] response, which is what modern clients
-            // (VS Code Outline view, breadcrumbs) consume.
+            // Document symbols / outline. Hierarchical DocumentSymbol[]
+            // is preferred over the flat SymbolInformation[] response,
+            // which is what modern clients (VS Code Outline view,
+            // breadcrumbs) consume.
             {"documentSymbolProvider", true},
-            // MYT-297 — workspace-wide symbol search served by the
-            // existing MYT-47 workspace symbol index. Boolean form (no
+            // Workspace-wide symbol search served by the existing
+            // workspace symbol index. Boolean form (no
             // workspaceSymbol/resolve) — responses already carry full
             // locations.
             {"workspaceSymbolProvider", true},
-            // MYT-299 — call hierarchy (prepare + incomingCalls +
-            // outgoingCalls). v1 covers direct syntactic calls between
-            // top-level functions, class methods, and constructors. See
+            // Call hierarchy (prepare + incomingCalls + outgoingCalls).
+            // v1 covers direct syntactic calls between top-level
+            // functions, class methods, and constructors. See
             // CallHierarchyHandler for the scope/resolution rules.
             {"callHierarchyProvider", true}
         };
@@ -397,11 +396,11 @@ namespace mtype::lsp
         documentManager_->openDocument(uri, text, version);
         diagnosticsHandler_->publishDiagnostics(uri);
 
-        // MYT-47 — keep the workspace symbol index in sync with the
-        // newly-parsed document so the missing-import quick fix can
-        // surface symbols defined in files that have just been opened.
-        // Use the buffer overload so unsaved changes (LSP can reopen a
-        // dirty document) are visible to the index immediately.
+        // Keep the workspace symbol index in sync with the newly-parsed
+        // document so the missing-import quick fix can surface symbols
+        // defined in files that have just been opened. Use the buffer
+        // overload so unsaved changes (LSP can reopen a dirty document)
+        // are visible to the index immediately.
         if (workspaceIndex_) workspaceIndex_->reindexFile(uri, text);
     }
 
@@ -417,7 +416,7 @@ namespace mtype::lsp
             std::string text = contentChanges[0]["text"];
             documentManager_->updateDocument(uri, text, version);
             diagnosticsHandler_->publishDiagnostics(uri);
-            // MYT-47 — refresh the workspace index entries for this file.
+            // Refresh the workspace index entries for this file.
             // Debounced so a typing burst only fires one reindex after the
             // user pauses (full lex+parse on every keystroke is wasteful).
             // The buffer is captured by value so the index sees the user's
@@ -463,14 +462,14 @@ namespace mtype::lsp
     {
         std::string uri = params["textDocument"]["uri"];
         documentManager_->closeDocument(uri);
-        // MYT-47 — drop entries for closed documents so the index doesn't
+        // Drop entries for closed documents so the index doesn't
         // accumulate stale data when the editor closes a file.
         if (workspaceIndex_) workspaceIndex_->invalidateFile(uri);
     }
 
     void MTypeLanguageServer::handleDidChangeWatchedFiles(const json& params)
     {
-        // MYT-309 — the VS Code extension forwards FS events for
+        // The VS Code extension forwards FS events for
         // `**/mt_modules/**/mtpkg.json`. When a package is added or
         // removed via `mtpm`, re-merge the alias map and refresh
         // diagnostics for any open document so the previously-unresolved
@@ -699,9 +698,9 @@ namespace mtype::lsp
 
     void MTypeLanguageServer::handlePrepareRename(const json& id, const json& params)
     {
-        // MYT-294 — `textDocument/prepareRename` validates whether the
-        // cursor is on a renameable symbol. When it isn't, the LSP spec
-        // accepts a null result (the client suppresses its rename UI);
+        // `textDocument/prepareRename` validates whether the cursor is
+        // on a renameable symbol. When it isn't, the LSP spec accepts a
+        // null result (the client suppresses its rename UI);
         // we additionally send a -32602 with a message so editors that
         // surface server-side errors can show "why not". Returning a
         // Range tells the client the exact identifier span to highlight.
@@ -731,9 +730,9 @@ namespace mtype::lsp
 
     void MTypeLanguageServer::handleRename(const json& id, const json& params)
     {
-        // MYT-294 — `textDocument/rename` returns a WorkspaceEdit whose
-        // `changes` map is grouped by URI. Each edit's range comes from
-        // the lexer's token stream so we never touch comments, string
+        // `textDocument/rename` returns a WorkspaceEdit whose `changes`
+        // map is grouped by URI. Each edit's range comes from the
+        // lexer's token stream so we never touch comments, string
         // literals, import paths, or any other non-identifier source
         // text.
         //
@@ -783,8 +782,8 @@ namespace mtype::lsp
 
     void MTypeLanguageServer::handleInlayHint(const json& id, const json& params)
     {
-        // MYT-295 — `textDocument/inlayHint` returns InlayHint[] for the
-        // given Range. The handler returns an empty vector on any
+        // `textDocument/inlayHint` returns InlayHint[] for the given
+        // Range. The handler returns an empty vector on any
         // partial/unparsed state, so a malformed `range` param is the
         // only failure mode here. On any exception we still reply with
         // an empty array rather than -32603, since the LSP spec allows
@@ -808,8 +807,8 @@ namespace mtype::lsp
 
     void MTypeLanguageServer::handleDocumentSymbol(const json& id, const json& params)
     {
-        // MYT-296 — `textDocument/documentSymbol` returns a
-        // DocumentSymbol[] tree describing the open document's outline.
+        // `textDocument/documentSymbol` returns a DocumentSymbol[] tree
+        // describing the open document's outline.
         // The handler already guards against unparsed / partial state
         // and never throws, but a malformed `params` (e.g., missing
         // textDocument.uri) still has to be caught here so a junk
@@ -831,8 +830,8 @@ namespace mtype::lsp
 
     void MTypeLanguageServer::handleWorkspaceSymbol(const json& id, const json& params)
     {
-        // MYT-297 — `workspace/symbol` returns a flat SymbolInformation[]
-        // of top-level declarations matching `query`. Empty query is
+        // `workspace/symbol` returns a flat SymbolInformation[] of
+        // top-level declarations matching `query`. Empty query is
         // legal per spec and returns the full (capped) symbol set.
         // Same defensive shape as handleDocumentSymbol: extract `query`
         // tolerantly (missing or non-string → empty) and serialise an
@@ -858,7 +857,7 @@ namespace mtype::lsp
 
     void MTypeLanguageServer::handlePrepareCallHierarchy(const json& id, const json& params)
     {
-        // MYT-299 — `textDocument/prepareCallHierarchy` returns a list of
+        // `textDocument/prepareCallHierarchy` returns a list of
         // CallHierarchyItem (possibly empty, possibly multiple for an
         // ambiguous name-only call site). LSP spec allows `null` for "no
         // callable at cursor"; VS Code accepts an empty array as the same
@@ -886,7 +885,10 @@ namespace mtype::lsp
             json result = json::array();
             for (const auto& c : calls) result.push_back(c.toJson());
             sendResponse(id, result);
-        } catch (const std::exception&) {
+        } catch (const json::exception& e) {
+            sendError(id, -32602, std::string("invalid callHierarchy/incomingCalls params: ") + e.what());
+        } catch (const std::exception& e) {
+            std::cerr << "[mtype-lsp] callHierarchy/incomingCalls failed: " << e.what() << "\n";
             sendResponse(id, json::array());
         }
     }
@@ -899,7 +901,10 @@ namespace mtype::lsp
             json result = json::array();
             for (const auto& c : calls) result.push_back(c.toJson());
             sendResponse(id, result);
-        } catch (const std::exception&) {
+        } catch (const json::exception& e) {
+            sendError(id, -32602, std::string("invalid callHierarchy/outgoingCalls params: ") + e.what());
+        } catch (const std::exception& e) {
+            std::cerr << "[mtype-lsp] callHierarchy/outgoingCalls failed: " << e.what() << "\n";
             sendResponse(id, json::array());
         }
     }

@@ -82,13 +82,6 @@ void SemanticTokensHandler::pushToken(std::vector<RawToken>& tokens,
     tokens.push_back({line, startChar, length, type, modifiers});
 }
 
-bool SemanticTokensHandler::hasTokenAt(const std::vector<RawToken>& tokens,
-                                       int line, int startChar, int length) {
-    return std::any_of(tokens.begin(), tokens.end(), [&](const RawToken& tok) {
-        return tok.line == line && tok.startChar == startChar && tok.length == length;
-    });
-}
-
 // ---------- Constructor — pre-compile all regexes ----------
 
 SemanticTokensHandler::SemanticTokensHandler(DocumentManager* docMgr)
@@ -119,13 +112,25 @@ SemanticTokensHandler::SemanticTokensHandler(DocumentManager* docMgr)
 // ---------- Main entry point ----------
 
 SemanticTokens SemanticTokensHandler::handleSemanticTokensFull(const std::string& uri) {
-    // Thread-safe: use a local vector instead of a member scratch buffer
-    std::vector<RawToken> tokens;
-
     auto* doc = documentManager_->getDocument(uri);
     if (!doc) return SemanticTokens{};
 
-    // Collect known class names from document symbols
+    std::vector<std::string> knownClasses = collectKnownClasses(uri);
+    std::vector<RawToken> tokens;
+    TokenizationState state;
+
+    std::istringstream stream(doc->content);
+    std::string line;
+    int lineIndex = 0;
+    while (std::getline(stream, line)) {
+        processSourceLine(line, lineIndex, knownClasses, state, tokens);
+        lineIndex++;
+    }
+
+    return deltaEncodeTokens(tokens);
+}
+
+std::vector<std::string> SemanticTokensHandler::collectKnownClasses(const std::string& uri) const {
     std::vector<std::string> knownClasses;
     auto symbols = documentManager_->getDocumentSymbols(uri);
     for (const auto& sym : symbols) {
@@ -133,8 +138,6 @@ SemanticTokens SemanticTokensHandler::handleSemanticTokensFull(const std::string
             knownClasses.push_back(sym.name);
         }
     }
-
-    // Standard collection types
     static const std::vector<std::string> standardTypes = {
         "List", "LinkedList", "HashMap", "HashSet", "Stack", "Queue",
         "Array", "Set", "Map", "Promise"
@@ -142,192 +145,186 @@ SemanticTokens SemanticTokensHandler::handleSemanticTokensFull(const std::string
     for (const auto& t : standardTypes) {
         knownClasses.push_back(t);
     }
+    return knownClasses;
+}
 
-    auto countBraces = [](const std::string& sourceLine, char brace) {
-        std::string line = sourceLine;
-        size_t comment = line.find("//");
-        if (comment != std::string::npos) {
-            line = line.substr(0, comment);
-        }
-
-        int count = 0;
-        bool inString = false;
-        for (size_t i = 0; i < line.size(); i++) {
-            char c = line[i];
-            if (c == '"' && (i == 0 || line[i - 1] != '\\')) {
-                inString = !inString;
-            }
-            if (!inString && c == brace) {
-                count++;
-            }
-        }
-        return count;
-    };
-
-    auto findLineCommentStart = [](const std::string& sourceLine) -> size_t {
-        bool inString = false;
-        char stringDelimiter = '\0';
-
-        for (size_t i = 0; i + 1 < sourceLine.size(); i++) {
-            char c = sourceLine[i];
-            if ((c == '"' || c == '\'') && (i == 0 || sourceLine[i - 1] != '\\')) {
-                if (inString && c == stringDelimiter) {
-                    inString = false;
-                    stringDelimiter = '\0';
-                } else if (!inString) {
-                    inString = true;
-                    stringDelimiter = c;
-                }
-            }
-
-            if (!inString && c == '/' && sourceLine[i + 1] == '/') {
-                return i;
-            }
-        }
-
-        return std::string::npos;
-    };
-
-    auto maskStringLiterals = [](const std::string& sourceLine,
-                                 int currentLine,
-                                 std::vector<RawToken>& rawTokens) {
-        std::string masked = sourceLine;
-
-        for (size_t i = 0; i < sourceLine.size(); i++) {
-            char quote = sourceLine[i];
-            if (quote != '"' && quote != '\'') continue;
-            if (i > 0 && sourceLine[i - 1] == '\\') continue;
-
-            size_t end = i + 1;
-            while (end < sourceLine.size()) {
-                if (sourceLine[end] == quote && sourceLine[end - 1] != '\\') {
-                    end++;
-                    break;
-                }
-                end++;
-            }
-
-            pushToken(rawTokens, currentLine,
-                      static_cast<int>(i),
-                      static_cast<int>(end - i),
-                      encodeTokenType("string"), 0);
-
-            for (size_t j = i; j < end && j < masked.size(); j++) {
-                masked[j] = ' ';
-            }
-
-            i = end == 0 ? i : end - 1;
-        }
-
-        return masked;
-    };
-
-    bool pendingClassBody = false;
-    bool pendingFunctionBody = false;
-    int classDepth = 0;
-    int functionDepth = 0;
-    std::unordered_set<std::string> localSymbols;
-    std::unordered_set<std::string> parameterSymbols;
-
-    // Process each line
-    std::istringstream stream(doc->content);
-    std::string line;
-    int lineIndex = 0;
-
-    while (std::getline(stream, line)) {
-        size_t lineCommentStart = findLineCommentStart(line);
-        std::string codeLine = lineCommentStart == std::string::npos
-            ? line
-            : line.substr(0, lineCommentStart);
-        std::string semanticLine = maskStringLiterals(codeLine, lineIndex, tokens);
-        bool classMemberContext = classDepth > 0 && functionDepth == 0 && !pendingFunctionBody;
-        if (std::regex_search(semanticLine, methodRegex_)) {
-            localSymbols.clear();
-            parameterSymbols.clear();
-        }
-
-        tokenizeAnnotations(semanticLine, lineIndex, tokens);
-        tokenizeAnnotationDeclarations(semanticLine, lineIndex, tokens);
-        tokenizeClassDeclarations(semanticLine, lineIndex, tokens);
-        tokenizeInterfaceDeclarations(semanticLine, lineIndex, tokens);
-        tokenizeMethodDeclarations(semanticLine, lineIndex, tokens);
-        tokenizeParameters(semanticLine, lineIndex, parameterSymbols, tokens);
-        tokenizeVariableDeclarations(semanticLine, lineIndex, classMemberContext, localSymbols, tokens);
-        tokenizeKeywords(semanticLine, lineIndex, tokens);
-        tokenizeTypes(semanticLine, lineIndex, knownClasses, tokens);
-        tokenizeMemberAccess(semanticLine, lineIndex, tokens);
-        tokenizeModifiers(semanticLine, lineIndex, tokens);
-        tokenizeFunctionCalls(semanticLine, lineIndex, tokens);
-        tokenizeSymbolUsages(semanticLine, lineIndex, parameterSymbols, localSymbols, tokens);
-        if (lineCommentStart != std::string::npos) {
-            tokenizeLineComment(line, lineIndex, lineCommentStart, tokens);
-        }
-
-        if (std::regex_search(semanticLine, classRegex_)
-            || std::regex_search(semanticLine, interfaceRegex_)
-            || std::regex_search(semanticLine, annotationDeclRegex_)) {
-            pendingClassBody = true;
-        }
-        if (std::regex_search(semanticLine, methodRegex_)) {
-            pendingFunctionBody = true;
-        }
-
-        int opens = countBraces(semanticLine, '{');
-        int closes = countBraces(semanticLine, '}');
-        for (int i = 0; i < opens; i++) {
-            if (pendingFunctionBody) {
-                functionDepth++;
-                pendingFunctionBody = false;
-            } else if (pendingClassBody) {
-                classDepth++;
-                pendingClassBody = false;
-            } else if (functionDepth > 0) {
-                functionDepth++;
-            } else if (classDepth > 0) {
-                classDepth++;
-            }
-        }
-        for (int i = 0; i < closes; i++) {
-            if (functionDepth > 0) {
-                functionDepth--;
-                if (functionDepth == 0) {
-                    localSymbols.clear();
-                    parameterSymbols.clear();
-                }
-            } else if (classDepth > 0) {
-                classDepth--;
-            }
-        }
-
-        lineIndex++;
+void SemanticTokensHandler::processSourceLine(const std::string& rawLine, int lineIndex,
+                                              const std::vector<std::string>& knownClasses,
+                                              TokenizationState& state,
+                                              std::vector<RawToken>& tokens) {
+    size_t lineCommentStart = findLineCommentStart(rawLine);
+    std::string codeLine = lineCommentStart == std::string::npos
+        ? rawLine
+        : rawLine.substr(0, lineCommentStart);
+    std::string semanticLine = maskStringLiterals(codeLine, lineIndex, tokens);
+    bool classMemberContext = state.classDepth > 0 && state.functionDepth == 0 && !state.pendingFunctionBody;
+    if (std::regex_search(semanticLine, methodRegex_)) {
+        state.localSymbols.clear();
+        state.parameterSymbols.clear();
     }
 
-    // Sort tokens by (line, startChar)
+    tokenizeAnnotations(semanticLine, lineIndex, tokens);
+    tokenizeAnnotationDeclarations(semanticLine, lineIndex, tokens);
+    tokenizeClassDeclarations(semanticLine, lineIndex, tokens);
+    tokenizeInterfaceDeclarations(semanticLine, lineIndex, tokens);
+    tokenizeMethodDeclarations(semanticLine, lineIndex, tokens);
+    tokenizeParameters(semanticLine, lineIndex, state.parameterSymbols, tokens);
+    tokenizeVariableDeclarations(semanticLine, lineIndex, classMemberContext, state.localSymbols, tokens);
+    tokenizeKeywords(semanticLine, lineIndex, tokens);
+    tokenizeTypes(semanticLine, lineIndex, knownClasses, tokens);
+    tokenizeMemberAccess(semanticLine, lineIndex, tokens);
+    tokenizeModifiers(semanticLine, lineIndex, tokens);
+    tokenizeFunctionCalls(semanticLine, lineIndex, tokens);
+    tokenizeSymbolUsages(semanticLine, lineIndex, state.parameterSymbols, state.localSymbols, tokens);
+    if (lineCommentStart != std::string::npos) {
+        tokenizeLineComment(rawLine, lineIndex, lineCommentStart, tokens);
+    }
+
+    if (std::regex_search(semanticLine, classRegex_)
+        || std::regex_search(semanticLine, interfaceRegex_)
+        || std::regex_search(semanticLine, annotationDeclRegex_)) {
+        state.pendingClassBody = true;
+    }
+    if (std::regex_search(semanticLine, methodRegex_)) {
+        state.pendingFunctionBody = true;
+    }
+
+    updateScopeDepth(semanticLine, state);
+}
+
+void SemanticTokensHandler::updateScopeDepth(const std::string& semanticLine,
+                                             TokenizationState& state) {
+    int opens = countBraces(semanticLine, '{');
+    int closes = countBraces(semanticLine, '}');
+    for (int i = 0; i < opens; i++) {
+        if (state.pendingFunctionBody) {
+            state.functionDepth++;
+            state.pendingFunctionBody = false;
+        } else if (state.pendingClassBody) {
+            state.classDepth++;
+            state.pendingClassBody = false;
+        } else if (state.functionDepth > 0) {
+            state.functionDepth++;
+        } else if (state.classDepth > 0) {
+            state.classDepth++;
+        }
+    }
+    for (int i = 0; i < closes; i++) {
+        if (state.functionDepth > 0) {
+            state.functionDepth--;
+            if (state.functionDepth == 0) {
+                state.localSymbols.clear();
+                state.parameterSymbols.clear();
+            }
+        } else if (state.classDepth > 0) {
+            state.classDepth--;
+        }
+    }
+}
+
+SemanticTokens SemanticTokensHandler::deltaEncodeTokens(std::vector<RawToken>& tokens) {
     std::sort(tokens.begin(), tokens.end(), [](const RawToken& a, const RawToken& b) {
         if (a.line != b.line) return a.line < b.line;
         return a.startChar < b.startChar;
     });
 
-    // Delta-encode
     SemanticTokens result;
     int prevLine = 0;
     int prevStart = 0;
-
     for (const auto& tok : tokens) {
         int deltaLine = tok.line - prevLine;
         int deltaStart = (deltaLine == 0) ? (tok.startChar - prevStart) : tok.startChar;
-
         result.data.push_back(static_cast<uint32_t>(deltaLine));
         result.data.push_back(static_cast<uint32_t>(deltaStart));
         result.data.push_back(static_cast<uint32_t>(tok.length));
         result.data.push_back(static_cast<uint32_t>(tok.tokenType));
         result.data.push_back(static_cast<uint32_t>(tok.tokenModifiers));
-
         prevLine = tok.line;
         prevStart = tok.startChar;
     }
-
     return result;
+}
+
+int SemanticTokensHandler::countBraces(const std::string& sourceLine, char brace) {
+    std::string line = sourceLine;
+    size_t comment = line.find("//");
+    if (comment != std::string::npos) {
+        line = line.substr(0, comment);
+    }
+    int count = 0;
+    bool inString = false;
+    for (size_t i = 0; i < line.size(); i++) {
+        char c = line[i];
+        if (c == '"' && (i == 0 || line[i - 1] != '\\')) {
+            inString = !inString;
+        }
+        if (!inString && c == brace) {
+            count++;
+        }
+    }
+    return count;
+}
+
+size_t SemanticTokensHandler::findLineCommentStart(const std::string& sourceLine) {
+    bool inString = false;
+    char stringDelimiter = '\0';
+    for (size_t i = 0; i + 1 < sourceLine.size(); i++) {
+        char c = sourceLine[i];
+        if ((c == '"' || c == '\'') && (i == 0 || sourceLine[i - 1] != '\\')) {
+            if (inString && c == stringDelimiter) {
+                inString = false;
+                stringDelimiter = '\0';
+            } else if (!inString) {
+                inString = true;
+                stringDelimiter = c;
+            }
+        }
+        if (!inString && c == '/' && sourceLine[i + 1] == '/') {
+            return i;
+        }
+    }
+    return std::string::npos;
+}
+
+std::string SemanticTokensHandler::maskStringLiterals(const std::string& sourceLine,
+                                                     int currentLine,
+                                                     std::vector<RawToken>& rawTokens) {
+    std::string masked = sourceLine;
+    size_t i = 0;
+    while (i < sourceLine.size()) {
+        char c = sourceLine[i];
+        if (c != '"' && c != '\'') {
+            ++i;
+            continue;
+        }
+        char quote = c;
+        size_t start = i;
+        size_t end = i + 1;
+        while (end < sourceLine.size()) {
+            char ec = sourceLine[end];
+            // Forward scan: an escape always consumes the next char, so
+            // `"\\"` resolves correctly — the closing `"` isn't masked as
+            // still-escaped (the prior look-behind variant had this bug).
+            if (ec == '\\' && end + 1 < sourceLine.size()) {
+                end += 2;
+                continue;
+            }
+            if (ec == quote) {
+                ++end;
+                break;
+            }
+            ++end;
+        }
+        pushToken(rawTokens, currentLine,
+                  static_cast<int>(start),
+                  static_cast<int>(end - start),
+                  encodeTokenType("string"), 0);
+        for (size_t j = start; j < end && j < masked.size(); ++j) {
+            masked[j] = ' ';
+        }
+        i = end;
+    }
+    return masked;
 }
 
 // ---------- Tokenization passes ----------
@@ -544,6 +541,18 @@ void SemanticTokensHandler::tokenizeSymbolUsages(
     auto begin = std::sregex_iterator(line.begin(), line.end(), identifierRegex);
     auto end = std::sregex_iterator();
 
+    // Dedupe against tokens already produced on this line. Build the set
+    // once from the suffix of `tokens` that belongs to lineIndex (earlier
+    // tokenize* passes append in order, so same-line tokens sit at the
+    // tail) and look up in O(1). A naive per-identifier linear scan over
+    // `tokens` would be O(idents × tokens) per line.
+    std::unordered_set<uint64_t> existingTokenStarts;
+    for (auto rit = tokens.rbegin(); rit != tokens.rend() && rit->line == lineIndex; ++rit) {
+        existingTokenStarts.insert(
+            (static_cast<uint64_t>(rit->line) << 32) |
+            static_cast<uint64_t>(static_cast<uint32_t>(rit->startChar)));
+    }
+
     for (auto it = begin; it != end; ++it) {
         std::string name = (*it)[0].str();
         if (skipWords.count(name)) continue;
@@ -554,7 +563,9 @@ void SemanticTokensHandler::tokenizeSymbolUsages(
 
         int pos = static_cast<int>(it->position());
         int length = static_cast<int>(name.length());
-        if (hasTokenAt(tokens, lineIndex, pos, length)) continue;
+        uint64_t key = (static_cast<uint64_t>(lineIndex) << 32) |
+                       static_cast<uint64_t>(static_cast<uint32_t>(pos));
+        if (existingTokenStarts.count(key)) continue;
 
         size_t start = static_cast<size_t>(pos);
         size_t after = start + static_cast<size_t>(length);

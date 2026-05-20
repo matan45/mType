@@ -39,6 +39,35 @@ private:
         int tokenModifiers;
     };
 
+    // Per-document state tracked while walking lines.
+    struct TokenizationState {
+        bool pendingClassBody = false;
+        bool pendingFunctionBody = false;
+        int classDepth = 0;
+        int functionDepth = 0;
+        std::unordered_set<std::string> localSymbols;
+        std::unordered_set<std::string> parameterSymbols;
+    };
+
+    std::vector<std::string> collectKnownClasses(const std::string& uri) const;
+    void processSourceLine(const std::string& rawLine, int lineIndex,
+                           const std::vector<std::string>& knownClasses,
+                           TokenizationState& state,
+                           std::vector<RawToken>& tokens);
+    static void updateScopeDepth(const std::string& semanticLine,
+                                 TokenizationState& state);
+    static SemanticTokens deltaEncodeTokens(std::vector<RawToken>& tokens);
+
+    // Per-line lexer helpers — extracted from handleSemanticTokensFull so
+    // the outer driver stays small and these stay independently testable.
+    static int countBraces(const std::string& sourceLine, char brace);
+    static size_t findLineCommentStart(const std::string& sourceLine);
+    // Forward state machine: replaces look-behind `prev == '\\'` guard so
+    // an escaped backslash like "\\" doesn't fool the closing-quote check.
+    static std::string maskStringLiterals(const std::string& sourceLine,
+                                          int currentLine,
+                                          std::vector<RawToken>& rawTokens);
+
     // Tokenization passes — each appends to the supplied vector
     void tokenizeAnnotations(const std::string& line, int lineIndex, std::vector<RawToken>& tokens) const;
     void tokenizeLineComment(const std::string& line, int lineIndex, size_t commentStart, std::vector<RawToken>& tokens) const;
@@ -72,7 +101,6 @@ private:
     static int encodeTokenType(const std::string& type);
     static int encodeTokenModifiers(const std::vector<std::string>& mods);
     static void pushToken(std::vector<RawToken>& tokens, int line, int startChar, int length, int type, int modifiers);
-    static bool hasTokenAt(const std::vector<RawToken>& tokens, int line, int startChar, int length);
 
     // Pre-compiled regexes (built once in constructor)
     std::regex annotationRegex_;

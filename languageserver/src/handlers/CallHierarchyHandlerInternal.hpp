@@ -1,4 +1,4 @@
-// MYT-299 — Internal helpers shared between the prepare/incoming/outgoing
+// Internal helpers shared between the prepare/incoming/outgoing
 // translation units of CallHierarchyHandler. Not a public LSP header — do
 // not include from outside src/handlers/CallHierarchy*.cpp.
 #pragma once
