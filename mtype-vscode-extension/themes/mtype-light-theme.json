@@ -20,8 +20,11 @@
   },
   "tokenColors": [
     {
-      "name": "Comment",
-      "scope": ["comment", "punctuation.definition.comment"],
+      "name": "Comments",
+      "scope": [
+        "comment",
+        "punctuation.definition.comment"
+      ],
       "settings": {
         "foreground": "#6e7781",
         "fontStyle": "italic"
@@ -29,51 +32,186 @@
     },
     {
       "name": "Keywords",
-      "scope": ["keyword.control.mtype", "keyword.other.mtype"],
+      "scope": [
+        "keyword.control.mtype",
+        "keyword.other.mtype",
+        "keyword.control.import.mtype",
+        "keyword.control.import.from.mtype",
+        "keyword.declaration.class.mtype",
+        "keyword.declaration.interface.mtype",
+        "keyword.declaration.annotation.mtype",
+        "keyword.declaration.function.mtype"
+      ],
+      "settings": {
+        "foreground": "#cf222e"
+      }
+    },
+    {
+      "name": "Modifiers",
+      "scope": [
+        "storage.modifier.mtype",
+        "storage.modifier.async.mtype",
+        "storage.modifier.visibility.mtype"
+      ],
       "settings": {
         "foreground": "#cf222e"
       }
     },
     {
       "name": "Types",
-      "scope": ["storage.type.primitive.mtype", "storage.type.collection.mtype", "storage.type.mtype"],
+      "scope": [
+        "storage.type.mtype",
+        "storage.type.primitive.mtype",
+        "storage.type.standard.mtype",
+        "storage.type.collection.mtype",
+        "entity.name.type.class.mtype",
+        "entity.name.type.interface.mtype",
+        "entity.name.type.annotation.mtype",
+        "entity.name.type.imported.mtype"
+      ],
       "settings": {
-        "foreground": "#8250df"
+        "foreground": "#953800"
       }
     },
     {
       "name": "Strings",
-      "scope": ["string.quoted.double.mtype", "string.quoted.single.mtype"],
+      "scope": [
+        "string.quoted.double.mtype",
+        "string.quoted.single.mtype",
+        "string.interpolated.mtype"
+      ],
       "settings": {
         "foreground": "#116329"
       }
     },
     {
-      "name": "Numbers and Constants",
-      "scope": ["constant.numeric.mtype", "constant.language.mtype"],
+      "name": "String Escapes and Interpolation",
+      "scope": [
+        "constant.character.escape.mtype",
+        "punctuation.section.interpolation.begin.mtype",
+        "punctuation.section.interpolation.end.mtype"
+      ],
       "settings": {
         "foreground": "#0550ae"
       }
     },
     {
-      "name": "Functions",
-      "scope": ["entity.name.function.mtype", "support.function.mtype"],
+      "name": "Numbers and Constants",
+      "scope": [
+        "constant.numeric.hex.mtype",
+        "constant.numeric.float.mtype",
+        "constant.numeric.integer.mtype",
+        "constant.language.boolean.mtype",
+        "constant.language.null.mtype",
+        "constant.language.mtype"
+      ],
+      "settings": {
+        "foreground": "#0550ae"
+      }
+    },
+    {
+      "name": "Functions and Methods",
+      "scope": [
+        "entity.name.function.mtype",
+        "entity.name.function.method.mtype",
+        "entity.name.function.static.mtype",
+        "entity.name.function.constructor.mtype"
+      ],
       "settings": {
         "foreground": "#6639ba"
       }
     },
     {
-      "name": "Classes",
-      "scope": ["entity.name.type.class.mtype", "support.class.mtype"],
+      "name": "Annotations",
+      "scope": [
+        "meta.annotation.mtype",
+        "entity.name.tag.annotation.mtype",
+        "punctuation.definition.annotation.mtype"
+      ],
+      "settings": {
+        "foreground": "#8250df",
+        "fontStyle": "bold"
+      }
+    },
+    {
+      "name": "Parameters and Locals",
+      "scope": [
+        "variable.parameter.mtype",
+        "variable.other.declaration.mtype",
+        "variable.other.import-alias.mtype"
+      ],
+      "settings": {
+        "foreground": "#24292f"
+      }
+    },
+    {
+      "name": "Members and Assignments",
+      "scope": [
+        "variable.other.member.mtype",
+        "variable.other.assignment.mtype",
+        "variable.language.this.mtype"
+      ],
       "settings": {
         "foreground": "#953800"
       }
     },
     {
       "name": "Operators",
-      "scope": ["keyword.operator.mtype"],
+      "scope": [
+        "keyword.operator.arrow.mtype",
+        "keyword.operator.arithmetic.mtype",
+        "keyword.operator.comparison.mtype",
+        "keyword.operator.logical.mtype",
+        "keyword.operator.assignment.mtype",
+        "keyword.operator.ternary.mtype",
+        "keyword.operator.wildcard.mtype"
+      ],
       "settings": {
         "foreground": "#0550ae"
+      }
+    },
+    {
+      "name": "Member and Static Access",
+      "scope": [
+        "keyword.operator.member-access.mtype",
+        "punctuation.separator.namespace.mtype"
+      ],
+      "settings": {
+        "foreground": "#57606a"
+      }
+    },
+    {
+      "name": "Punctuation",
+      "scope": [
+        "punctuation.separator.comma.mtype",
+        "punctuation.terminator.statement.mtype",
+        "punctuation.definition.string.begin.mtype",
+        "punctuation.definition.string.end.mtype"
+      ],
+      "settings": {
+        "foreground": "#57606a"
+      }
+    },
+    {
+      "name": "Braces and Parentheses",
+      "scope": [
+        "punctuation.brace.curly.mtype",
+        "punctuation.brace.round.mtype",
+        "punctuation.brace.square.mtype"
+      ],
+      "settings": {
+        "foreground": "#0550ae"
+      }
+    },
+    {
+      "name": "Generics",
+      "scope": [
+        "meta.generic.mtype",
+        "punctuation.definition.generic.begin.mtype",
+        "punctuation.definition.generic.end.mtype"
+      ],
+      "settings": {
+        "foreground": "#953800"
       }
     }
   ]

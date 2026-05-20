@@ -2,6 +2,7 @@
 #include "../src/handlers/CodeLensHandler.hpp"
 #include "../src/DocumentManager.hpp"
 #include "TestFixtures.hpp"
+#include "../../mType/environment/registry/ClassDefinition.hpp"
 
 namespace mtype::lsp::test {
 
@@ -84,6 +85,38 @@ void CodeLensHandlerTestSuite::registerTests(LspTestHarness& harness) {
         for (const auto& lens : lenses) {
             require(lens.range.start.character == 0,
                 "lens should be at column 0");
+        }
+    });
+
+    harness.addTest("imported class symbols do not create lenses in current document", []() {
+        auto docMgr = makeDocManager("file:///test.mt",
+            "class Local {}\n"
+            "// Imported declaration line should not render here\n"
+            "function main(): void {\n"
+            "    Imported value = new Imported();\n"
+            "}\n");
+        auto* doc = docMgr->getDocument("file:///test.mt");
+        require(doc != nullptr, "expected test document");
+        require(doc->environment != nullptr, "expected parsed environment");
+
+        auto classRegistry = doc->environment->getClassRegistry();
+        require(classRegistry != nullptr, "expected class registry");
+        classRegistry->registerClass(
+            "Imported",
+            std::make_shared<runtimeTypes::klass::ClassDefinition>("Imported"));
+        doc->symbolLocations["Imported"] = SymbolLocationInfo{
+            "file:///lib/Imported.mt",
+            1,
+            0,
+            ""
+        };
+
+        CodeLensHandler handler(docMgr.get());
+        auto lenses = handler.handleCodeLens("file:///test.mt");
+
+        for (const auto& lens : lenses) {
+            require(lens.range.start.line != 1,
+                "imported class lens should not render on current document comments");
         }
     });
 }

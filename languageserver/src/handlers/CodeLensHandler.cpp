@@ -47,8 +47,17 @@ std::vector<CodeLens> CodeLensHandler::handleCodeLens(const std::string& uri) {
         return lenses;
     }
 
-    // For each registered symbol, create a code lens with reference count
+    const std::string decodedCurrentUri = urlDecode(uri);
+
+    // For each locally declared class/interface, create a code lens with a
+    // reference count. Imported symbols are also present in symbolLocations,
+    // but their source line numbers belong to other files; rendering them in
+    // this document puts lenses over unrelated statements or comments.
     for (const auto& [symbolName, location] : doc->symbolLocations) {
+        if (location.uri != uri && urlDecode(location.uri) != decodedCurrentUri) {
+            continue;
+        }
+
         // Check if it's a class or interface
         bool isClass = classRegistry && classRegistry->hasClass(symbolName);
         bool isInterface = interfaceRegistry && interfaceRegistry->hasInterface(symbolName);

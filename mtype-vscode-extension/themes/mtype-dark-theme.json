@@ -24,7 +24,7 @@
   },
   "tokenColors": [
     {
-      "name": "Comment",
+      "name": "Comments",
       "scope": [
         "comment",
         "punctuation.definition.comment"
@@ -35,66 +35,78 @@
       }
     },
     {
-      "name": "mType Control Keywords",
+      "name": "Keywords",
       "scope": [
         "keyword.control.mtype",
-		"keyword.other.mtype"
+        "keyword.other.mtype",
+        "keyword.control.import.mtype",
+        "keyword.control.import.from.mtype",
+        "keyword.declaration.class.mtype",
+        "keyword.declaration.interface.mtype",
+        "keyword.declaration.annotation.mtype",
+        "keyword.declaration.function.mtype"
       ],
       "settings": {
         "foreground": "#c678dd"
       }
     },
     {
-      "name": "mType Primitive Types",
+      "name": "Modifiers",
       "scope": [
-        "storage.type.primitive.mtype"
+        "storage.modifier.mtype",
+        "storage.modifier.async.mtype",
+        "storage.modifier.visibility.mtype"
       ],
       "settings": {
-        "foreground": "#e5c07b"
+        "foreground": "#c678dd"
       }
     },
     {
-      "name": "mType Collection Types",
+      "name": "Types",
       "scope": [
+        "storage.type.mtype",
+        "storage.type.primitive.mtype",
+        "storage.type.standard.mtype",
         "storage.type.collection.mtype",
-        "storage.type.mtype"
+        "entity.name.type.class.mtype",
+        "entity.name.type.interface.mtype",
+        "entity.name.type.annotation.mtype",
+        "entity.name.type.imported.mtype"
       ],
       "settings": {
         "foreground": "#e5c07b"
       }
     },
     {
-      "name": "mType String",
+      "name": "Strings",
       "scope": [
         "string.quoted.double.mtype",
-        "string.quoted.single.mtype"
+        "string.quoted.single.mtype",
+        "string.interpolated.mtype"
       ],
       "settings": {
         "foreground": "#98c379"
       }
     },
     {
-      "name": "mType String Escapes",
+      "name": "String Escapes and Interpolation",
       "scope": [
-        "constant.character.escape.mtype"
+        "constant.character.escape.mtype",
+        "punctuation.section.interpolation.begin.mtype",
+        "punctuation.section.interpolation.end.mtype"
       ],
       "settings": {
         "foreground": "#56b6c2"
       }
     },
     {
-      "name": "mType Numbers",
+      "name": "Numbers and Constants",
       "scope": [
-        "constant.numeric.decimal.mtype",
-        "constant.numeric.integer.mtype"
-      ],
-      "settings": {
-        "foreground": "#d19a66"
-      }
-    },
-    {
-      "name": "mType Boolean Constants",
-      "scope": [
+        "constant.numeric.hex.mtype",
+        "constant.numeric.float.mtype",
+        "constant.numeric.integer.mtype",
+        "constant.language.boolean.mtype",
+        "constant.language.null.mtype",
         "constant.language.mtype"
       ],
       "settings": {
@@ -102,28 +114,23 @@
       }
     },
     {
-      "name": "mType Function Names",
+      "name": "Functions and Methods",
       "scope": [
-        "entity.name.function.mtype"
+        "entity.name.function.mtype",
+        "entity.name.function.method.mtype",
+        "entity.name.function.static.mtype",
+        "entity.name.function.constructor.mtype"
       ],
       "settings": {
-        "foreground": "#7474ed"
+        "foreground": "#61afef"
       }
     },
     {
-      "name": "mType Class Names",
+      "name": "Annotations",
       "scope": [
-        "entity.name.type.class.mtype"
-      ],
-      "settings": {
-        "foreground": "#e5c07b"
-      }
-    },
-    {
-      "name": "mType @Override and @Script Annotations",
-      "scope": [
-        "storage.type.annotation.override.mtype",
-        "storage.type.annotation.script.mtype"
+        "meta.annotation.mtype",
+        "entity.name.tag.annotation.mtype",
+        "punctuation.definition.annotation.mtype"
       ],
       "settings": {
         "foreground": "#e5c07b",
@@ -131,133 +138,84 @@
       }
     },
     {
-      "name": "mType Annotations",
+      "name": "Parameters and Locals",
       "scope": [
-        "entity.name.tag.mtype",
-        "meta.annotation.mtype"
+        "variable.parameter.mtype",
+        "variable.other.declaration.mtype",
+        "variable.other.import-alias.mtype"
       ],
       "settings": {
-        "foreground": "#e5c07b"
+        "foreground": "#abb2bf"
       }
     },
     {
-      "name": "mType Function Parameters",
-      "scope": [
-        "variable.parameter.mtype"
-      ],
-      "settings": {
-        "foreground": "#636d83"
-      }
-    },
-    {
-      "name": "mType Data Members and Fields",
+      "name": "Members and Assignments",
       "scope": [
         "variable.other.member.mtype",
-        "variable.other.field.mtype",
-        "variable.other.field.simple.mtype",
-        "variable.other.member.access.mtype",
-        "variable.other.member.standalone.mtype"
-      ],
-      "settings": {
-        "foreground": "#e06c75",
-        "fontStyle": ""
-      }
-    },
-    {
-      "name": "mType Variable Assignments",
-      "scope": [
-        "variable.other.assignment.mtype"
+        "variable.other.assignment.mtype",
+        "variable.language.this.mtype"
       ],
       "settings": {
         "foreground": "#e06c75"
       }
     },
     {
-      "name": "mType Local Variables",
+      "name": "Operators",
       "scope": [
-        "variable.other.local.mtype"
-      ],
-      "settings": {
-        "foreground": "#636d83"
-      }
-    },
-    {
-      "name": "mType Operators",
-      "scope": [
+        "keyword.operator.arrow.mtype",
         "keyword.operator.arithmetic.mtype",
         "keyword.operator.comparison.mtype",
         "keyword.operator.logical.mtype",
         "keyword.operator.assignment.mtype",
-        "keyword.operator.ternary.mtype"
+        "keyword.operator.ternary.mtype",
+        "keyword.operator.wildcard.mtype"
       ],
       "settings": {
         "foreground": "#56b6c2"
       }
     },
     {
-      "name": "mType Member Access",
+      "name": "Member and Static Access",
       "scope": [
-        "keyword.operator.member-access.mtype"
+        "keyword.operator.member-access.mtype",
+        "punctuation.separator.namespace.mtype"
       ],
       "settings": {
         "foreground": "#abb2bf"
       }
     },
     {
-      "name": "mType Punctuation",
+      "name": "Punctuation",
       "scope": [
-        "punctuation.separator.comma.mtype"
+        "punctuation.separator.comma.mtype",
+        "punctuation.terminator.statement.mtype",
+        "punctuation.definition.string.begin.mtype",
+        "punctuation.definition.string.end.mtype"
       ],
       "settings": {
         "foreground": "#abb2bf"
       }
     },
     {
-      "name": "mType Braces and Parentheses",
+      "name": "Braces and Parentheses",
       "scope": [
         "punctuation.brace.curly.mtype",
-        "punctuation.brace.round.mtype"
-      ],
-      "settings": {
-        "foreground": "#56b6c2"
-      }
-    },
-    {
-      "name": "mType Square Brackets",
-      "scope": [
+        "punctuation.brace.round.mtype",
         "punctuation.brace.square.mtype"
       ],
       "settings": {
-        "foreground": "#abb2bf"
+        "foreground": "#56b6c2"
       }
     },
     {
-      "name": "mType Angle Brackets",
+      "name": "Generics",
       "scope": [
-        "punctuation.brace.angle.mtype"
+        "meta.generic.mtype",
+        "punctuation.definition.generic.begin.mtype",
+        "punctuation.definition.generic.end.mtype"
       ],
       "settings": {
         "foreground": "#e5c07b"
-      }
-    },
-    {
-      "name": "mType Collection Generics",
-      "scope": [
-        "meta.collection.generic.mtype"
-      ],
-      "settings": {
-        "foreground": "#e5c07b"
-      }
-    },
-    {
-      "name": "mType Meta Scopes",
-      "scope": [
-        "meta.function.declaration.mtype",
-        "meta.class.mtype",
-        "meta.namespace.mtype"
-      ],
-      "settings": {
-        "foreground": "#abb2bf"
       }
     }
   ]
