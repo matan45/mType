@@ -111,20 +111,26 @@ namespace vm::optimization
                 case OpCode::STRING_BUILD:
                     return InlineDecision::HAS_UNSUPPORTED_OPCODE;
 
-                // MYT-208: inlining a callee that contains NEW_STACK dissolves
-                // the per-call frame boundary that escape analysis relies on.
-                // Stack-promoted allocations would push to the *caller* frame's
-                // stackObjects (which can outlive the inlined call by orders of
-                // magnitude — e.g. 2M iterations of an outer loop), filling the
-                // per-frame cap after ~32 allocs and forcing every subsequent
-                // promotion to fall back to the heap path. Rejecting inlining
-                // here keeps each invocation in its own frame, where the
-                // analyzer's "lifetime bounded by frame" guarantee actually
-                // holds and stackObjects releases on RETURN. This is the key
-                // gate that makes nested-helper benchmarks (object_alloc_nested.mt)
-                // realise the STACK_OBJECT win.
-                case OpCode::NEW_STACK:
-                    return InlineDecision::HAS_UNSUPPORTED_OPCODE;
+                // MYT-352: NEW_STACK is now inlineable. MYT-208 originally
+                // rejected it because the inlined NEW_STACK would push to the
+                // caller's stackObjects[] and the 32-slot per-frame cap would
+                // saturate after ~16 iterations of an outer loop, forcing
+                // heap fallback on every subsequent call. Two compiler-side
+                // landings make the lift safe:
+                //   (1) StatementCompiler now wraps every block containing
+                //       a promoted NEW with STACK_SCOPE_ENTER / LEAVE — even
+                //       function-body blocks (previously skipped because the
+                //       function frame's teardown was the implicit backstop,
+                //       which inlining elides).
+                //   (2) FunctionCompiler::compileReturn drains open scopes by
+                //       emitting STACK_SCOPE_LEAVE × currentStackScopeDepth
+                //       before every RETURN_VALUE / return-via-finally JUMP,
+                //       mirroring the existing break / continue precedent in
+                //       ControlFlowCompiler.
+                // Together these mean every NEW_STACK in the callee body is
+                // bounded by a matching LEAVE on every exit path, so an
+                // inlined call returns the caller's stackObjectsCount and
+                // scope stack to their pre-inline state per iteration.
 
                 // MYT-210: the ARRAY_*_LOCAL fused variants bake a raw local
                 // slot index into the instruction and read it via
@@ -156,6 +162,19 @@ namespace vm::optimization
         return InlineDecision::INLINE;
     }
 
+    static bool containsNewStack(
+        const BytecodeProgram& program,
+        const BytecodeProgram::FunctionMetadata& callee)
+    {
+        const size_t end = callee.startOffset + callee.instructionCount;
+        for (size_t ip = callee.startOffset; ip < end; ++ip)
+        {
+            if (program.getInstruction(ip).opcode == OpCode::NEW_STACK)
+                return true;
+        }
+        return false;
+    }
+
     // MYT-210: shared per-callee gate, reused by both the method-IC path
     // (one entry at a time) and the plain-CALL path. Checks that depend
     // purely on the callee's metadata + the receiver's runtime classification
@@ -183,7 +202,10 @@ namespace vm::optimization
         if (callee->instructionCount == 0)
             return InlineDecision::CALLEE_NOT_FOUND;
 
-        if (callee->instructionCount > INLINE_SIZE_LIMIT)
+        const size_t sizeLimit = containsNewStack(program, *callee)
+            ? INLINE_SCOPE_STACK_SIZE_LIMIT
+            : INLINE_SIZE_LIMIT;
+        if (callee->instructionCount > sizeLimit)
             return InlineDecision::CALLEE_TOO_BIG;
 
         // F-a emits only the RETURN_VALUE substitution; void-returning

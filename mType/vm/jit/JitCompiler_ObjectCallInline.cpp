@@ -267,33 +267,59 @@ namespace vm::jit
         JitEmissionState& s,
         const bytecode::BytecodeProgram::Instruction& instr)
     {
+        auto recordDecision = [&s](optimization::InlineDecision decision) {
+            if (s.inlineDecisions)
+                s.inlineDecisions->bumpFunction(decision);
+        };
+
         const uint32_t nameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         const size_t argCount = instr.inlineOperands[1];
         if (nameIndex >= s.program.getConstantPool().strings.size())
+        {
+            recordDecision(optimization::InlineDecision::UNKNOWN_SHAPE);
             return false;
+        }
         if (!s.usesBoxedTypes)
+        {
+            recordDecision(optimization::InlineDecision::UNKNOWN_SHAPE);
             return false;
+        }
 
         const std::string& funcName = s.program.getConstantPool().getString(nameIndex);
         const auto* callee = s.program.getFunction(funcName);
         if (!callee)
+        {
+            recordDecision(optimization::InlineDecision::CALLEE_NOT_FOUND);
             return false;
+        }
         if (callee->parameterCount != argCount)
+        {
+            recordDecision(optimization::InlineDecision::UNKNOWN_SHAPE);
             return false;
+        }
 
         // CALL_STATIC-specific gates: no generic instantiations, primitive-only
         // signatures. These keep the static-call slow path simple and predate
         // the shared-inliner generalisation; if either proves over-restrictive
         // for static sites, lift them into the shared helper.
         if (!callee->genericTypeParameters.empty())
+        {
+            recordDecision(optimization::InlineDecision::UNKNOWN_SHAPE);
             return false;
+        }
         for (const auto& paramType : callee->parameterTypes)
         {
             if (!isInlineStaticPrimitiveType(paramType))
+            {
+                recordDecision(optimization::InlineDecision::UNKNOWN_SHAPE);
                 return false;
+            }
         }
         if (!isInlineStaticPrimitiveType(callee->returnType))
+        {
+            recordDecision(optimization::InlineDecision::UNKNOWN_SHAPE);
             return false;
+        }
 
         // Register the reverse edge so a redefinition (rare for CALL_STATIC,
         // but defensive) evicts every caller that pasted this callee's body.
@@ -322,17 +348,30 @@ namespace vm::jit
         size_t argCount,
         bytecode::FunctionNameHandle calleeHandle)
     {
+        auto recordDecision = [&s](optimization::InlineDecision decision) {
+            if (s.inlineDecisions)
+                s.inlineDecisions->bumpFunction(decision);
+        };
+
         if (!s.usesBoxedTypes)
+        {
+            recordDecision(optimization::InlineDecision::UNKNOWN_SHAPE);
             return false;
+        }
         if (!callee)
+        {
+            recordDecision(optimization::InlineDecision::CALLEE_NOT_FOUND);
             return false;
+        }
         if (callee->parameterCount != argCount)
+        {
+            recordDecision(optimization::InlineDecision::UNKNOWN_SHAPE);
             return false;
+        }
 
         auto decision = optimization::checkFunctionInlineEligibility(
             s.program, *callee, s.currentCompilingFn, s.inlineStack.size());
-        if (s.inlineDecisions)
-            s.inlineDecisions->bumpFunction(decision);
+        recordDecision(decision);
         if (decision != optimization::InlineDecision::INLINE)
             return false;
 
@@ -342,12 +381,18 @@ namespace vm::jit
               + s.inlineStack.back().calleeMeta->localCount;
         if (localsBaseSlot + callee->localCount
             > s.localCount + JitEmissionState::INLINE_LOCALS_SLACK)
+        {
+            recordDecision(optimization::InlineDecision::CALLEE_TOO_BIG);
             return false;
+        }
 
         const size_t calleePeak = computeCalleePeakOperandStack(s.program, *callee);
         if (static_cast<size_t>(s.stackDepth) + calleePeak
             > JitEmissionState::MAX_OP_STACK)
+        {
+            recordDecision(optimization::InlineDecision::CALLEE_TOO_BIG);
             return false;
+        }
 
         auto& cc = s.cc;
         Label endLabel = cc.new_label();
@@ -358,7 +403,10 @@ namespace vm::jit
         const InlineEmitStateSnapshot snap = snapshotEmitStateForInline(s);
         const int firstArgStackIdx = snap.stackDepth - static_cast<int>(argCount);
         if (firstArgStackIdx < 0)
+        {
+            recordDecision(optimization::InlineDecision::UNKNOWN_SHAPE);
             return false;
+        }
 
         emitInlineLocalCopy(s, firstArgStackIdx, localsBaseSlot, *callee);
 

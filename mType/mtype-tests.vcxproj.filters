@@ -7210,6 +7210,9 @@
     <None Include="tests\testFiles\escapeAnalysis\pass\field_store.mt">
       <Filter>testFiles\escapeAnalysis\pass</Filter>
     </None>
+    <None Include="tests\testFiles\escapeAnalysis\pass\inlined_new_stack_pool_reuse.mt">
+      <Filter>testFiles\escapeAnalysis\pass</Filter>
+    </None>
     <None Include="tests\testFiles\escapeAnalysis\pass\lambda_capture.expected">
       <Filter>testFiles\escapeAnalysis\pass</Filter>
     </None>

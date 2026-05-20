@@ -436,10 +436,14 @@ namespace vm::jit
         }
 
         // MYT-316: speculative inlining before the runtime boundary.
-        // CALL_FAST's funcIndex is the stable post-IC dispatch key; the
-        // matching handle is interned from the callee's name.
+        // CALL_FAST's funcIndex is the stable post-IC dispatch key; intern the
+        // same function identity metadata/registerFunction uses so inline-edge
+        // invalidation can find this caller later.
         {
-            const auto calleeHandle = s.program.internFrameName(calleeMeta->name);
+            const std::string& calleeIdentity = calleeMeta->mangledName.empty()
+                ? calleeMeta->name
+                : calleeMeta->mangledName;
+            const auto calleeHandle = s.program.internFrameName(calleeIdentity);
             if (tryEmitInlinedFunctionCall(s, calleeMeta, argCount, calleeHandle))
                 return true;
         }

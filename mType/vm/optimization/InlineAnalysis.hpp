@@ -72,6 +72,11 @@ namespace vm::optimization
     // and non-trivial methods routinely run 17-30 ops.
     constexpr size_t INLINE_SIZE_LIMIT = 32;
 
+    // MYT-352: scope-managed NEW_STACK callees grow by a few structural
+    // ENTER/LEAVE instructions. Keep the global budget conservative, but give
+    // these leaf allocation helpers enough room to inline.
+    constexpr size_t INLINE_SCOPE_STACK_SIZE_LIMIT = 48;
+
     // Max nested inline depth. The caller tracks depth in JitEmissionState
     // (inlineStack.size()). F-a originally shipped depth 1; F-b raised to
     // 2 for nested-inline support.

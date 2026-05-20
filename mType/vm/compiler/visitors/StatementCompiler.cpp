@@ -106,12 +106,15 @@ namespace vm::compiler::visitors
         }
 
         // Per-scope NEW_STACK release: emit ENTER before this block's
-        // statements and LEAVE after, but only when the block actually
-        // contains a promoted NEW (EscapeAnalysisPass marks this) and only
-        // when we're in a scope that isn't the function body itself
-        // (function frames release their stackObjects at teardown).
+        // statements and LEAVE after, whenever the block actually contains a
+        // promoted NEW (EscapeAnalysisPass marks this). The variable-tracker
+        // beginScope/endScope is independently gated on shouldManageScope;
+        // the two concerns are decoupled. MYT-352: function-body blocks must
+        // also wrap, otherwise an inlined callee leaks pool slots into the
+        // caller's frame on every iteration (frame teardown would otherwise
+        // be the implicit backstop, but inlining elides it).
         const bool emitStackScope =
-            kEmitStackScopeOps && shouldManageScope && node->containsStackAlloc();
+            kEmitStackScopeOps && node->containsStackAlloc();
 
         if (shouldManageScope)
         {
