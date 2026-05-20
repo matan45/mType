@@ -271,6 +271,11 @@ namespace tests::testSuite
                                   passPath + "stackScope_breakContinue_pass.mt");
         addOutputVerificationTest("Stack Scope: Throw In Loop",
                                   passPath + "stackScope_throwInLoop_pass.mt");
+        // MYT-352 follow-up: compile-time cap guard prevents desync past
+        // CallFrame::kStackObjectScopeStackCap (8). Without the guard, d8
+        // would alias one of the post-inner-block fresh allocations.
+        addOutputVerificationTest("Stack Scope: Over-Cap Nesting",
+                                  passPath + "stackScope_overCap_pass.mt");
         addOutputVerificationTest("MYT-327 Binary Call Argument Type Inference",
                                   passPath + "myt327BinaryCallArgTypeInference.mt");
 

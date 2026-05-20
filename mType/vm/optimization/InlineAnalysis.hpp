@@ -153,4 +153,11 @@ namespace vm::optimization
     // osrBailoutReasonName in shape. One-to-one with the InlineDecision enum;
     // returns "UNKNOWN" for out-of-range values (defensive).
     const char* inlineDecisionName(InlineDecision d);
+
+    // MYT-352: true iff the callee body contains at least one NEW_STACK op.
+    // Used by both InlineAnalysis (size-limit selection) and the JIT
+    // pre-filter (calleeMightBeInlineable) so the two paths can't diverge.
+    bool containsNewStack(
+        const vm::bytecode::BytecodeProgram& program,
+        const vm::bytecode::BytecodeProgram::FunctionMetadata& callee);
 }

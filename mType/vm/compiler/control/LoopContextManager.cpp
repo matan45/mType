@@ -82,7 +82,7 @@ namespace vm::compiler::control
         return loopStack.back().continueJumps;
     }
 
-    uint32_t LoopContextManager::getStackScopeDepthDeltaForBreak() const
+    uint32_t LoopContextManager::getOpenStackScopeDepthInLoop() const
     {
         if (loopStack.empty()) return 0;
         const uint32_t entry = loopStack.back().stackScopeDepthAtEntry;

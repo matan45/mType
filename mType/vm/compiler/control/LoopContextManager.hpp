@@ -50,8 +50,9 @@ namespace vm::compiler::control
         void notifyStackScopeLeave() { if (currentStackScopeDepth > 0) --currentStackScopeDepth; }
         uint32_t getCurrentStackScopeDepth() const { return currentStackScopeDepth; }
         // Number of LEAVEs to synthesize before a break/continue jumps out of
-        // the current loop (depth-at-now minus depth-at-loop-entry).
-        uint32_t getStackScopeDepthDeltaForBreak() const;
+        // the current loop (depth-at-now minus depth-at-loop-entry). Used by
+        // both compileBreak and compileContinue — the unwind shape is the same.
+        uint32_t getOpenStackScopeDepthInLoop() const;
 
     private:
         std::vector<LoopContext> loopStack;

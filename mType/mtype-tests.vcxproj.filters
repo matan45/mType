@@ -9910,6 +9910,12 @@
     <None Include="tests\testFiles\integration\pass\stackScope_nested_pass.mt">
       <Filter>testFiles\integration\pass</Filter>
     </None>
+    <None Include="tests\testFiles\integration\pass\stackScope_overCap_pass.expected">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\integration\pass\stackScope_overCap_pass.mt">
+      <Filter>testFiles\integration\pass</Filter>
+    </None>
     <None Include="tests\testFiles\integration\pass\stackScope_throwInLoop_pass.expected">
       <Filter>testFiles\integration\pass</Filter>
     </None>

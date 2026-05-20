@@ -444,7 +444,7 @@ namespace vm::compiler::visitors
             size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
             ctx.switchManager.registerBreak(breakJump);
         } else if (ctx.loopManager.isInLoop()) {
-            const uint32_t leaveCount = ctx.loopManager.getStackScopeDepthDeltaForBreak();
+            const uint32_t leaveCount = ctx.loopManager.getOpenStackScopeDepthInLoop();
             for (uint32_t i = 0; i < leaveCount; ++i) {
                 ctx.emitter.emitWithLocation(bytecode::OpCode::STACK_SCOPE_LEAVE, node);
             }
@@ -474,7 +474,7 @@ namespace vm::compiler::visitors
         // Same stack-scope unwind as compileBreak: emit one LEAVE per active
         // scope inside the current loop body so re-entering the body via the
         // continue target leaves stackObjectsCount at the loop-entry value.
-        const uint32_t leaveCount = ctx.loopManager.getStackScopeDepthDeltaForBreak();
+        const uint32_t leaveCount = ctx.loopManager.getOpenStackScopeDepthInLoop();
         for (uint32_t i = 0; i < leaveCount; ++i) {
             ctx.emitter.emitWithLocation(bytecode::OpCode::STACK_SCOPE_LEAVE, node);
         }

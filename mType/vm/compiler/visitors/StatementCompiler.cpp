@@ -113,8 +113,20 @@ namespace vm::compiler::visitors
         // also wrap, otherwise an inlined callee leaks pool slots into the
         // caller's frame on every iteration (frame teardown would otherwise
         // be the implicit backstop, but inlining elides it).
+        //
+        // MYT-352 follow-up: also gate on the runtime cap
+        // (kCompilerStackObjectScopeStackCap, mirroring
+        // CallFrame::kStackObjectScopeStackCap). At depth >= cap the runtime
+        // ENTER is silently skipped while the matching LEAVE would still
+        // pop, desynchronising the scope stack and double-releasing pool
+        // slots. Opting out at compile time falls back to frame-teardown
+        // cleanup (the cap-then-heap fallback path documented in
+        // ExecutionContext.hpp) — correct, just no per-scope reclamation
+        // for the over-deep nest.
         const bool emitStackScope =
-            kEmitStackScopeOps && node->containsStackAlloc();
+            kEmitStackScopeOps && node->containsStackAlloc() &&
+            ctx.loopManager.getCurrentStackScopeDepth() <
+                kCompilerStackObjectScopeStackCap;
 
         if (shouldManageScope)
         {

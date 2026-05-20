@@ -57,12 +57,15 @@ namespace vm::runtime
                 {
                     size_t saved = static_cast<size_t>(
                         f.stackObjectScopeStack[--f.stackObjectScopeDepth]);
-                    auto& pool = value::ObjectInstancePool::getInstance();
-                    for (size_t i = saved; i < f.stackObjectsCount; ++i)
+                    if (saved < f.stackObjectsCount)
                     {
-                        if (f.stackObjects[i]) pool.releaseRaw(f.stackObjects[i]);
+                        auto& pool = value::ObjectInstancePool::getInstance();
+                        for (size_t i = saved; i < f.stackObjectsCount; ++i)
+                        {
+                            if (f.stackObjects[i]) pool.releaseRaw(f.stackObjects[i]);
+                        }
+                        f.stackObjectsCount = saved;
                     }
-                    f.stackObjectsCount = saved;
                 }
             }
             break;

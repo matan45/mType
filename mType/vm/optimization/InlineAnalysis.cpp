@@ -162,7 +162,7 @@ namespace vm::optimization
         return InlineDecision::INLINE;
     }
 
-    static bool containsNewStack(
+    bool containsNewStack(
         const BytecodeProgram& program,
         const BytecodeProgram::FunctionMetadata& callee)
     {

@@ -17,6 +17,7 @@
 #include "../../../ast/ASTVisitor.hpp"
 #include "../../../value/ValueType.hpp"
 #include "../../../circularDependency/CircularDependencyDetector.hpp"
+#include <cstdint>
 #include <memory>
 #include <unordered_set>
 #include <string>
@@ -32,6 +33,15 @@ namespace vm::compiler
     // runtime `--no-stack-scope-release` flag, which forces the interpreter
     // and JIT to treat already-emitted opcodes as no-ops.
     inline constexpr bool kEmitStackScopeOps = true;
+
+    // Runtime cap on CallFrame::stackObjectScopeStack. MUST match
+    // CallFrame::kStackObjectScopeStackCap in vm/runtime/context/
+    // ExecutionContext.hpp — the compiler suppresses ENTER/LEAVE emission
+    // once the live compile-time scope depth would push past this cap, so
+    // a silently-skipped ENTER can't desynchronise the runtime stack on
+    // the next LEAVE. Mirrored as a compiler-local constant to avoid
+    // dragging the runtime header into every compiler TU.
+    inline constexpr uint32_t kCompilerStackObjectScopeStackCap = 8;
 }
 
 namespace vm::compiler::validation

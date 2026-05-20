@@ -120,16 +120,9 @@ namespace vm::jit
         if (!callee->exceptionTable.getEntries().empty()) return false;
         if (callee->returnType == "void") return false;
 
-        bool hasNewStack = false;
+        const bool hasNewStack =
+            optimization::containsNewStack(program, *callee);
         const size_t end = callee->startOffset + callee->instructionCount;
-        for (size_t cip = callee->startOffset; cip < end; ++cip)
-        {
-            if (program.getInstruction(cip).opcode == OpCode::NEW_STACK)
-            {
-                hasNewStack = true;
-                break;
-            }
-        }
 
         const size_t sizeLimit = hasNewStack
             ? optimization::INLINE_SCOPE_STACK_SIZE_LIMIT

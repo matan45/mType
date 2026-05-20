@@ -262,8 +262,8 @@ namespace optimizer::passes
                 bool b = false;
                 for (const auto& c : t->getCatchBlocks())
                     b = markBlocksContainingStackAlloc(c->getBody()) || b;
-                bool c = markBlocksContainingStackAlloc(t->getFinallyBlock());
-                return a || b || c;
+                bool finallyHas = markBlocksContainingStackAlloc(t->getFinallyBlock());
+                return a || b || finallyHas;
             }
             if (auto* cls = dynamic_cast<klass::ClassNode*>(node))
             {
