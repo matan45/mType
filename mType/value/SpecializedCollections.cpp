@@ -1,6 +1,7 @@
 #include "SpecializedCollections.hpp"
 #include "ValueShim.hpp"
 #include "HashUtils.hpp"
+#include "ValueObject.hpp"
 #include "../gc/WriteBarrier.hpp"
 #include "../environment/registry/ClassDefinition.hpp"
 #include "../value/ObjectInstance.hpp"
@@ -23,6 +24,32 @@ namespace value
         int64_t maskedHash(size_t hash)
         {
             return static_cast<int64_t>(hash & 0x7FFFFFFF);
+        }
+
+        bool storedValuesEqual(const Value& stored, const Value& candidate)
+        {
+            if (isNullType(stored) || isNullType(candidate))
+            {
+                return isNullType(stored) && isNullType(candidate);
+            }
+
+            if (isValueObject(stored) && isValueObject(candidate))
+            {
+                auto lhs = asValueObject(stored);
+                auto rhs = asValueObject(candidate);
+                if (!lhs || !rhs) return lhs == rhs;
+                return lhs->equals(*rhs);
+            }
+
+            if (isAnyObject(stored) && isAnyObject(candidate))
+            {
+                auto* lhs = asObjectInstanceRaw(stored);
+                auto* rhs = asObjectInstanceRaw(candidate);
+                if (!lhs || !rhs) return lhs == rhs;
+                return lhs->contentEquals(*rhs);
+            }
+
+            return stored == candidate;
         }
     }
 
@@ -333,8 +360,7 @@ namespace value
         for (const auto& entry : entries_)
         {
             if (!entry.occupied) continue;
-            if (isNullType(entry.value) && isNullType(value)) return true;
-            if (!isNullType(entry.value) && entry.value == value) return true;
+            if (storedValuesEqual(entry.value, value)) return true;
         }
         return false;
     }
