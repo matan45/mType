@@ -1,8 +1,29 @@
 #include "EscapeAnalysisTestSuite.hpp"
 
+#include <stdexcept>
+#include <string>
+
+#include "../../services/ScriptAPI.hpp"
+#include "../../value/ObjectInstancePool.hpp"
+#include "../../value/ValueShim.hpp"
+
 namespace tests::testSuite
 {
     using namespace testFramework;
+    using services::ScriptAPI;
+
+    namespace
+    {
+        // NATIVE_CALLBACK runner catches std::exception and fails the test
+        // with the message — mirrors the helper in ScriptApiNativeTestSuite.
+        void require(bool cond, const std::string& msg)
+        {
+            if (!cond)
+            {
+                throw std::runtime_error(msg);
+            }
+        }
+    }
 
     void EscapeAnalysisTestSuite::setupTests()
     {
@@ -66,5 +87,56 @@ namespace tests::testSuite
         // covers IC dispatch with STACK_OBJECT receiver.
         addOutputVerificationTest("Method Call On Promoted",
                         passPath + "method_call_on_promoted.mt");
+
+        // MYT-352 canary: when the JIT inliner accepts a NEW_STACK-containing
+        // callee, the inlined NEW_STACK must be bounded by per-block
+        // STACK_SCOPE_ENTER / LEAVE wrapping that the compiler emits around
+        // *every* block containing a promoted NEW (function-body blocks
+        // included) plus return-time scope drainage. Without those landings
+        // the inlined NEW_STACKs accumulate in the caller's stackObjects[],
+        // saturate the 32-slot cap after ~16 iterations, and fall back to
+        // the heap path — pool hit rate plummets and poolMisses grow with
+        // iteration count. Run a non-trivial workload through the inliner
+        // and assert pool stats stay healthy.
+        addCallbackTest("MYT-352 Inlined NEW_STACK Pool Reuse",
+            passPath + "inlined_new_stack_pool_reuse.mt",
+            [](ScriptAPI& api) {
+                constexpr int64_t kIters = 5000;
+                auto& pool = value::ObjectInstancePool::getInstance();
+                value::ObjectPoolStats before = pool.getGlobalStats();
+                api.callFunction("runWorkload", { value::Value(int64_t{kIters}) });
+                value::ObjectPoolStats after = pool.getGlobalStats();
+
+                const size_t deltaAllocs = after.totalAllocations - before.totalAllocations;
+                const size_t deltaHits   = after.poolHits         - before.poolHits;
+                const size_t deltaMisses = after.poolMisses       - before.poolMisses;
+
+                // Two Point allocations per iteration; allow a small slack
+                // for any incidental allocations the runtime threads through
+                // (none expected, but be defensive).
+                require(deltaAllocs >= static_cast<size_t>(2 * kIters) - 8,
+                    "expected ~2 ObjectInstancePool allocations per workload "
+                    "iteration; got " + std::to_string(deltaAllocs));
+
+                const double hitRate = deltaAllocs > 0
+                    ? static_cast<double>(deltaHits) /
+                      static_cast<double>(deltaAllocs)
+                    : 0.0;
+                require(hitRate > 0.9,
+                    "expected pool hit rate > 0.9 after warmup (pool slots "
+                    "should recycle per inlined-call); got hitRate=" +
+                    std::to_string(hitRate) + " hits=" +
+                    std::to_string(deltaHits) + " allocs=" +
+                    std::to_string(deltaAllocs));
+
+                // poolMisses is bounded by per-class bucket warm-up only —
+                // a tiny constant, independent of kIters. Climbing linearly
+                // with kIters is the regression signature (cap saturated →
+                // heap fallback → fresh ::operator new every iteration).
+                require(deltaMisses < 32,
+                    "poolMisses should stay tiny after warmup (regression "
+                    "signature: cap saturation forces heap fallback); got " +
+                    std::to_string(deltaMisses));
+            });
     }
 }

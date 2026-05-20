@@ -129,6 +129,16 @@ namespace vm::runtime
         static constexpr size_t kStackObjectsCap = 32;
         std::array<runtimeTypes::klass::ObjectInstance*, kStackObjectsCap> stackObjects{};
         size_t stackObjectsCount = 0;
+        // Per-block / per-iteration scope stack: STACK_SCOPE_ENTER pushes the
+        // current stackObjectsCount, STACK_SCOPE_LEAVE releases the slice
+        // (saved..count) back to the pool and restores count. Keeps the
+        // 32-slot cap from saturating in hot top-level loops where the
+        // frame itself spans the whole script. 8 nesting levels is enough
+        // for realistic code; deeper nests opt out of emission at compile
+        // time so behavior reverts to the cap-then-heap fallback path.
+        static constexpr size_t kStackObjectScopeStackCap = 8;
+        std::array<uint16_t, kStackObjectScopeStackCap> stackObjectScopeStack{};
+        uint8_t stackObjectScopeDepth = 0;
         std::shared_ptr<BytecodeLambda> originatingLambda;  // If this frame is for a lambda, reference to it (for debugging)
         std::string definingClassName;           // Class that defines the method (for access control in inheritance)
         std::shared_ptr<SharedStackFrame> sharedFrame;  // Shared frame for closure capture (if this function creates lambdas)

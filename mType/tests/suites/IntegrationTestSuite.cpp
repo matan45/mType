@@ -259,6 +259,23 @@ namespace tests::testSuite
         // INT-specialized bitwise opcodes + trySpecializeBitwise promotion.
         addOutputVerificationTest("Bitwise Specialization",
                                   passPath + "bitwiseSpecialization.mt");
+
+        // Per-scope NEW_STACK release (STACK_SCOPE_ENTER / STACK_SCOPE_LEAVE).
+        // Validates that stack-promoted pool slots are returned at block-exit
+        // so top-level hot loops don't saturate CallFrame::kStackObjectsCap.
+        addOutputVerificationTest("Stack Scope: Loop Body",
+                                  passPath + "stackScope_loopBody_pass.mt");
+        addOutputVerificationTest("Stack Scope: Nested Blocks",
+                                  passPath + "stackScope_nested_pass.mt");
+        addOutputVerificationTest("Stack Scope: Break/Continue",
+                                  passPath + "stackScope_breakContinue_pass.mt");
+        addOutputVerificationTest("Stack Scope: Throw In Loop",
+                                  passPath + "stackScope_throwInLoop_pass.mt");
+        // MYT-352 follow-up: compile-time cap guard prevents desync past
+        // CallFrame::kStackObjectScopeStackCap (8). Without the guard, d8
+        // would alias one of the post-inner-block fresh allocations.
+        addOutputVerificationTest("Stack Scope: Over-Cap Nesting",
+                                  passPath + "stackScope_overCap_pass.mt");
         addOutputVerificationTest("MYT-327 Binary Call Argument Type Inference",
                                   passPath + "myt327BinaryCallArgTypeInference.mt");
 
@@ -533,6 +550,8 @@ namespace tests::testSuite
                                   benchmarkPath + "async_await_tight_loop.mt");
         addOutputVerificationTest("Benchmark: bitwise_tight_loop",
                                   benchmarkPath + "bitwise_tight_loop.mt");
+        addOutputVerificationTest("Benchmark: box_unbox_hot",
+                                  benchmarkPath + "box_unbox_hot.mt");
         addOutputVerificationTest("Benchmark: boxed_bool_dispatch_hot",
                                   benchmarkPath + "boxed_bool_dispatch_hot.mt");
         addOutputVerificationTest("Benchmark: boxed_primitive_dispatch_hot",

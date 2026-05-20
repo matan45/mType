@@ -13,6 +13,23 @@
 
 namespace vm::compiler::visitors
 {
+    // MYT-352: drain open stack-object scopes before a return transfers control.
+    // Mirrors the break/continue precedent (ControlFlowCompiler::compileBreak /
+    // compileContinue) so the LEAVE-before-jump invariant holds for *all* control-
+    // flow exits, not just loop-exits. Without this, a callee inlined into a hot
+    // loop would leak pool slots into the caller's frame on every iteration:
+    // inlining elides the callee frame teardown that was the implicit backstop.
+    // Safe by the escape-analysis invariant: anything in stackObjects[] at return
+    // time has no live references past the innermost open scope.
+    void FunctionCompiler::emitStackScopeLeavesBeforeReturn(ast::ASTNode* node)
+    {
+        const uint32_t depth = ctx.loopManager.getCurrentStackScopeDepth();
+        for (uint32_t i = 0; i < depth; ++i)
+        {
+            ctx.emitter.emitWithLocation(bytecode::OpCode::STACK_SCOPE_LEAVE, node);
+        }
+    }
+
     void FunctionCompiler::validateReturnType(ast::ReturnNode* node, ast::ASTNode* returnValue)
     {
         if (!ctx.functionFrameManager.isInFunction())
@@ -229,6 +246,8 @@ namespace vm::compiler::visitors
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(relativeReturnSlot), node);
         }
 
+        emitStackScopeLeavesBeforeReturn(node);
+
         size_t returnJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
         ctx.exceptionManager.registerReturnJump(returnJump);
     }
@@ -279,6 +298,8 @@ namespace vm::compiler::visitors
                                          node);
         }
 
+        emitStackScopeLeavesBeforeReturn(node);
+
         size_t returnJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
         ctx.exceptionManager.registerReturnJumpWithOuter(returnJump);
     }
@@ -294,6 +315,7 @@ namespace vm::compiler::visitors
             {
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, locationNode);
             }
+            emitStackScopeLeavesBeforeReturn(locationNode);
             ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, locationNode);
         }
         else
@@ -303,6 +325,7 @@ namespace vm::compiler::visitors
             if (ctx.functionFrameManager.currentFrame().isConstructor)
             {
                 ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, 0u, node);
+                emitStackScopeLeavesBeforeReturn(node);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
             }
             // Async: treat return; as return null wrapped in a Promise so Promise<void>
@@ -311,12 +334,14 @@ namespace vm::compiler::visitors
             {
                 ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CREATE_PROMISE, node);
+                emitStackScopeLeavesBeforeReturn(node);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
             }
             else
             {
                 // Keep stack consistent — every call must leave exactly one value.
                 ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
+                emitStackScopeLeavesBeforeReturn(node);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::RETURN_VALUE, node);
             }
         }

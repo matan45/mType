@@ -1,0 +1,5 @@
+contains 3: true
+contains 4: true
+contains 5: true
+contains 1 (dequeued): false
+contains 99: false

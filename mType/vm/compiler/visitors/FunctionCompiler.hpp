@@ -35,6 +35,16 @@ namespace vm::compiler::visitors
         void emitReturnWithOuterFinally(ast::ReturnNode* node, ast::ASTNode* returnValue);
         void emitReturnValueBytecode(ast::ReturnNode* node, ast::ASTNode* returnValue);
 
+        // MYT-352: emit STACK_SCOPE_LEAVE × currentStackScopeDepth so a return
+        // drains open stack-object scopes before transferring control. Required
+        // for JIT inlining to be safe — when the callee frame is elided, the
+        // structural LEAVE after the body never runs, so the return path itself
+        // must carry the cleanup (mirrors break/continue's existing precedent
+        // in ControlFlowCompiler). Safe by the escape-analysis invariant: any
+        // object in the frame's stackObjects[] at return time has no live
+        // references past this scope.
+        void emitStackScopeLeavesBeforeReturn(ast::ASTNode* node);
+
         // Phase 4: Auto-boxing helper for return statements
         bool tryEmitReturnAutoBoxing(ast::ASTNode* returnValue);
 

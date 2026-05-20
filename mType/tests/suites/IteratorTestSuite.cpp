@@ -38,6 +38,27 @@ namespace tests::testSuite
         addOutputVerificationTest("Iterator Close Without Advance",
                                   passPath + "iteratorNeverAdvancedClose.mt");
 
+        addOutputVerificationTest("Stack Iterator Basic",
+                                  passPath + "iteratorStack.mt");
+
+        addOutputVerificationTest("Empty Stack Iterator",
+                                  passPath + "iteratorStackEmpty.mt");
+
+        addOutputVerificationTest("ArrayQueue Iterator Basic",
+                                  passPath + "iteratorArrayQueue.mt");
+
+        addOutputVerificationTest("ArrayQueue Iterator After Wrap-Around",
+                                  passPath + "iteratorArrayQueueAfterWrapAround.mt");
+
+        addOutputVerificationTest("Empty HashSet Iterator",
+                                  passPath + "iteratorHashSetEmpty.mt");
+
+        addOutputVerificationTest("Iterator Close Idempotent",
+                                  passPath + "iteratorCloseIdempotent.mt");
+
+        addOutputVerificationTest("Iterator After Clear",
+                                  passPath + "iteratorAfterClear.mt");
+
         // === ERROR TESTS ===
         addTestFromFile("HashMap Entry Iterator Past End",
                         errorPath + "hashMapEntryIteratorPastEnd.mt",
@@ -65,6 +86,18 @@ namespace tests::testSuite
 
         addTestFromFile("Iterator Empty Next Throws",
                         errorPath + "iteratorEmptyNextThrows.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Stack Iterator Past End",
+                        errorPath + "stackIteratorPastEnd.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("ArrayQueue Iterator Past End",
+                        errorPath + "arrayQueueIteratorPastEnd.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("HashSet Iterator Past End",
+                        errorPath + "hashSetIteratorPastEnd.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

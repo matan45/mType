@@ -117,9 +117,17 @@ namespace vm::jit
         if (!callee) return false;
         if (callee->isNative || callee->isAsync) return false;
         if (callee->instructionCount == 0) return false;
-        if (callee->instructionCount > optimization::INLINE_SIZE_LIMIT) return false;
         if (!callee->exceptionTable.getEntries().empty()) return false;
         if (callee->returnType == "void") return false;
+
+        const bool hasNewStack =
+            optimization::containsNewStack(program, *callee);
+        const size_t end = callee->startOffset + callee->instructionCount;
+
+        const size_t sizeLimit = hasNewStack
+            ? optimization::INLINE_SCOPE_STACK_SIZE_LIMIT
+            : optimization::INLINE_SIZE_LIMIT;
+        if (callee->instructionCount > sizeLimit) return false;
 
         // Self-recursion: the real inliner will reject this via SELF_RECURSIVE
         // and tryEmitSelfTailCall / tryEmitSelfDirectCall would have a much
@@ -136,7 +144,11 @@ namespace vm::jit
         // emit time; the pre-check just needs to avoid flipping boxed mode
         // for callees that won't actually inline. Capped at INLINE_SIZE_LIMIT
         // ops above, so the inner loop is O(<=32) per CALL site.
-        const size_t end = callee->startOffset + callee->instructionCount;
+        //
+        // MYT-352: NEW_STACK is now an *enabling* opcode, not a blocker —
+        // it's the whole point of the lift. Don't deny boxed-mode flipping
+        // for callees with NEW_STACK; the real inliner accepts them (per
+        // the matching MYT-352 change in InlineAnalysis.cpp).
         for (size_t cip = callee->startOffset; cip < end; ++cip)
         {
             const auto& cinstr = program.getInstruction(cip);
@@ -153,7 +165,6 @@ namespace vm::jit
                 case OpCode::SUPER_INVOKE: case OpCode::SUPER_CONSTRUCTOR:
                 case OpCode::SUPER_GET_FIELD: case OpCode::SUPER_SET_FIELD:
                 case OpCode::GET_SUPER:
-                case OpCode::NEW_STACK:
                 case OpCode::STRING_BUILD:
                 case OpCode::JUMP_IF_NULL:
                     return false;

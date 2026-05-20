@@ -1,0 +1,6 @@
+empty: true
+size: 0
+pop empty null: true
+peek empty null: true
+pop after push: 7
+pop empty again null: true

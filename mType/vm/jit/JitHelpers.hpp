@@ -297,6 +297,12 @@ namespace vm::jit
     // VM-side fallback fired for a non-trivial ctor).
     void jit_new_stack(value::Value* dest, JitContext* ctx,
                         uint32_t classIndex, size_t argCount);
+    // Per-scope NEW_STACK release helpers. Mirror the interpreter cases in
+    // VirtualMachineDispatch_Routing.cpp. Empty-slice LEAVE path costs ~5-10
+    // cycles (one branch + one decrement); non-empty path pays per-released
+    // slot. ENTER is essentially a single inc + store.
+    void jit_stack_scope_enter(JitContext* ctx);
+    void jit_stack_scope_leave(JitContext* ctx);
     void jit_object_to_value(value::Value* val);
     void jit_create_promise(JitContext* ctx, value::Value* val);
     void jit_object_to_value_create_promise(JitContext* ctx, value::Value* val);

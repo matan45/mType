@@ -1,0 +1,5 @@
+remove absent: false
+size: 3
+still has 1: true
+remove present: true
+size after: 2

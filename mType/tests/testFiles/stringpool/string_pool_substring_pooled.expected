@@ -1,0 +1,5 @@
+mid eq: true
+mid eq literal: true
+head eq abcd: true
+tail eq fgh: true
+zero len eq empty: true

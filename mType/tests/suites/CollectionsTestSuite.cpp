@@ -51,6 +51,22 @@ namespace tests::testSuite
         addOutputVerificationTest("HashMap Clear Then Reuse",
                                   passPath + "hashMapClearThenReuse.mt");
 
+        // CANARY MYT-351: HashMap.containsValue calls v.equals(value) without
+        // the hash-gate that put/get/remove use. For value classes the generic
+        // dispatch returns reference equality instead of resolving to
+        // Int.equals(Int). Keep failing per feedback_keep_failing_canary_tests.md.
+        addOutputVerificationTest("CANARY HashMap Contains Value Value-Class Dispatch",
+                                  passPath + "hashMapContainsValue.mt");
+
+        addOutputVerificationTest("HashMap PutAll With Overlap",
+                                  passPath + "hashMapPutAll.mt");
+
+        addOutputVerificationTest("HashSet Add Duplicate",
+                                  passPath + "hashSetAddDuplicate.mt");
+
+        addOutputVerificationTest("HashSet Remove Absent",
+                                  passPath + "hashSetRemoveAbsent.mt");
+
         // === QUEUE / STACK / ARRAYLIST EDGE CASES ===
         addOutputVerificationTest("ArrayQueue Wrap-Around",
                                   passPath + "arrayQueueWrapAround.mt");
@@ -67,6 +83,18 @@ namespace tests::testSuite
         addOutputVerificationTest("ArrayList Nested Resize During Substring Scan",
                                   passPath + "arrayListNestedResizeDuringSubstringScan.mt");
 
+        addOutputVerificationTest("Stack Empty Ops Return Null",
+                                  passPath + "stackEmptyOps.mt");
+
+        addOutputVerificationTest("Stack Peek After Push/Pop",
+                                  passPath + "stackPeekAfterPushPop.mt");
+
+        addOutputVerificationTest("ArrayQueue Empty Ops Return Null",
+                                  passPath + "arrayQueueEmptyOps.mt");
+
+        addOutputVerificationTest("ArrayQueue Contains Across Wrap-Around",
+                                  passPath + "arrayQueueContainsWrapAround.mt");
+
         // === LINKEDLIST REMOVE EDGE CASES ===
         addOutputVerificationTest("LinkedList Remove Middle",
                                   passPath + "linkedListRemoveMiddle.mt");
@@ -76,6 +104,9 @@ namespace tests::testSuite
 
         addOutputVerificationTest("LinkedList Remove Single Element",
                                   passPath + "linkedListRemoveSingleElement.mt");
+
+        addOutputVerificationTest("LinkedList Contains And Size",
+                                  passPath + "linkedListContainsAndSize.mt");
 
         // === ERROR TESTS ===
         addTestFromFile("ArrayList Get Out of Bounds",
@@ -100,6 +131,18 @@ namespace tests::testSuite
 
         addTestFromFile("HashMap Get Missing After Collision Remove",
                         errorPath + "hashMapGetMissingAfterCollisionRemove.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Stack Pop Empty Deref NPE",
+                        errorPath + "stackPopEmptyDeref_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("ArrayQueue Dequeue Empty Deref NPE",
+                        errorPath + "arrayQueueDequeueEmptyDeref_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("ArrayQueue Peek Empty Deref NPE",
+                        errorPath + "arrayQueuePeekEmptyDeref_error.mt",
                         TestType::ERROR_EXPECTED);
     }
 }

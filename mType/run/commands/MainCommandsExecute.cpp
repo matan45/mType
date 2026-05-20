@@ -12,6 +12,7 @@
 #include "../../vm/profiler/ProfilerMode.hpp"
 #include "../../vm/profiler/ProfilerReport.hpp"
 #include "../../vm/runtime/VirtualMachine.hpp"
+#include "../../vm/runtime/RuntimeFlags.hpp"
 
 #include <exception>
 #include <iostream>
@@ -100,6 +101,13 @@ namespace runMain::commands
                 else if (arg == "--no-jit")
                 {
                     flags.enableJit = false;
+                }
+                else if (arg == "--no-stack-scope-release")
+                {
+                    // Treat STACK_SCOPE_ENTER / STACK_SCOPE_LEAVE as no-ops at
+                    // runtime so .mtc files emitted with the new opcodes can
+                    // still A/B against the pre-optimization codepath.
+                    vm::runtime::RuntimeFlags::disableStackScopeRelease = true;
                 }
                 else if (arg == "--profile" || arg == "--profile=light")
                 {

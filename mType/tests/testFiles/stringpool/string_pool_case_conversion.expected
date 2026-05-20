@@ -1,0 +1,5 @@
+upper eq literal: true
+lower eq literal: true
+round trip eq upper: true
+empty upper eq empty: true
+already upper unchanged: true

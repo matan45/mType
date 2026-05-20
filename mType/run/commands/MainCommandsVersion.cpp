@@ -32,6 +32,7 @@ namespace runMain::commands
         std::cout << "  " << argv[0] << " --gc-stats <script.mt>     - Run and print GC statistics after execution\n";
         std::cout << "  " << argv[0] << " --jit-stats <script.mt>    - Run and print JIT statistics after execution\n";
         std::cout << "  " << argv[0] << " --no-jit <script.mt>       - Disable JIT compilation (JIT is on by default)\n";
+        std::cout << "  " << argv[0] << " --no-stack-scope-release   - Treat STACK_SCOPE_ENTER/LEAVE as no-ops (A/B testing)\n";
         std::cout << "  " << argv[0] << " --profile <script.mt>      - Run with profiler (light mode: function timing)\n";
         std::cout << "  " << argv[0] << " --profile=full <script.mt> - Run with full profiler (timing + call graph + opcodes)\n";
         std::cout << "  " << argv[0] << " --profile-output=json      - Output profiler report as JSON\n";

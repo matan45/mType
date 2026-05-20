@@ -17,6 +17,12 @@ namespace vm::compiler::control
             std::vector<size_t> continueJumps; // Jump instructions that need to be patched to continue target
             size_t loopStart;                   // Offset of loop start (condition check)
             size_t continueTarget;              // Offset where continue should jump (for loops: increment, others: loopStart)
+            // Active STACK_SCOPE_ENTER depth at the time this loop was entered.
+            // When a break / continue inside the loop emits its JUMP, the
+            // compiler synthesizes (currentStackScopeDepth - scopeDepthAtEntry)
+            // STACK_SCOPE_LEAVE ops before the jump so the runtime pool
+            // accounting stays consistent.
+            uint32_t stackScopeDepthAtEntry = 0;
         };
 
         LoopContextManager() = default;
@@ -38,7 +44,22 @@ namespace vm::compiler::control
         const std::vector<size_t>& getBreakJumps() const;
         const std::vector<size_t>& getContinueJumps() const;
 
+        // Stack-scope tracking for synthesized LEAVE emission on break/continue/return.
+        // Each STACK_SCOPE_ENTER call notifies on enter; each LEAVE notifies on exit.
+        void notifyStackScopeEnter() { ++currentStackScopeDepth; }
+        void notifyStackScopeLeave() { if (currentStackScopeDepth > 0) --currentStackScopeDepth; }
+        uint32_t getCurrentStackScopeDepth() const { return currentStackScopeDepth; }
+        // Number of LEAVEs to synthesize before a break/continue jumps out of
+        // the current loop (depth-at-now minus depth-at-loop-entry). Used by
+        // both compileBreak and compileContinue — the unwind shape is the same.
+        uint32_t getOpenStackScopeDepthInLoop() const;
+
     private:
         std::vector<LoopContext> loopStack;
+        // Live count of STACK_SCOPE_ENTER ops emitted but not yet matched by
+        // a STACK_SCOPE_LEAVE on the current compile path. Used to size
+        // break/continue/return cleanup sequences. Compile-time only; doesn't
+        // exist at runtime.
+        uint32_t currentStackScopeDepth = 0;
     };
 }

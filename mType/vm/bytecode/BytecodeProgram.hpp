@@ -19,6 +19,7 @@
 
 namespace runtimeTypes::klass { class ClassDefinition; }
 namespace runtimeTypes::global { class VariableDefinition; }
+namespace value { enum class PrimitiveTypeTag : uint8_t; }
 
 namespace vm::bytecode
 {
@@ -396,6 +397,52 @@ namespace vm::bytecode
         void invalidateFusionUnsafeTargets() const { fusionUnsafeTargetsBuilt = false; fusionUnsafeTargets.clear(); }
 
         mutable std::unordered_map<size_t, CachedInstructionState> cachedStates;
+
+    public:
+        // MYT-TBD (box/unbox perf): per-classIndex cache for the primitive-
+        // wrapper allocation fast path used by jit_new_value_object. First
+        // call resolves (className -> ClassDefinition, PrimitiveTypeTag,
+        // valueFieldAtIndex0); subsequent calls skip the per-call string
+        // dispatch + ClassRegistry hashmap + getFieldIndex hashmap. Indexed
+        // by the constant-pool string index for the class name (same value
+        // NEW_VALUE_OBJECT passes through inlineOperands[0]).
+        //
+        // `tag == PrimitiveTypeTag::NONE` after resolution means the class
+        // is NOT a primitive wrapper (Int/Float/Bool/String with
+        // "value" at field 0); the helper falls through to createObject.
+        struct PrimitiveWrapperResolution
+        {
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef;
+            value::PrimitiveTypeTag tag{};
+            bool resolved = false;
+        };
+        mutable std::vector<PrimitiveWrapperResolution> primitiveWrapperCache;
+
+        // MYT-TBD (box/unbox perf): per-(className constant index, argCount)
+        // cache for JIT NEW_OBJECT allocation sites. A hot generic allocation
+        // like `new Box<Int>(...)` previously reparsed the generic class name,
+        // looked up the class, selected the same constructor, and copied the
+        // same trivial-constructor assignment table every iteration. The JIT
+        // helper now resolves that once and reuses it when the constructor
+        // choice is unambiguous for the arity.
+        //
+        // `resolved && !trivialConstructorFastPath && !defaultNoCtorFastPath`
+        // means "known unsafe for the direct path"; callers must fall back to
+        // VirtualMachine::createObject to preserve overload/access/error
+        // behavior.
+        struct ObjectConstructionResolution
+        {
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef;
+            std::unordered_map<std::string, std::string> genericTypeBindings;
+            std::vector<std::pair<size_t, size_t>> trivialFieldIndexAssignments;
+            size_t argCount = 0;
+            bool resolved = false;
+            bool trivialConstructorFastPath = false;
+            bool defaultNoCtorFastPath = false;
+        };
+        mutable std::unordered_map<uint64_t, ObjectConstructionResolution> objectConstructionCache;
+
+    private:
 
         // MYT-313: program-owned stable copies of operand slices for JIT helpers
         // that need to embed a raw operand-array pointer as an immediate

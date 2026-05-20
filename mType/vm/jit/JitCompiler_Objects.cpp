@@ -125,6 +125,8 @@ namespace vm::jit
             case OpCode::NEW_OBJECT:
             case OpCode::NEW_VALUE_OBJECT: return emitNewObjectOp(s, instr);
             case OpCode::NEW_STACK: return emitNewStackOp(s, instr);
+            case OpCode::STACK_SCOPE_ENTER: return emitStackScopeEnterOp(s);
+            case OpCode::STACK_SCOPE_LEAVE: return emitStackScopeLeaveOp(s);
             case OpCode::CREATE_PROMISE:
                 return emitCreatePromiseOp(s);
             case OpCode::OBJECT_TO_VALUE_CREATE_PROMISE:

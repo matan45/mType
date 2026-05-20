@@ -14,6 +14,11 @@ namespace vm::compiler::visitors
     {
         std::string varName = node->getVariableName();
         value::ValueType varType = node->getVariableType();
+        const auto& varTypeInfo = node->getVariableTypeInfo();
+        std::string varClassName;
+        if (varTypeInfo.baseType == value::ValueType::OBJECT && !varTypeInfo.className.empty()) {
+            varClassName = varTypeInfo.className;
+        }
 
         ctx.variableTracker.beginScope();
 
@@ -24,7 +29,6 @@ namespace vm::compiler::visitors
         // Array indicators: explicit ARRAY type, IndexAccessNode collection,
         // toArray() method call, or "[]" in the inferred type name.
 
-        const auto& varTypeInfo = node->getVariableTypeInfo();
         bool isArrayFromTypeInfo = (varType == value::ValueType::ARRAY);
 
         bool isArrayType = (isArrayFromTypeInfo ||
@@ -149,7 +153,7 @@ namespace vm::compiler::visitors
             ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_GET, node);
 
             // Store in loop variable (per-iter — needs POP for STORE_LOCAL re-push)
-            ctx.variableTracker.declareLocal(varName, varType, "");
+            ctx.variableTracker.declareLocal(varName, varType, varClassName);
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t loopVarSlot = ctx.variableTracker.getNextLocalSlot() - 1;
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(loopVarSlot), node);
@@ -249,7 +253,7 @@ namespace vm::compiler::visitors
             ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL, static_cast<uint64_t>(counterSlot), node);
             ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_GET, node);
 
-            ctx.variableTracker.declareLocal(varName, varType, "");
+            ctx.variableTracker.declareLocal(varName, varType, varClassName);
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t loopVarSlot = ctx.variableTracker.getNextLocalSlot() - 1;
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(loopVarSlot), node);
@@ -347,7 +351,7 @@ namespace vm::compiler::visitors
             }
 
             // Store in loop variable (per-iter — needs POP for STORE_LOCAL re-push)
-            ctx.variableTracker.declareLocal(varName, varType, "");
+            ctx.variableTracker.declareLocal(varName, varType, varClassName);
             ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
             size_t loopVarSlot = ctx.variableTracker.getNextLocalSlot() - 1;
             ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL, static_cast<uint64_t>(loopVarSlot), node);

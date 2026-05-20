@@ -88,6 +88,29 @@ namespace vm::jit
         return true;
     }
 
+    // Per-scope NEW_STACK release. Both are single cc.invoke ops — keeps the
+    // emit site cheap and lets the runtime helper handle the cold cases
+    // (full scope-stack, empty slice, etc.).
+    bool emitStackScopeEnterOp(JitEmissionState& s)
+    {
+        auto& cc = s.cc;
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_stack_scope_enter),
+                  FuncSignature::build<void, JitContext*>());
+        inv->set_arg(0, s.ctxPtr);
+        return true;
+    }
+
+    bool emitStackScopeLeaveOp(JitEmissionState& s)
+    {
+        auto& cc = s.cc;
+        InvokeNode* inv;
+        cc.invoke(Out(inv), reinterpret_cast<uint64_t>(jit_stack_scope_leave),
+                  FuncSignature::build<void, JitContext*>());
+        inv->set_arg(0, s.ctxPtr);
+        return true;
+    }
+
     bool emitCreatePromiseOp(JitEmissionState& s)
     {
         if (!s.usesBoxedTypes || s.stackDepth <= 0)

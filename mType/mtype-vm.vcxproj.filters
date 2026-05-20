@@ -333,6 +333,9 @@
     <ClInclude Include="vm\runtime\LibraryLoader.hpp">
       <Filter>vm\runtime</Filter>
     </ClInclude>
+    <ClInclude Include="vm\runtime\RuntimeFlags.hpp">
+      <Filter>vm\runtime</Filter>
+    </ClInclude>
     <ClInclude Include="vm\runtime\VirtualMachine.hpp">
       <Filter>vm\runtime</Filter>
     </ClInclude>

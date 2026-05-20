@@ -1,121 +1,134 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
-#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "../utils/LSPTypes.hpp"
 #include "../DocumentManager.hpp"
+#include "AutoImportCompletionProvider.hpp"
+#include "CompletionResolver.hpp"
+#include "MemberCompletionProvider.hpp"
 #include "PathCompletionHandler.hpp"
+
+namespace environment
+{
+    class Environment;
+}
 
 namespace mtype::lsp::analysis
 {
     class WorkspaceSymbolIndex;
 }
 
-namespace mtype::lsp {
+namespace mtype::lsp
+{
+    class ProjectConfigProvider;
 
-class ProjectConfigProvider;
+    // Top-level completion dispatcher. Routes per-trigger contexts
+    // (`.`/`::`, `@`, `extends`/`implements`, generic identifier) to a
+    // small set of sub-providers and assembles the final ranked item
+    // list. The four sub-providers (`PathCompletionHandler`,
+    // `MemberCompletionProvider`, `AutoImportCompletionProvider`,
+    // `CompletionResolver`) own their feature-specific state.
+    class CompletionHandler
+    {
+    public:
+        // `workspaceIndex` may be null — the auto-import branches degrade
+        // to no-ops. Mirrors CodeActionHandler's constructor shape.
+        explicit CompletionHandler(
+            DocumentManager* docMgr,
+            std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex = nullptr);
 
-class CompletionHandler {
-public:
-    // MYT-51 — `workspaceIndex` may be null (default arg keeps legacy
-    // call sites compiling). The auto-import branch is a no-op when
-    // it is. Mirrors CodeActionHandler's constructor shape.
-    explicit CompletionHandler(
-        DocumentManager* docMgr,
-        std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex = nullptr);
+        std::vector<CompletionItem> handleCompletion(
+            const std::string& uri,
+            const Position& position);
 
-    std::vector<CompletionItem> handleCompletion(
-        const std::string& uri,
-        const Position& position
-    );
+        // Forwarded to PathCompletionHandler so import-string completions
+        // can enumerate `@pkg` aliases.
+        void setProjectConfig(std::shared_ptr<ProjectConfigProvider> config);
 
-    // MYT-309 — forwarded to PathCompletionHandler so import-string
-    // completions can enumerate `@pkg` aliases.
-    void setProjectConfig(std::shared_ptr<ProjectConfigProvider> config);
+        CompletionItem resolveCompletion(const CompletionItem& item) const;
 
-    // Lazy enrichment for completionItem/resolve. The client echoes the
-    // original CompletionItem (including the opaque `data` blob the
-    // server stamped during the initial response); this fills in
-    // documentation derived from the registry without recomputing the
-    // whole list.
-    CompletionItem resolveCompletion(const CompletionItem& item) const;
+    private:
+        // Per-context dispatch. Each returns `nullopt` to fall through to
+        // the next context; a present value (possibly empty) means "this
+        // context took the request and produced its definitive answer."
+        std::optional<std::vector<CompletionItem>> tryMemberCompletions(
+            const std::string& uri,
+            const Position& position,
+            const std::string& trimmedBefore,
+            const std::string& typedPrefix,
+            bool followedByOpenParen);
+        std::optional<std::vector<CompletionItem>> tryAnnotationCompletions(
+            const std::string& uri,
+            const Position& position,
+            const std::string& textBeforeCursor) const;
+        std::optional<std::vector<CompletionItem>> tryInheritanceCompletions(
+            const std::string& uri,
+            const Position& position,
+            const std::string& textBeforeCursor) const;
+        std::vector<CompletionItem> buildGeneralCompletions(
+            const std::string& uri,
+            const Position& position,
+            const std::string& typedPrefix,
+            bool followedByOpenParen) const;
 
-private:
-    std::vector<CompletionItem> getKeywordCompletions() const;
-    // Lowercase primitive keywords + the capitalized wrapper classes
-    // (Int / Float / Bool / String / Promise). The wrappers are real
-    // classes living in lib/primitives/*.mt — when the workspace index
-    // can resolve them they're emitted with an auto-import attached so
-    // accepting the completion also inserts `import { Int } from "..."`.
-    std::vector<CompletionItem> getTypeCompletions(const std::string& uri) const;
-    std::vector<CompletionItem> getBuiltinCompletions() const;
-    std::vector<CompletionItem> getCollectionCompletions() const;
-    // Annotation completions sourced from the per-document
-    // AnnotationRegistry (populated with built-ins via
-    // BuiltInAnnotations + any user-declared annotations). Triggered
-    // when the cursor sits right after `@` (optionally followed by a
-    // partial identifier).
-    std::vector<CompletionItem> getAnnotationCompletions(const std::string& uri) const;
+        // Primitive keywords + capitalized wrapper classes. The wrapper
+        // auto-import enrichment is delegated to AutoImportCompletionProvider.
+        // (Pure-static catalogues — keywords/builtins/collections — live
+        // as free functions in internal::CompletionHelpers.)
+        std::vector<CompletionItem> getTypeCompletions(const std::string& uri) const;
+        std::vector<CompletionItem> getAnnotationCompletions(const std::string& uri) const;
 
-    // MYT-51 — unified identifier enumeration. Walks the environment's
-    // scope chain + class/interface/function registries through
-    // diagnostics::IdentifierEnumerator in one pass, tagging each
-    // name with the right CompletionItemKind by re-querying the
-    // registries on the way out.
-    std::vector<CompletionItem> getIdentifierCompletions(const std::string& uri) const;
+        // Environment-driven identifier completions.
+        std::vector<CompletionItem> getIdentifierCompletions(const std::string& uri) const;
+        std::vector<CompletionItem> getClassCompletions(const std::string& uri) const;
+        std::vector<CompletionItem> getInterfaceCompletions(const std::string& uri) const;
 
-    // Context-narrowed variants used after `extends` / `implements`.
-    std::vector<CompletionItem> getClassCompletions(const std::string& uri) const;
-    std::vector<CompletionItem> getInterfaceCompletions(const std::string& uri) const;
+        // Per-kind sub-helpers for getIdentifierCompletions (kept under
+        // the 50-line method cap). `seen` is shared across them so the
+        // same symbol isn't surfaced twice across overlapping pools.
+        void addVariableItems(std::vector<CompletionItem>& items,
+                              const environment::Environment& env,
+                              std::unordered_set<std::string>& seen) const;
+        void addFunctionItems(std::vector<CompletionItem>& items,
+                              const environment::Environment& env,
+                              const std::string& uri,
+                              std::unordered_set<std::string>& seen) const;
+        void addClassItems(std::vector<CompletionItem>& items,
+                           const environment::Environment& env,
+                           std::unordered_set<std::string>& seen) const;
+        void addInterfaceItems(std::vector<CompletionItem>& items,
+                               const environment::Environment& env,
+                               std::unordered_set<std::string>& seen) const;
 
-    std::vector<CompletionItem> getMemberCompletions(
-        const std::string& uri,
-        const std::string& objectName,
-        int line,
-        bool isStaticAccess) const;
+        std::string getLineAtPosition(const std::string& content,
+                                      const Position& position) const;
 
-    // MYT-51 — auto-import completion items. Queries the workspace
-    // symbol index for names matching `typedPrefix` that are defined
-    // in other files and attaches an additionalTextEdits import line.
-    // No-op when `workspaceIndex_` is null or `typedPrefix` is empty.
-    std::vector<CompletionItem> getAutoImportCompletions(
-        const std::string& uri,
-        const std::string& typedPrefix,
-        const std::vector<CompletionItem>& existingItems) const;
+        // Rustc-style Levenshtein filter. Items whose label prefix-matches
+        // `typedPrefix` are always kept; others drop if
+        // `levenshtein(typedPrefix, label) > max(1, typedPrefix.size()/3)`.
+        // A no-op when `typedPrefix` is empty.
+        void applyFuzzyFilter(std::vector<CompletionItem>& items,
+                              const std::string& typedPrefix) const;
 
-    std::string getLineAtPosition(const std::string& content, const Position& position) const;
+        // Used in every dispatch branch: when the cursor is already
+        // immediately followed by `(`, snippet bodies on callable items
+        // would produce `name(${1:p})$0()` against the existing paren.
+        // Strip the body back to a bare identifier in that case.
+        // MUST run before applyReplacementEdit — otherwise the textEdit
+        // captures the snippet form.
+        void stripCallSnippets(std::vector<CompletionItem>& items,
+                               bool followedByOpenParen) const;
 
-    // MYT-51 — apply the rustc-style Levenshtein filter in place.
-    // Items whose label prefix-matches `typedPrefix` are always kept;
-    // other items are dropped if `levenshtein(typedPrefix, label)`
-    // exceeds `max(1, typedPrefix.size() / 3)`. A no-op if
-    // `typedPrefix` is empty.
-    void applyFuzzyFilter(
-        std::vector<CompletionItem>& items,
-        const std::string& typedPrefix) const;
-
-    DocumentManager* documentManager_;
-    std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex_;
-    std::unique_ptr<PathCompletionHandler> pathCompletionHandler_;
-
-    // Per-document member completion cache. `getMemberCompletions` is
-    // called on every keystroke after `.` / `::`, and the underlying
-    // inheritance walk + dedup is the same answer until the document
-    // changes. Keyed by `uri + "|v" + docVersion + "|" + access + "|"
-    // + typeName` (the version is part of the key so stale entries
-    // are naturally bypassed and pruned on the next miss for that
-    // uri). NOT thread-safe: the LSP request loop in
-    // MTypeLanguageServer::run is single-threaded today, so the cache
-    // never sees concurrent access. If/when dispatch goes parallel,
-    // wrap reads/writes in a mutex.
-    struct MemberCacheEntry {
-        int docVersion;
-        std::vector<CompletionItem> items;
+        DocumentManager* documentManager_;
+        std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex_;
+        std::unique_ptr<PathCompletionHandler> pathCompletionHandler_;
+        std::unique_ptr<MemberCompletionProvider> memberCompletionProvider_;
+        std::unique_ptr<AutoImportCompletionProvider> autoImportProvider_;
+        std::unique_ptr<CompletionResolver> completionResolver_;
     };
-    mutable std::unordered_map<std::string, MemberCacheEntry> memberCache_;
-};
-
-} // namespace mtype::lsp
+}

@@ -1,0 +1,4 @@
+empty eq: true
+concat empty eq empty: true
+x concat empty eq x: true
+empty concat x eq x: true

@@ -15,6 +15,7 @@
 #include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../../ast/nodes/expressions/ArrayLiteralNode.hpp"
 #include "../../../ast/nodes/expressions/ArrayCreationNode.hpp"
+#include "../../../ast/nodes/expressions/TernaryExpNode.hpp"
 #include "../../../ast/nodes/classes/NewNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../../ast/nodes/classes/MethodCallNode.hpp"
@@ -197,6 +198,19 @@ namespace vm::compiler::types
         return value::ValueType::VOID;
     }
 
+    value::ValueType TypeInferenceEngine::inferTernaryType(
+        ast::nodes::expressions::TernaryExpNode* ternary) const
+    {
+        value::ValueType trueType = inferExpressionType(ternary->getTrueExpression());
+        value::ValueType falseType = inferExpressionType(ternary->getFalseExpression());
+
+        if (trueType == falseType) {
+            return trueType;
+        }
+
+        return value::ValueType::VOID;
+    }
+
     value::ValueType TypeInferenceEngine::inferExpressionType(ast::ASTNode* node) const
     {
         if (!node) return value::ValueType::VOID;
@@ -236,6 +250,10 @@ namespace vm::compiler::types
 
         if (auto* indexAccess = dynamic_cast<ast::nodes::expressions::IndexAccessNode*>(node)) {
             return inferIndexAccessType(indexAccess);
+        }
+
+        if (auto* ternary = dynamic_cast<ast::nodes::expressions::TernaryExpNode*>(node)) {
+            return inferTernaryType(ternary);
         }
 
         // await: async fns return Promise<T> where T is a wrapper class, so the
