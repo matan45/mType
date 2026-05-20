@@ -54,17 +54,17 @@ namespace vm::jit
 
         try
         {
-            const std::string& className = ctx->program->getConstantPool().getString(classIndex);
             std::span<const value::Value> args(ctx->callArgs, argCount);
 
             value::Value direct;
-            if (vm::runtime::utils::tryCreatePrimitiveValueObject(
-                    className, args, ctx->environment, direct))
+            if (vm::runtime::utils::tryCreatePrimitiveValueObjectCached(
+                    ctx->program, classIndex, args, ctx->environment, direct))
             {
                 *dest = std::move(direct);
                 return;
             }
 
+            const std::string& className = ctx->program->getConstantPool().getString(classIndex);
             if (ctx->vm)
             {
                 *dest = ctx->vm->createObject(className, args);
