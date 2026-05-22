@@ -276,9 +276,17 @@ std::string FormattingHandler::formatOperators(const std::string& line) {
     std::regex commaRegex(R"(,(\S))");
     result = std::regex_replace(result, commaRegex, ", $1");
 
-    // Add space after colons (in type annotations)
+    // Add space after colons (in type annotations), but never break the
+    // scope-resolution operator "::". Temporarily mask "::" with a sentinel
+    // so the single-colon regex below can't match either of its colons,
+    // then restore it after spacing.
+    const std::string scopeMask = "\x01SCOPE\x01";
+    result = std::regex_replace(result, std::regex("::"), scopeMask);
+
     std::regex colonRegex(R"(:(\w))");
     result = std::regex_replace(result, colonRegex, ": $1");
+
+    result = std::regex_replace(result, std::regex(scopeMask), "::");
 
     return result;
 }
