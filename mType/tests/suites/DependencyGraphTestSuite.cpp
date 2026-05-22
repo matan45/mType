@@ -64,6 +64,17 @@ namespace tests::testSuite
         return "";
     }
 
+    static project::ProjectConfig makeSingleSourceConfig(const fs::path& projectRoot,
+                                                         const fs::path& sourceFile)
+    {
+        project::ProjectConfig config;
+        config.name = "TestProject";
+        config.version = "1.0.0";
+        config.projectRoot = fs::canonical(projectRoot).string();
+        config.resolvedSourceFiles.push_back(fs::canonical(sourceFile).string());
+        return config;
+    }
+
     void DependencyGraphTestSuite::setupTests()
     {
         // =============================================
@@ -317,6 +328,71 @@ namespace tests::testSuite
             if (!foundHelper)
                 throw std::runtime_error(
                     "Expected 'Helper' in imported symbols");
+        });
+
+        addCallbackTest("Alias-prefixed import resolves through project aliases", "",
+            [](services::ScriptAPI&)
+        {
+            fs::path projectDir = testFixturesDir() / "alias";
+            fs::path externalDir = testFixturesDir() / "aliasExternal";
+            auto config = makeSingleSourceConfig(projectDir, projectDir / "Main.mt");
+            config.imports.aliases["@alias"] = fs::canonical(externalDir).string();
+
+            project::DependencyGraphBuilder builder;
+            auto graph = builder.build(config);
+
+            std::string mainPath = findNodeByName(graph, "Main.mt");
+            std::string externalPath = findNodeByName(graph, "External.mt");
+
+            if (mainPath.empty())
+                throw std::runtime_error("Could not find Main.mt in graph");
+            if (externalPath.empty())
+                throw std::runtime_error("Could not find aliased External.mt in graph");
+
+            auto deps = graph.getDependencies(mainPath);
+            if (deps.size() != 1)
+                throw std::runtime_error(
+                    "Expected 1 dependency for Main.mt, got " +
+                    std::to_string(deps.size()));
+
+            if (fs::path(deps[0].to).filename().string() != "External.mt")
+                throw std::runtime_error(
+                    "Expected dependency on External.mt, got " + deps[0].to);
+
+            const auto& nodes = graph.getNodes();
+            auto nodeIt = nodes.find(externalPath);
+            if (nodeIt == nodes.end())
+                throw std::runtime_error("External.mt node missing from graph");
+            if (nodeIt->second.kind != project::NodeKind::EXTERNAL_FILE)
+                throw std::runtime_error("Aliased External.mt should be classified as external");
+        });
+
+        addCallbackTest("mt_modules alias import resolves in dependency graph", "",
+            [](services::ScriptAPI&)
+        {
+            fs::path projectDir = testFixturesDir() / "mtModulesAlias";
+            auto config = makeSingleSourceConfig(projectDir, projectDir / "Main.mt");
+
+            project::DependencyGraphBuilder builder;
+            auto graph = builder.build(config);
+
+            std::string mainPath = findNodeByName(graph, "Main.mt");
+            std::string depPath = findNodeByName(graph, "Dep.mt");
+
+            if (mainPath.empty())
+                throw std::runtime_error("Could not find Main.mt in graph");
+            if (depPath.empty())
+                throw std::runtime_error("Could not find mt_modules Dep.mt in graph");
+
+            auto deps = graph.getDependencies(mainPath);
+            if (deps.size() != 1)
+                throw std::runtime_error(
+                    "Expected 1 dependency for Main.mt, got " +
+                    std::to_string(deps.size()));
+
+            if (fs::path(deps[0].to).filename().string() != "Dep.mt")
+                throw std::runtime_error(
+                    "Expected dependency on Dep.mt, got " + deps[0].to);
         });
 
         // =============================================
