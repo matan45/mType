@@ -288,6 +288,11 @@ std::string FormattingHandler::formatOperators(const std::string& line) {
 
     result = std::regex_replace(result, std::regex(scopeMask), "::");
 
+    // Strip any whitespace that may exist between "::" and the next token —
+    // covers both legacy artefacts ("Audio:: bufChord") and source code that
+    // was already written with stray whitespace after the scope operator.
+    result = std::regex_replace(result, std::regex(R"(::[ \t]+)"), "::");
+
     return result;
 }
 
