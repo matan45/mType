@@ -292,6 +292,7 @@ namespace mtype::lsp
         // Share project config with handlers
         diagnosticsHandler_->setProjectConfig(projectConfig_);
         documentManager_->setProjectConfig(projectConfig_);
+        codeActionHandler_->setProjectConfig(projectConfig_);
         // Path-completion needs the alias map to surface `@pkg`
         // suggestions when the user types `@` inside an import string.
         completionHandler_->setProjectConfig(projectConfig_);

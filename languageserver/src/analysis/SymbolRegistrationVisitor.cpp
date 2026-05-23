@@ -71,7 +71,9 @@ void SymbolRegistrationVisitor::processClassNode(ast::ASTNode* node) {
     if (environment_->getClassRegistry()) {
         try {
             // Create a basic class definition for the LSP
-            auto classDef = std::make_shared<runtimeTypes::klass::ClassDefinition>(className);
+            auto classDef = std::make_shared<runtimeTypes::klass::ClassDefinition>(
+                className,
+                classNode->getGenericParameters());
 
             // Set final and abstract modifiers
             classDef->setFinal(classNode->isFinal());
@@ -247,7 +249,8 @@ void SymbolRegistrationVisitor::processInterfaceNode(ast::ASTNode* node) {
         try {
             // Create a basic interface definition for the LSP
             auto interfaceDef = std::make_shared<runtimeTypes::klass::InterfaceDefinition>(
-                interfaceName
+                interfaceName,
+                interfaceNode->getGenericParameters()
             );
 
             // Register parent interfaces

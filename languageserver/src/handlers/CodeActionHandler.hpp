@@ -14,6 +14,8 @@ namespace mtype::lsp::analysis
 
 namespace mtype::lsp {
 
+class ProjectConfigProvider;
+
 class CodeActionHandler {
 public:
     // MYT-47 — `workspaceIndex` may be null (e.g., in tests). The
@@ -27,6 +29,8 @@ public:
         const Range& range,
         const std::vector<Diagnostic>& diagnostics
     );
+
+    void setProjectConfig(std::shared_ptr<ProjectConfigProvider> config);
 
 private:
     // ----- Diagnostic-driven dispatch (MYT-35 Phase 5) -----
@@ -67,25 +71,9 @@ private:
         int line
     );
 
-    // Helper to get all methods required by an interface. When
-    // `outReferencedTypes` is non-null it also collects the unique
-    // type names appearing in parameter and return positions so the
-    // caller can attach matching import edits.
-    std::vector<std::string> getRequiredMethods(
-        const std::string& interfaceName,
-        const Document* doc,
-        std::unordered_set<std::string>* outReferencedTypes = nullptr
-    );
-
-    // Helper to check if a class already has a method
-    bool classHasMethod(
-        const std::string& className,
-        const std::string& methodName,
-        const Document* doc
-    );
-
     DocumentManager* documentManager_;
     std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex_;
+    std::shared_ptr<ProjectConfigProvider> projectConfig_;
 };
 
 } // namespace mtype::lsp

@@ -3,8 +3,13 @@
 #include "../../mType/environment/EnvironmentBuilder.hpp"
 #include "../../mType/environment/registry/ClassRegistry.hpp"
 #include "../../mType/environment/registry/InterfaceRegistry.hpp"
+#include "../../mType/environment/registry/InterfaceDefinition.hpp"
 #include "../../mType/ast/AccessModifier.hpp"
+#include "../../mType/ast/nodes/classes/ClassNode.hpp"
+#include "../../mType/ast/nodes/statements/ProgramNode.hpp"
+#include "../../mType/diagnostics/DiagnosticBuilder.hpp"
 #include "../../mType/diagnostics/ExceptionConverter.hpp"
+#include "../../mType/diagnostics/ErrorCodeRegistry.hpp"
 #include "../../mType/diagnostics/SourceFileCache.hpp"
 #include "../../mType/analysis/OverrideAnnotationChecker.hpp"
 #include "../../mType/analysis/UnusedVariableAnalyzer.hpp"
@@ -18,6 +23,7 @@
 #include <sstream>
 #include <algorithm>
 #include <regex>
+#include <unordered_set>
 
 using namespace lexer;
 using namespace token;
@@ -26,6 +32,92 @@ using namespace environment;
 using namespace services;
 
 namespace mtype::lsp {
+
+namespace {
+
+void collectInterfaceSignatures(
+    const std::string& interfaceName,
+    const std::shared_ptr<runtimeTypes::klass::InterfaceRegistry>& registry,
+    std::vector<runtimeTypes::klass::MethodSignature>& out,
+    std::unordered_set<std::string>& emitted,
+    std::unordered_set<std::string>& visiting)
+{
+    if (!registry) return;
+    std::string baseName = interfaceName;
+    if (const size_t generic = baseName.find('<'); generic != std::string::npos) {
+        baseName = baseName.substr(0, generic);
+    }
+    if (!visiting.insert(baseName).second) return;
+
+    auto iface = registry->findInterface(interfaceName);
+    if (!iface) {
+        visiting.erase(baseName);
+        return;
+    }
+
+    for (const auto& parent : iface->getExtendedInterfaces()) {
+        collectInterfaceSignatures(parent, registry, out, emitted, visiting);
+    }
+
+    for (const auto& sig : iface->getMethodSignatures()) {
+        const std::string key = sig.name + "/" + std::to_string(sig.parameters.size());
+        if (emitted.insert(key).second) {
+            out.push_back(sig);
+        }
+    }
+
+    visiting.erase(baseName);
+}
+
+std::vector<diagnostics::Diagnostic> findMissingInterfaceMethodDiagnostics(const Document& doc)
+{
+    std::vector<diagnostics::Diagnostic> out;
+    if (!doc.environment) return out;
+
+    auto classRegistry = doc.environment->getClassRegistry();
+    auto interfaceRegistry = doc.environment->getInterfaceRegistry();
+    if (!classRegistry || !interfaceRegistry) return out;
+
+    for (const auto& root : doc.ast) {
+        auto* program = dynamic_cast<ast::nodes::statements::ProgramNode*>(root.get());
+        if (!program) continue;
+
+        for (const auto& statement : program->getStatements()) {
+            auto* classNode = dynamic_cast<ast::nodes::classes::ClassNode*>(statement.get());
+            if (!classNode) continue;
+            const auto& interfaces = classNode->getImplementedInterfaces();
+            if (interfaces.empty()) continue;
+
+            auto classDef = classRegistry->findClass(classNode->getClassName());
+            if (!classDef) continue;
+
+            std::vector<runtimeTypes::klass::MethodSignature> required;
+            std::unordered_set<std::string> emitted;
+            std::unordered_set<std::string> visiting;
+            for (const auto& interfaceName : interfaces) {
+                collectInterfaceSignatures(interfaceName, interfaceRegistry, required, emitted, visiting);
+            }
+
+            for (const auto& sig : required) {
+                if (classDef->findInstanceMethod(sig.name, sig.parameters.size())) {
+                    continue;
+                }
+
+                out.push_back(
+                    diagnostics::DiagnosticBuilder(diagnostics::codes::InheritanceError)
+                        .withMessage("class '" + classNode->getClassName()
+                            + "' must implement interface method '" + sig.name + "'")
+                        .withPrimary(classNode->getLocation(), "missing interface method")
+                        .withSourceException("MissingInterfaceMethod")
+                        .build());
+            }
+        }
+    }
+
+    return out;
+}
+
+} // namespace
 
 DocumentManager::DocumentManager() {
     // ImportManager is now per-document for LSP
@@ -211,6 +303,14 @@ void DocumentManager::parseDocument(const std::string& uri) {
                 importResolver_->resolveImports(doc, this);
             } catch (const std::exception&) {
                 // Silently ignore import resolution errors
+            }
+        }
+
+        if (parseSucceeded && !doc->ast.empty() && doc->environment) {
+            auto missingInterfaceDiagnostics =
+                findMissingInterfaceMethodDiagnostics(*doc);
+            for (auto& d : missingInterfaceDiagnostics) {
+                doc->diagnostics.push_back(std::move(d));
             }
         }
 

@@ -3,12 +3,57 @@
 #include "../src/handlers/CodeActionHandler.hpp"
 #include "../src/DocumentManager.hpp"
 #include "../src/analysis/WorkspaceSymbolIndex.hpp"
+#include "../src/utils/ProjectConfigProvider.hpp"
 #include "../src/utils/LSPTypes.hpp"
+#include "../src/utils/UriUtils.hpp"
 #include "TestFixtures.hpp"
+#include "TempDir.hpp"
 
 #include <string>
 
 namespace mtype::lsp::test {
+
+namespace {
+
+std::string editsForImplementAction(const std::vector<CodeAction>& actions) {
+    std::string allEdits;
+    for (const auto& action : actions) {
+        if (action.title.find("Implement interface methods") == std::string::npos) {
+            continue;
+        }
+        if (!action.edit.has_value()) {
+            continue;
+        }
+        for (const auto& [uri, edits] : action.edit->changes) {
+            (void)uri;
+            for (const auto& edit : edits) {
+                allEdits += "---\n" + edit.newText;
+            }
+        }
+    }
+    return allEdits;
+}
+
+bool hasImplementAction(const std::vector<CodeAction>& actions) {
+    for (const auto& action : actions) {
+        if (action.title.find("Implement interface methods") != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int countOccurrences(const std::string& text, const std::string& needle) {
+    int count = 0;
+    size_t pos = 0;
+    while ((pos = text.find(needle, pos)) != std::string::npos) {
+        ++count;
+        pos += needle.size();
+    }
+    return count;
+}
+
+} // namespace
 
 void CodeActionHandlerTestSuite::registerTests(LspTestHarness& harness) {
 
@@ -307,6 +352,204 @@ void CodeActionHandlerTestSuite::registerTests(LspTestHarness& harness) {
             "auto-import should attach `import { Animal } from \"...mt\"` "
             "for the externally-defined parameter type. All edits seen:\n"
             + allEditsConcat);
+    });
+
+    harness.addTest("implement interface: multiple interfaces and partial implementation", []() {
+        auto docMgr = makeDocManager("file:///test/multi.mt",
+            "interface Drawable {\n"
+            "    function draw(): void;\n"
+            "}\n"
+            "interface Resizable {\n"
+            "    function resize(int width, int height): void;\n"
+            "}\n"
+            "class Widget implements Drawable, Resizable {\n"
+            "    public function draw(): void {\n"
+            "    }\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{6, 0}, {6, 52}};
+        auto actions = handler.handleCodeAction("file:///test/multi.mt", range, {});
+        const std::string edits = editsForImplementAction(actions);
+
+        require(hasImplementAction(actions),
+            "expected an Implement-interface action for missing Resizable.resize");
+        require(edits.find("public function resize(int width, int height): void")
+                != std::string::npos,
+            "should generate missing resize method. Edits:\n" + edits);
+        require(edits.find("public function draw(): void") == std::string::npos,
+            "should not regenerate already implemented draw method. Edits:\n" + edits);
+    });
+
+    harness.addTest("implement interface: inherited interface methods", []() {
+        auto docMgr = makeDocManager("file:///test/inherited.mt",
+            "interface Base {\n"
+            "    function baseMethod(): int;\n"
+            "}\n"
+            "interface Child extends Base {\n"
+            "    function childMethod(): string;\n"
+            "}\n"
+            "class Impl implements Child {\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{6, 0}, {6, 35}};
+        auto actions = handler.handleCodeAction("file:///test/inherited.mt", range, {});
+        const std::string edits = editsForImplementAction(actions);
+
+        require(edits.find("public function baseMethod(): int") != std::string::npos,
+            "should include inherited Base.baseMethod. Edits:\n" + edits);
+        require(edits.find("public function childMethod(): string") != std::string::npos,
+            "should include direct Child.childMethod. Edits:\n" + edits);
+        require(countOccurrences(edits, "@Override") == 2,
+            "should annotate each generated method with @Override. Edits:\n" + edits);
+    });
+
+    harness.addTest("implement interface: overloaded methods only generate missing overload", []() {
+        auto docMgr = makeDocManager("file:///test/overload.mt",
+            "interface Formatter {\n"
+            "    function format(int value): string;\n"
+            "    function format(string value): string;\n"
+            "}\n"
+            "class TextFormatter implements Formatter {\n"
+            "    public function format(int value): string {\n"
+            "        return \"\";\n"
+            "    }\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{4, 0}, {4, 48}};
+        auto actions = handler.handleCodeAction("file:///test/overload.mt", range, {});
+        const std::string edits = editsForImplementAction(actions);
+
+        require(edits.find("public function format(string value): string")
+                != std::string::npos,
+            "should generate missing string overload. Edits:\n" + edits);
+        require(edits.find("public function format(int value): string")
+                == std::string::npos,
+            "should not regenerate existing int overload. Edits:\n" + edits);
+    });
+
+    harness.addTest("implement interface: generic interface substitutes type arguments", []() {
+        auto docMgr = makeDocManager("file:///test/generic.mt",
+            "interface Box<T> {\n"
+            "    function get(): T;\n"
+            "    function set(T value): void;\n"
+            "}\n"
+            "class StringBox implements Box<string> {\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{4, 0}, {4, 42}};
+        auto actions = handler.handleCodeAction("file:///test/generic.mt", range, {});
+        const std::string edits = editsForImplementAction(actions);
+
+        require(edits.find("public function get(): string") != std::string::npos,
+            "generic return type T should be substituted with string. Edits:\n" + edits);
+        require(edits.find("public function set(string value): void") != std::string::npos,
+            "generic parameter type T should be substituted with string. Edits:\n" + edits);
+    });
+
+    harness.addTest("implement interface: diagnostic inside class still offers action", []() {
+        auto docMgr = makeDocManager("file:///test/diagnostic.mt",
+            "interface Runnable {\n"
+            "    function run(): void;\n"
+            "}\n"
+            "class Job implements Runnable {\n"
+            "    int id = 1;\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Diagnostic diag;
+        diag.range = {{4, 4}, {4, 10}};
+        diag.severity = 1;
+        diag.message = "Class 'Job' must implement interface method 'run'";
+        diag.data = nlohmann::json{{"exceptionType", "MissingInterfaceMethod"}};
+
+        auto actions = handler.handleCodeAction("file:///test/diagnostic.mt", diag.range, {diag});
+        const std::string edits = editsForImplementAction(actions);
+
+        require(hasImplementAction(actions),
+            "expected diagnostic-triggered Implement-interface action");
+        require(edits.find("public function run(): void") != std::string::npos,
+            "diagnostic-triggered action should generate run stub. Edits:\n" + edits);
+    });
+
+    harness.addTest("implement interface: no action when all methods implemented", []() {
+        auto docMgr = makeDocManager("file:///test/complete.mt",
+            "interface Runnable {\n"
+            "    function run(): void;\n"
+            "}\n"
+            "class Job implements Runnable {\n"
+            "    public function run(): void {\n"
+            "    }\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{3, 0}, {3, 32}};
+        auto actions = handler.handleCodeAction("file:///test/complete.mt", range, {});
+        require(!hasImplementAction(actions),
+            "should not offer implement action when every method is already present");
+    });
+
+    harness.addTest("implement interface: mt_modules package type auto-import uses alias", []() {
+        TempDir tmpDir;
+        tmpDir.createFile(".mtproj", "<Project></Project>\n");
+        tmpDir.createFile("src/Main.mt", "");
+        tmpDir.createFile("mt_modules/@animals/mtpkg.json",
+            "{\"name\":\"animals\",\"version\":\"0.0.1\",\"source\":\"src\"}\n");
+        tmpDir.createFile("mt_modules/@animals/src/Animal.mt",
+            "class Animal {\n"
+            "}\n");
+        tmpDir.createFile("mt_modules/@animals/src/Caretaker.mt",
+            "interface Caretaker {\n"
+            "    function feed(Animal animal): void;\n"
+            "}\n");
+
+        const std::string mainPath = (fs::path(tmpDir.path()) / "src" / "Main.mt").string();
+        const std::string animalPath =
+            (fs::path(tmpDir.path()) / "mt_modules" / "@animals" / "src" / "Animal.mt").string();
+        const std::string caretakerPath =
+            (fs::path(tmpDir.path()) / "mt_modules" / "@animals" / "src" / "Caretaker.mt").string();
+        const std::string mainUri = UriUtils::filePathToUri(mainPath);
+        const std::string animalUri = UriUtils::filePathToUri(animalPath);
+        const std::string caretakerUri = UriUtils::filePathToUri(caretakerPath);
+
+        auto config = std::make_shared<ProjectConfigProvider>();
+        require(config->loadFromWorkspace(tmpDir.path()),
+            "test project config should load .mtproj and mt_modules aliases");
+
+        DocumentManager docMgr;
+        docMgr.setProjectConfig(config);
+        const std::string mainSrc =
+            "import { Caretaker } from \"@animals/Caretaker.mt\";\n"
+            "class Keeper implements Caretaker {\n"
+            "}\n";
+        docMgr.openDocument(mainUri, mainSrc, 1);
+        docMgr.parseDocument(mainUri);
+
+        auto wsIndex = std::make_shared<analysis::WorkspaceSymbolIndex>();
+        wsIndex->reindexFile(animalUri,
+            "class Animal {\n"
+            "}\n");
+        wsIndex->reindexFile(caretakerUri,
+            "interface Caretaker {\n"
+            "    function feed(Animal animal): void;\n"
+            "}\n");
+
+        CodeActionHandler handler(&docMgr, wsIndex);
+        handler.setProjectConfig(config);
+
+        Range range{{1, 0}, {1, 40}};
+        auto actions = handler.handleCodeAction(mainUri, range, {});
+        const std::string edits = editsForImplementAction(actions);
+
+        require(edits.find("public function feed(Animal animal): void")
+                != std::string::npos,
+            "should generate package interface method. Edits:\n" + edits);
+        require(edits.find("import { Animal } from \"@animals/Animal.mt\";")
+                != std::string::npos,
+            "should auto-import package type through @animals alias. Edits:\n" + edits);
     });
 
     // ---------------------------------------------------------------
