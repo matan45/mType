@@ -55,4 +55,45 @@ inline Diagnostic makeDiagnosticWithSuggestions(
     return diag;
 }
 
+// Builds an LSP Diagnostic carrying a single structured suggestion: a
+// human label plus an explicit list of {range, newText} edits. Mirrors
+// the shape that LspDiagnosticConverter writes into
+// `data.suggestions[*]` when the producer (e.g. ExceptionConverter)
+// attached precise edits to the core Suggestion. Used by the MYT-364
+// regression tests to assert the action handler honours those edits
+// instead of synthesising its own range via wordRangeAt.
+inline Diagnostic makeDiagnosticWithStructuredEdits(
+    const Range& range,
+    const std::string& message,
+    const std::string& label,
+    const std::vector<TextEdit>& edits) {
+    Diagnostic diag;
+    diag.range = range;
+    diag.severity = 1;
+    diag.message = message;
+    nlohmann::json entry;
+    entry["label"] = label;
+    nlohmann::json editsArr = nlohmann::json::array();
+    for (const auto& e : edits) {
+        nlohmann::json ej;
+        ej["start"] = {
+            {"line", e.range.start.line},
+            {"character", e.range.start.character}
+        };
+        ej["end"] = {
+            {"line", e.range.end.line},
+            {"character", e.range.end.character}
+        };
+        ej["newText"] = e.newText;
+        editsArr.push_back(std::move(ej));
+    }
+    entry["edits"] = std::move(editsArr);
+    nlohmann::json sugArr = nlohmann::json::array();
+    sugArr.push_back(std::move(entry));
+    nlohmann::json data;
+    data["suggestions"] = std::move(sugArr);
+    diag.data = std::move(data);
+    return diag;
+}
+
 } // namespace mtype::lsp::test

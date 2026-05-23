@@ -573,6 +573,158 @@ void CodeActionHandlerTestSuite::registerTests(LspTestHarness& harness) {
     });
 
     // ---------------------------------------------------------------
+    // MYT-364: structured-edits path honours producer-supplied range
+    // and never expands into the next line's identifier.
+    //
+    // Repro: the "insert ';'" suggestion produced by
+    // ExceptionConverter::convertMissingSemicolon anchors the diagnostic
+    // at the next token (e.g. the start of `Int` on line 1). Before the
+    // fix, generateTypoFixActions ignored the suggestion's explicit
+    // zero-width edit, fed the diagnostic anchor through wordRangeAt,
+    // and emitted a TextEdit that REPLACED the `Int` identifier with
+    // `;`. This test pins the new behaviour: the structured edit must
+    // round-trip verbatim — same range, same newText, no expansion.
+    // ---------------------------------------------------------------
+    harness.addTest("MYT-364: structured ';' insert does not overwrite next identifier", []() {
+        const std::string uri = "file:///test/missing_semi.mt";
+        auto docMgr = makeDocManager(uri,
+            "foo()\n"
+            "Int x = 1;\n");
+        CodeActionHandler handler(docMgr.get());
+
+        // Diagnostic anchored at the start of `Int` on line 1 (the next
+        // token after the missing `;`), plus a structured zero-width
+        // insert at the same position carrying `";"` as the newText —
+        // exactly what ExceptionConverter emits for
+        // MissingSemicolonException.
+        TextEdit insertSemi;
+        insertSemi.range = {{1, 0}, {1, 0}};
+        insertSemi.newText = ";";
+
+        auto diag = makeDiagnosticWithStructuredEdits(
+            {{1, 0}, {1, 1}},
+            "expected ';' at end of statement",
+            "insert ';'",
+            {insertSemi});
+
+        auto actions = handler.handleCodeAction(uri, diag.range, {diag});
+
+        bool foundInsert = false;
+        for (const auto& action : actions) {
+            if (action.title != "Insert ';'") continue;
+            foundInsert = true;
+            require(action.kind.has_value() && *action.kind == "quickfix",
+                "expected kind 'quickfix' for Insert ';'");
+            require(action.edit.has_value(),
+                "expected Insert ';' action to carry a WorkspaceEdit");
+            const auto& edits = action.edit->changes.at(uri);
+            require(edits.size() == 1,
+                "expected exactly one TextEdit for Insert ';', got "
+                + std::to_string(edits.size()));
+            const auto& te = edits.front();
+            // The critical pins. A regression that re-introduces the
+            // wordRangeAt expansion would fail every one of these.
+            require(te.newText == ";",
+                "newText should be ';' verbatim, got '" + te.newText + "'");
+            require(te.range.start.line == 1 && te.range.start.character == 0,
+                "edit start must be (1,0), got ("
+                + std::to_string(te.range.start.line) + ","
+                + std::to_string(te.range.start.character) + ")");
+            require(te.range.end.line == 1 && te.range.end.character == 0,
+                "edit end must equal start for a zero-width insert, got ("
+                + std::to_string(te.range.end.line) + ","
+                + std::to_string(te.range.end.character) + ")");
+            require(te.range.start.line == te.range.end.line,
+                "edit must NOT span a newline (MYT-364 regression)");
+            require(!(te.range.start.line == 1
+                      && te.range.end.character >= 3),
+                "edit must NOT cover the `Int` identifier on line 1 "
+                "(MYT-364 regression)");
+        }
+        require(foundInsert,
+            "expected an 'Insert \\';\\'' code action from the structured "
+            "edit suggestion");
+    });
+
+    // ---------------------------------------------------------------
+    // MYT-364: back-compat. Legacy label-only suggestions (no `edits`
+    // field, e.g. did-you-mean typo fixes) must still route through
+    // the wordRangeAt expansion path and produce a "Replace with '<x>'"
+    // action covering the full identifier under the diagnostic anchor.
+    // ---------------------------------------------------------------
+    harness.addTest("MYT-364 back-compat: legacy typo path still expands to full word", []() {
+        const std::string uri = "file:///test/typo_legacy.mt";
+        auto docMgr = makeDocManager(uri,
+            "class Greeter {}\n"
+            "let g = new Greete();\n");
+        CodeActionHandler handler(docMgr.get());
+
+        // Range pins the diagnostic anchor inside the misspelled word
+        // `Greete` on line 1 (chars 12..18). The legacy synthesis path
+        // should expand the edit to cover the full identifier.
+        auto diag = makeDiagnosticWithSuggestions(
+            {{1, 12}, {1, 18}},
+            "Undefined class 'Greete'",
+            {"Greeter"});
+
+        auto actions = handler.handleCodeAction(uri, diag.range, {diag});
+
+        bool foundReplace = false;
+        for (const auto& action : actions) {
+            if (action.title != "Replace with 'Greeter'") continue;
+            foundReplace = true;
+            require(action.edit.has_value(),
+                "expected legacy typo action to carry a WorkspaceEdit");
+            const auto& edits = action.edit->changes.at(uri);
+            require(edits.size() == 1,
+                "expected exactly one TextEdit for legacy typo path");
+            const auto& te = edits.front();
+            require(te.newText == "Greeter",
+                "newText should be the candidate identifier");
+            // The range should cover the full `Greete` identifier (6
+            // chars), not just the 1-character diagnostic anchor.
+            require(te.range.start.line == 1 && te.range.start.character == 12,
+                "edit start should be (1,12) — start of `Greete`");
+            require(te.range.end.line == 1 && te.range.end.character == 18,
+                "edit end should be (1,18) — end of `Greete`");
+        }
+        require(foundReplace,
+            "expected a 'Replace with \\'Greeter\\'' action via legacy path");
+    });
+
+    // ---------------------------------------------------------------
+    // MYT-364: a present-but-empty `edits` array signals a producer
+    // mistake; the handler must NOT degrade to a no-op action AND must
+    // NOT fall through to the label-based wordRangeAt synthesis — that
+    // path is exactly the one that overwrites the next identifier when
+    // the label is "insert ';'". Both `Insert ';'` (would-be structured)
+    // and `Replace with ';'` (would-be legacy) must be absent.
+    // ---------------------------------------------------------------
+    harness.addTest("MYT-364: empty edits array does not produce a no-op action", []() {
+        const std::string uri = "file:///test/empty_edits.mt";
+        auto docMgr = makeDocManager(uri, "Int x = 1;\n");
+        CodeActionHandler handler(docMgr.get());
+
+        auto diag = makeDiagnosticWithStructuredEdits(
+            {{0, 0}, {0, 1}},
+            "expected ';' at end of statement",
+            "insert ';'",
+            {} /* empty edits */);
+
+        auto actions = handler.handleCodeAction(uri, diag.range, {diag});
+
+        for (const auto& action : actions) {
+            require(action.title != "Insert ';'",
+                "should not produce 'Insert \\';\\'' action when edits "
+                "array is empty");
+            require(action.title != "Replace with ';'",
+                "must not fall through to legacy wordRangeAt synthesis "
+                "for an empty structured-edits suggestion — that path "
+                "re-introduces the MYT-364 overwrite");
+        }
+    });
+
+    // ---------------------------------------------------------------
     // MYT-360: PrimitiveInGenericException quick-fix
     // ---------------------------------------------------------------
     harness.addTest("primitive-in-generic: rewrites int to Int and adds import", []() {
