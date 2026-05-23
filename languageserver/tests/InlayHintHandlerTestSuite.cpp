@@ -193,6 +193,107 @@ void InlayHintHandlerTestSuite::registerTests(LspTestHarness& harness) {
             "expected 0 Parameter hints on print() call");
     });
 
+    // ---- MYT-355: static method call parameter-name hints ----
+
+    harness.addTest("parameter hints on a static method call", []() {
+        const std::string src =
+            "class App {\n"
+            "    public static function pick(int idx): int { return idx; }\n"
+            "}\n"
+            "int v = App::pick(7);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "idx:", InlayHintKind::Parameter) == 1,
+            "expected 'idx:' hint on App::pick(7)");
+    });
+
+    harness.addTest("parameter hints on a static method call with multiple args", []() {
+        const std::string src =
+            "class App {\n"
+            "    public static function place(int x, int y, int z): int {\n"
+            "        return x + y + z;\n"
+            "    }\n"
+            "}\n"
+            "int v = App::place(1, 2, 3);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "x:", InlayHintKind::Parameter) == 1,
+            "expected 'x:' hint on App::place");
+        require(countHintsWithLabel(hints, "y:", InlayHintKind::Parameter) == 1,
+            "expected 'y:' hint on App::place");
+        require(countHintsWithLabel(hints, "z:", InlayHintKind::Parameter) == 1,
+            "expected 'z:' hint on App::place");
+    });
+
+    harness.addTest("parameter hints on a static method call inside another method body", []() {
+        // Nested call site — verifies the classifier still fires from
+        // inside an instance-method body and doesn't get confused by
+        // the enclosing `function name(...)` declaration.
+        const std::string src =
+            "class App {\n"
+            "    public static function pick(int idx): int { return idx; }\n"
+            "}\n"
+            "class Other {\n"
+            "    public constructor() {}\n"
+            "    public function run(): void {\n"
+            "        int v = App::pick(7);\n"
+            "    }\n"
+            "}\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "idx:", InlayHintKind::Parameter) == 1,
+            "expected 'idx:' hint on nested App::pick call");
+    });
+
+    harness.addTest("bare-identifier suppression still applies to static calls", []() {
+        // LSP "no hint where it duplicates source text" rule must
+        // suppress the hint when the arg lexeme matches the param name.
+        const std::string src =
+            "class App {\n"
+            "    public static function pick(int idx): int { return idx; }\n"
+            "}\n"
+            "int idx = 5;\n"
+            "int v = App::pick(idx);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "idx:", InlayHintKind::Parameter) == 0,
+            "expected 'idx:' hint suppressed when arg matches param name");
+    });
+
+    harness.addTest("unknown class on a static call produces no hint and no crash", []() {
+        const std::string src = "int v = Unknown::foo(7);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        // The require() helper surfaces any thrown exception as a
+        // failure, so the absence of try/catch IS the no-crash check.
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsOfKind(hints, InlayHintKind::Parameter) == 0,
+            "expected 0 Parameter hints for unknown class on static call");
+    });
+
+    harness.addTest("known class but unknown static method produces no hint and no crash", []() {
+        const std::string src =
+            "class App {\n"
+            "    public static function pick(int idx): int { return idx; }\n"
+            "}\n"
+            "int v = App::missing(7);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsOfKind(hints, InlayHintKind::Parameter) == 0,
+            "expected 0 Parameter hints when static method is undefined");
+    });
+
     // ---- Lambda type hints ----
 
     harness.addTest("type hint on a lambda parameter without annotation", []() {

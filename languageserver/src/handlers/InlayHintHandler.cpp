@@ -376,6 +376,14 @@ void InlayHintHandler::collectSites(
                         f.call.receiverName = tokenText(doc, toks[i - 3]);
                     } else if (i >= 2 && toks[i - 2].type == TT::NEW) {
                         f.call.kind = CalleeKind::Constructor;
+                    } else if (i >= 2 && toks[i - 2].type == TT::SCOPE
+                               && i >= 3 && toks[i - 3].type == TT::IDENTIFIER) {
+                        // MYT-355 — static call `ClassName::method(...)`.
+                        // The receiver token IS the class name, not a
+                        // variable, so no receiverTypes lookup is needed
+                        // in emitParameterHints.
+                        f.call.kind = CalleeKind::StaticMethod;
+                        f.call.receiverName = tokenText(doc, toks[i - 3]);
                     } else if (i >= 2 && toks[i - 2].type == TT::DOT) {
                         // Chained / complex receiver — v1 can't resolve.
                         f.isCall = false;
@@ -475,6 +483,26 @@ std::vector<std::string> lookupMethodParams(
     for (const auto& [pname, _ptype] : params) {
         if (first && pname == "this") { first = false; continue; }
         first = false;
+        out.push_back(pname);
+    }
+    return out;
+}
+
+// MYT-355 — resolve a static method's parameter names. Static methods
+// have no implicit `this`, so no leading-param skip is needed.
+std::vector<std::string> lookupStaticMethodParams(
+    const Document* doc, const std::string& className,
+    const std::string& methodName)
+{
+    std::vector<std::string> out;
+    if (!doc || !doc->environment) return out;
+    auto creg = doc->environment->getClassRegistry();
+    if (!creg) return out;
+    auto cls = creg->findClass(className);
+    if (!cls) return out;
+    auto method = cls->getStaticMethod(methodName);
+    if (!method) return out;
+    for (const auto& [pname, _ptype] : method->getParameters()) {
         out.push_back(pname);
     }
     return out;
@@ -609,6 +637,10 @@ void InlayHintHandler::emitParameterHints(
                 paramNames = lookupMethodParams(doc, it->second, call.calleeName);
                 break;
             }
+            case CalleeKind::StaticMethod:
+                // receiverName IS the class name for `Class::method(...)`.
+                paramNames = lookupStaticMethodParams(doc, call.receiverName, call.calleeName);
+                break;
         }
         if (paramNames.empty()) continue;
 
