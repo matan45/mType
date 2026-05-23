@@ -4,9 +4,10 @@ import * from "../../lib/stream/Stream.mt";
 import * from "../../lib/functional/Predicate.mt";
 import * from "../../lib/primitives/Int.mt";
 
-class PositivePredicate implements Predicate<int> {
-    public function test(int value): bool {
-        return value > 0;
+// MYT-360 — primitives can't be generic type arguments; was Predicate<int>.
+class PositivePredicate implements Predicate<Int> {
+    public function test(Int value): bool {
+        return value.getValue() > 0;
     }
 }
 

@@ -7,8 +7,9 @@ interface Transformer<T> {
     public function getType(): string;
 }
 
-class StringTransformer implements Transformer<string> {
-    public function <U> transform(string input, U context): U {
+// MYT-360 — generic type arguments must be boxed classes; was `Transformer<string>`.
+class StringTransformer implements Transformer<String> {
+    public function <U> transform(String input, U context): U {
         print("Transforming: " + input);
         return context;
     }
@@ -32,10 +33,10 @@ class IntTransformer implements Transformer<Int> {
 StringTransformer strTrans = new StringTransformer();
 IntTransformer intTrans = new IntTransformer();
 
-String result1 = strTrans.transform<String>("hello", "world");
+String result1 = strTrans.transform<String>(new String("hello"), new String("world"));
 Int result2 = intTrans.transform<Int>(new Int(42), new Int(100));
 
-print(result1);
+print(result1.toString());
 print(result2.getValue());
 print(strTrans.getType());
 print(intTrans.getType());

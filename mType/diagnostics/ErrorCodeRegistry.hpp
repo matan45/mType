@@ -33,6 +33,7 @@
     X(ParseDuplicateSignature,      "MT-E0004", ::diagnostics::Severity::Error, "duplicate method signature") \
     X(ParseInvalidSyntax,           "MT-E0005", ::diagnostics::Severity::Error, "invalid syntax") \
     X(ParseInvalidAssignmentTarget, "MT-E0006", ::diagnostics::Severity::Error, "invalid assignment target") \
+    X(ParsePrimitiveInGeneric,      "MT-E0007", ::diagnostics::Severity::Error, "primitive type in generic argument") \
     /* ----- name resolution ----- */ \
     X(NameUndefinedVariable,        "MT-E1001", ::diagnostics::Severity::Error, "use of undeclared identifier") \
     X(NameUndefinedFunction,        "MT-E1002", ::diagnostics::Severity::Error, "call to undefined function") \

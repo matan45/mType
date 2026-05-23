@@ -7654,6 +7654,21 @@
     <None Include="tests\testFiles\generics\error\primitiveFloatType.mt">
       <Filter>testFiles\generics\error</Filter>
     </None>
+    <None Include="tests\testFiles\generics\error\primitiveInExtendsClass.mt">
+      <Filter>testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\primitiveInExtendsInterface.mt">
+      <Filter>testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\primitiveInGenericConstraint.mt">
+      <Filter>testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\primitiveInImplementsClause.mt">
+      <Filter>testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\primitiveInImplementsMixed.mt">
+      <Filter>testFiles\generics\error</Filter>
+    </None>
     <None Include="tests\testFiles\generics\error\primitiveIntType.mt">
       <Filter>testFiles\generics\error</Filter>
     </None>
@@ -7709,6 +7724,12 @@
       <Filter>testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\boolTypeInGenerics.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\boxedClassInImplementsClause.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\boxedClassInImplementsClause.mt">
       <Filter>testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\castToTypeParamThrows.expected">

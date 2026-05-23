@@ -63,6 +63,17 @@ private:
         const Diagnostic& diagnostic
     );
 
+    // MYT-360 — primitive type used in a generic argument
+    // (e.g. `Predicate<int>`). Triggered when the diagnostic carries
+    // `data["exceptionType"] == "PrimitiveInGenericException"`. Rewrites
+    // the primitive token (int/float/bool/string) to its boxed class
+    // (Int/Float/Bool/String) and inserts the corresponding import when
+    // it isn't already present.
+    std::vector<CodeAction> generatePrimitiveInGenericFixes(
+        const std::string& uri,
+        const Diagnostic& diagnostic
+    );
+
     // ----- Diagnostic-agnostic actions (always considered) -----
 
     // Generate code actions for implementing missing interface methods

@@ -431,12 +431,16 @@ void CodeActionHandlerTestSuite::registerTests(LspTestHarness& harness) {
     });
 
     harness.addTest("implement interface: generic interface substitutes type arguments", []() {
+        // MYT-360 — primitives are no longer accepted as generic type
+        // arguments, so this fixture uses the boxed class `String` instead
+        // of the primitive `string`. The substitution mechanic is identical;
+        // only the type token changes.
         auto docMgr = makeDocManager("file:///test/generic.mt",
             "interface Box<T> {\n"
             "    function get(): T;\n"
             "    function set(T value): void;\n"
             "}\n"
-            "class StringBox implements Box<string> {\n"
+            "class StringBox implements Box<String> {\n"
             "}\n");
         CodeActionHandler handler(docMgr.get());
 
@@ -444,10 +448,10 @@ void CodeActionHandlerTestSuite::registerTests(LspTestHarness& harness) {
         auto actions = handler.handleCodeAction("file:///test/generic.mt", range, {});
         const std::string edits = editsForImplementAction(actions);
 
-        require(edits.find("public function get(): string") != std::string::npos,
-            "generic return type T should be substituted with string. Edits:\n" + edits);
-        require(edits.find("public function set(string value): void") != std::string::npos,
-            "generic parameter type T should be substituted with string. Edits:\n" + edits);
+        require(edits.find("public function get(): String") != std::string::npos,
+            "generic return type T should be substituted with String. Edits:\n" + edits);
+        require(edits.find("public function set(String value): void") != std::string::npos,
+            "generic parameter type T should be substituted with String. Edits:\n" + edits);
     });
 
     harness.addTest("implement interface: diagnostic inside class still offers action", []() {
@@ -566,6 +570,70 @@ void CodeActionHandlerTestSuite::registerTests(LspTestHarness& harness) {
             require(action.title.find("Implement") == std::string::npos,
                 "should not offer implement action for class without 'implements'");
         }
+    });
+
+    // ---------------------------------------------------------------
+    // MYT-360: PrimitiveInGenericException quick-fix
+    // ---------------------------------------------------------------
+    harness.addTest("primitive-in-generic: rewrites int to Int and adds import", []() {
+        const std::string mainUri = "file:///test/main.mt";
+        const std::string intUri  = "file:///test/lib/primitives/Int.mt";
+
+        const std::string mainSource =
+            "interface Predicate<T> {\n"
+            "    function test(T value): bool;\n"
+            "}\n"
+            "class PositivePredicate implements Predicate<int> {\n"
+            "}\n";
+
+        auto docMgr = makeDocManager(mainUri, mainSource);
+
+        auto wsIndex = std::make_shared<analysis::WorkspaceSymbolIndex>();
+        wsIndex->reindexFile(intUri, "public class Int {\n}\n");
+
+        CodeActionHandler handler(docMgr.get(), wsIndex);
+
+        // Diagnostic anchored on the line `class PositivePredicate implements
+        // Predicate<int>` near the `int` token. The handler scans the line
+        // for the primitive whole-word, so the exact column tolerance is
+        // forgiving by design.
+        Diagnostic diag = makeDiagnostic(
+            {{3, 53}, {3, 56}},
+            "Primitive type 'int' cannot be used as generic type argument. "
+            "Use boxed type 'Int' instead",
+            "PrimitiveInGenericException");
+
+        auto actions = handler.handleCodeAction(mainUri, diag.range, {diag});
+
+        bool foundRewrite = false;
+        bool foundImport = false;
+        for (const auto& action : actions) {
+            if (action.title.find("Replace 'int' with 'Int'") == std::string::npos) {
+                continue;
+            }
+            require(action.kind.has_value() && *action.kind == "quickfix",
+                "expected kind 'quickfix'");
+            require(action.edit.has_value(),
+                "expected primitive-in-generic action to carry a WorkspaceEdit");
+            const auto& edits = action.edit->changes.at(mainUri);
+            for (const auto& edit : edits) {
+                if (edit.newText == "Int"
+                    && edit.range.start.line == 3
+                    && edit.range.end.character - edit.range.start.character == 3)
+                {
+                    foundRewrite = true;
+                }
+                if (edit.newText.find("import") != std::string::npos
+                    && edit.newText.find("Int") != std::string::npos)
+                {
+                    foundImport = true;
+                }
+            }
+        }
+        require(foundRewrite,
+            "expected a TextEdit replacing 'int' with 'Int' on the implements line");
+        require(foundImport,
+            "expected a TextEdit inserting an Int import");
     });
 }
 

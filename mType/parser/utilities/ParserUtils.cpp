@@ -8,6 +8,19 @@
 
 namespace parser
 {
+    void ParserUtils::throwPrimitiveInGeneric(
+        TokenStream& stream,
+        std::string_view primitiveName,
+        std::string_view boxedName)
+    {
+        using namespace errors;
+        throw ParseException(
+            "Primitive type '" + std::string(primitiveName) +
+            "' cannot be used as generic type argument. Use boxed type '" +
+            std::string(boxedName) + "' instead",
+            stream.location());
+    }
+
     std::unique_ptr<ast::ASTNode> ParserUtils::parseBinaryOperators(
         TokenStream& stream,
         std::function<std::unique_ptr<ast::ASTNode>()> parseNext,
@@ -145,23 +158,19 @@ namespace parser
             }
             else if (stream.current().type == TokenType::INT)
             {
-                result += "int";
-                stream.advance();
+                throwPrimitiveInGeneric(stream, "int", "Int");
             }
             else if (stream.current().type == TokenType::FLOAT)
             {
-                result += "float";
-                stream.advance();
+                throwPrimitiveInGeneric(stream, "float", "Float");
             }
             else if (stream.current().type == TokenType::BOOL)
             {
-                result += "bool";
-                stream.advance();
+                throwPrimitiveInGeneric(stream, "bool", "Bool");
             }
             else if (stream.current().type == TokenType::STRING_TYPE)
             {
-                result += "string";
-                stream.advance();
+                throwPrimitiveInGeneric(stream, "string", "String");
             }
             else
             {

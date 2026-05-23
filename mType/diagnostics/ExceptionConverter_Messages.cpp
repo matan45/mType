@@ -200,6 +200,18 @@ namespace diagnostics::detail
 
     Diagnostic convertParse(const errors::ParseException& e)
     {
+        // MYT-360 — primitive-type-in-generic-argument has its own code so
+        // the LSP can offer a quick-fix that rewrites `<int>` → `<Int>` and
+        // adds the boxed-type import. The message shape is stable:
+        // "Primitive type 'int' cannot be used as generic type argument.
+        //  Use boxed type 'Int' instead".
+        const std::string& msg = e.getMessage();
+        if (msg.find("cannot be used as generic type argument") != std::string::npos
+            && msg.find("Primitive type") != std::string::npos)
+        {
+            return plainFromScript(e, codes::ParsePrimitiveInGeneric,
+                                   "PrimitiveInGenericException");
+        }
         return plainFromScript(e, codes::ParseInvalidSyntax, "ParseException");
     }
 

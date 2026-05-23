@@ -13,7 +13,9 @@
 #include "../../../mType/util/ImportScan.hpp"
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <filesystem>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -519,6 +521,12 @@ std::vector<CodeAction> CodeActionHandler::generateFixesForDiagnostic(
                 auto importFixes = generateMissingImportFixes(uri, diagnostic);
                 actions.insert(actions.end(), importFixes.begin(), importFixes.end());
             }
+            else if (s == "PrimitiveInGenericException")
+            {
+                // MYT-360 — replace `<int>` with `<Int>` and auto-import.
+                auto primFixes = generatePrimitiveInGenericFixes(uri, diagnostic);
+                actions.insert(actions.end(), primFixes.begin(), primFixes.end());
+            }
         }
     }
 
@@ -606,6 +614,117 @@ std::vector<CodeAction> CodeActionHandler::generateMissingImportFixes(
         actions.push_back(std::move(action));
     }
 
+    return actions;
+}
+
+std::vector<CodeAction> CodeActionHandler::generatePrimitiveInGenericFixes(
+    const std::string& uri,
+    const Diagnostic& diagnostic
+) {
+    std::vector<CodeAction> actions;
+
+    auto doc = documentManager_->getDocument(uri);
+    if (!doc) return actions;
+
+    // Parse `primitive` and `boxed` out of the canonical message shape:
+    // "Primitive type 'int' cannot be used as generic type argument.
+    //  Use boxed type 'Int' instead". The exception type already gated us
+    // here, so a missed match means the message format changed under us —
+    // bail rather than guess.
+    const std::string& msg = diagnostic.message;
+    const size_t q1 = msg.find('\'');
+    if (q1 == std::string::npos) return actions;
+    const size_t q2 = msg.find('\'', q1 + 1);
+    if (q2 == std::string::npos) return actions;
+    const size_t q3 = msg.find('\'', q2 + 1);
+    if (q3 == std::string::npos) return actions;
+    const size_t q4 = msg.find('\'', q3 + 1);
+    if (q4 == std::string::npos) return actions;
+
+    const std::string primitive = msg.substr(q1 + 1, q2 - q1 - 1);
+    const std::string boxed = msg.substr(q3 + 1, q4 - q3 - 1);
+    if (primitive.empty() || boxed.empty()) return actions;
+
+    // Locate the primitive token in the source. The diagnostic range is
+    // anchored at the parser's stream location when it threw — typically
+    // on or just after the primitive token, but with a 1-character span.
+    // Search the diagnostic's line for the primitive as a whole word and
+    // pick the occurrence whose start is closest to the diagnostic anchor.
+    const int anchorLine = diagnostic.range.start.line;
+    const int anchorCol = diagnostic.range.start.character;
+    const std::string line = getLine(doc->content, anchorLine);
+    if (line.empty()) return actions;
+
+    auto isIdent = [](char c) {
+        return (std::isalnum(static_cast<unsigned char>(c)) != 0) || c == '_';
+    };
+
+    int bestStart = -1;
+    int bestDistance = std::numeric_limits<int>::max();
+    size_t searchFrom = 0;
+    while (searchFrom <= line.size()) {
+        const size_t hit = line.find(primitive, searchFrom);
+        if (hit == std::string::npos) break;
+        const size_t hitEnd = hit + primitive.size();
+        const bool leftOk = (hit == 0) || !isIdent(line[hit - 1]);
+        const bool rightOk = (hitEnd >= line.size()) || !isIdent(line[hitEnd]);
+        if (leftOk && rightOk) {
+            const int distance = std::abs(static_cast<int>(hit) - anchorCol);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestStart = static_cast<int>(hit);
+            }
+        }
+        searchFrom = hit + 1;
+    }
+    if (bestStart < 0) return actions;
+
+    CodeAction action;
+    action.title = "Replace '" + primitive + "' with '" + boxed
+                   + "' and add import";
+    action.kind = "quickfix";
+    action.diagnostics.push_back(diagnostic);
+
+    WorkspaceEdit edit;
+
+    // 1. Replace the primitive token with the boxed type name.
+    TextEdit replaceEdit;
+    replaceEdit.range.start.line = anchorLine;
+    replaceEdit.range.start.character = bestStart;
+    replaceEdit.range.end.line = anchorLine;
+    replaceEdit.range.end.character = bestStart + static_cast<int>(primitive.size());
+    replaceEdit.newText = boxed;
+    edit.changes[uri].push_back(std::move(replaceEdit));
+
+    // 2. Auto-import the boxed type when it isn't already visible. Same
+    // "already-imported?" check the auto-import completion path uses
+    // (AutoImportCompletionProvider::enrichWithWrapperImport).
+    auto classRegistry = doc->environment
+        ? doc->environment->getClassRegistry()
+        : nullptr;
+    const bool alreadyImported =
+        classRegistry && classRegistry->hasClass(boxed);
+
+    if (!alreadyImported && workspaceIndex_) {
+        workspaceIndex_->waitForReady(std::chrono::milliseconds(50));
+        auto matches = workspaceIndex_->findByName(boxed, /*maxResults=*/1);
+        if (!matches.empty()) {
+            const std::string referencingPath = UriUtils::uriToFilePath(uri);
+            const std::string symbolPath =
+                UriUtils::uriToFilePath(matches.front().fileUri);
+            if (symbolPath != referencingPath) {
+                const std::string spelling =
+                    analysis::WorkspaceSymbolIndex::computeImportSpelling(
+                        symbolPath, referencingPath);
+                const int insertLine = util::findImportInsertLine(doc->content);
+                edit.changes[uri].push_back(
+                    utils::buildImportInsertEdit(insertLine, boxed, spelling));
+            }
+        }
+    }
+
+    action.edit = edit;
+    actions.push_back(std::move(action));
     return actions;
 }
 
