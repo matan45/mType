@@ -333,7 +333,8 @@ namespace mtype::lsp
             },
             {
                 "signatureHelpProvider", {
-                    {"triggerCharacters", json::array({"(", ","})}
+                    {"triggerCharacters", json::array({"(", ","})},
+                    {"retriggerCharacters", json::array({","})}
                 }
             },
             {
