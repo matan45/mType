@@ -466,24 +466,43 @@ std::vector<std::string> lookupFunctionParams(
 // Resolve a method's parameter names. MethodDefinition::getParameters()
 // places `this` first for instance methods — drop it so positional
 // arguments align.
+// MYT-356 — when the receiver's declared type is an interface, the
+// class registry misses; fall back to the interface registry. Interface
+// methods carry no implicit `this`, so the leading-param skip doesn't
+// apply on that path.
 std::vector<std::string> lookupMethodParams(
     const Document* doc, const std::string& className,
     const std::string& methodName)
 {
     std::vector<std::string> out;
     if (!doc || !doc->environment) return out;
-    auto creg = doc->environment->getClassRegistry();
-    if (!creg) return out;
-    auto cls = creg->findClass(className);
-    if (!cls) return out;
-    auto method = cls->getMethod(methodName);
-    if (!method) return out;
-    const auto& params = method->getParameters();
-    bool first = true;
-    for (const auto& [pname, _ptype] : params) {
-        if (first && pname == "this") { first = false; continue; }
-        first = false;
-        out.push_back(pname);
+
+    // Try class registry first.
+    if (auto creg = doc->environment->getClassRegistry()) {
+        if (auto cls = creg->findClass(className)) {
+            if (auto method = cls->getMethod(methodName)) {
+                bool first = true;
+                for (const auto& [pname, _ptype] : method->getParameters()) {
+                    if (first && pname == "this") { first = false; continue; }
+                    first = false;
+                    out.push_back(pname);
+                }
+                return out;
+            }
+        }
+    }
+
+    // Interface fallback. Scan by name; first overload wins, mirroring
+    // the class path's getMethod(name) semantics.
+    if (auto iface = doc->environment->findInterface(className)) {
+        for (const auto& sig : iface->getMethodSignatures()) {
+            if (sig.name == methodName) {
+                for (const auto& [pname, _ptype] : sig.parameters) {
+                    out.push_back(pname);
+                }
+                return out;
+            }
+        }
     }
     return out;
 }
