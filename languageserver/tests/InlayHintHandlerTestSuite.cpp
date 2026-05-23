@@ -227,6 +227,134 @@ void InlayHintHandlerTestSuite::registerTests(LspTestHarness& harness) {
             "expected 0 Type hints when lambda param has explicit type");
     });
 
+    // ---- MYT-354: return-position lambda type hints ----
+
+    harness.addTest("type hint on return-position lambda (single param)", []() {
+        // Lambda appears as the return expression; target interface
+        // is the enclosing function's declared return type.
+        const std::string src =
+            "interface Function {\n"
+            "    function apply(int x): int;\n"
+            "}\n"
+            "function make(): Function {\n"
+            "    return x -> x * 2;\n"
+            "}\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsOfKind(hints, InlayHintKind::Type) == 1,
+            "expected 1 Type hint on return-position lambda param");
+    });
+
+    harness.addTest("type hints on return-position lambda (multi-param)", []() {
+        const std::string src =
+            "interface BinaryFunction {\n"
+            "    function apply(int a, int b): int;\n"
+            "}\n"
+            "function make(): BinaryFunction {\n"
+            "    return (a, b) -> a + b;\n"
+            "}\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsOfKind(hints, InlayHintKind::Type) == 2,
+            "expected 2 Type hints on return-position multi-param lambda");
+    });
+
+    harness.addTest("type hint on block-body return-position lambda", []() {
+        // Block-body lambda — the inner `return temp;` is past the
+        // walk-back start point, so it doesn't confuse target resolution.
+        const std::string src =
+            "interface Function {\n"
+            "    function apply(int x): int;\n"
+            "}\n"
+            "function make(): Function {\n"
+            "    return x -> {\n"
+            "        int temp = x * 2;\n"
+            "        return temp + 1;\n"
+            "    };\n"
+            "}\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsOfKind(hints, InlayHintKind::Type) == 1,
+            "expected 1 Type hint on block-body return-position lambda");
+    });
+
+    harness.addTest("type hint on return-position lambda inside nested block", []() {
+        // RETURN sits inside an `if` body; brace-balancing must walk
+        // out through the if scope to reach the enclosing function decl.
+        const std::string src =
+            "interface Function {\n"
+            "    function apply(int x): int;\n"
+            "}\n"
+            "function make(bool flag): Function {\n"
+            "    if (flag) {\n"
+            "        return x -> x * 2;\n"
+            "    }\n"
+            "    return x -> x;\n"
+            "}\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        // Both `return x -> ...` sites should get a hint.
+        require(countHintsOfKind(hints, InlayHintKind::Type) == 2,
+            "expected 2 Type hints (one per nested-block return lambda)");
+    });
+
+    harness.addTest("no type hint when enclosing function returns void", []() {
+        const std::string src =
+            "function make(): void {\n"
+            "    return x -> x;\n"
+            "}\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsOfKind(hints, InlayHintKind::Type) == 0,
+            "expected 0 Type hints for void-returning enclosing function");
+    });
+
+    harness.addTest("no type hint when enclosing function returns non-functional type", []() {
+        // `int` is not an interface — findInterface() yields nothing and
+        // emitLambdaTypeHints short-circuits.
+        const std::string src =
+            "function make(): int {\n"
+            "    return x -> x;\n"
+            "}\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsOfKind(hints, InlayHintKind::Type) == 0,
+            "expected 0 Type hints when return type isn't a functional interface");
+    });
+
+    harness.addTest("assign-path lambda inside a function body still resolves (regression)", []() {
+        // The ASSIGN walk-back must win for `Function g = x -> x;`
+        // even when it sits inside a function whose return type is
+        // also a functional interface (MYT-354 must not regress the
+        // pre-existing ASSIGN path).
+        const std::string src =
+            "interface Function {\n"
+            "    function apply(int x): int;\n"
+            "}\n"
+            "function make(): Function {\n"
+            "    Function g = x -> x;\n"
+            "    return g;\n"
+            "}\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsOfKind(hints, InlayHintKind::Type) == 1,
+            "expected 1 Type hint (ASSIGN path) on the assigned lambda");
+    });
+
     harness.addTest("no type hint on a plain typed variable declaration", []() {
         // Sanity check: mType always requires an explicit type on
         // variable declarations, so even though there's no `var` keyword
