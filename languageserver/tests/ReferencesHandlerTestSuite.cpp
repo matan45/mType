@@ -121,6 +121,135 @@ void ReferencesHandlerTestSuite::registerTests(LspTestHarness& harness) {
             require(len == 3, "reference range length should be 3 (abc), got " + std::to_string(len));
         }
     });
+
+    // Two classes both expose a `value` method. Searching for Foo.value must
+    // not return calls dispatched on a Bar receiver. The pre-AST implementation
+    // failed this: it ran a textual whole-word scan for "value" and matched
+    // every occurrence in the file.
+    harness.addTest("method search is class-scoped", []() {
+        const std::string source =
+            "class Foo {\n"                                       // line 0
+            "    public function value(): int { return 1; }\n"    // line 1
+            "}\n"                                                 // line 2
+            "class Bar {\n"                                       // line 3
+            "    public function value(): int { return 2; }\n"    // line 4
+            "}\n"                                                 // line 5
+            "Foo f = new Foo();\n"                                // line 6
+            "Bar b = new Bar();\n"                                // line 7
+            "int x = f.value();\n"                                // line 8
+            "int y = b.value();\n";                               // line 9
+
+        auto docMgr = makeDocManager("file:///scoped.mt", source);
+        ReferencesHandler handler(docMgr.get());
+
+        // Cursor on Foo's `value` declaration: line 1, inside the `value` token
+        // (col 20 = the `v` of `value`).
+        auto refs = handler.handleReferences("file:///scoped.mt", {1, 21}, true);
+
+        int fooCallRefs = 0;
+        int barCallRefs = 0;
+        for (const auto& r : refs) {
+            if (r.range.start.line == 8) fooCallRefs++;
+            if (r.range.start.line == 9) barCallRefs++;
+        }
+        require(fooCallRefs >= 1, "expected f.value() call to be included");
+        require(barCallRefs == 0, "b.value() must not be matched by Foo.value search");
+    });
+
+    // Virtual dispatch means a search on Base.run should also include the
+    // overriding Derived.run declaration. mType has no @Override requirement
+    // in the test file, so just matching method names is enough.
+    harness.addTest("instance method search includes overrides", []() {
+        const std::string source =
+            "class Base {\n"                                  // line 0
+            "    public function run(): void {}\n"            // line 1
+            "}\n"                                             // line 2
+            "class Derived extends Base {\n"                  // line 3
+            "    public function run(): void {}\n"            // line 4
+            "}\n"                                             // line 5
+            "Base b = new Base();\n"                          // line 6
+            "Derived d = new Derived();\n"                    // line 7
+            "b.run();\n"                                      // line 8
+            "d.run();\n";                                     // line 9
+
+        auto docMgr = makeDocManager("file:///poly.mt", source);
+        ReferencesHandler handler(docMgr.get());
+
+        // Cursor on Base.run declaration (line 1, col 21 = inside `run`).
+        auto refs = handler.handleReferences("file:///poly.mt", {1, 21}, true);
+
+        bool sawBaseDecl = false;
+        bool sawDerivedDecl = false;
+        bool sawBCall = false;
+        bool sawDCall = false;
+        for (const auto& r : refs) {
+            if (r.range.start.line == 1) sawBaseDecl = true;
+            if (r.range.start.line == 4) sawDerivedDecl = true;
+            if (r.range.start.line == 8) sawBCall = true;
+            if (r.range.start.line == 9) sawDCall = true;
+        }
+        require(sawBaseDecl, "Base.run declaration missing");
+        require(sawDerivedDecl, "Derived.run override declaration missing");
+        require(sawBCall, "b.run() call missing");
+        require(sawDCall, "d.run() call missing (polymorphic dispatch coverage)");
+    });
+
+    // Cross-file static method: the call site lives in a different open
+    // document than the declaration. The handler must walk every open URI.
+    harness.addTest("static method references span open documents", []() {
+        const std::string defSource =
+            "class Util {\n"                                                              // line 0
+            "    public static function clamp(int lo): int { return lo; }\n"              // line 1
+            "}\n";                                                                        // line 2
+        const std::string useSource =
+            "int x = Util::clamp(5);\n"
+            "int y = Util::clamp(10);\n";
+
+        auto docMgr = std::make_unique<DocumentManager>();
+        docMgr->openDocument("file:///def.mt", defSource, 1);
+        docMgr->parseDocument("file:///def.mt");
+        docMgr->openDocument("file:///use.mt", useSource, 1);
+        docMgr->parseDocument("file:///use.mt");
+
+        ReferencesHandler handler(docMgr.get());
+
+        // Cursor on Util's `clamp` declaration (line 1, col 28 = inside `clamp`).
+        auto refs = handler.handleReferences("file:///def.mt", {1, 28}, true);
+
+        int useFileHits = 0;
+        for (const auto& r : refs) {
+            if (r.uri == "file:///use.mt") useFileHits++;
+        }
+        require(useFileHits >= 2,
+            "expected at least 2 Util::clamp calls in use.mt, got " + std::to_string(useFileHits));
+    });
+
+    // Cross-file free function: same as above but a top-level function.
+    harness.addTest("free function references span open documents", []() {
+        const std::string defSource =
+            "function helper(): int { return 42; }\n";
+        const std::string useSource =
+            "int x = helper();\n"
+            "print(helper());\n";
+
+        auto docMgr = std::make_unique<DocumentManager>();
+        docMgr->openDocument("file:///def.mt", defSource, 1);
+        docMgr->parseDocument("file:///def.mt");
+        docMgr->openDocument("file:///use.mt", useSource, 1);
+        docMgr->parseDocument("file:///use.mt");
+
+        ReferencesHandler handler(docMgr.get());
+
+        // Cursor on `helper` declaration (line 0, column 9).
+        auto refs = handler.handleReferences("file:///def.mt", {0, 9}, true);
+
+        int useFileHits = 0;
+        for (const auto& r : refs) {
+            if (r.uri == "file:///use.mt") useFileHits++;
+        }
+        require(useFileHits >= 2,
+            "expected at least 2 helper() calls in use.mt, got " + std::to_string(useFileHits));
+    });
 }
 
 } // namespace mtype::lsp::test
