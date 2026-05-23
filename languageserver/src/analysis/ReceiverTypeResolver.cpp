@@ -22,6 +22,9 @@
 #include "../../../mType/environment/registry/MethodDefinition.hpp"
 #include "../../../mType/environment/registry/FieldDefinition.hpp"
 #include "../../../mType/environment/registry/FunctionDefinition.hpp"
+#include "../../../mType/environment/registry/InterfaceDefinition.hpp"
+
+#include <unordered_set>
 
 namespace mtype::lsp {
 
@@ -161,31 +164,74 @@ types::UnifiedTypePtr ReceiverTypeResolver::resolveMethodCall(
     std::string ownerClass = baseName(ownerType);
     if (ownerClass.empty()) return nullptr;
 
-    auto cls = classReg->findClass(ownerClass);
-    if (!cls) return nullptr;
-
-    auto overloads = node.getIsStaticCall()
-        ? cls->getAllStaticMethodOverloads(node.getMethodName())
-        : cls->getAllInstanceMethodOverloads(node.getMethodName());
-    if (overloads.empty()) {
-        // Mirror DocumentManager's instance-fallback for upper-case receivers
-        // whose method is actually instance-side (or vice versa).
-        overloads = node.getIsStaticCall()
-            ? cls->getAllInstanceMethodOverloads(node.getMethodName())
-            : cls->getAllStaticMethodOverloads(node.getMethodName());
-    }
-    if (overloads.empty()) return nullptr;
-
-    // Coarse overload disambiguation: pick the first overload matching the
-    // call's argument count, else the first overload. Generic-arg inference
-    // is explicitly out of scope per the MYT-359 ticket.
     const size_t argCount = node.getArguments().size();
-    for (const auto& m : overloads) {
-        if (m && m->getParameters().size() == argCount) {
-            return m->getUnifiedReturnType();
+
+    if (auto cls = classReg->findClass(ownerClass)) {
+        auto overloads = node.getIsStaticCall()
+            ? cls->getAllStaticMethodOverloads(node.getMethodName())
+            : cls->getAllInstanceMethodOverloads(node.getMethodName());
+        if (overloads.empty()) {
+            // Mirror DocumentManager's instance-fallback for upper-case receivers
+            // whose method is actually instance-side (or vice versa).
+            overloads = node.getIsStaticCall()
+                ? cls->getAllInstanceMethodOverloads(node.getMethodName())
+                : cls->getAllStaticMethodOverloads(node.getMethodName());
+        }
+        if (!overloads.empty()) {
+            // Coarse overload disambiguation: pick the first overload matching the
+            // call's argument count, else the first overload. Generic-arg inference
+            // is explicitly out of scope per the MYT-359 ticket.
+            for (const auto& m : overloads) {
+                if (m && m->getParameters().size() == argCount) {
+                    return m->getUnifiedReturnType();
+                }
+            }
+            if (overloads.front()) return overloads.front()->getUnifiedReturnType();
+        }
+        return nullptr;
+    }
+
+    // MYT-362 — receiver typed as an interface (e.g. `Stream<E>` returned by
+    // `ArrayList.stream()`). The ClassRegistry misses it because interfaces
+    // live in their own registry. Walk this interface and its parents (BFS,
+    // visited-set cycle guard) and return the first matching method
+    // signature's return type, preferring an arg-count match.
+    return resolveInterfaceMethodReturn(ownerClass, node.getMethodName(), argCount);
+}
+
+types::UnifiedTypePtr ReceiverTypeResolver::resolveInterfaceMethodReturn(
+    const std::string& interfaceName,
+    const std::string& methodName,
+    size_t argCount) const {
+    if (!env_ || interfaceName.empty()) return nullptr;
+
+    std::unordered_set<std::string> visited;
+    std::vector<std::string> stack;
+    stack.push_back(interfaceName);
+
+    const runtimeTypes::klass::MethodSignature* anyMatch = nullptr;
+
+    while (!stack.empty()) {
+        std::string current = std::move(stack.back());
+        stack.pop_back();
+        if (!visited.insert(current).second) continue;
+
+        auto iface = env_->findInterface(current);
+        if (!iface) continue;
+
+        for (const auto& sig : iface->getMethodSignatures()) {
+            if (sig.name != methodName) continue;
+            if (sig.parameters.size() == argCount) {
+                return sig.returnType;
+            }
+            if (!anyMatch) anyMatch = &sig;
+        }
+        for (const auto& parent : iface->getExtendedInterfaces()) {
+            if (!visited.count(parent)) stack.push_back(parent);
         }
     }
-    return overloads.front() ? overloads.front()->getUnifiedReturnType() : nullptr;
+
+    return anyMatch ? anyMatch->returnType : nullptr;
 }
 
 types::UnifiedTypePtr ReceiverTypeResolver::resolveFunctionCall(

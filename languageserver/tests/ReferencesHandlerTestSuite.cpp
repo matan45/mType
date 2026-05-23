@@ -250,6 +250,56 @@ void ReferencesHandlerTestSuite::registerTests(LspTestHarness& harness) {
         require(useFileHits >= 2,
             "expected at least 2 helper() calls in use.mt, got " + std::to_string(useFileHits));
     });
+
+    // MYT-362 — Find References on a chained method whose receiver is itself
+    // a method call must type the receiver and pin the search to that
+    // class/interface. Before the fix, the chained-call branch fell through
+    // to resolveCall's name-only enumeration and over-matched any class
+    // declaring a same-named method. Here `Other.withAge` should NOT appear
+    // when the cursor is on the chained `.withAge()` whose receiver is
+    // typed as Builder.
+    harness.addTest("MYT-362 find references on chained interface-method call does not over-match", []() {
+        const std::string src =
+            "interface Builder {\n"                                              // 0
+            "    function withName(string n): Builder;\n"                         // 1
+            "    function withAge(int a): Builder;\n"                             // 2
+            "}\n"                                                                 // 3
+            "class PB implements Builder {\n"                                     // 4
+            "    public constructor() {}\n"                                       // 5
+            "    public function withName(string n): Builder { return this; }\n"  // 6
+            "    public function withAge(int a): Builder { return this; }\n"     // 7
+            "}\n"                                                                 // 8
+            "class Other {\n"                                                     // 9
+            "    public constructor() {}\n"                                       // 10
+            "    public function withAge(int a): Other { return this; }\n"        // 11
+            "}\n"                                                                 // 12
+            "PB pb = new PB();\n"                                                 // 13
+            "Other o = new Other();\n"                                            // 14
+            "pb.withName(\"a\").withAge(1);\n"                                    // 15 chained, receiver = interface Builder
+            "o.withAge(7);\n";                                                    // 16 unrelated Other.withAge call
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        ReferencesHandler handler(docMgr.get());
+
+        // Cursor on chained .withAge — col 19 (middle of "withAge" at
+        // line 15: pb(0-1).(2)w(3)i(4)t(5)h(6)N(7)a(8)m(9)e(10)((11)
+        // "(12)a(13)"(14))(15).(16)w(17)i(18)t(19)h(20)A(21)g(22)e(23) ...)
+        auto refs = handler.handleReferences("file:///t.mt", {15, 19}, false);
+
+        // The chained `.withAge(1)` at line 15 must be in the results.
+        bool foundLine15 = false;
+        for (const auto& r : refs) {
+            if (r.range.start.line == 15) foundLine15 = true;
+        }
+        require(foundLine15,
+            "chained .withAge() at line 15 should be matched as a Builder.withAge reference");
+
+        // The unrelated `o.withAge(7);` call at line 16 must NOT be among
+        // the results, since the chained `.withAge` is typed as Builder.
+        for (const auto& r : refs) {
+            require(r.range.start.line != 16,
+                "Other.withAge() call at line 16 should not be matched by chained Builder.withAge reference search");
+        }
+    });
 }
 
 } // namespace mtype::lsp::test

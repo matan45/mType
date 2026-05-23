@@ -284,6 +284,20 @@ void SymbolRegistrationVisitor::processInterfaceNode(ast::ASTNode* node) {
                     signature.genericParameters = functionNode->getGenericTypeParameters();
 
                     interfaceDef->addMethodSignature(signature);
+
+                    // MYT-362 — emit `InterfaceName.methodName` symbolLocations
+                    // entry so DocumentManager::findDefinition's `methodKey`
+                    // lookup hits for chained calls whose receiver type is
+                    // an interface. Mirrors processClassNode's class-method
+                    // branch above.
+                    const auto& methodLoc = functionNode->getLocation();
+                    std::string methodKey = interfaceName + "." + functionNode->getName();
+                    symbolLocations_[methodKey] = SymbolLocationInfo{
+                        currentUri_,
+                        methodLoc.getLine() - 1,
+                        methodLoc.getColumn() - 1,
+                        interfaceName
+                    };
                 }
             }
 

@@ -61,6 +61,30 @@ void SymbolRegistrationVisitorTestSuite::registerTests(LspTestHarness& harness) 
                 "Second should be at line 1");
         }
     });
+
+    // MYT-362 — interface methods must be registered under the
+    // `InterfaceName.methodName` key so DocumentManager::findDefinition can
+    // resolve chained interface-method calls (Stream API style).
+    harness.addTest("interface method registered as InterfaceName.methodName", []() {
+        auto docMgr = makeDocManager("file:///t.mt",
+            "interface I {\n    function m(): void;\n}\n");
+        auto* doc = docMgr->getDocument("file:///t.mt");
+        require(doc != nullptr, "document should exist");
+        require(doc->symbolLocations.count("I.m") > 0,
+            "expected 'I.m' in symbolLocations");
+    });
+
+    harness.addTest("interface method location points at method declaration line", []() {
+        auto docMgr = makeDocManager("file:///t.mt",
+            "interface I {\n    function m(): void;\n}\n");
+        auto* doc = docMgr->getDocument("file:///t.mt");
+        require(doc != nullptr, "document should exist");
+        if (doc->symbolLocations.count("I.m")) {
+            // method declared on source line 2 (1-based), stored 0-based as 1.
+            require(doc->symbolLocations.at("I.m").line == 1,
+                "I.m should be at LSP line 1");
+        }
+    });
 }
 
 } // namespace mtype::lsp::test

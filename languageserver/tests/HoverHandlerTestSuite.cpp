@@ -380,6 +380,63 @@ void HoverHandlerTestSuite::registerTests(LspTestHarness& harness) {
         require(result->contents.find("Foo::play()") != std::string::npos,
             "hover should render 'Foo::play()' for ternary receiver");
     });
+
+    // MYT-362 — hover on chained interface-method calls. Hover on the first
+    // hop (.withName) already worked via getTypeInfo's interface fallback;
+    // hover on subsequent hops (.withAge, .build) failed because
+    // ReceiverTypeResolver bailed when an interface return type recursed in.
+    harness.addTest("MYT-362 hover on chained interface-method call (.withAge after .withName)", []() {
+        const std::string src =
+            "interface Builder {\n"                                              // 0
+            "    function withName(string n): Builder;\n"                         // 1
+            "    function withAge(int a): Builder;\n"                             // 2
+            "    function build(): Person;\n"                                     // 3
+            "}\n"                                                                 // 4
+            "class Person { public constructor() {} }\n"                          // 5
+            "class PB implements Builder {\n"                                     // 6
+            "    public constructor() {}\n"                                       // 7
+            "    public function withName(string n): Builder { return this; }\n"  // 8
+            "    public function withAge(int a): Builder { return this; }\n"     // 9
+            "    public function build(): Person { return new Person(); }\n"      // 10
+            "}\n"                                                                 // 11
+            "PB pb = new PB();\n"                                                 // 12
+            "Person p = pb.withName(\"a\").withAge(1).build();\n";                // 13
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+
+        // .withAge cursor at col 30 (middle of "withAge"). Receiver of
+        // .withAge is .withName(...) which returns interface Builder.
+        auto result = handler.handleHover("file:///t.mt", {13, 30});
+        require(result.has_value(), "expected hover for chained .withAge() through interface receiver");
+        require(result->contents.find("withAge") != std::string::npos,
+            "hover should mention withAge");
+    });
+
+    harness.addTest("MYT-362 hover on chained interface-method call (.build after .withAge)", []() {
+        const std::string src =
+            "interface Builder {\n"                                              // 0
+            "    function withName(string n): Builder;\n"                         // 1
+            "    function withAge(int a): Builder;\n"                             // 2
+            "    function build(): Person;\n"                                     // 3
+            "}\n"                                                                 // 4
+            "class Person { public constructor() {} }\n"                          // 5
+            "class PB implements Builder {\n"                                     // 6
+            "    public constructor() {}\n"                                       // 7
+            "    public function withName(string n): Builder { return this; }\n"  // 8
+            "    public function withAge(int a): Builder { return this; }\n"     // 9
+            "    public function build(): Person { return new Person(); }\n"      // 10
+            "}\n"                                                                 // 11
+            "PB pb = new PB();\n"                                                 // 12
+            "Person p = pb.withName(\"a\").withAge(1).build();\n";                // 13
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+
+        // .build cursor at col 40. Two interface hops from the receiver.
+        auto result = handler.handleHover("file:///t.mt", {13, 40});
+        require(result.has_value(), "expected hover for chained .build() through two interface hops");
+        require(result->contents.find("build") != std::string::npos,
+            "hover should mention build");
+    });
 }
 
 } // namespace mtype::lsp::test

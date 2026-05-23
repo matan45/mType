@@ -1,6 +1,7 @@
 #include "ReferencesHandler.hpp"
 #include "CallHierarchyHandlerInternal.hpp"
 #include "../utils/UriUtils.hpp"
+#include "../analysis/ReceiverTypeResolver.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -159,6 +160,33 @@ std::vector<TargetSymbol> buildTargetSet(const std::string& uri,
 
         if (hit) {
             bool isStatic = isStaticCallNode(hit);
+
+            // MYT-362 — if the cursor is on a chained `.method()` whose
+            // receiver is itself a non-trivial expression (MethodCallNode,
+            // IndexAccess, ternary, ...), type that receiver via
+            // ReceiverTypeResolver and pin the target to one class/interface.
+            // resolveCall's name-only fallback (CallHierarchyHandlerInternal
+            // .hpp:366-379) enumerates every class declaring the same method
+            // name; for chained interface-method calls that's an over-match
+            // (e.g., Builder.withAge AND Other.withAge).
+            if (auto* mc = dynamic_cast<nc::MethodCallNode*>(hit);
+                mc && !mc->getIsStaticCall() && doc->isParsed && doc->environment) {
+                auto* recv = mc->getObject();
+                bool isBareNameRecv =
+                    dynamic_cast<ne::VariableNode*>(recv) != nullptr;
+                if (!isBareNameRecv) {
+                    auto mcPos = toLspPosition(mc->getLocation());
+                    ReceiverTypeResolver resolver(doc->environment, &doc->ast,
+                                                  mcPos.line, mcPos.character);
+                    std::string typed = resolver.resolveName(recv);
+                    if (!typed.empty()) {
+                        targets.push_back({"method-instance", typed, mc->getMethodName()});
+                        addOverridesForInstanceMethod(mgr, typed, mc->getMethodName(), targets);
+                        return targets;
+                    }
+                }
+            }
+
             for (const auto& t : resolveCall(hit, mgr, enclosing)) {
                 if (t.kind == kKindFunction) {
                     targets.push_back({"function", "", t.name});
@@ -218,6 +246,23 @@ std::vector<std::string> keysForCall(::ast::ASTNode* call,
             if (!inferred.empty()) {
                 out.push_back(targetKey({"method-instance", inferred, mc->getMethodName()}));
                 return out;
+            }
+        } else if (mgr) {
+            // MYT-362 — non-VariableNode receivers (chained `a.b().c()`,
+            // `arr[0].c()`, `(cond ? a : b).c()`). Without this branch, the
+            // call falls through to `resolveCall`'s name-only enumeration
+            // and matches every class that declares a same-named method.
+            // Route through the same AST-based resolver findDefinition uses.
+            auto* doc = mgr->getDocument(docUri);
+            if (doc && doc->isParsed && doc->environment) {
+                auto pos = toLspPosition(mc->getLocation());
+                ReceiverTypeResolver resolver(doc->environment, &doc->ast,
+                                              pos.line, pos.character);
+                std::string inferred = resolver.resolveName(mc->getObject());
+                if (!inferred.empty()) {
+                    out.push_back(targetKey({"method-instance", inferred, mc->getMethodName()}));
+                    return out;
+                }
             }
         }
     }

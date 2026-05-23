@@ -69,6 +69,15 @@ private:
     types::UnifiedTypePtr resolveTernary(const ast::nodes::expressions::TernaryExpNode& node) const;
     types::UnifiedTypePtr resolveNew(const ast::nodes::classes::NewNode& node) const;
 
+    // MYT-362 — interface-side fallback for resolveMethodCall. Walks the
+    // interface and its `extends` parents, returning the matching method
+    // signature's return type. Preferred-match: argCount equals; otherwise
+    // first method by name.
+    types::UnifiedTypePtr resolveInterfaceMethodReturn(
+        const std::string& interfaceName,
+        const std::string& methodName,
+        size_t argCount) const;
+
     // Internal helpers for lookupVariableType's fallback chain.
     types::UnifiedTypePtr findLocalDeclType(const std::string& name) const;
     types::UnifiedTypePtr findParamType(const std::string& name) const;

@@ -195,6 +195,95 @@ void DefinitionHandlerTestSuite::registerTests(LspTestHarness& harness) {
         require(result.has_value(), "expected definition for (cond ? a : b).play()");
         require(result->range.start.line == 1, "play() should resolve to line 1");
     });
+
+    // MYT-362 — chained method calls on an interface receiver. Self-returning
+    // interface mirrors the Stream API repro (filter().map().limit().toArray()).
+    // Before the fix, every call after the first interface-typed step returned
+    // nullopt: ReceiverTypeResolver bailed because Stream wasn't in the
+    // ClassRegistry, and even when it did resolve, symbolLocations had no
+    // `InterfaceName.methodName` entry.
+    harness.addTest("MYT-362 go-to-def follows chained interface-method receiver (1st hop)", []() {
+        const std::string src =
+            "interface Builder {\n"                                              // 0
+            "    function withName(string n): Builder;\n"                         // 1  withName decl
+            "    function withAge(int a): Builder;\n"                             // 2  withAge decl
+            "    function build(): Person;\n"                                     // 3  build decl
+            "}\n"                                                                 // 4
+            "class Person { public constructor() {} }\n"                          // 5
+            "class PB implements Builder {\n"                                     // 6
+            "    public constructor() {}\n"                                       // 7
+            "    public function withName(string n): Builder { return this; }\n"  // 8
+            "    public function withAge(int a): Builder { return this; }\n"     // 9
+            "    public function build(): Person { return new Person(); }\n"      // 10
+            "}\n"                                                                 // 11
+            "PB pb = new PB();\n"                                                 // 12
+            "Person p = pb.withName(\"a\").withAge(1).build();\n";                // 13
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        DefinitionHandler handler(docMgr.get());
+
+        // pb.withName(...) — receiver is VariableNode("pb") (typed as PB, a
+        // class). This path already worked; included to anchor the chain.
+        auto result = handler.handleDefinition("file:///t.mt", {13, 16});
+        require(result.has_value(), "expected definition for pb.withName()");
+        // PB.withName is at line 8; Builder.withName is at line 1. Either
+        // is a defensible answer — accept both.
+        require(result->range.start.line == 8 || result->range.start.line == 1,
+            "withName should resolve to PB.withName (line 8) or Builder.withName (line 1)");
+    });
+
+    harness.addTest("MYT-362 go-to-def follows chained interface-method receiver (.withAge after .withName)", []() {
+        const std::string src =
+            "interface Builder {\n"                                              // 0
+            "    function withName(string n): Builder;\n"                         // 1
+            "    function withAge(int a): Builder;\n"                             // 2  withAge decl
+            "    function build(): Person;\n"                                     // 3
+            "}\n"                                                                 // 4
+            "class Person { public constructor() {} }\n"                          // 5
+            "class PB implements Builder {\n"                                     // 6
+            "    public constructor() {}\n"                                       // 7
+            "    public function withName(string n): Builder { return this; }\n"  // 8
+            "    public function withAge(int a): Builder { return this; }\n"     // 9
+            "    public function build(): Person { return new Person(); }\n"      // 10
+            "}\n"                                                                 // 11
+            "PB pb = new PB();\n"                                                 // 12
+            "Person p = pb.withName(\"a\").withAge(1).build();\n";                // 13
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        DefinitionHandler handler(docMgr.get());
+
+        // .withAge is at col 28-34 (cursor at 30). Receiver of .withAge is
+        // a MethodCallNode for .withName(...), which returns interface
+        // Builder. Before MYT-362, this returned nullopt.
+        auto result = handler.handleDefinition("file:///t.mt", {13, 30});
+        require(result.has_value(), "expected definition for chained .withAge() on interface receiver");
+        require(result->range.start.line == 2,
+            "withAge should resolve to Builder.withAge at line 2");
+    });
+
+    harness.addTest("MYT-362 go-to-def follows chained interface-method receiver (.build after .withAge)", []() {
+        const std::string src =
+            "interface Builder {\n"                                              // 0
+            "    function withName(string n): Builder;\n"                         // 1
+            "    function withAge(int a): Builder;\n"                             // 2
+            "    function build(): Person;\n"                                     // 3  build decl
+            "}\n"                                                                 // 4
+            "class Person { public constructor() {} }\n"                          // 5
+            "class PB implements Builder {\n"                                     // 6
+            "    public constructor() {}\n"                                       // 7
+            "    public function withName(string n): Builder { return this; }\n"  // 8
+            "    public function withAge(int a): Builder { return this; }\n"     // 9
+            "    public function build(): Person { return new Person(); }\n"      // 10
+            "}\n"                                                                 // 11
+            "PB pb = new PB();\n"                                                 // 12
+            "Person p = pb.withName(\"a\").withAge(1).build();\n";                // 13
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        DefinitionHandler handler(docMgr.get());
+
+        // .build is at col 39-43 (cursor at 40). Two-step chained receiver.
+        auto result = handler.handleDefinition("file:///t.mt", {13, 40});
+        require(result.has_value(), "expected definition for chained .build() through two interface hops");
+        require(result->range.start.line == 3,
+            "build should resolve to Builder.build at line 3");
+    });
 }
 
 } // namespace mtype::lsp::test
