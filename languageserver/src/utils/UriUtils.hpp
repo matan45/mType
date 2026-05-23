@@ -51,11 +51,17 @@ namespace UriUtils {
     /**
      * Convert a file:// URI to a filesystem path.
      * Handles URL decoding and Windows drive letter prefix.
+     *
+     * Strip only `file://` (7 chars), not `file:///` (8): on POSIX the
+     * third `/` is the leading slash of the path itself, so eating it
+     * yielded relative-looking paths. On Windows the URI is
+     * `file:///C:/...`; after the 7-char strip the leading `/` lands in
+     * front of the drive letter and the Windows branch below removes it.
      */
     inline std::string uriToFilePath(const std::string& uri)
     {
         std::string path = uri;
-        const std::string filePrefix = "file:///";
+        const std::string filePrefix = "file://";
 
         if (path.find(filePrefix) == 0)
         {
