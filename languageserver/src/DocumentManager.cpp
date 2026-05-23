@@ -517,6 +517,25 @@ DocumentManager::CallContext DocumentManager::classifyCallContext(
         if (idEnd > idStart) {
             ctx.kind = CallContext::Kind::Method;
             ctx.receiver = currentLine.substr(idStart + 1, idEnd - idStart);
+
+            // Check whether the receiver itself is preceded by `Class::` —
+            // i.e. the chain is `Class::field.method(...)`. Capture the class
+            // so the Method branch can resolve the static field's type.
+            int j = idStart;
+            while (j >= 0 && std::isspace(static_cast<unsigned char>(currentLine[j]))) j--;
+            if (j >= 1 && currentLine[j] == ':' && currentLine[j - 1] == ':') {
+                int cEnd = j - 2;
+                while (cEnd >= 0 && std::isspace(static_cast<unsigned char>(currentLine[cEnd]))) cEnd--;
+                int cStart = cEnd;
+                while (cStart >= 0
+                       && (std::isalnum(static_cast<unsigned char>(currentLine[cStart]))
+                           || currentLine[cStart] == '_')) {
+                    cStart--;
+                }
+                if (cEnd > cStart) {
+                    ctx.receiverClass = currentLine.substr(cStart + 1, cEnd - cStart);
+                }
+            }
         }
         return ctx;
     }
@@ -762,6 +781,25 @@ std::optional<std::string> DocumentManager::getTypeInfo(
             if (receiverType.empty() && !ctx.receiver.empty()
                 && std::isupper(static_cast<unsigned char>(ctx.receiver.front()))) {
                 receiverType = ctx.receiver;
+            }
+            // `Class::field.method()` — resolve the static field's declared
+            // class. Needs FieldDefinition::getUnifiedType() to be populated
+            // by SymbolRegistrationVisitor, which holds the field's class name.
+            if (receiverType.empty() && !ctx.receiverClass.empty()) {
+                if (auto ownerCls = classReg->findClass(ctx.receiverClass)) {
+                    std::shared_ptr<runtimeTypes::klass::FieldDefinition> field;
+                    const auto& staticFields = ownerCls->getStaticFields();
+                    auto sit = staticFields.find(ctx.receiver);
+                    if (sit != staticFields.end()) field = sit->second;
+                    if (!field) {
+                        const auto& instFields = ownerCls->getInstanceFields();
+                        auto iit = instFields.find(ctx.receiver);
+                        if (iit != instFields.end()) field = iit->second;
+                    }
+                    if (field) {
+                        if (auto ut = field->getUnifiedType()) receiverType = ut->getName();
+                    }
+                }
             }
             if (!receiverType.empty()) {
                 auto lt = receiverType.find('<');

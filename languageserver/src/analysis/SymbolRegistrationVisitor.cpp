@@ -94,25 +94,47 @@ void SymbolRegistrationVisitor::processClassNode(ast::ASTNode* node) {
                     const auto& methodName = methodNode->getName();
                     const auto& methodLoc = methodNode->getLocation();
 
-                    // Create a MethodDefinition for LSP purposes
-                    // For LSP, we only need basic type information, not full generic details
-                    // Convert generic parameters to legacy format
-                    std::vector<std::pair<std::string, value::ValueType>> legacyParams;
+                    // MYT-357 — build parameter + return types that carry class
+                    // names (not just ValueType). `GenericType::isGenericParameter()`
+                    // returns true for BOTH real generic params (T, E) and user
+                    // class names (SoundBuffer) because both are stored as
+                    // strings in the variant — so checking that flag alone
+                    // loses the class name. Read getBaseTypeName() instead and
+                    // route to ParameterType::forClass for the name path.
+                    std::vector<std::pair<std::string, value::ParameterType>> params;
+                    std::vector<std::pair<std::string, types::UnifiedTypePtr>> unifiedParams;
                     for (const auto& [paramName, genericType] : methodNode->getGenericParameters()) {
-                        // Extract concrete ValueType from GenericType
-                        value::ValueType vt = value::ValueType::VOID;
-                        if (genericType && !genericType->isGenericParameter()) {
-                            vt = genericType->getConcreteType();
+                        value::ParameterType pt = genericType
+                            ? (genericType->isGenericParameter()
+                                ? value::ParameterType::forClass(genericType->getBaseTypeName())
+                                : value::ParameterType(genericType->getConcreteType()))
+                            : value::ParameterType(value::ValueType::VOID);
+                        params.emplace_back(paramName, pt);
+
+                        types::UnifiedTypePtr ut;
+                        if (genericType) {
+                            std::string n = genericType->getBaseTypeName();
+                            if (!n.empty()) ut = types::UnifiedType::classType(n);
                         }
-                        legacyParams.emplace_back(paramName, vt);
+                        unifiedParams.emplace_back(paramName, ut);
+                    }
+
+                    types::UnifiedTypePtr retUnified;
+                    if (auto genRet = methodNode->getGenericReturnType()) {
+                        std::string n = genRet->getBaseTypeName();
+                        if (!n.empty()) retUnified = types::UnifiedType::classType(n);
                     }
 
                     auto methodDef = std::make_shared<runtimeTypes::klass::MethodDefinition>(
                         methodName,
                         methodNode->getReturnType(),
-                        legacyParams,
+                        params,
                         methodNode->getBody(),
                         methodNode->getIsStatic(),
+                        retUnified,
+                        unifiedParams,
+                        std::vector<ast::GenericTypeParameter>{},
+                        std::unordered_map<std::string, std::string>{},
                         methodNode->getAccessModifier()
                     );
 
@@ -142,10 +164,23 @@ void SymbolRegistrationVisitor::processClassNode(ast::ASTNode* node) {
                     const auto& fieldName = fieldNode->getName();
                     const auto& fieldLoc = fieldNode->getLocation();
 
+                    // MYT-357 — populate UnifiedType so hover can resolve the
+                    // declared class for OBJECT-typed fields. Without this,
+                    // `Class::field.method()` hover can't determine which
+                    // class owns `method`.
+                    types::UnifiedTypePtr fieldUnifiedType;
+                    if (auto gt = fieldNode->getGenericType()) {
+                        std::string baseName = gt->getBaseTypeName();
+                        if (!baseName.empty()) {
+                            fieldUnifiedType = types::UnifiedType::classType(baseName);
+                        }
+                    }
+
                     // Create a FieldDefinition for LSP purposes
                     auto fieldDef = std::make_shared<runtimeTypes::klass::FieldDefinition>(
                         fieldName,
                         fieldNode->getType(),
+                        fieldUnifiedType,
                         value::Value{},  // Empty value for LSP (std::variant with monostate)
                         fieldNode->getIsStatic(),
                         fieldNode->getIsFinal(),
@@ -275,10 +310,18 @@ void SymbolRegistrationVisitor::processFunctionNode(ast::ASTNode* node) {
     // Register function in the environment's function registry
     if (environment_->getFunctionRegistry()) {
         try {
-            // Create a basic function definition for the LSP
+            // MYT-357 — pass returnClassName when the function returns an
+            // object type so hover can render the class name instead of "object".
+            std::string retClassName;
+            if (functionNode->getReturnType() == value::ValueType::OBJECT) {
+                if (auto genRet = functionNode->getGenericReturnType()) {
+                    retClassName = genRet->getBaseTypeName();
+                }
+            }
             auto funcDef = std::make_shared<runtimeTypes::global::FunctionDefinition>(
                 functionName,
                 functionNode->getReturnType(),
+                retClassName,
                 functionNode->getParameterTypes()
             );
 

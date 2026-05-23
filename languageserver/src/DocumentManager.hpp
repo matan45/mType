@@ -122,6 +122,10 @@ private:
         enum class Kind { Bare, Constructor, Method, StaticMethod };
         Kind kind = Kind::Bare;
         std::string receiver;
+        // When receiver is itself a `Class::field` static access (e.g.
+        // `Audio::sndChord.play()`), this holds the class name so the method
+        // branch can resolve the field's declared type.
+        std::string receiverClass;
     };
 
     CallContext classifyCallContext(const std::string& content, int line, int character) const;

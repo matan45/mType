@@ -203,6 +203,87 @@ void HoverHandlerTestSuite::registerTests(LspTestHarness& harness) {
         require(!result.has_value(),
             "expected nullopt for identifier not in environment or fallback maps");
     });
+
+    // MYT-357 — regression: SymbolRegistrationVisitor lost class names on
+    // method parameters and return types, so hover rendered them as "void buf"
+    // and ": object". Verify class names round-trip end-to-end.
+
+    harness.addTest("hover renders class name for object-typed method parameter", []() {
+        const std::string src =
+            "class SoundBuffer {\n"
+            "    public constructor() {}\n"
+            "}\n"
+            "class Sounds {\n"
+            "    public static function create(SoundBuffer buf): void {}\n"
+            "}\n"
+            "Sounds::create(new SoundBuffer());\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+        // 'create' on line 6 (`Sounds::create(...)`) cols 8-13; hover at (6, 10).
+        auto result = handler.handleHover("file:///t.mt", {6, 10});
+        require(result.has_value(), "expected hover for 'create'");
+        require(result->contents.find("SoundBuffer buf") != std::string::npos,
+            "param type should render as 'SoundBuffer buf', not 'void buf'");
+        require(result->contents.find("void buf") == std::string::npos,
+            "param type must not collapse to 'void'");
+    });
+
+    harness.addTest("hover renders class name for object-typed method return", []() {
+        const std::string src =
+            "class Sound {\n"
+            "    public constructor() {}\n"
+            "}\n"
+            "class Factory {\n"
+            "    public static function make(): Sound { return new Sound(); }\n"
+            "}\n"
+            "Factory::make();\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+        // 'make' on line 6 (`Factory::make();`) cols 9-12; hover at (6, 10).
+        auto result = handler.handleHover("file:///t.mt", {6, 10});
+        require(result.has_value(), "expected hover for 'make'");
+        require(result->contents.find(": Sound") != std::string::npos,
+            "return type should render as ': Sound', not ': object'");
+        require(result->contents.find(": object") == std::string::npos,
+            "return type must not collapse to 'object'");
+    });
+
+    harness.addTest("hover renders class name for object-typed function return", []() {
+        const std::string src =
+            "class Widget {\n"
+            "    public constructor() {}\n"
+            "}\n"
+            "function build(): Widget { return new Widget(); }\n"
+            "build();\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+        // 'build' call on line 4 (`build();`) cols 0-4; hover at (4, 2).
+        auto result = handler.handleHover("file:///t.mt", {4, 2});
+        require(result.has_value(), "expected hover for 'build'");
+        require(result->contents.find(": Widget") != std::string::npos,
+            "function return type should render as ': Widget'");
+        require(result->contents.find(": object") == std::string::npos,
+            "function return type must not collapse to 'object'");
+    });
+
+    harness.addTest("hover resolves Class::field.method() chain via static field type", []() {
+        const std::string src =
+            "class Helper {\n"
+            "    public constructor() {}\n"
+            "    public function ping(): void {}\n"
+            "}\n"
+            "class App {\n"
+            "    public static Helper h = new Helper();\n"
+            "}\n"
+            "App::h.ping();\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+        // 'ping' on line 7 (`App::h.ping();`) cols 7-10; hover at (7, 8).
+        auto result = handler.handleHover("file:///t.mt", {7, 8});
+        require(result.has_value(), "expected hover for 'ping' via Class::field.method()");
+        require(result->contents.find("Helper::ping()") != std::string::npos,
+            "method should resolve via static field's class to 'Helper::ping()'");
+    });
 }
 
 } // namespace mtype::lsp::test
