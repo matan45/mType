@@ -10,7 +10,9 @@
 #include "../../../mType/environment/registry/InterfaceRegistry.hpp"
 #include "../../../mType/environment/registry/ClassDefinition.hpp"
 #include "../../../mType/environment/registry/MethodDefinition.hpp"
+#include "../../../mType/types/TypeSubstitutionService.hpp"
 #include "../../../mType/util/ImportScan.hpp"
+#include "../analysis/InterfaceHierarchyWalker.hpp"
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -170,44 +172,6 @@ std::string trimTypeBaseName(const std::string& name) {
     return generic == std::string::npos ? name : name.substr(0, generic);
 }
 
-std::vector<std::string> splitGenericArguments(const std::string& typeName) {
-    std::vector<std::string> args;
-    const size_t open = typeName.find('<');
-    const size_t close = typeName.rfind('>');
-    if (open == std::string::npos || close == std::string::npos || close <= open) {
-        return args;
-    }
-
-    int depth = 0;
-    std::string current;
-    const std::string inner = typeName.substr(open + 1, close - open - 1);
-    for (char c : inner) {
-        if (c == '<') {
-            ++depth;
-            current.push_back(c);
-        } else if (c == '>') {
-            --depth;
-            current.push_back(c);
-        } else if (c == ',' && depth == 0) {
-            size_t start = current.find_first_not_of(" \t\r\n");
-            size_t end = current.find_last_not_of(" \t\r\n");
-            if (start != std::string::npos) {
-                args.push_back(current.substr(start, end - start + 1));
-            }
-            current.clear();
-        } else {
-            current.push_back(c);
-        }
-    }
-
-    size_t start = current.find_first_not_of(" \t\r\n");
-    size_t end = current.find_last_not_of(" \t\r\n");
-    if (start != std::string::npos) {
-        args.push_back(current.substr(start, end - start + 1));
-    }
-    return args;
-}
-
 std::string renderType(
     const types::UnifiedTypePtr& type,
     const std::unordered_map<std::string, std::string>& substitutions)
@@ -238,43 +202,30 @@ struct RequiredMethod {
     std::unordered_map<std::string, std::string> substitutions;
 };
 
+// Hierarchy traversal delegates to analysis::walkInterfaceHierarchy so the
+// implement-interface-methods quick fix and DocumentManager's missing-
+// methods diagnostic stay in lock-step. The walker substitutes parent
+// generic args recursively (so `Child<T> extends Parent<List<T>>` viewed
+// as `Child<int>` resolves to `Parent<List<int>>`), which matches the
+// compiler-side InterfaceRegistrar; the previous local implementation
+// only substituted at the leaf, dropping coverage on multi-level chains.
 void collectInterfaceMethods(
     const std::string& interfaceName,
     const std::shared_ptr<runtimeTypes::klass::InterfaceRegistry>& registry,
+    const ::types::TypeSubstitutionService& subst,
     std::vector<RequiredMethod>& out,
-    std::unordered_set<std::string>& emitted,
-    std::unordered_set<std::string>& visiting)
+    std::unordered_set<std::string>& emitted)
 {
-    if (!registry) return;
-
-    const std::string baseName = trimTypeBaseName(interfaceName);
-    if (!visiting.insert(baseName).second) return;
-
-    auto iface = registry->findInterface(interfaceName);
-    if (!iface) {
-        visiting.erase(baseName);
-        return;
-    }
-
-    std::unordered_map<std::string, std::string> substitutions;
-    const auto args = splitGenericArguments(interfaceName);
-    const auto& genericParams = iface->getGenericParameters();
-    for (size_t i = 0; i < args.size() && i < genericParams.size(); ++i) {
-        substitutions[genericParams[i].name] = args[i];
-    }
-
-    for (const auto& parent : iface->getExtendedInterfaces()) {
-        collectInterfaceMethods(parent, registry, out, emitted, visiting);
-    }
-
-    for (const auto& sig : iface->getMethodSignatures()) {
-        const std::string key = methodSignatureKey(sig, substitutions);
-        if (emitted.insert(key).second) {
-            out.push_back(RequiredMethod{&sig, substitutions});
-        }
-    }
-
-    visiting.erase(baseName);
+    mtype::lsp::analysis::walkInterfaceHierarchy(interfaceName, registry, subst,
+        [&](const runtimeTypes::klass::InterfaceDefinition& iface,
+            const std::unordered_map<std::string, std::string>& substitutions) {
+            for (const auto& sig : iface.getMethodSignatures()) {
+                const std::string key = methodSignatureKey(sig, substitutions);
+                if (emitted.insert(key).second) {
+                    out.push_back(RequiredMethod{&sig, substitutions});
+                }
+            }
+        });
 }
 
 std::vector<const ast::nodes::classes::ClassNode*> getTopLevelClasses(const Document* doc) {
@@ -838,14 +789,14 @@ std::vector<CodeAction> CodeActionHandler::getImplementInterfaceActions(
 
     std::vector<RequiredMethod> requiredMethods;
     std::unordered_set<std::string> emittedMethodKeys;
-    std::unordered_set<std::string> visitingInterfaces;
+    ::types::TypeSubstitutionService subst;
     for (const auto& interfaceName : implementedInterfaces) {
         collectInterfaceMethods(
             interfaceName,
             interfaceRegistry,
+            subst,
             requiredMethods,
-            emittedMethodKeys,
-            visitingInterfaces);
+            emittedMethodKeys);
     }
 
     std::vector<RequiredMethod> missingMethods;

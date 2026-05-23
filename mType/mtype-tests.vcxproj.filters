@@ -10324,6 +10324,12 @@
     <None Include="tests\testFiles\interface\pass\complexInterfaceImportInheritanceGenerics.mt">
       <Filter>testFiles\interface\pass</Filter>
     </None>
+    <None Include="tests\testFiles\interface\pass\concreteGenericInterfaceImplementation.expected">
+      <Filter>testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\concreteGenericInterfaceImplementation.mt">
+      <Filter>testFiles\interface\pass</Filter>
+    </None>
     <None Include="tests\testFiles\interface\pass\deeplyNestedInheritance.expected">
       <Filter>testFiles\interface\pass</Filter>
     </None>

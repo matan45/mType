@@ -7,6 +7,7 @@
 #include <fstream>
 #include <regex>
 #include <sstream>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 
@@ -56,11 +57,28 @@ std::string enclosingClassAt(const Document* doc, const Position& pos) {
 // instance methods are virtual by default, so a reference search on
 // Base.foo should also surface Derived.foo's declaration and any calls
 // dispatched through a Base reference that may land in Derived.foo.
+//
+// Build a single name → ClassNode* index up front instead of calling
+// findClassEverywhere on each chain step: with N open docs and M classes
+// per doc, the old shape was N·M·D·N (D = parent-chain depth) because the
+// helper re-scanned every open URI per step; this is N·M setup + N·M·D
+// walk. First-seen-wins in the index matches findClassEverywhere's
+// resolution rule for the cross-doc name collision case.
 void addOverridesForInstanceMethod(DocumentManager* mgr,
                                     const std::string& baseClass,
                                     const std::string& methodName,
                                     std::vector<TargetSymbol>& targets) {
     if (!mgr) return;
+
+    std::unordered_map<std::string, nc::ClassNode*> classByName;
+    for (const auto& docUri : mgr->getAllOpenUris()) {
+        auto* doc = mgr->getDocument(docUri);
+        if (!doc) continue;
+        for (auto* c : collectClasses(doc)) {
+            classByName.emplace(c->getClassName(), c);
+        }
+    }
+
     for (const auto& docUri : mgr->getAllOpenUris()) {
         auto* doc = mgr->getDocument(docUri);
         if (!doc) continue;
@@ -72,10 +90,10 @@ void addOverridesForInstanceMethod(DocumentManager* mgr,
             std::string cur = subCls->getClassName();
             bool inherits = false;
             while (!cur.empty() && seen.insert(cur).second) {
-                auto [c, _] = findClassEverywhere(mgr, cur);
-                if (!c || !c->hasParentClass()) break;
-                if (c->getParentClassName() == baseClass) { inherits = true; break; }
-                cur = c->getParentClassName();
+                auto it = classByName.find(cur);
+                if (it == classByName.end() || !it->second->hasParentClass()) break;
+                if (it->second->getParentClassName() == baseClass) { inherits = true; break; }
+                cur = it->second->getParentClassName();
             }
             if (inherits && !collectMethodsByName(subCls, methodName).empty()) {
                 targets.push_back({"method-instance", subCls->getClassName(), methodName});

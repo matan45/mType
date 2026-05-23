@@ -23,6 +23,7 @@
 #include "analysis/ImportResolver.hpp"
 #include "analysis/ReceiverTypeResolver.hpp"
 #include "analysis/AstPositionIndex.hpp"
+#include "analysis/InterfaceHierarchyWalker.hpp"
 #include "utils/ProjectConfigProvider.hpp"
 #include <sstream>
 #include <algorithm>
@@ -62,75 +63,47 @@ std::string typeToString(const ::types::UnifiedTypePtr& type)
 //   interface Predicate<T> { test(T t): bool; }
 //   class P implements Predicate<int> { ... }
 // the required signature should be `test(int): bool`, not `test(T): bool`.
+// Hierarchy traversal lives in analysis::walkInterfaceHierarchy; this just
+// shapes each visited iface into a substituted MethodSignature.
 void collectInterfaceSignatures(
     const std::string& interfaceName,
     const std::shared_ptr<runtimeTypes::klass::InterfaceRegistry>& registry,
     std::vector<runtimeTypes::klass::MethodSignature>& out,
     std::unordered_set<std::string>& emitted,
-    std::unordered_set<std::string>& visiting,
     const ::types::TypeSubstitutionService& subst)
 {
-    if (!registry) return;
+    analysis::walkInterfaceHierarchy(interfaceName, registry, subst,
+        [&](const runtimeTypes::klass::InterfaceDefinition& iface,
+            const std::unordered_map<std::string, std::string>& substitutions) {
+            for (const auto& sig : iface.getMethodSignatures()) {
+                const std::string key = sig.name + "/" + std::to_string(sig.parameters.size());
+                if (!emitted.insert(key).second) continue;
 
-    auto [baseName, typeArgs] = subst.parseGenericTypeName(interfaceName);
-    if (baseName.empty()) baseName = interfaceName;
+                runtimeTypes::klass::MethodSignature substituted;
+                substituted.name = sig.name;
+                substituted.genericParameters = sig.genericParameters;
 
-    if (!visiting.insert(baseName).second) return;
+                if (sig.returnType) {
+                    std::string resolved = substitutions.empty()
+                        ? sig.returnType->toString()
+                        : subst.resolveGenericType(sig.returnType->toString(), substitutions);
+                    substituted.returnType = ::types::UnifiedType::classType(resolved);
+                }
 
-    auto iface = registry->findInterface(baseName);
-    if (!iface) {
-        visiting.erase(baseName);
-        return;
-    }
+                for (const auto& [pname, ptype] : sig.parameters) {
+                    ::types::UnifiedTypePtr newType;
+                    if (ptype) {
+                        std::string resolved = substitutions.empty()
+                            ? ptype->toString()
+                            : subst.resolveGenericType(ptype->toString(), substitutions);
+                        newType = ::types::UnifiedType::classType(resolved);
+                    }
+                    substituted.parameters.emplace_back(pname, newType);
+                }
 
-    std::unordered_map<std::string, std::string> substitutions;
-    const auto& genericParams = iface->getGenericParameters();
-    if (genericParams.size() == typeArgs.size()) {
-        for (size_t i = 0; i < genericParams.size(); ++i) {
-            substitutions[genericParams[i].name] = typeArgs[i];
-        }
-    }
-
-    // Resolve parent interface names against `substitutions` so e.g.
-    // `interface Child<T> extends Parent<T>` implemented as `Child<int>`
-    // recurses into `Parent<int>`, not `Parent<T>`.
-    for (const auto& parent : iface->getExtendedInterfaces()) {
-        std::string resolvedParent = substitutions.empty()
-            ? parent
-            : subst.resolveGenericType(parent, substitutions);
-        collectInterfaceSignatures(resolvedParent, registry, out, emitted, visiting, subst);
-    }
-
-    for (const auto& sig : iface->getMethodSignatures()) {
-        const std::string key = sig.name + "/" + std::to_string(sig.parameters.size());
-        if (!emitted.insert(key).second) continue;
-
-        runtimeTypes::klass::MethodSignature substituted;
-        substituted.name = sig.name;
-        substituted.genericParameters = sig.genericParameters;
-
-        if (sig.returnType) {
-            std::string resolved = substitutions.empty()
-                ? sig.returnType->toString()
-                : subst.resolveGenericType(sig.returnType->toString(), substitutions);
-            substituted.returnType = ::types::UnifiedType::classType(resolved);
-        }
-
-        for (const auto& [pname, ptype] : sig.parameters) {
-            ::types::UnifiedTypePtr newType;
-            if (ptype) {
-                std::string resolved = substitutions.empty()
-                    ? ptype->toString()
-                    : subst.resolveGenericType(ptype->toString(), substitutions);
-                newType = ::types::UnifiedType::classType(resolved);
+                out.push_back(std::move(substituted));
             }
-            substituted.parameters.emplace_back(pname, newType);
-        }
-
-        out.push_back(std::move(substituted));
-    }
-
-    visiting.erase(baseName);
+        });
 }
 
 // MYT-361 — for each candidate overload of `sig.name` on the class, compare
@@ -217,10 +190,9 @@ std::vector<diagnostics::Diagnostic> findMissingInterfaceMethodDiagnostics(const
 
             std::vector<runtimeTypes::klass::MethodSignature> required;
             std::unordered_set<std::string> emitted;
-            std::unordered_set<std::string> visiting;
             for (const auto& interfaceName : interfaces) {
                 collectInterfaceSignatures(interfaceName, interfaceRegistry,
-                    required, emitted, visiting, subst);
+                    required, emitted, subst);
             }
 
             for (const auto& sig : required) {
@@ -408,7 +380,7 @@ void DocumentManager::parseDocument(const std::string& uri) {
                 for (const auto& className : classRegistry->getAllItemNames()) {
                     auto cls = classRegistry->findClass(className);
                     if (!cls) continue;
-                    auto warns = analysis::OverrideAnnotationChecker::check(*cls);
+                    auto warns = ::analysis::OverrideAnnotationChecker::check(*cls);
                     for (auto& w : warns) {
                         doc->diagnostics.push_back(std::move(w));
                     }
@@ -421,7 +393,7 @@ void DocumentManager::parseDocument(const std::string& uri) {
         // positive) emits one MT-W2001 per declared-but-never-read local
         // with rename + remove fixes attached.
         if (parseSucceeded && !doc->ast.empty()) {
-            auto unusedWarnings = analysis::UnusedVariableAnalyzer::analyze(
+            auto unusedWarnings = ::analysis::UnusedVariableAnalyzer::analyze(
                 doc->ast.front().get());
             for (auto& w : unusedWarnings) {
                 doc->diagnostics.push_back(std::move(w));
