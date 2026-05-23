@@ -67,6 +67,43 @@ void DefinitionHandlerTestSuite::registerTests(LspTestHarness& harness) {
         auto result = handler.handleDefinition("file:///test.mt", {0, 0});
         // Should not crash — result is nullopt or a valid location
     });
+
+    // MYT-358 — Go to Definition on a method whose receiver is a chained
+    // static field (`Audio::sndChord.play()`) must resolve through the
+    // static field's declared class to the method declaration.
+    harness.addTest("go-to-def resolves Class::field.method() chain via static field type", []() {
+        const std::string src =
+            "class Chord {\n"
+            "    public constructor() {}\n"
+            "    public function play(): void {}\n"
+            "}\n"
+            "class Audio {\n"
+            "    public static Chord sndChord = new Chord();\n"
+            "}\n"
+            "Audio::sndChord.play();\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        DefinitionHandler handler(docMgr.get());
+
+        // 'play' on line 7 (`Audio::sndChord.play();`) cols 16-19; caret on 'l' at (7, 17).
+        auto result = handler.handleDefinition("file:///t.mt", {7, 17});
+        require(result.has_value(), "expected definition for play() via Class::field.method()");
+        require(result->range.start.line == 2, "play() should be defined at line 2");
+    });
+
+    harness.addTest("go-to-def Class::field.method() returns nullopt when class unknown", []() {
+        const std::string src =
+            "class Chord {\n"
+            "    public function play(): void {}\n"
+            "}\n"
+            "Unknown::sndChord.play();\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        DefinitionHandler handler(docMgr.get());
+
+        // 'play' on line 3 (`Unknown::sndChord.play();`) cols 18-21; caret on 'l' at (3, 19).
+        auto result = handler.handleDefinition("file:///t.mt", {3, 19});
+        require(!result.has_value(),
+            "expected nullopt when receiverClass not in registry");
+    });
 }
 
 } // namespace mtype::lsp::test

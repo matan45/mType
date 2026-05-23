@@ -407,10 +407,56 @@ std::optional<DocumentManager::SymbolLocation> DocumentManager::findDefinition(
 
             std::string varName = currentLine.substr(varStart, dotPos - varStart);
 
+            // MYT-358 — chain `Class::field.method(...)`: look further left
+            // past whitespace and `::` for the qualifying class name so we
+            // can resolve `field`'s declared type via the class registry when
+            // inferVariableType (local-decl regexes only) can't see it.
+            std::string receiverClass;
+            {
+                int j = varStart - 1;
+                while (j >= 0 && std::isspace(static_cast<unsigned char>(currentLine[j]))) j--;
+                if (j >= 1 && currentLine[j] == ':' && currentLine[j - 1] == ':') {
+                    int cEnd = j - 2;
+                    while (cEnd >= 0 && std::isspace(static_cast<unsigned char>(currentLine[cEnd]))) cEnd--;
+                    int cStart = cEnd;
+                    while (cStart >= 0
+                           && (std::isalnum(static_cast<unsigned char>(currentLine[cStart]))
+                               || currentLine[cStart] == '_')) {
+                        cStart--;
+                    }
+                    if (cEnd > cStart) {
+                        receiverClass = currentLine.substr(cStart + 1, cEnd - cStart);
+                    }
+                }
+            }
+
             // Infer the type of this variable by scanning the document
             std::string varType = inferVariableType(doc->content, varName);
 
+            // MYT-358 — static field receiver: resolve through the class
+            // registry, mirroring the hover path in getTypeInfo().
+            if (varType.empty() && !receiverClass.empty()) {
+                if (auto classReg = doc->environment->getClassRegistry()) {
+                    if (auto ownerCls = classReg->findClass(receiverClass)) {
+                        std::shared_ptr<runtimeTypes::klass::FieldDefinition> field;
+                        const auto& staticFields = ownerCls->getStaticFields();
+                        auto sit = staticFields.find(varName);
+                        if (sit != staticFields.end()) field = sit->second;
+                        if (!field) {
+                            const auto& instFields = ownerCls->getInstanceFields();
+                            auto iit = instFields.find(varName);
+                            if (iit != instFields.end()) field = iit->second;
+                        }
+                        if (field) {
+                            if (auto ut = field->getUnifiedType()) varType = ut->getName();
+                        }
+                    }
+                }
+            }
+
             if (!varType.empty()) {
+                auto lt = varType.find('<');
+                if (lt != std::string::npos) varType = varType.substr(0, lt);
                 // Look for ClassName.methodName in symbol locations
                 std::string methodKey = varType + "." + symbolName;
 
