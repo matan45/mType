@@ -400,6 +400,147 @@ void InlayHintHandlerTestSuite::registerTests(LspTestHarness& harness) {
             "expected 0 Parameter hints for unknown receiver type");
     });
 
+    // ---- MYT-363: chained method-call parameter-name hints ----
+
+    harness.addTest("parameter hints on the second link of a chained method call", []() {
+        // `s.pipe(1).tap(2)` — without MYT-363 only `n:` shows; the
+        // `.tap(...)` link is dropped because its receiver is the
+        // closing paren of the prior call, not a bare identifier.
+        const std::string src =
+            "class S {\n"
+            "    public constructor() {}\n"
+            "    public function pipe(int n): S { return this; }\n"
+            "    public function tap(int delta): void {}\n"
+            "}\n"
+            "S s = new S();\n"
+            "s.pipe(1).tap(2);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "n:", InlayHintKind::Parameter) == 1,
+            "expected 'n:' hint on the head call");
+        require(countHintsWithLabel(hints, "delta:", InlayHintKind::Parameter) == 1,
+            "expected 'delta:' hint on the chained `.tap(...)` link");
+    });
+
+    harness.addTest("parameter hints on every link of a three-deep chain", []() {
+        // Verifies the return-type carry-through is iterative: pipe's
+        // return → pipe's return → tap's receiver class, all resolved
+        // off the closed RPAREN of the preceding link.
+        const std::string src =
+            "class S {\n"
+            "    public constructor() {}\n"
+            "    public function pipe(int n): S { return this; }\n"
+            "    public function tap(int delta): void {}\n"
+            "}\n"
+            "S s = new S();\n"
+            "s.pipe(1).pipe(2).tap(3);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "n:", InlayHintKind::Parameter) == 2,
+            "expected two 'n:' hints, one for each `.pipe(...)` link");
+        require(countHintsWithLabel(hints, "delta:", InlayHintKind::Parameter) == 1,
+            "expected 'delta:' hint on the trailing `.tap(...)` link");
+    });
+
+    harness.addTest("parameter hints on a chain following a static call", []() {
+        // Mirrors the Jira repro shape: `Streams::of(elements).filter(predicate)`.
+        // Exercises the StaticMethod return-type path feeding the
+        // chained-link classifier.
+        const std::string src =
+            "class Streams {\n"
+            "    public constructor() {}\n"
+            "    public static function of(int elements): Streams { return new Streams(); }\n"
+            "    public function filter(int predicate): Streams { return this; }\n"
+            "}\n"
+            "Streams x = Streams::of(5).filter(7);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "elements:", InlayHintKind::Parameter) == 1,
+            "expected 'elements:' hint on Streams::of(5)");
+        require(countHintsWithLabel(hints, "predicate:", InlayHintKind::Parameter) == 1,
+            "expected 'predicate:' hint on the chained .filter(7)");
+    });
+
+    harness.addTest("chained call with unresolvable trailing method degrades cleanly", []() {
+        // The head call resolves and its return type (S) is recorded,
+        // but `.missing(...)` doesn't exist on S — emitParameterHints
+        // gets an empty paramNames vector and emits nothing for the
+        // trailing link. No crash, no spurious hints, head still hinted.
+        const std::string src =
+            "class S {\n"
+            "    public constructor() {}\n"
+            "    public function pipe(int n): S { return this; }\n"
+            "}\n"
+            "S s = new S();\n"
+            "s.pipe(1).missing(2);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "n:", InlayHintKind::Parameter) == 1,
+            "expected 'n:' hint still emitted on resolvable head call");
+        require(countHintsOfKind(hints, InlayHintKind::Parameter) == 1,
+            "expected exactly 1 Parameter hint (trailing link is unresolved)");
+    });
+
+    harness.addTest("chained call through an interface-typed return resolves", []() {
+        // Head method returns an interface; the trailing `.tap(...)` is
+        // resolved via the interface-method fallback on the return-type
+        // class. Guards the class→interface fallback on the return-type
+        // side (mirror of the receiver-side fallback at MYT-356).
+        const std::string src =
+            "interface Pipe {\n"
+            "    function tap(int delta): void;\n"
+            "}\n"
+            "class PipeImpl implements Pipe {\n"
+            "    public constructor() {}\n"
+            "    public function tap(int delta): void {}\n"
+            "}\n"
+            "class S {\n"
+            "    public constructor() {}\n"
+            "    public function getPipe(int seed): Pipe { return new PipeImpl(); }\n"
+            "}\n"
+            "S s = new S();\n"
+            "s.getPipe(1).tap(2);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "seed:", InlayHintKind::Parameter) == 1,
+            "expected 'seed:' hint on the head call");
+        require(countHintsWithLabel(hints, "delta:", InlayHintKind::Parameter) == 1,
+            "expected 'delta:' hint resolved via interface fallback on chained link");
+    });
+
+    harness.addTest("bare-identifier suppression still applies on a chained link", []() {
+        // The chained-receiver code path must still feed through
+        // argumentDuplicatesParamName — a chained `.tap(delta)` where
+        // `delta` is a local of that name should drop the hint.
+        const std::string src =
+            "class S {\n"
+            "    public constructor() {}\n"
+            "    public function pipe(int n): S { return this; }\n"
+            "    public function tap(int delta): void {}\n"
+            "}\n"
+            "S s = new S();\n"
+            "int delta = 5;\n"
+            "s.pipe(1).tap(delta);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "n:", InlayHintKind::Parameter) == 1,
+            "expected 'n:' hint on head call (arg is literal, not bare ident)");
+        require(countHintsWithLabel(hints, "delta:", InlayHintKind::Parameter) == 0,
+            "expected 'delta:' hint suppressed on chained link (arg lexeme matches)");
+    });
+
     // ---- Lambda type hints ----
 
     harness.addTest("type hint on a lambda parameter without annotation", []() {

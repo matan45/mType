@@ -52,6 +52,12 @@ private:
         CalleeKind kind;
         std::string calleeName;       // function/method/class name
         std::string receiverName;     // for Method: the lexeme to the left of '.'
+        // MYT-363 — chained-call link, e.g. the `.bar(...)` in
+        // `a.foo().bar(...)`. When non-empty, this is the already-resolved
+        // class/interface name to look the method up on, populated from the
+        // return type of the preceding link in the chain. emitParameterHints
+        // prefers this over the receiverName→ReceiverTypeMap lookup.
+        std::string receiverClassName;
         int callLine = 0;             // 0-based line of the LPAREN token
         std::vector<CallArg> args;
     };
