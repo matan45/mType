@@ -37,6 +37,10 @@ namespace tests::testSuite
         addOutputVerificationTest("Generic Class Implements Generic Interface",
                         passPath + "genericClassImplementsGenericInterface.mt");
 
+        // MYT-361: concrete type-arg substitution in implements-check
+        addOutputVerificationTest("Concrete Generic Interface Implementation",
+                        passPath + "concreteGenericInterfaceImplementation.mt");
+
         // Interface as type tests
         addOutputVerificationTest("Interface As Type",
                         passPath + "interfaceAsType.mt");

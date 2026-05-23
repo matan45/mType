@@ -4,6 +4,7 @@
 #include "../../mType/environment/registry/ClassRegistry.hpp"
 #include "../../mType/environment/registry/InterfaceRegistry.hpp"
 #include "../../mType/environment/registry/InterfaceDefinition.hpp"
+#include "../../mType/environment/registry/MethodDefinition.hpp"
 #include "../../mType/ast/AccessModifier.hpp"
 #include "../../mType/ast/nodes/classes/ClassNode.hpp"
 #include "../../mType/ast/nodes/statements/ProgramNode.hpp"
@@ -14,6 +15,9 @@
 #include "../../mType/analysis/OverrideAnnotationChecker.hpp"
 #include "../../mType/analysis/UnusedVariableAnalyzer.hpp"
 #include "../../mType/ast/nodes/classes/MethodCallNode.hpp"
+#include "../../mType/types/TypeSubstitutionService.hpp"
+#include "../../mType/types/TypeConversionUtils.hpp"
+#include "../../mType/types/UnifiedType.hpp"
 #include "utils/MemoryFileReader.hpp"
 #include "analysis/SymbolRegistrationVisitor.hpp"
 #include "analysis/ImportResolver.hpp"
@@ -35,38 +39,156 @@ namespace mtype::lsp {
 
 namespace {
 
+// MYT-361 — strip whitespace so generic-arg formatting differences
+// ("List<String, Int>" vs "List<String,Int>") don't break equality.
+std::string normalizeTypeString(const std::string& typeStr)
+{
+    std::string normalized;
+    normalized.reserve(typeStr.size());
+    for (char c : typeStr) {
+        if (c != ' ') normalized += c;
+    }
+    return normalized;
+}
+
+std::string typeToString(const ::types::UnifiedTypePtr& type)
+{
+    return type ? type->toString() : std::string();
+}
+
+// MYT-361 — when collecting an interface's required method signatures for the
+// implements-check, substitute the interface's type parameters with the
+// concrete arguments from the `implements` clause. e.g. given
+//   interface Predicate<T> { test(T t): bool; }
+//   class P implements Predicate<int> { ... }
+// the required signature should be `test(int): bool`, not `test(T): bool`.
 void collectInterfaceSignatures(
     const std::string& interfaceName,
     const std::shared_ptr<runtimeTypes::klass::InterfaceRegistry>& registry,
     std::vector<runtimeTypes::klass::MethodSignature>& out,
     std::unordered_set<std::string>& emitted,
-    std::unordered_set<std::string>& visiting)
+    std::unordered_set<std::string>& visiting,
+    const ::types::TypeSubstitutionService& subst)
 {
     if (!registry) return;
-    std::string baseName = interfaceName;
-    if (const size_t generic = baseName.find('<'); generic != std::string::npos) {
-        baseName = baseName.substr(0, generic);
-    }
+
+    auto [baseName, typeArgs] = subst.parseGenericTypeName(interfaceName);
+    if (baseName.empty()) baseName = interfaceName;
+
     if (!visiting.insert(baseName).second) return;
 
-    auto iface = registry->findInterface(interfaceName);
+    auto iface = registry->findInterface(baseName);
     if (!iface) {
         visiting.erase(baseName);
         return;
     }
 
+    std::unordered_map<std::string, std::string> substitutions;
+    const auto& genericParams = iface->getGenericParameters();
+    if (genericParams.size() == typeArgs.size()) {
+        for (size_t i = 0; i < genericParams.size(); ++i) {
+            substitutions[genericParams[i].name] = typeArgs[i];
+        }
+    }
+
+    // Resolve parent interface names against `substitutions` so e.g.
+    // `interface Child<T> extends Parent<T>` implemented as `Child<int>`
+    // recurses into `Parent<int>`, not `Parent<T>`.
     for (const auto& parent : iface->getExtendedInterfaces()) {
-        collectInterfaceSignatures(parent, registry, out, emitted, visiting);
+        std::string resolvedParent = substitutions.empty()
+            ? parent
+            : subst.resolveGenericType(parent, substitutions);
+        collectInterfaceSignatures(resolvedParent, registry, out, emitted, visiting, subst);
     }
 
     for (const auto& sig : iface->getMethodSignatures()) {
         const std::string key = sig.name + "/" + std::to_string(sig.parameters.size());
-        if (emitted.insert(key).second) {
-            out.push_back(sig);
+        if (!emitted.insert(key).second) continue;
+
+        runtimeTypes::klass::MethodSignature substituted;
+        substituted.name = sig.name;
+        substituted.genericParameters = sig.genericParameters;
+
+        if (sig.returnType) {
+            std::string resolved = substitutions.empty()
+                ? sig.returnType->toString()
+                : subst.resolveGenericType(sig.returnType->toString(), substitutions);
+            substituted.returnType = ::types::UnifiedType::classType(resolved);
         }
+
+        for (const auto& [pname, ptype] : sig.parameters) {
+            ::types::UnifiedTypePtr newType;
+            if (ptype) {
+                std::string resolved = substitutions.empty()
+                    ? ptype->toString()
+                    : subst.resolveGenericType(ptype->toString(), substitutions);
+                newType = ::types::UnifiedType::classType(resolved);
+            }
+            substituted.parameters.emplace_back(pname, newType);
+        }
+
+        out.push_back(std::move(substituted));
     }
 
     visiting.erase(baseName);
+}
+
+// MYT-361 — for each candidate overload of `sig.name` on the class, compare
+// parameter types and return type against the (already-substituted) interface
+// signature. Returns true if any overload satisfies the signature.
+//
+// `this` handling: the LSP path and the compiler path build MethodDefinitions
+// differently — the compiler-side ClassRegistrar prepends a `this` parameter,
+// while the LSP's SymbolRegistrationVisitor stores only user-declared params.
+// We detect a leading `this` by either name or by the candidate having exactly
+// one more parameter than the interface signature, and strip it before
+// comparison.
+bool overloadMatchesSignature(
+    const std::shared_ptr<runtimeTypes::klass::MethodDefinition>& candidate,
+    const runtimeTypes::klass::MethodSignature& sig)
+{
+    if (!candidate) return false;
+
+    const auto& candidateParams = candidate->getParameters();
+    size_t paramOffset = 0;
+    size_t userParamCount = candidateParams.size();
+
+    if (!candidateParams.empty()
+        && (candidateParams.front().first == "this"
+            || (!candidate->isStatic() && userParamCount == sig.parameters.size() + 1))) {
+        paramOffset = 1;
+        userParamCount--;
+    }
+
+    if (userParamCount != sig.parameters.size()) return false;
+
+    const auto& unifiedParams = candidate->getUnifiedParameters();
+    for (size_t i = 0; i < sig.parameters.size(); ++i) {
+        const size_t srcIdx = i + paramOffset;
+        std::string candidateType;
+        if (srcIdx < unifiedParams.size() && unifiedParams[srcIdx].second) {
+            candidateType = unifiedParams[srcIdx].second->toString();
+        } else if (srcIdx < candidateParams.size()) {
+            candidateType = ::types::TypeConversionUtils::getTypeDisplayName(
+                candidateParams[srcIdx].second);
+        }
+
+        if (normalizeTypeString(candidateType)
+            != normalizeTypeString(typeToString(sig.parameters[i].second))) {
+            return false;
+        }
+    }
+
+    std::string candidateReturn;
+    if (candidate->getUnifiedReturnType()) {
+        candidateReturn = candidate->getUnifiedReturnType()->toString();
+    } else {
+        candidateReturn = ::types::TypeConversionUtils::getTypeDisplayName(
+            candidate->getReturnType());
+    }
+
+    return normalizeTypeString(candidateReturn)
+        == normalizeTypeString(typeToString(sig.returnType));
 }
 
 std::vector<diagnostics::Diagnostic> findMissingInterfaceMethodDiagnostics(const Document& doc)
@@ -77,6 +199,8 @@ std::vector<diagnostics::Diagnostic> findMissingInterfaceMethodDiagnostics(const
     auto classRegistry = doc.environment->getClassRegistry();
     auto interfaceRegistry = doc.environment->getInterfaceRegistry();
     if (!classRegistry || !interfaceRegistry) return out;
+
+    ::types::TypeSubstitutionService subst;
 
     for (const auto& root : doc.ast) {
         auto* program = dynamic_cast<ast::nodes::statements::ProgramNode*>(root.get());
@@ -95,13 +219,20 @@ std::vector<diagnostics::Diagnostic> findMissingInterfaceMethodDiagnostics(const
             std::unordered_set<std::string> emitted;
             std::unordered_set<std::string> visiting;
             for (const auto& interfaceName : interfaces) {
-                collectInterfaceSignatures(interfaceName, interfaceRegistry, required, emitted, visiting);
+                collectInterfaceSignatures(interfaceName, interfaceRegistry,
+                    required, emitted, visiting, subst);
             }
 
             for (const auto& sig : required) {
-                if (classDef->findInstanceMethod(sig.name, sig.parameters.size())) {
-                    continue;
+                const auto& overloads = classDef->getAllInstanceMethodOverloads(sig.name);
+                bool matched = false;
+                for (const auto& candidate : overloads) {
+                    if (overloadMatchesSignature(candidate, sig)) {
+                        matched = true;
+                        break;
+                    }
                 }
+                if (matched) continue;
 
                 out.push_back(
                     diagnostics::DiagnosticBuilder(diagnostics::codes::InheritanceError)
