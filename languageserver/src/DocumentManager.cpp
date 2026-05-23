@@ -8,9 +8,12 @@
 #include "../../mType/diagnostics/SourceFileCache.hpp"
 #include "../../mType/analysis/OverrideAnnotationChecker.hpp"
 #include "../../mType/analysis/UnusedVariableAnalyzer.hpp"
+#include "../../mType/ast/nodes/classes/MethodCallNode.hpp"
 #include "utils/MemoryFileReader.hpp"
 #include "analysis/SymbolRegistrationVisitor.hpp"
 #include "analysis/ImportResolver.hpp"
+#include "analysis/ReceiverTypeResolver.hpp"
+#include "analysis/AstPositionIndex.hpp"
 #include "utils/ProjectConfigProvider.hpp"
 #include <sstream>
 #include <algorithm>
@@ -380,95 +383,25 @@ std::optional<DocumentManager::SymbolLocation> DocumentManager::findDefinition(
         }
     }
 
-    // Check if this is a method call (e.g., "variable.methodName(...)")
-    // Look backwards from the character position to see if there's a dot
-    if (character > 0 && currentLineNum == line) {
-        int dotPos = -1;
-
-        // First, look backwards through the current identifier and any whitespace to find a dot
-        for (int i = character - 1; i >= 0; i--) {
-            if (currentLine[i] == '.') {
-                dotPos = i;
-                break;
-            } else if (!std::isalnum(currentLine[i]) && currentLine[i] != '_' && !std::isspace(currentLine[i])) {
-                // Found a character that's not part of an identifier, whitespace, or a dot
-                // This means we're not in a method call
-                break;
-            }
-        }
-
-        if (dotPos != -1) {
-            // This is a method call: extract the variable name before the dot
-            int varStart = dotPos - 1;
-            while (varStart >= 0 && (std::isalnum(currentLine[varStart]) || currentLine[varStart] == '_')) {
-                varStart--;
-            }
-            varStart++;
-
-            std::string varName = currentLine.substr(varStart, dotPos - varStart);
-
-            // MYT-358 — chain `Class::field.method(...)`: look further left
-            // past whitespace and `::` for the qualifying class name so we
-            // can resolve `field`'s declared type via the class registry when
-            // inferVariableType (local-decl regexes only) can't see it.
-            std::string receiverClass;
-            {
-                int j = varStart - 1;
-                while (j >= 0 && std::isspace(static_cast<unsigned char>(currentLine[j]))) j--;
-                if (j >= 1 && currentLine[j] == ':' && currentLine[j - 1] == ':') {
-                    int cEnd = j - 2;
-                    while (cEnd >= 0 && std::isspace(static_cast<unsigned char>(currentLine[cEnd]))) cEnd--;
-                    int cStart = cEnd;
-                    while (cStart >= 0
-                           && (std::isalnum(static_cast<unsigned char>(currentLine[cStart]))
-                               || currentLine[cStart] == '_')) {
-                        cStart--;
-                    }
-                    if (cEnd > cStart) {
-                        receiverClass = currentLine.substr(cStart + 1, cEnd - cStart);
-                    }
-                }
-            }
-
-            // Infer the type of this variable by scanning the document
-            std::string varType = inferVariableType(doc->content, varName);
-
-            // MYT-358 — static field receiver: resolve through the class
-            // registry, mirroring the hover path in getTypeInfo().
-            if (varType.empty() && !receiverClass.empty()) {
-                if (auto classReg = doc->environment->getClassRegistry()) {
-                    if (auto ownerCls = classReg->findClass(receiverClass)) {
-                        std::shared_ptr<runtimeTypes::klass::FieldDefinition> field;
-                        const auto& staticFields = ownerCls->getStaticFields();
-                        auto sit = staticFields.find(varName);
-                        if (sit != staticFields.end()) field = sit->second;
-                        if (!field) {
-                            const auto& instFields = ownerCls->getInstanceFields();
-                            auto iit = instFields.find(varName);
-                            if (iit != instFields.end()) field = iit->second;
-                        }
-                        if (field) {
-                            if (auto ut = field->getUnifiedType()) varType = ut->getName();
-                        }
-                    }
-                }
-            }
-
-            if (!varType.empty()) {
-                auto lt = varType.find('<');
-                if (lt != std::string::npos) varType = varType.substr(0, lt);
-                // Look for ClassName.methodName in symbol locations
-                std::string methodKey = varType + "." + symbolName;
-
-                auto it = doc->symbolLocations.find(methodKey);
-                if (it != doc->symbolLocations.end()) {
-                    const auto& symbolLoc = it->second;
-                    SymbolLocation result;
-                    result.uri = symbolLoc.uri;
-                    result.line = symbolLoc.line;
-                    result.column = symbolLoc.column;
-                    return result;
-                }
+    // MYT-359 — method-call receiver resolution. Locate the call expression
+    // at the cursor via AstPositionIndex, then type its receiver subtree with
+    // ReceiverTypeResolver. This subsumes the MYT-358 inline `Class::field
+    // .method()` block and the regex-driven inferVariableType call that used
+    // to live here, and adds support for `obj.field.method()`, `getFoo()
+    // .play()`, `arr[0].play()`, and `(cond ? a : b).play()` chains.
+    if (auto* call = findMethodCallAt(doc->ast, line, character, symbolName)) {
+        ReceiverTypeResolver resolver(doc->environment, &doc->ast, line, character);
+        std::string varType = resolver.resolveName(call->getObject());
+        if (!varType.empty()) {
+            std::string methodKey = varType + "." + symbolName;
+            auto it = doc->symbolLocations.find(methodKey);
+            if (it != doc->symbolLocations.end()) {
+                const auto& symbolLoc = it->second;
+                SymbolLocation result;
+                result.uri = symbolLoc.uri;
+                result.line = symbolLoc.line;
+                result.column = symbolLoc.column;
+                return result;
             }
         }
     }
@@ -819,33 +752,22 @@ std::optional<std::string> DocumentManager::getTypeInfo(
             }
         }
 
-        // `obj.method(...)` — resolve receiver's class via inferVariableType.
-        // If the receiver looks like a class (starts upper-case) we treat it
-        // as a class name directly, which covers `Foo.staticField` style.
+        // `obj.method(...)` — MYT-359: type the receiver via the AST-based
+        // ReceiverTypeResolver. It walks the receiver subtree of the call
+        // expression at the cursor, so chained shapes (`obj.field.method()`,
+        // `getFoo().play()`, `arr[0].play()`, `Class::field.field.method()`,
+        // `(cond ? a : b).play()`) all resolve through the same code path.
+        // The "upper-case receiver = class" heuristic stays as a graceful
+        // fallback for parse-recovery cases where the AST node isn't found.
         if (ctx.kind == CallContext::Kind::Method && classReg) {
-            std::string receiverType = inferVariableType(doc->content, ctx.receiver);
+            std::string receiverType;
+            if (auto* call = findMethodCallAt(doc->ast, line, character, symbolName)) {
+                ReceiverTypeResolver resolver(doc->environment, &doc->ast, line, character);
+                receiverType = resolver.resolveName(call->getObject());
+            }
             if (receiverType.empty() && !ctx.receiver.empty()
                 && std::isupper(static_cast<unsigned char>(ctx.receiver.front()))) {
                 receiverType = ctx.receiver;
-            }
-            // `Class::field.method()` — resolve the static field's declared
-            // class. Needs FieldDefinition::getUnifiedType() to be populated
-            // by SymbolRegistrationVisitor, which holds the field's class name.
-            if (receiverType.empty() && !ctx.receiverClass.empty()) {
-                if (auto ownerCls = classReg->findClass(ctx.receiverClass)) {
-                    std::shared_ptr<runtimeTypes::klass::FieldDefinition> field;
-                    const auto& staticFields = ownerCls->getStaticFields();
-                    auto sit = staticFields.find(ctx.receiver);
-                    if (sit != staticFields.end()) field = sit->second;
-                    if (!field) {
-                        const auto& instFields = ownerCls->getInstanceFields();
-                        auto iit = instFields.find(ctx.receiver);
-                        if (iit != instFields.end()) field = iit->second;
-                    }
-                    if (field) {
-                        if (auto ut = field->getUnifiedType()) receiverType = ut->getName();
-                    }
-                }
             }
             if (!receiverType.empty()) {
                 auto lt = receiverType.find('<');
@@ -996,54 +918,22 @@ std::vector<DocumentManager::SymbolInfo> DocumentManager::getDocumentSymbols(con
     return symbols;
 }
 
-std::string DocumentManager::inferVariableType(const std::string& content, const std::string& varName) const {
-    // Pattern 1: ClassName<GenericType> varName = new ClassName<GenericType>(...)
-    // Pattern 2: ClassName<GenericType> varName = ...
-    // Pattern 3: for (ClassName varName : ...) - for-each loop variable
-    // Pattern 4: for (ClassName<GenericType> varName : ...) - for-each loop with generic type
-    // Note: <GenericType> is optional, handles both generic and non-generic types
-    // Captures only the base class name without generic parameters
-    std::regex declPattern1("([A-Z][a-zA-Z0-9_]*)(?:<[^>]+>)?\\s+" + varName + "\\s*=\\s*new\\s+([A-Z][a-zA-Z0-9_]*)");
-    std::regex declPattern2("([A-Z][a-zA-Z0-9_]*)(?:<[^>]+>)?\\s+" + varName + "\\s*=");
-    std::regex forEachPattern("for\\s*\\(\\s*([A-Z][a-zA-Z0-9_]*)(?:<[^>]+>)?\\s+" + varName + "\\s*:");
-
-    std::istringstream stream(content);
-    std::string line;
-
-    while (std::getline(stream, line)) {
-        std::smatch match;
-
-        // Try pattern 1: with "new" keyword
-        if (std::regex_search(line, match, declPattern1)) {
-            // Prefer the type from "new" if it matches the declaration type
-            std::string newType = match[2].str();
-            return newType; // Return the type from "new" as it's the actual instantiated type
-        }
-
-        // Try pattern 2: simple declaration
-        if (std::regex_search(line, match, declPattern2)) {
-            std::string declType = match[1].str();
-            return declType;
-        }
-
-        // Try pattern 3: for-each loop variable
-        if (std::regex_search(line, match, forEachPattern)) {
-            std::string loopVarType = match[1].str();
-            return loopVarType;
-        }
-    }
-
-    return ""; // Type not found
-}
-
 std::string DocumentManager::getVariableType(const std::string& uri, const std::string& varName, int line) const {
     auto doc = getDocument(uri);
-    if (!doc) {
+    if (!doc || !doc->isParsed) {
         return "";
     }
-
-    // Use the existing inferVariableType method
-    return inferVariableType(doc->content, varName);
+    // MYT-359 — the public getVariableType API is consumed by
+    // MemberCompletionProvider, SignatureHelpHandler, and ReferencesHandler.
+    // Route through the same AST-based ReceiverTypeResolver used by F12 /
+    // hover so all four LSP paths agree on what a name's type is.
+    ReceiverTypeResolver resolver(doc->environment, &doc->ast, line, /*cursorCol*/ 0);
+    auto ut = resolver.lookupVariableType(varName);
+    if (!ut) return "";
+    // Mirror the legacy callers' expectation of an unwrapped base class name
+    // (they each strip outer `<...>` themselves; arrays are unwrapped here).
+    while (ut && ut->isArray()) ut = ut->getElementType();
+    return ut ? ut->getName() : std::string{};
 }
 
 } // namespace mtype::lsp

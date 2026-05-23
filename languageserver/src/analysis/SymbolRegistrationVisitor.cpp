@@ -327,6 +327,15 @@ void SymbolRegistrationVisitor::processFunctionNode(ast::ASTNode* node) {
 
             funcDef->setIsAsync(functionNode->getIsAsync());
 
+            // MYT-359 — attach UnifiedType so ReceiverTypeResolver can chain
+            // off `getFoo().method()` without re-parsing the declaration.
+            if (auto genRet = functionNode->getGenericReturnType()) {
+                std::string n = genRet->getBaseTypeName();
+                if (!n.empty()) {
+                    funcDef->setUnifiedReturnType(types::UnifiedType::classType(n));
+                }
+            }
+
             environment_->registerFunction(functionName, funcDef);
 
             // Track symbol location

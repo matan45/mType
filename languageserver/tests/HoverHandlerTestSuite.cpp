@@ -284,6 +284,102 @@ void HoverHandlerTestSuite::registerTests(LspTestHarness& harness) {
         require(result->contents.find("Helper::ping()") != std::string::npos,
             "method should resolve via static field's class to 'Helper::ping()'");
     });
+
+    // MYT-359 — hover must render the right Owner::method signature for each
+    // chained-receiver shape. All five tests below converge on the same
+    // `Foo::play()` / `Inner::play()` rendering so a failure isolates which
+    // resolver dispatch arm broke.
+
+    harness.addTest("MYT-359 hover renders Inner::play() for obj.field.method() chain", []() {
+        const std::string src =
+            "class Inner {\n"
+            "    public function play(): void {}\n"
+            "}\n"
+            "class Outer {\n"
+            "    public Inner inner;\n"
+            "    public constructor() {}\n"
+            "}\n"
+            "Outer o = new Outer();\n"
+            "o.inner.play();\n";                                 // line 8: play at 8-11
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+
+        auto result = handler.handleHover("file:///t.mt", {8, 9});
+        require(result.has_value(), "expected hover for obj.field.method() chain");
+        require(result->contents.find("Inner::play()") != std::string::npos,
+            "hover should render 'Inner::play()' for o.inner.play()");
+    });
+
+    harness.addTest("MYT-359 hover renders Foo::play() for getFoo().method() chain", []() {
+        const std::string src =
+            "class Foo {\n"
+            "    public function play(): void {}\n"
+            "}\n"
+            "function getFoo(): Foo { return new Foo(); }\n"
+            "getFoo().play();\n";                                // line 4: play at 10-13
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+
+        auto result = handler.handleHover("file:///t.mt", {4, 11});
+        require(result.has_value(), "expected hover for getFoo().play()");
+        require(result->contents.find("Foo::play()") != std::string::npos,
+            "hover should render 'Foo::play()' for getFoo().play()");
+    });
+
+    harness.addTest("MYT-359 hover renders Foo::play() for arr[0].method() subscript chain", []() {
+        const std::string src =
+            "class Foo {\n"
+            "    public function play(): void {}\n"
+            "}\n"
+            "Foo[] arr = new Foo[3];\n"
+            "arr[0].play();\n";                                  // line 4: play at 7-10
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+
+        auto result = handler.handleHover("file:///t.mt", {4, 8});
+        require(result.has_value(), "expected hover for arr[0].play()");
+        require(result->contents.find("Foo::play()") != std::string::npos,
+            "hover should render 'Foo::play()' for arr[0].play()");
+    });
+
+    harness.addTest("MYT-359 hover renders Inner::play() for Class::field.field.method() static chain", []() {
+        const std::string src =
+            "class Inner {\n"
+            "    public function play(): void {}\n"
+            "}\n"
+            "class Outer {\n"
+            "    public Inner inner;\n"
+            "    public constructor() {}\n"
+            "}\n"
+            "class App {\n"
+            "    public static Outer outer = new Outer();\n"
+            "}\n"
+            "App::outer.inner.play();\n";                        // line 10: play at 17-20
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+
+        auto result = handler.handleHover("file:///t.mt", {10, 18});
+        require(result.has_value(), "expected hover for Class::field.field.method() chain");
+        require(result->contents.find("Inner::play()") != std::string::npos,
+            "hover should render 'Inner::play()' for App::outer.inner.play()");
+    });
+
+    harness.addTest("MYT-359 hover renders Foo::play() for (cond ? a : b).method() ternary receiver", []() {
+        const std::string src =
+            "class Foo {\n"
+            "    public function play(): void {}\n"
+            "}\n"
+            "Foo a = new Foo();\n"
+            "Foo b = new Foo();\n"
+            "(true ? a : b).play();\n";                          // line 5: play at 15-18
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+
+        auto result = handler.handleHover("file:///t.mt", {5, 16});
+        require(result.has_value(), "expected hover for (cond ? a : b).play()");
+        require(result->contents.find("Foo::play()") != std::string::npos,
+            "hover should render 'Foo::play()' for ternary receiver");
+    });
 }
 
 } // namespace mtype::lsp::test

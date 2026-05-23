@@ -104,6 +104,97 @@ void DefinitionHandlerTestSuite::registerTests(LspTestHarness& harness) {
         require(!result.has_value(),
             "expected nullopt when receiverClass not in registry");
     });
+
+    // MYT-359 — Go to Definition must follow chained receiver shapes through
+    // the AST-driven ReceiverTypeResolver. Each test covers one of the five
+    // shapes the ticket calls out, all converging on the same `play()`
+    // declaration so we know the resolver typed the chain correctly.
+
+    harness.addTest("MYT-359 go-to-def follows obj.field.method() multi-hop instance chain", []() {
+        const std::string src =
+            "class Inner {\n"                                    // 0
+            "    public function play(): void {}\n"              // 1  play decl
+            "}\n"                                                // 2
+            "class Outer {\n"                                    // 3
+            "    public Inner inner;\n"                          // 4
+            "    public constructor() {}\n"                      // 5
+            "}\n"                                                // 6
+            "Outer o = new Outer();\n"                           // 7
+            "o.inner.play();\n";                                 // 8  play at cols 8-11
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        DefinitionHandler handler(docMgr.get());
+
+        auto result = handler.handleDefinition("file:///t.mt", {8, 9});
+        require(result.has_value(), "expected definition for obj.field.method() chain");
+        require(result->range.start.line == 1, "play() should resolve to line 1");
+    });
+
+    harness.addTest("MYT-359 go-to-def follows getFoo().method() call-result chain", []() {
+        const std::string src =
+            "class Foo {\n"                                      // 0
+            "    public function play(): void {}\n"              // 1  play decl
+            "}\n"                                                // 2
+            "function getFoo(): Foo { return new Foo(); }\n"     // 3
+            "getFoo().play();\n";                                // 4  play at cols 10-13
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        DefinitionHandler handler(docMgr.get());
+
+        auto result = handler.handleDefinition("file:///t.mt", {4, 11});
+        require(result.has_value(), "expected definition for getFoo().play()");
+        require(result->range.start.line == 1, "play() should resolve to line 1");
+    });
+
+    harness.addTest("MYT-359 go-to-def follows arr[0].method() subscript chain", []() {
+        const std::string src =
+            "class Foo {\n"                                      // 0
+            "    public function play(): void {}\n"              // 1  play decl
+            "}\n"                                                // 2
+            "Foo[] arr = new Foo[3];\n"                          // 3
+            "arr[0].play();\n";                                  // 4  play at cols 7-10
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        DefinitionHandler handler(docMgr.get());
+
+        auto result = handler.handleDefinition("file:///t.mt", {4, 8});
+        require(result.has_value(), "expected definition for arr[0].play()");
+        require(result->range.start.line == 1, "play() should resolve to line 1");
+    });
+
+    harness.addTest("MYT-359 go-to-def follows Class::field.field.method() multi-hop static chain", []() {
+        const std::string src =
+            "class Inner {\n"                                    // 0
+            "    public function play(): void {}\n"              // 1  play decl
+            "}\n"                                                // 2
+            "class Outer {\n"                                    // 3
+            "    public Inner inner;\n"                          // 4
+            "    public constructor() {}\n"                      // 5
+            "}\n"                                                // 6
+            "class App {\n"                                      // 7
+            "    public static Outer outer = new Outer();\n"     // 8
+            "}\n"                                                // 9
+            "App::outer.inner.play();\n";                        // 10 play at cols 17-20
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        DefinitionHandler handler(docMgr.get());
+
+        auto result = handler.handleDefinition("file:///t.mt", {10, 18});
+        require(result.has_value(), "expected definition for Class::field.field.method() chain");
+        require(result->range.start.line == 1, "play() should resolve to line 1");
+    });
+
+    harness.addTest("MYT-359 go-to-def follows (cond ? a : b).method() ternary receiver", []() {
+        const std::string src =
+            "class Foo {\n"                                      // 0
+            "    public function play(): void {}\n"              // 1  play decl
+            "}\n"                                                // 2
+            "Foo a = new Foo();\n"                               // 3
+            "Foo b = new Foo();\n"                               // 4
+            "(true ? a : b).play();\n";                          // 5  play at cols 15-18
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        DefinitionHandler handler(docMgr.get());
+
+        auto result = handler.handleDefinition("file:///t.mt", {5, 16});
+        require(result.has_value(), "expected definition for (cond ? a : b).play()");
+        require(result->range.start.line == 1, "play() should resolve to line 1");
+    });
 }
 
 } // namespace mtype::lsp::test

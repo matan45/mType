@@ -111,7 +111,6 @@ private:
     std::unique_ptr<ImportResolver> importResolver_;
 
     std::string extractWordAtPosition(const std::string& content, int line, int character) const;
-    std::string inferVariableType(const std::string& content, const std::string& varName) const;
 
     // MYT-357 — rich hover formatting helpers. classifyCallContext probes the
     // text immediately preceding the hovered word so getTypeInfo can route to
