@@ -295,6 +295,44 @@ namespace mtype::lsp::internal
         return items;
     }
 
+    std::vector<CompletionItem> templateSnippetCompletions()
+    {
+        static const std::vector<std::tuple<std::string, std::string, std::string, std::string>> kTemplates = {
+            {
+                "class template",
+                "class declaration template",
+                "class ${1:Name} {\n    $0\n}",
+                "class"
+            },
+            {
+                "interface template",
+                "interface declaration template",
+                "interface ${1:Name} {\n    $0\n}",
+                "interface"
+            },
+            {
+                "annotation template",
+                "annotation declaration template",
+                "annotation ${1:Name} {\n    $0\n}",
+                "annotation"
+            }
+        };
+
+        std::vector<CompletionItem> items;
+        items.reserve(kTemplates.size());
+        for (const auto& [label, detail, snippet, filterText] : kTemplates) {
+            CompletionItem item;
+            item.label = label;
+            item.kind = static_cast<int>(CompletionItemKind::Snippet);
+            item.detail = detail;
+            item.insertText = snippet;
+            item.insertTextFormat = kSnippetInsertTextFormat;
+            item.filterText = filterText;
+            items.push_back(std::move(item));
+        }
+        return items;
+    }
+
     std::vector<CompletionItem> builtinCompletions()
     {
         static const std::vector<std::tuple<std::string, std::string, std::string>> kBuiltins = {

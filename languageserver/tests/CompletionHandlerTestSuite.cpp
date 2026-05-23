@@ -69,6 +69,52 @@ void CompletionHandlerTestSuite::registerTests(LspTestHarness& harness) {
             "expected 'if' keyword in completions");
     });
 
+    harness.addTest("declaration template snippets appear with snippet format", []() {
+        DocumentManager docMgr;
+        const std::string uri = "file:///test/templates.mt";
+        docMgr.openDocument(uri, "cla", 1);
+        docMgr.parseDocument(uri);
+
+        CompletionHandler handler(&docMgr);
+        auto items = handler.handleCompletion(uri, {0, 3});
+
+        const auto* item = findItemWithLabel(items, "class template");
+        require(item != nullptr, "expected class declaration template completion");
+        require(item->kind == static_cast<int>(CompletionItemKind::Snippet),
+            "class template should be tagged as a snippet");
+        require(item->insertTextFormat.has_value() && *item->insertTextFormat == 2,
+            "class template should use LSP snippet insertTextFormat");
+        require(item->insertText.has_value()
+                && item->insertText->find("${1:Name}") != std::string::npos
+                && item->insertText->find("$0") != std::string::npos,
+            "class template should include name and final cursor placeholders");
+        require(item->textEdit.has_value(),
+            "class template should replace the typed prefix");
+    });
+
+    harness.addTest("interface and annotation template snippets appear", []() {
+        DocumentManager docMgr;
+        const std::string uri = "file:///test/templates_more.mt";
+        docMgr.openDocument(uri, "\n", 1);
+        docMgr.parseDocument(uri);
+
+        CompletionHandler handler(&docMgr);
+        auto items = handler.handleCompletion(uri, {0, 0});
+
+        const auto* iface = findItemWithLabel(items, "interface template");
+        const auto* annotation = findItemWithLabel(items, "annotation template");
+        require(iface != nullptr, "expected interface declaration template completion");
+        require(annotation != nullptr, "expected annotation declaration template completion");
+        require(iface->kind == static_cast<int>(CompletionItemKind::Snippet),
+            "interface template should be tagged as a snippet");
+        require(annotation->kind == static_cast<int>(CompletionItemKind::Snippet),
+            "annotation template should be tagged as a snippet");
+        require(iface->filterText.has_value() && *iface->filterText == "interface",
+            "interface template should filter as the interface keyword");
+        require(annotation->filterText.has_value() && *annotation->filterText == "annotation",
+            "annotation template should filter as the annotation keyword");
+    });
+
     // ---------------------------------------------------------------
     // Test 2: Multiple document-defined symbols all visible in completions
     // ---------------------------------------------------------------
