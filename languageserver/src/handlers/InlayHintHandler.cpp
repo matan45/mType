@@ -101,6 +101,73 @@ std::string resolveEnclosingFunctionReturnType(
     return "";  // void function or unrecognized signature shape
 }
 
+// MYT-363 — return-type-name helpers. Each mirrors its lookupXParams
+// sibling but returns the bare class/interface name of the call's
+// declared return type, so a chained `.method(...)` in
+// `recv.head(...).method(...)` can look up `method` on the head's
+// return-type class. Array wrappers are peeled (matches the
+// ReceiverTypeResolver convention) so `Stream[]` resolves to `Stream`.
+// Defined here (early in the file) so collectSites can call them when
+// closing each call's frame.
+std::string baseTypeName(const ::types::UnifiedTypePtr& ut) {
+    if (!ut) return {};
+    ::types::UnifiedTypePtr cur = ut;
+    while (cur && cur->isArray()) {
+        cur = cur->getElementType();
+    }
+    if (!cur) return {};
+    return cur->getName();
+}
+
+std::string lookupFunctionReturnTypeName(
+    const Document* doc, const std::string& name)
+{
+    if (!doc || !doc->environment) return {};
+    auto reg = doc->environment->getFunctionRegistry();
+    if (!reg) return {};
+    auto fn = reg->findFunction(name);
+    if (!fn) return {};
+    return baseTypeName(fn->getUnifiedReturnType());
+}
+
+std::string lookupMethodReturnTypeName(
+    const Document* doc, const std::string& className,
+    const std::string& methodName)
+{
+    if (!doc || !doc->environment) return {};
+
+    if (auto creg = doc->environment->getClassRegistry()) {
+        if (auto cls = creg->findClass(className)) {
+            if (auto method = cls->getMethod(methodName)) {
+                return baseTypeName(method->getUnifiedReturnType());
+            }
+        }
+    }
+    // Interface fallback — mirrors lookupMethodParams.
+    if (auto iface = doc->environment->findInterface(className)) {
+        for (const auto& sig : iface->getMethodSignatures()) {
+            if (sig.name == methodName) {
+                return baseTypeName(sig.returnType);
+            }
+        }
+    }
+    return {};
+}
+
+std::string lookupStaticMethodReturnTypeName(
+    const Document* doc, const std::string& className,
+    const std::string& methodName)
+{
+    if (!doc || !doc->environment) return {};
+    auto creg = doc->environment->getClassRegistry();
+    if (!creg) return {};
+    auto cls = creg->findClass(className);
+    if (!cls) return {};
+    auto method = cls->getStaticMethod(methodName);
+    if (!method) return {};
+    return baseTypeName(method->getUnifiedReturnType());
+}
+
 } // namespace
 
 InlayHintHandler::InlayHintHandler(DocumentManager* docMgr)
@@ -176,6 +243,13 @@ void InlayHintHandler::collectSites(
     ReceiverTypeMap& receiverTypes) const
 {
     const auto& toks = doc->tokens;
+
+    // MYT-363 — chained-call return-type tracking. Keyed by the RPAREN
+    // token index of a closed call site, holds the bare class/interface
+    // name of that call's declared return type. Lets us classify the
+    // next link in a `.method(...).method(...)` chain by treating the
+    // closed call's return type as the receiver class.
+    std::unordered_map<std::size_t, std::string> closedReturnTypes;
 
     // Build the variable-name → declared-class-name map in this same
     // pass. Rule mirrors the old resolveReceiverClassName: take the
@@ -385,8 +459,26 @@ void InlayHintHandler::collectSites(
                         f.call.kind = CalleeKind::StaticMethod;
                         f.call.receiverName = tokenText(doc, toks[i - 3]);
                     } else if (i >= 2 && toks[i - 2].type == TT::DOT) {
-                        // Chained / complex receiver — v1 can't resolve.
-                        f.isCall = false;
+                        // MYT-363 — chained method call. The token shape is
+                        // `RPAREN DOT IDENTIFIER LPAREN`, i.e. `.method(` on
+                        // the result of a previous call. If the previous
+                        // call's RPAREN recorded a return-type class name,
+                        // use it as the pre-resolved receiver class for
+                        // this link. Anything else (parenthesized
+                        // expression, ternary, subscript) still bails.
+                        bool resolved = false;
+                        if (i >= 3 && toks[i - 3].type == TT::RPAREN) {
+                            auto it = closedReturnTypes.find(i - 3);
+                            if (it != closedReturnTypes.end()
+                                && !it->second.empty()) {
+                                f.call.kind = CalleeKind::Method;
+                                f.call.receiverClassName = it->second;
+                                resolved = true;
+                            }
+                        }
+                        if (!resolved) {
+                            f.isCall = false;
+                        }
                     } else {
                         f.call.kind = CalleeKind::Function;
                     }
@@ -416,6 +508,44 @@ void InlayHintHandler::collectSites(
                     // Closing this frame.
                     closeArg(top, i);
                     if (top.isCall) {
+                        // MYT-363 — before we move the call out, record its
+                        // declared return-type class name keyed by this
+                        // RPAREN's index. The next `.method(...)` in a
+                        // chain (if any) reads this map to resolve its
+                        // receiver class. Recorded regardless of range
+                        // filtering — a chained link inside the range may
+                        // depend on a head call outside it.
+                        std::string retType;
+                        switch (top.call.kind) {
+                            case CalleeKind::Function:
+                                retType = lookupFunctionReturnTypeName(
+                                    doc, top.call.calleeName);
+                                break;
+                            case CalleeKind::Constructor:
+                                // `new Foo(...)` returns Foo.
+                                retType = top.call.calleeName;
+                                break;
+                            case CalleeKind::Method: {
+                                std::string cls = top.call.receiverClassName;
+                                if (cls.empty()) {
+                                    auto it = receiverTypes.find(top.call.receiverName);
+                                    if (it != receiverTypes.end()) cls = it->second;
+                                }
+                                if (!cls.empty()) {
+                                    retType = lookupMethodReturnTypeName(
+                                        doc, cls, top.call.calleeName);
+                                }
+                                break;
+                            }
+                            case CalleeKind::StaticMethod:
+                                retType = lookupStaticMethodReturnTypeName(
+                                    doc, top.call.receiverName, top.call.calleeName);
+                                break;
+                        }
+                        if (!retType.empty()) {
+                            closedReturnTypes[i] = std::move(retType);
+                        }
+
                         // Range filter — keep call sites whose LPAREN is in window.
                         // top.call.callLine is the line of the callee identifier;
                         // use the first arg's pos (or the LPAREN line) for filter.
@@ -651,9 +781,16 @@ void InlayHintHandler::emitParameterHints(
                 // `this` falls through to "no hint" — the precomputed
                 // map doesn't include it, and v1 doesn't resolve
                 // `this.method(...)` to the enclosing class.
-                auto it = receiverTypes.find(call.receiverName);
-                if (it == receiverTypes.end() || it->second.empty()) continue;
-                paramNames = lookupMethodParams(doc, it->second, call.calleeName);
+                // MYT-363 — chained links already have a pre-resolved
+                // class from the prior link's return type; skip the
+                // var-name lookup in that case.
+                std::string className = call.receiverClassName;
+                if (className.empty()) {
+                    auto it = receiverTypes.find(call.receiverName);
+                    if (it == receiverTypes.end() || it->second.empty()) continue;
+                    className = it->second;
+                }
+                paramNames = lookupMethodParams(doc, className, call.calleeName);
                 break;
             }
             case CalleeKind::StaticMethod:
