@@ -193,6 +193,213 @@ void InlayHintHandlerTestSuite::registerTests(LspTestHarness& harness) {
             "expected 0 Parameter hints on print() call");
     });
 
+    // ---- MYT-355: static method call parameter-name hints ----
+
+    harness.addTest("parameter hints on a static method call", []() {
+        const std::string src =
+            "class App {\n"
+            "    public static function pick(int idx): int { return idx; }\n"
+            "}\n"
+            "int v = App::pick(7);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "idx:", InlayHintKind::Parameter) == 1,
+            "expected 'idx:' hint on App::pick(7)");
+    });
+
+    harness.addTest("parameter hints on a static method call with multiple args", []() {
+        const std::string src =
+            "class App {\n"
+            "    public static function place(int x, int y, int z): int {\n"
+            "        return x + y + z;\n"
+            "    }\n"
+            "}\n"
+            "int v = App::place(1, 2, 3);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "x:", InlayHintKind::Parameter) == 1,
+            "expected 'x:' hint on App::place");
+        require(countHintsWithLabel(hints, "y:", InlayHintKind::Parameter) == 1,
+            "expected 'y:' hint on App::place");
+        require(countHintsWithLabel(hints, "z:", InlayHintKind::Parameter) == 1,
+            "expected 'z:' hint on App::place");
+    });
+
+    harness.addTest("parameter hints on a static method call inside another method body", []() {
+        // Nested call site — verifies the classifier still fires from
+        // inside an instance-method body and doesn't get confused by
+        // the enclosing `function name(...)` declaration.
+        const std::string src =
+            "class App {\n"
+            "    public static function pick(int idx): int { return idx; }\n"
+            "}\n"
+            "class Other {\n"
+            "    public constructor() {}\n"
+            "    public function run(): void {\n"
+            "        int v = App::pick(7);\n"
+            "    }\n"
+            "}\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "idx:", InlayHintKind::Parameter) == 1,
+            "expected 'idx:' hint on nested App::pick call");
+    });
+
+    harness.addTest("bare-identifier suppression still applies to static calls", []() {
+        // LSP "no hint where it duplicates source text" rule must
+        // suppress the hint when the arg lexeme matches the param name.
+        const std::string src =
+            "class App {\n"
+            "    public static function pick(int idx): int { return idx; }\n"
+            "}\n"
+            "int idx = 5;\n"
+            "int v = App::pick(idx);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "idx:", InlayHintKind::Parameter) == 0,
+            "expected 'idx:' hint suppressed when arg matches param name");
+    });
+
+    harness.addTest("unknown class on a static call produces no hint and no crash", []() {
+        const std::string src = "int v = Unknown::foo(7);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        // The require() helper surfaces any thrown exception as a
+        // failure, so the absence of try/catch IS the no-crash check.
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsOfKind(hints, InlayHintKind::Parameter) == 0,
+            "expected 0 Parameter hints for unknown class on static call");
+    });
+
+    harness.addTest("known class but unknown static method produces no hint and no crash", []() {
+        const std::string src =
+            "class App {\n"
+            "    public static function pick(int idx): int { return idx; }\n"
+            "}\n"
+            "int v = App::missing(7);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsOfKind(hints, InlayHintKind::Parameter) == 0,
+            "expected 0 Parameter hints when static method is undefined");
+    });
+
+    // ---- MYT-356: interface-typed receiver parameter hints ----
+
+    harness.addTest("parameter hints on a method call with interface-typed receiver", []() {
+        const std::string src =
+            "interface Function {\n"
+            "    function apply(int x): int;\n"
+            "}\n"
+            "Function f = x -> x * 2;\n"
+            "int v = f.apply(3);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "x:", InlayHintKind::Parameter) == 1,
+            "expected 'x:' hint on interface-typed receiver call");
+    });
+
+    harness.addTest("parameter hints on multi-arg interface method", []() {
+        const std::string src =
+            "interface BinaryFunction {\n"
+            "    function apply(int a, int b): int;\n"
+            "}\n"
+            "BinaryFunction bf = (a, b) -> a + b;\n"
+            "int v = bf.apply(7, 9);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "a:", InlayHintKind::Parameter) == 1,
+            "expected 'a:' hint on multi-arg interface call");
+        require(countHintsWithLabel(hints, "b:", InlayHintKind::Parameter) == 1,
+            "expected 'b:' hint on multi-arg interface call");
+    });
+
+    harness.addTest("parameter hints on a multi-method interface (lookup by name)", []() {
+        // Two methods in the interface — name scan must pick the right
+        // signature, not just the first one declared.
+        const std::string src =
+            "interface Reactor {\n"
+            "    function reset(): void;\n"
+            "    function apply(int x): int;\n"
+            "}\n"
+            "Reactor r = (x) -> x;\n"
+            "int v = r.apply(5);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "x:", InlayHintKind::Parameter) == 1,
+            "expected 'x:' hint resolved by name scan on multi-method interface");
+    });
+
+    harness.addTest("bare-identifier suppression still applies to interface method calls", []() {
+        const std::string src =
+            "interface Function {\n"
+            "    function apply(int x): int;\n"
+            "}\n"
+            "Function f = x -> x * 2;\n"
+            "int x = 4;\n"
+            "int v = f.apply(x);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "x:", InlayHintKind::Parameter) == 0,
+            "expected 'x:' hint suppressed when arg lexeme matches param name");
+    });
+
+    harness.addTest("class method wins over interface fallback (regression)", []() {
+        // Class implements interface AND defines its own version with
+        // a different param name. The class path must be consulted
+        // first — the interface fallback must not shadow it.
+        const std::string src =
+            "interface Runnable {\n"
+            "    function run(int q): int;\n"
+            "}\n"
+            "class Job implements Runnable {\n"
+            "    public constructor() {}\n"
+            "    public function run(int n): int { return n; }\n"
+            "}\n"
+            "Job job = new Job();\n"
+            "int v = job.run(7);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsWithLabel(hints, "n:", InlayHintKind::Parameter) == 1,
+            "expected class-side 'n:' hint to win over interface-side 'q:'");
+        require(countHintsWithLabel(hints, "q:", InlayHintKind::Parameter) == 0,
+            "interface-side 'q:' must not appear when class defines the method");
+    });
+
+    harness.addTest("unknown receiver type produces no hint and no crash", []() {
+        // Receiver's declared type isn't in the class registry or the
+        // interface registry — both lookups miss; result is empty.
+        const std::string src =
+            "Nowhere n = new Nowhere();\n"
+            "int v = n.apply(7);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsOfKind(hints, InlayHintKind::Parameter) == 0,
+            "expected 0 Parameter hints for unknown receiver type");
+    });
+
     // ---- Lambda type hints ----
 
     harness.addTest("type hint on a lambda parameter without annotation", []() {
@@ -225,6 +432,134 @@ void InlayHintHandlerTestSuite::registerTests(LspTestHarness& harness) {
         auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
         require(countHintsOfKind(hints, InlayHintKind::Type) == 0,
             "expected 0 Type hints when lambda param has explicit type");
+    });
+
+    // ---- MYT-354: return-position lambda type hints ----
+
+    harness.addTest("type hint on return-position lambda (single param)", []() {
+        // Lambda appears as the return expression; target interface
+        // is the enclosing function's declared return type.
+        const std::string src =
+            "interface Function {\n"
+            "    function apply(int x): int;\n"
+            "}\n"
+            "function make(): Function {\n"
+            "    return x -> x * 2;\n"
+            "}\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsOfKind(hints, InlayHintKind::Type) == 1,
+            "expected 1 Type hint on return-position lambda param");
+    });
+
+    harness.addTest("type hints on return-position lambda (multi-param)", []() {
+        const std::string src =
+            "interface BinaryFunction {\n"
+            "    function apply(int a, int b): int;\n"
+            "}\n"
+            "function make(): BinaryFunction {\n"
+            "    return (a, b) -> a + b;\n"
+            "}\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsOfKind(hints, InlayHintKind::Type) == 2,
+            "expected 2 Type hints on return-position multi-param lambda");
+    });
+
+    harness.addTest("type hint on block-body return-position lambda", []() {
+        // Block-body lambda — the inner `return temp;` is past the
+        // walk-back start point, so it doesn't confuse target resolution.
+        const std::string src =
+            "interface Function {\n"
+            "    function apply(int x): int;\n"
+            "}\n"
+            "function make(): Function {\n"
+            "    return x -> {\n"
+            "        int temp = x * 2;\n"
+            "        return temp + 1;\n"
+            "    };\n"
+            "}\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsOfKind(hints, InlayHintKind::Type) == 1,
+            "expected 1 Type hint on block-body return-position lambda");
+    });
+
+    harness.addTest("type hint on return-position lambda inside nested block", []() {
+        // RETURN sits inside an `if` body; brace-balancing must walk
+        // out through the if scope to reach the enclosing function decl.
+        const std::string src =
+            "interface Function {\n"
+            "    function apply(int x): int;\n"
+            "}\n"
+            "function make(bool flag): Function {\n"
+            "    if (flag) {\n"
+            "        return x -> x * 2;\n"
+            "    }\n"
+            "    return x -> x;\n"
+            "}\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        // Both `return x -> ...` sites should get a hint.
+        require(countHintsOfKind(hints, InlayHintKind::Type) == 2,
+            "expected 2 Type hints (one per nested-block return lambda)");
+    });
+
+    harness.addTest("no type hint when enclosing function returns void", []() {
+        const std::string src =
+            "function make(): void {\n"
+            "    return x -> x;\n"
+            "}\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsOfKind(hints, InlayHintKind::Type) == 0,
+            "expected 0 Type hints for void-returning enclosing function");
+    });
+
+    harness.addTest("no type hint when enclosing function returns non-functional type", []() {
+        // `int` is not an interface — findInterface() yields nothing and
+        // emitLambdaTypeHints short-circuits.
+        const std::string src =
+            "function make(): int {\n"
+            "    return x -> x;\n"
+            "}\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsOfKind(hints, InlayHintKind::Type) == 0,
+            "expected 0 Type hints when return type isn't a functional interface");
+    });
+
+    harness.addTest("assign-path lambda inside a function body still resolves (regression)", []() {
+        // The ASSIGN walk-back must win for `Function g = x -> x;`
+        // even when it sits inside a function whose return type is
+        // also a functional interface (MYT-354 must not regress the
+        // pre-existing ASSIGN path).
+        const std::string src =
+            "interface Function {\n"
+            "    function apply(int x): int;\n"
+            "}\n"
+            "function make(): Function {\n"
+            "    Function g = x -> x;\n"
+            "    return g;\n"
+            "}\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        InlayHintHandler handler(docMgr.get());
+
+        auto hints = handler.handleInlayHint("file:///t.mt", fullDoc());
+        require(countHintsOfKind(hints, InlayHintKind::Type) == 1,
+            "expected 1 Type hint (ASSIGN path) on the assigned lambda");
     });
 
     harness.addTest("no type hint on a plain typed variable declaration", []() {

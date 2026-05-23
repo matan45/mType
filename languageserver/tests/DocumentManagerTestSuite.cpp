@@ -89,6 +89,63 @@ void DocumentManagerTestSuite::registerTests(LspTestHarness& harness) {
         require(!doc->diagnostics.empty(),
             "expected diagnostics for parse error");
     });
+
+    // MYT-361: class implementing a generic interface with a concrete (class)
+    // type argument must not get a false MT-E4001 when the method signature
+    // matches after substituting the interface's type parameter.
+    // Note: type arg is a class (Animal) — primitives in generic args are
+    // MYT-360's separate concern.
+    harness.addTest("MYT-361: implements Predicate<Animal> with test(Animal) is accepted",
+        []() {
+            const std::string src =
+                "class Animal {}\n"
+                "interface Predicate<T> {\n"
+                "    function test(T t): bool;\n"
+                "}\n"
+                "class AnimalPredicate implements Predicate<Animal> {\n"
+                "    public function test(Animal value): bool {\n"
+                "        return true;\n"
+                "    }\n"
+                "}\n";
+            auto docMgr = makeDocManager("file:///myt361_ok.mt", src);
+            auto* doc = docMgr->getDocument("file:///myt361_ok.mt");
+            require(doc != nullptr, "document should exist");
+            for (const auto& d : doc->diagnostics) {
+                require(d.sourceExceptionType != "MissingInterfaceMethod",
+                    "should not emit MissingInterfaceMethod for concrete generic "
+                    "interface implementation, got: " + d.message);
+            }
+        });
+
+    // MYT-361: substitution is type-aware — a wrong override (Plant instead
+    // of Animal) must still produce MT-E4001.
+    harness.addTest("MYT-361: implements Predicate<Animal> with test(Plant) is rejected",
+        []() {
+            const std::string src =
+                "class Animal {}\n"
+                "class Plant {}\n"
+                "interface Predicate<T> {\n"
+                "    function test(T t): bool;\n"
+                "}\n"
+                "class WrongPredicate implements Predicate<Animal> {\n"
+                "    public function test(Plant value): bool {\n"
+                "        return true;\n"
+                "    }\n"
+                "}\n";
+            auto docMgr = makeDocManager("file:///myt361_wrong.mt", src);
+            auto* doc = docMgr->getDocument("file:///myt361_wrong.mt");
+            require(doc != nullptr, "document should exist");
+            bool sawMissing = false;
+            for (const auto& d : doc->diagnostics) {
+                if (d.sourceExceptionType == "MissingInterfaceMethod") {
+                    sawMissing = true;
+                    break;
+                }
+            }
+            require(sawMissing,
+                "expected MissingInterfaceMethod for test(Plant) overriding "
+                "test(Animal)");
+        });
 }
 
 } // namespace mtype::lsp::test

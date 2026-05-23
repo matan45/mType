@@ -85,11 +85,29 @@
     <Filter Include="testFiles\deps">
       <UniqueIdentifier>{930C8E9D-7FDA-81A3-686E-F2C954DB5D08}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\deps\alias">
+      <UniqueIdentifier>{CCB15273-B840-DC3C-615F-F0374DCDECE2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\deps\aliasExternal">
+      <UniqueIdentifier>{CF10A35B-BBCB-9207-6483-0B52501DDD97}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\deps\chain">
       <UniqueIdentifier>{45907473-311F-FE3C-DA3D-1238C6AB0EE3}</UniqueIdentifier>
     </Filter>
     <Filter Include="testFiles\deps\diamond">
       <UniqueIdentifier>{3E5F2B72-2A59-54C4-13C6-EAD4FF5EBA30}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\deps\mtModulesAlias">
+      <UniqueIdentifier>{06939B24-72AB-824E-3B58-12E8A72F17E8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\deps\mtModulesAlias\mt_modules">
+      <UniqueIdentifier>{CE38308C-BAB5-23CF-E332-24E3CF0EC062}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\deps\mtModulesAlias\mt_modules\@pkgdep">
+      <UniqueIdentifier>{98A2BC5C-844B-248C-ADE1-3F0B99E93ECD}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\deps\mtModulesAlias\mt_modules\@pkgdep\src">
+      <UniqueIdentifier>{AFEC17D9-9B2B-C254-44AE-9E8630CC77BF}</UniqueIdentifier>
     </Filter>
     <Filter Include="testFiles\deps\simple">
       <UniqueIdentifier>{ECED7107-585A-2D02-214E-C55F8D794F6A}</UniqueIdentifier>
@@ -5944,6 +5962,12 @@
     <None Include="tests\testFiles\controlFlow\pass\voidReturnInCtor_pass.mt">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
+    <None Include="tests\testFiles\deps\alias\Main.mt">
+      <Filter>testFiles\deps\alias</Filter>
+    </None>
+    <None Include="tests\testFiles\deps\aliasExternal\External.mt">
+      <Filter>testFiles\deps\aliasExternal</Filter>
+    </None>
     <None Include="tests\testFiles\deps\chain\a.mt">
       <Filter>testFiles\deps\chain</Filter>
     </None>
@@ -5964,6 +5988,12 @@
     </None>
     <None Include="tests\testFiles\deps\diamond\top.mt">
       <Filter>testFiles\deps\diamond</Filter>
+    </None>
+    <None Include="tests\testFiles\deps\mtModulesAlias\Main.mt">
+      <Filter>testFiles\deps\mtModulesAlias</Filter>
+    </None>
+    <None Include="tests\testFiles\deps\mtModulesAlias\mt_modules\@pkgdep\src\Dep.mt">
+      <Filter>testFiles\deps\mtModulesAlias\mt_modules\@pkgdep\src</Filter>
     </None>
     <None Include="tests\testFiles\deps\simple\helper.mt">
       <Filter>testFiles\deps\simple</Filter>
@@ -7624,6 +7654,21 @@
     <None Include="tests\testFiles\generics\error\primitiveFloatType.mt">
       <Filter>testFiles\generics\error</Filter>
     </None>
+    <None Include="tests\testFiles\generics\error\primitiveInExtendsClass.mt">
+      <Filter>testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\primitiveInExtendsInterface.mt">
+      <Filter>testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\primitiveInGenericConstraint.mt">
+      <Filter>testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\primitiveInImplementsClause.mt">
+      <Filter>testFiles\generics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\error\primitiveInImplementsMixed.mt">
+      <Filter>testFiles\generics\error</Filter>
+    </None>
     <None Include="tests\testFiles\generics\error\primitiveIntType.mt">
       <Filter>testFiles\generics\error</Filter>
     </None>
@@ -7679,6 +7724,12 @@
       <Filter>testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\boolTypeInGenerics.mt">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\boxedClassInImplementsClause.expected">
+      <Filter>testFiles\generics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\generics\pass\boxedClassInImplementsClause.mt">
       <Filter>testFiles\generics\pass</Filter>
     </None>
     <None Include="tests\testFiles\generics\pass\castToTypeParamThrows.expected">
@@ -10271,6 +10322,12 @@
       <Filter>testFiles\interface\pass</Filter>
     </None>
     <None Include="tests\testFiles\interface\pass\complexInterfaceImportInheritanceGenerics.mt">
+      <Filter>testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\concreteGenericInterfaceImplementation.expected">
+      <Filter>testFiles\interface\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\pass\concreteGenericInterfaceImplementation.mt">
       <Filter>testFiles\interface\pass</Filter>
     </None>
     <None Include="tests\testFiles\interface\pass\deeplyNestedInheritance.expected">

@@ -9,9 +9,9 @@ import * from "../exceptions/RuntimeException.mt";
  * Provides factory methods similar to Java's Stream class.
  *
  * Example:
- *   Stream<int> stream = Streams::of<int>([1, 2, 3, 4, 5]);
+ *   Stream<Int> stream = Streams::of<Int>([new Int(1), new Int(2), new Int(3)]);
  *   Stream<String> empty = Streams.empty<String>();
- *   Stream<int> range = Streams.range(0, 10);
+ *   Stream<Int> range = Streams.range(0, 10);
  */
 class Streams {
     /**
@@ -127,9 +127,10 @@ class EmptyIterator<T> implements Iterator<T> {
 }
 
 /**
- * Iterator that generates a range of integers.
+ * Iterator that generates a range of integers (boxed as Int per MYT-360 —
+ * the Stream<T>/Iterator<T> contract requires a class type argument).
  */
-class RangeIterator implements Iterator<int> {
+class RangeIterator implements Iterator<Int> {
     private int current;
     private int end;
 
@@ -142,13 +143,13 @@ class RangeIterator implements Iterator<int> {
         return this.current < this.end;
     }
 
-    public function next(): int {
+    public function next(): Int {
         if (this.current >= this.end) {
             throw "Range iterator exhausted";
         }
         int value = this.current;
         this.current = this.current + 1;
-        return value;
+        return new Int(value);
     }
 
     public function close(): void {

@@ -5,10 +5,12 @@
 #include "../../../mType/ast/nodes/classes/MethodNode.hpp"
 #include "../../../mType/ast/nodes/classes/FieldNode.hpp"
 #include "../../../mType/ast/nodes/classes/InterfaceNode.hpp"
+#include "../../../mType/ast/nodes/classes/ConstructorNode.hpp"
 #include "../../../mType/ast/nodes/functions/FunctionNode.hpp"
 #include "../../../mType/environment/registry/ClassDefinition.hpp"
 #include "../../../mType/environment/registry/MethodDefinition.hpp"
 #include "../../../mType/environment/registry/FieldDefinition.hpp"
+#include "../../../mType/environment/registry/ConstructorDefinition.hpp"
 #include "../../../mType/environment/registry/InterfaceDefinition.hpp"
 #include "../../../mType/environment/registry/FunctionDefinition.hpp"
 #include "../../../mType/value/ValueType.hpp"
@@ -69,7 +71,9 @@ void SymbolRegistrationVisitor::processClassNode(ast::ASTNode* node) {
     if (environment_->getClassRegistry()) {
         try {
             // Create a basic class definition for the LSP
-            auto classDef = std::make_shared<runtimeTypes::klass::ClassDefinition>(className);
+            auto classDef = std::make_shared<runtimeTypes::klass::ClassDefinition>(
+                className,
+                classNode->getGenericParameters());
 
             // Set final and abstract modifiers
             classDef->setFinal(classNode->isFinal());
@@ -92,25 +96,47 @@ void SymbolRegistrationVisitor::processClassNode(ast::ASTNode* node) {
                     const auto& methodName = methodNode->getName();
                     const auto& methodLoc = methodNode->getLocation();
 
-                    // Create a MethodDefinition for LSP purposes
-                    // For LSP, we only need basic type information, not full generic details
-                    // Convert generic parameters to legacy format
-                    std::vector<std::pair<std::string, value::ValueType>> legacyParams;
+                    // MYT-357 — build parameter + return types that carry class
+                    // names (not just ValueType). `GenericType::isGenericParameter()`
+                    // returns true for BOTH real generic params (T, E) and user
+                    // class names (SoundBuffer) because both are stored as
+                    // strings in the variant — so checking that flag alone
+                    // loses the class name. Read getBaseTypeName() instead and
+                    // route to ParameterType::forClass for the name path.
+                    std::vector<std::pair<std::string, value::ParameterType>> params;
+                    std::vector<std::pair<std::string, types::UnifiedTypePtr>> unifiedParams;
                     for (const auto& [paramName, genericType] : methodNode->getGenericParameters()) {
-                        // Extract concrete ValueType from GenericType
-                        value::ValueType vt = value::ValueType::VOID;
-                        if (genericType && !genericType->isGenericParameter()) {
-                            vt = genericType->getConcreteType();
+                        value::ParameterType pt = genericType
+                            ? (genericType->isGenericParameter()
+                                ? value::ParameterType::forClass(genericType->getBaseTypeName())
+                                : value::ParameterType(genericType->getConcreteType()))
+                            : value::ParameterType(value::ValueType::VOID);
+                        params.emplace_back(paramName, pt);
+
+                        types::UnifiedTypePtr ut;
+                        if (genericType) {
+                            std::string n = genericType->getBaseTypeName();
+                            if (!n.empty()) ut = types::UnifiedType::classType(n);
                         }
-                        legacyParams.emplace_back(paramName, vt);
+                        unifiedParams.emplace_back(paramName, ut);
+                    }
+
+                    types::UnifiedTypePtr retUnified;
+                    if (auto genRet = methodNode->getGenericReturnType()) {
+                        std::string n = genRet->getBaseTypeName();
+                        if (!n.empty()) retUnified = types::UnifiedType::classType(n);
                     }
 
                     auto methodDef = std::make_shared<runtimeTypes::klass::MethodDefinition>(
                         methodName,
                         methodNode->getReturnType(),
-                        legacyParams,
+                        params,
                         methodNode->getBody(),
                         methodNode->getIsStatic(),
+                        retUnified,
+                        unifiedParams,
+                        std::vector<ast::GenericTypeParameter>{},
+                        std::unordered_map<std::string, std::string>{},
                         methodNode->getAccessModifier()
                     );
 
@@ -140,10 +166,23 @@ void SymbolRegistrationVisitor::processClassNode(ast::ASTNode* node) {
                     const auto& fieldName = fieldNode->getName();
                     const auto& fieldLoc = fieldNode->getLocation();
 
+                    // MYT-357 — populate UnifiedType so hover can resolve the
+                    // declared class for OBJECT-typed fields. Without this,
+                    // `Class::field.method()` hover can't determine which
+                    // class owns `method`.
+                    types::UnifiedTypePtr fieldUnifiedType;
+                    if (auto gt = fieldNode->getGenericType()) {
+                        std::string baseName = gt->getBaseTypeName();
+                        if (!baseName.empty()) {
+                            fieldUnifiedType = types::UnifiedType::classType(baseName);
+                        }
+                    }
+
                     // Create a FieldDefinition for LSP purposes
                     auto fieldDef = std::make_shared<runtimeTypes::klass::FieldDefinition>(
                         fieldName,
                         fieldNode->getType(),
+                        fieldUnifiedType,
                         value::Value{},  // Empty value for LSP (std::variant with monostate)
                         fieldNode->getIsStatic(),
                         fieldNode->getIsFinal(),
@@ -167,6 +206,19 @@ void SymbolRegistrationVisitor::processClassNode(ast::ASTNode* node) {
                         className  // Track which class this field belongs to
                     };
                 }
+            }
+
+            // MYT-357 — register constructors so hover/sig-help can resolve
+            // `new Foo(...)` to a real ConstructorDefinition with params.
+            for (const auto& ctorNode : classNode->getConstructors()) {
+                auto* ctor = dynamic_cast<ast::nodes::classes::ConstructorNode*>(ctorNode.get());
+                if (!ctor) continue;
+                auto ctorDef = std::make_shared<runtimeTypes::klass::ConstructorDefinition>(
+                    ctor->getParametersWithTypes(),
+                    ctor->getBody(),
+                    ctor->getAccessModifier()
+                );
+                classDef->addConstructor(ctorDef);
             }
 
             environment_->registerClass(className, classDef);
@@ -197,7 +249,8 @@ void SymbolRegistrationVisitor::processInterfaceNode(ast::ASTNode* node) {
         try {
             // Create a basic interface definition for the LSP
             auto interfaceDef = std::make_shared<runtimeTypes::klass::InterfaceDefinition>(
-                interfaceName
+                interfaceName,
+                interfaceNode->getGenericParameters()
             );
 
             // Register parent interfaces
@@ -231,6 +284,20 @@ void SymbolRegistrationVisitor::processInterfaceNode(ast::ASTNode* node) {
                     signature.genericParameters = functionNode->getGenericTypeParameters();
 
                     interfaceDef->addMethodSignature(signature);
+
+                    // MYT-362 — emit `InterfaceName.methodName` symbolLocations
+                    // entry so DocumentManager::findDefinition's `methodKey`
+                    // lookup hits for chained calls whose receiver type is
+                    // an interface. Mirrors processClassNode's class-method
+                    // branch above.
+                    const auto& methodLoc = functionNode->getLocation();
+                    std::string methodKey = interfaceName + "." + functionNode->getName();
+                    symbolLocations_[methodKey] = SymbolLocationInfo{
+                        currentUri_,
+                        methodLoc.getLine() - 1,
+                        methodLoc.getColumn() - 1,
+                        interfaceName
+                    };
                 }
             }
 
@@ -260,14 +327,31 @@ void SymbolRegistrationVisitor::processFunctionNode(ast::ASTNode* node) {
     // Register function in the environment's function registry
     if (environment_->getFunctionRegistry()) {
         try {
-            // Create a basic function definition for the LSP
+            // MYT-357 — pass returnClassName when the function returns an
+            // object type so hover can render the class name instead of "object".
+            std::string retClassName;
+            if (functionNode->getReturnType() == value::ValueType::OBJECT) {
+                if (auto genRet = functionNode->getGenericReturnType()) {
+                    retClassName = genRet->getBaseTypeName();
+                }
+            }
             auto funcDef = std::make_shared<runtimeTypes::global::FunctionDefinition>(
                 functionName,
                 functionNode->getReturnType(),
+                retClassName,
                 functionNode->getParameterTypes()
             );
 
             funcDef->setIsAsync(functionNode->getIsAsync());
+
+            // MYT-359 — attach UnifiedType so ReceiverTypeResolver can chain
+            // off `getFoo().method()` without re-parsing the declaration.
+            if (auto genRet = functionNode->getGenericReturnType()) {
+                std::string n = genRet->getBaseTypeName();
+                if (!n.empty()) {
+                    funcDef->setUnifiedReturnType(types::UnifiedType::classType(n));
+                }
+            }
 
             environment_->registerFunction(functionName, funcDef);
 

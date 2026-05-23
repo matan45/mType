@@ -8,6 +8,7 @@
 #include "../../ast/ASTNode.hpp"
 #include "../../ast/GenericTypeParameter.hpp"
 #include "../../ast/nodes/annotations/AnnotationNode.hpp"
+#include "../../types/UnifiedType.hpp"
 
 namespace runtimeTypes::global
 {
@@ -28,6 +29,11 @@ namespace runtimeTypes::global
 
         // MYT-110: per-parameter annotations, parallel to `parameters`.
         std::vector<std::vector<std::shared_ptr<ast::nodes::annotations::AnnotationNode>>> parameterAnnotations;
+
+        // MYT-359: declared return type for LSP receiver-type inference
+        // (mirrors MethodDefinition::unifiedReturnType). Populated by
+        // SymbolRegistrationVisitor when it sees the function declaration.
+        ::types::UnifiedTypePtr unifiedReturnType;
 
     public:
         const std::string& getName() const { return name; }
@@ -50,6 +56,11 @@ namespace runtimeTypes::global
 
         const std::string& getReturnClassName() const { return returnClassName; }
         void setReturnClassName(const std::string& className) { returnClassName = className; }
+
+        // MYT-359: unified return type, mirrors MethodDefinition's accessors.
+        ::types::UnifiedTypePtr getUnifiedReturnType() const { return unifiedReturnType; }
+        void setUnifiedReturnType(::types::UnifiedTypePtr type) { unifiedReturnType = std::move(type); }
+        bool hasUnifiedReturnType() const { return unifiedReturnType != nullptr; }
         
         const std::vector<std::pair<std::string, ParameterType>>& getParameters() const { return parameters; }
         void setParameters(const std::vector<std::pair<std::string, ParameterType>>& params) { parameters = params; }

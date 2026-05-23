@@ -2,17 +2,33 @@
 #include "../../mType/token/TokenType.hpp"
 #include "../../mType/environment/EnvironmentBuilder.hpp"
 #include "../../mType/environment/registry/ClassRegistry.hpp"
+#include "../../mType/environment/registry/InterfaceRegistry.hpp"
+#include "../../mType/environment/registry/InterfaceDefinition.hpp"
+#include "../../mType/environment/registry/MethodDefinition.hpp"
+#include "../../mType/ast/AccessModifier.hpp"
+#include "../../mType/ast/nodes/classes/ClassNode.hpp"
+#include "../../mType/ast/nodes/statements/ProgramNode.hpp"
+#include "../../mType/diagnostics/DiagnosticBuilder.hpp"
 #include "../../mType/diagnostics/ExceptionConverter.hpp"
+#include "../../mType/diagnostics/ErrorCodeRegistry.hpp"
 #include "../../mType/diagnostics/SourceFileCache.hpp"
 #include "../../mType/analysis/OverrideAnnotationChecker.hpp"
 #include "../../mType/analysis/UnusedVariableAnalyzer.hpp"
+#include "../../mType/ast/nodes/classes/MethodCallNode.hpp"
+#include "../../mType/types/TypeSubstitutionService.hpp"
+#include "../../mType/types/TypeConversionUtils.hpp"
+#include "../../mType/types/UnifiedType.hpp"
 #include "utils/MemoryFileReader.hpp"
 #include "analysis/SymbolRegistrationVisitor.hpp"
 #include "analysis/ImportResolver.hpp"
+#include "analysis/ReceiverTypeResolver.hpp"
+#include "analysis/AstPositionIndex.hpp"
+#include "analysis/InterfaceHierarchyWalker.hpp"
 #include "utils/ProjectConfigProvider.hpp"
 #include <sstream>
 #include <algorithm>
 #include <regex>
+#include <unordered_set>
 
 using namespace lexer;
 using namespace token;
@@ -21,6 +37,190 @@ using namespace environment;
 using namespace services;
 
 namespace mtype::lsp {
+
+namespace {
+
+// MYT-361 — strip whitespace so generic-arg formatting differences
+// ("List<String, Int>" vs "List<String,Int>") don't break equality.
+std::string normalizeTypeString(const std::string& typeStr)
+{
+    std::string normalized;
+    normalized.reserve(typeStr.size());
+    for (char c : typeStr) {
+        if (c != ' ') normalized += c;
+    }
+    return normalized;
+}
+
+std::string typeToString(const ::types::UnifiedTypePtr& type)
+{
+    return type ? type->toString() : std::string();
+}
+
+// MYT-361 — when collecting an interface's required method signatures for the
+// implements-check, substitute the interface's type parameters with the
+// concrete arguments from the `implements` clause. e.g. given
+//   interface Predicate<T> { test(T t): bool; }
+//   class P implements Predicate<int> { ... }
+// the required signature should be `test(int): bool`, not `test(T): bool`.
+// Hierarchy traversal lives in analysis::walkInterfaceHierarchy; this just
+// shapes each visited iface into a substituted MethodSignature.
+void collectInterfaceSignatures(
+    const std::string& interfaceName,
+    const std::shared_ptr<runtimeTypes::klass::InterfaceRegistry>& registry,
+    std::vector<runtimeTypes::klass::MethodSignature>& out,
+    std::unordered_set<std::string>& emitted,
+    const ::types::TypeSubstitutionService& subst)
+{
+    analysis::walkInterfaceHierarchy(interfaceName, registry, subst,
+        [&](const runtimeTypes::klass::InterfaceDefinition& iface,
+            const std::unordered_map<std::string, std::string>& substitutions) {
+            for (const auto& sig : iface.getMethodSignatures()) {
+                const std::string key = sig.name + "/" + std::to_string(sig.parameters.size());
+                if (!emitted.insert(key).second) continue;
+
+                runtimeTypes::klass::MethodSignature substituted;
+                substituted.name = sig.name;
+                substituted.genericParameters = sig.genericParameters;
+
+                if (sig.returnType) {
+                    std::string resolved = substitutions.empty()
+                        ? sig.returnType->toString()
+                        : subst.resolveGenericType(sig.returnType->toString(), substitutions);
+                    substituted.returnType = ::types::UnifiedType::classType(resolved);
+                }
+
+                for (const auto& [pname, ptype] : sig.parameters) {
+                    ::types::UnifiedTypePtr newType;
+                    if (ptype) {
+                        std::string resolved = substitutions.empty()
+                            ? ptype->toString()
+                            : subst.resolveGenericType(ptype->toString(), substitutions);
+                        newType = ::types::UnifiedType::classType(resolved);
+                    }
+                    substituted.parameters.emplace_back(pname, newType);
+                }
+
+                out.push_back(std::move(substituted));
+            }
+        });
+}
+
+// MYT-361 — for each candidate overload of `sig.name` on the class, compare
+// parameter types and return type against the (already-substituted) interface
+// signature. Returns true if any overload satisfies the signature.
+//
+// `this` handling: the LSP path and the compiler path build MethodDefinitions
+// differently — the compiler-side ClassRegistrar prepends a `this` parameter,
+// while the LSP's SymbolRegistrationVisitor stores only user-declared params.
+// We detect a leading `this` by either name or by the candidate having exactly
+// one more parameter than the interface signature, and strip it before
+// comparison.
+bool overloadMatchesSignature(
+    const std::shared_ptr<runtimeTypes::klass::MethodDefinition>& candidate,
+    const runtimeTypes::klass::MethodSignature& sig)
+{
+    if (!candidate) return false;
+
+    const auto& candidateParams = candidate->getParameters();
+    size_t paramOffset = 0;
+    size_t userParamCount = candidateParams.size();
+
+    if (!candidateParams.empty()
+        && (candidateParams.front().first == "this"
+            || (!candidate->isStatic() && userParamCount == sig.parameters.size() + 1))) {
+        paramOffset = 1;
+        userParamCount--;
+    }
+
+    if (userParamCount != sig.parameters.size()) return false;
+
+    const auto& unifiedParams = candidate->getUnifiedParameters();
+    for (size_t i = 0; i < sig.parameters.size(); ++i) {
+        const size_t srcIdx = i + paramOffset;
+        std::string candidateType;
+        if (srcIdx < unifiedParams.size() && unifiedParams[srcIdx].second) {
+            candidateType = unifiedParams[srcIdx].second->toString();
+        } else if (srcIdx < candidateParams.size()) {
+            candidateType = ::types::TypeConversionUtils::getTypeDisplayName(
+                candidateParams[srcIdx].second);
+        }
+
+        if (normalizeTypeString(candidateType)
+            != normalizeTypeString(typeToString(sig.parameters[i].second))) {
+            return false;
+        }
+    }
+
+    std::string candidateReturn;
+    if (candidate->getUnifiedReturnType()) {
+        candidateReturn = candidate->getUnifiedReturnType()->toString();
+    } else {
+        candidateReturn = ::types::TypeConversionUtils::getTypeDisplayName(
+            candidate->getReturnType());
+    }
+
+    return normalizeTypeString(candidateReturn)
+        == normalizeTypeString(typeToString(sig.returnType));
+}
+
+std::vector<diagnostics::Diagnostic> findMissingInterfaceMethodDiagnostics(const Document& doc)
+{
+    std::vector<diagnostics::Diagnostic> out;
+    if (!doc.environment) return out;
+
+    auto classRegistry = doc.environment->getClassRegistry();
+    auto interfaceRegistry = doc.environment->getInterfaceRegistry();
+    if (!classRegistry || !interfaceRegistry) return out;
+
+    ::types::TypeSubstitutionService subst;
+
+    for (const auto& root : doc.ast) {
+        auto* program = dynamic_cast<ast::nodes::statements::ProgramNode*>(root.get());
+        if (!program) continue;
+
+        for (const auto& statement : program->getStatements()) {
+            auto* classNode = dynamic_cast<ast::nodes::classes::ClassNode*>(statement.get());
+            if (!classNode) continue;
+            const auto& interfaces = classNode->getImplementedInterfaces();
+            if (interfaces.empty()) continue;
+
+            auto classDef = classRegistry->findClass(classNode->getClassName());
+            if (!classDef) continue;
+
+            std::vector<runtimeTypes::klass::MethodSignature> required;
+            std::unordered_set<std::string> emitted;
+            for (const auto& interfaceName : interfaces) {
+                collectInterfaceSignatures(interfaceName, interfaceRegistry,
+                    required, emitted, subst);
+            }
+
+            for (const auto& sig : required) {
+                const auto& overloads = classDef->getAllInstanceMethodOverloads(sig.name);
+                bool matched = false;
+                for (const auto& candidate : overloads) {
+                    if (overloadMatchesSignature(candidate, sig)) {
+                        matched = true;
+                        break;
+                    }
+                }
+                if (matched) continue;
+
+                out.push_back(
+                    diagnostics::DiagnosticBuilder(diagnostics::codes::InheritanceError)
+                        .withMessage("class '" + classNode->getClassName()
+                            + "' must implement interface method '" + sig.name + "'")
+                        .withPrimary(classNode->getLocation(), "missing interface method")
+                        .withSourceException("MissingInterfaceMethod")
+                        .build());
+            }
+        }
+    }
+
+    return out;
+}
+
+} // namespace
 
 DocumentManager::DocumentManager() {
     // ImportManager is now per-document for LSP
@@ -180,7 +380,7 @@ void DocumentManager::parseDocument(const std::string& uri) {
                 for (const auto& className : classRegistry->getAllItemNames()) {
                     auto cls = classRegistry->findClass(className);
                     if (!cls) continue;
-                    auto warns = analysis::OverrideAnnotationChecker::check(*cls);
+                    auto warns = ::analysis::OverrideAnnotationChecker::check(*cls);
                     for (auto& w : warns) {
                         doc->diagnostics.push_back(std::move(w));
                     }
@@ -193,7 +393,7 @@ void DocumentManager::parseDocument(const std::string& uri) {
         // positive) emits one MT-W2001 per declared-but-never-read local
         // with rename + remove fixes attached.
         if (parseSucceeded && !doc->ast.empty()) {
-            auto unusedWarnings = analysis::UnusedVariableAnalyzer::analyze(
+            auto unusedWarnings = ::analysis::UnusedVariableAnalyzer::analyze(
                 doc->ast.front().get());
             for (auto& w : unusedWarnings) {
                 doc->diagnostics.push_back(std::move(w));
@@ -206,6 +406,14 @@ void DocumentManager::parseDocument(const std::string& uri) {
                 importResolver_->resolveImports(doc, this);
             } catch (const std::exception&) {
                 // Silently ignore import resolution errors
+            }
+        }
+
+        if (parseSucceeded && !doc->ast.empty() && doc->environment) {
+            auto missingInterfaceDiagnostics =
+                findMissingInterfaceMethodDiagnostics(*doc);
+            for (auto& d : missingInterfaceDiagnostics) {
+                doc->diagnostics.push_back(std::move(d));
             }
         }
 
@@ -378,49 +586,25 @@ std::optional<DocumentManager::SymbolLocation> DocumentManager::findDefinition(
         }
     }
 
-    // Check if this is a method call (e.g., "variable.methodName(...)")
-    // Look backwards from the character position to see if there's a dot
-    if (character > 0 && currentLineNum == line) {
-        int dotPos = -1;
-
-        // First, look backwards through the current identifier and any whitespace to find a dot
-        for (int i = character - 1; i >= 0; i--) {
-            if (currentLine[i] == '.') {
-                dotPos = i;
-                break;
-            } else if (!std::isalnum(currentLine[i]) && currentLine[i] != '_' && !std::isspace(currentLine[i])) {
-                // Found a character that's not part of an identifier, whitespace, or a dot
-                // This means we're not in a method call
-                break;
-            }
-        }
-
-        if (dotPos != -1) {
-            // This is a method call: extract the variable name before the dot
-            int varStart = dotPos - 1;
-            while (varStart >= 0 && (std::isalnum(currentLine[varStart]) || currentLine[varStart] == '_')) {
-                varStart--;
-            }
-            varStart++;
-
-            std::string varName = currentLine.substr(varStart, dotPos - varStart);
-
-            // Infer the type of this variable by scanning the document
-            std::string varType = inferVariableType(doc->content, varName);
-
-            if (!varType.empty()) {
-                // Look for ClassName.methodName in symbol locations
-                std::string methodKey = varType + "." + symbolName;
-
-                auto it = doc->symbolLocations.find(methodKey);
-                if (it != doc->symbolLocations.end()) {
-                    const auto& symbolLoc = it->second;
-                    SymbolLocation result;
-                    result.uri = symbolLoc.uri;
-                    result.line = symbolLoc.line;
-                    result.column = symbolLoc.column;
-                    return result;
-                }
+    // MYT-359 — method-call receiver resolution. Locate the call expression
+    // at the cursor via AstPositionIndex, then type its receiver subtree with
+    // ReceiverTypeResolver. This subsumes the MYT-358 inline `Class::field
+    // .method()` block and the regex-driven inferVariableType call that used
+    // to live here, and adds support for `obj.field.method()`, `getFoo()
+    // .play()`, `arr[0].play()`, and `(cond ? a : b).play()` chains.
+    if (auto* call = findMethodCallAt(doc->ast, line, character, symbolName)) {
+        ReceiverTypeResolver resolver(doc->environment, &doc->ast, line, character);
+        std::string varType = resolver.resolveName(call->getObject());
+        if (!varType.empty()) {
+            std::string methodKey = varType + "." + symbolName;
+            auto it = doc->symbolLocations.find(methodKey);
+            if (it != doc->symbolLocations.end()) {
+                const auto& symbolLoc = it->second;
+                SymbolLocation result;
+                result.uri = symbolLoc.uri;
+                result.line = symbolLoc.line;
+                result.column = symbolLoc.column;
+                return result;
             }
         }
     }
@@ -439,6 +623,295 @@ std::optional<DocumentManager::SymbolLocation> DocumentManager::findDefinition(
     return std::nullopt;
 }
 
+std::string DocumentManager::renderValueTypeName(
+    value::ValueType vt, const std::string& className) const {
+    switch (vt) {
+        case value::ValueType::INT: return "int";
+        case value::ValueType::FLOAT: return "float";
+        case value::ValueType::BOOL: return "bool";
+        case value::ValueType::STRING: return "string";
+        case value::ValueType::VOID: return "void";
+        case value::ValueType::OBJECT:
+            return className.empty() ? "object" : className;
+        case value::ValueType::LAMBDA: return "lambda";
+        case value::ValueType::ARRAY:
+            return className.empty() ? "array" : className;
+        case value::ValueType::NULL_TYPE: return "null";
+        default: return "unknown";
+    }
+}
+
+DocumentManager::CallContext DocumentManager::classifyCallContext(
+    const std::string& content, int line, int character) const {
+    CallContext ctx;
+
+    std::istringstream stream(content);
+    std::string currentLine;
+    int currentLineNum = 0;
+    while (std::getline(stream, currentLine) && currentLineNum < line) {
+        currentLineNum++;
+    }
+    if (currentLineNum != line) return ctx;
+
+    int lineLen = static_cast<int>(currentLine.length());
+    if (character < 0 || character > lineLen) return ctx;
+
+    // Walk left to the start of the hovered word.
+    int wordStart = character;
+    while (wordStart > 0
+           && (std::isalnum(static_cast<unsigned char>(currentLine[wordStart - 1]))
+               || currentLine[wordStart - 1] == '_')) {
+        wordStart--;
+    }
+
+    // Skip whitespace before the word.
+    int i = wordStart - 1;
+    while (i >= 0 && std::isspace(static_cast<unsigned char>(currentLine[i]))) i--;
+    if (i < 0) return ctx;
+
+    // `::` lookbehind -> StaticMethod
+    if (i >= 1 && currentLine[i] == ':' && currentLine[i - 1] == ':') {
+        int idEnd = i - 2;
+        while (idEnd >= 0 && std::isspace(static_cast<unsigned char>(currentLine[idEnd]))) idEnd--;
+        int idStart = idEnd;
+        while (idStart >= 0
+               && (std::isalnum(static_cast<unsigned char>(currentLine[idStart]))
+                   || currentLine[idStart] == '_')) {
+            idStart--;
+        }
+        if (idEnd > idStart) {
+            ctx.kind = CallContext::Kind::StaticMethod;
+            ctx.receiver = currentLine.substr(idStart + 1, idEnd - idStart);
+        }
+        return ctx;
+    }
+
+    // `.` lookbehind -> Method
+    if (currentLine[i] == '.') {
+        int idEnd = i - 1;
+        while (idEnd >= 0 && std::isspace(static_cast<unsigned char>(currentLine[idEnd]))) idEnd--;
+        int idStart = idEnd;
+        while (idStart >= 0
+               && (std::isalnum(static_cast<unsigned char>(currentLine[idStart]))
+                   || currentLine[idStart] == '_')) {
+            idStart--;
+        }
+        if (idEnd > idStart) {
+            ctx.kind = CallContext::Kind::Method;
+            ctx.receiver = currentLine.substr(idStart + 1, idEnd - idStart);
+
+            // Check whether the receiver itself is preceded by `Class::` —
+            // i.e. the chain is `Class::field.method(...)`. Capture the class
+            // so the Method branch can resolve the static field's type.
+            int j = idStart;
+            while (j >= 0 && std::isspace(static_cast<unsigned char>(currentLine[j]))) j--;
+            if (j >= 1 && currentLine[j] == ':' && currentLine[j - 1] == ':') {
+                int cEnd = j - 2;
+                while (cEnd >= 0 && std::isspace(static_cast<unsigned char>(currentLine[cEnd]))) cEnd--;
+                int cStart = cEnd;
+                while (cStart >= 0
+                       && (std::isalnum(static_cast<unsigned char>(currentLine[cStart]))
+                           || currentLine[cStart] == '_')) {
+                    cStart--;
+                }
+                if (cEnd > cStart) {
+                    ctx.receiverClass = currentLine.substr(cStart + 1, cEnd - cStart);
+                }
+            }
+        }
+        return ctx;
+    }
+
+    // Preceding identifier -> check for `new` keyword
+    int idEnd = i;
+    int idStart = idEnd;
+    while (idStart >= 0
+           && (std::isalnum(static_cast<unsigned char>(currentLine[idStart]))
+               || currentLine[idStart] == '_')) {
+        idStart--;
+    }
+    if (idEnd > idStart) {
+        std::string prev = currentLine.substr(idStart + 1, idEnd - idStart);
+        if (prev == "new") {
+            ctx.kind = CallContext::Kind::Constructor;
+        }
+    }
+    return ctx;
+}
+
+std::string DocumentManager::formatFunctionSignature(
+    const runtimeTypes::global::FunctionDefinition& fn) const {
+    std::string out;
+    if (fn.getIsAsync()) out += "async ";
+    out += "function " + fn.getName() + "(";
+    const auto& params = fn.getParameters();
+    for (size_t i = 0; i < params.size(); ++i) {
+        if (i > 0) out += ", ";
+        out += params[i].second.toString() + " " + params[i].first;
+    }
+    out += ") : " + renderValueTypeName(fn.getReturnType(), fn.getReturnClassName());
+    return out;
+}
+
+std::string DocumentManager::formatMethodSignature(
+    const std::string& ownerClass,
+    const runtimeTypes::klass::MethodDefinition& m) const {
+    std::string out;
+    out += std::string(ast::accessModifierToString(m.getAccessModifier())) + " ";
+    if (m.isStatic()) out += "static ";
+    if (m.getIsAsync()) out += "async ";
+    if (m.isAbstract()) out += "abstract ";
+    if (m.isFinal()) out += "final ";
+    out += ownerClass + "::" + m.getName() + "(";
+
+    const auto& params = m.getParameters();
+    size_t startIdx = 0;
+    // Skip implicit leading `this` parameter on instance methods (matches
+    // InlayHintHandler's lookup convention).
+    if (!m.isStatic() && !params.empty() && params.front().first == "this") {
+        startIdx = 1;
+    }
+    bool first = true;
+    for (size_t i = startIdx; i < params.size(); ++i) {
+        if (!first) out += ", ";
+        first = false;
+        out += params[i].second.toString() + " " + params[i].first;
+    }
+    out += ") : ";
+
+    // Prefer the unified return type when present (carries class names);
+    // fall back to the basic ValueType switch when only the legacy field is set.
+    if (auto unifiedRet = m.getUnifiedReturnType()) {
+        out += unifiedRet->toString();
+    } else {
+        out += renderValueTypeName(m.getReturnType(), "");
+    }
+    return out;
+}
+
+std::string DocumentManager::formatConstructorSignature(
+    const std::string& className,
+    const runtimeTypes::klass::ConstructorDefinition& ctor) const {
+    std::string out;
+    out += std::string(ast::accessModifierToString(ctor.getAccessModifier())) + " ";
+    out += className + "(";
+    const auto& params = ctor.getParametersWithTypes();
+    for (size_t i = 0; i < params.size(); ++i) {
+        if (i > 0) out += ", ";
+        out += params[i].second.toString() + " " + params[i].first;
+    }
+    out += ")";
+    return out;
+}
+
+std::string DocumentManager::formatClassHover(
+    const runtimeTypes::klass::ClassDefinition& cls) const {
+    std::string out = "class " + cls.getName();
+
+    const auto& generics = cls.getGenericParameters();
+    if (!generics.empty()) {
+        out += "<";
+        for (size_t i = 0; i < generics.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += generics[i].name;
+        }
+        out += ">";
+    }
+
+    if (cls.hasParentClass()) {
+        out += " extends " + cls.getParentClassName();
+    }
+
+    const auto& interfaces = cls.getImplementedInterfaces();
+    if (!interfaces.empty()) {
+        out += " implements ";
+        for (size_t i = 0; i < interfaces.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += interfaces[i];
+        }
+    }
+
+    // Fields in declaration order.
+    const auto& fieldOrder = cls.getInstanceFieldOrder();
+    const auto& instanceFields = cls.getInstanceFields();
+    for (const auto& fieldName : fieldOrder) {
+        auto it = instanceFields.find(fieldName);
+        if (it == instanceFields.end() || !it->second) continue;
+        const auto& f = *it->second;
+        out += "\n    " + f.getName() + ": " + renderValueTypeName(f.getType(), "");
+    }
+
+    // Constructors.
+    for (const auto& ctor : cls.getConstructors()) {
+        if (!ctor) continue;
+        out += "\n    " + formatConstructorSignature(cls.getName(), *ctor);
+    }
+
+    // Method signatures in declaration order; hide compiler-synthesized ones
+    // (auto hashCode / equals etc., per ClassDefinition.hpp:40-48). Hard-cap
+    // at 10 lines and append `... (N more)` when truncated.
+    constexpr size_t METHOD_CAP = 10;
+    const auto& methodOrder = cls.getInstanceMethodOrder();
+    const auto& instanceMethods = cls.getInstanceMethods();
+    std::vector<std::string> methodLines;
+    for (const auto& mname : methodOrder) {
+        auto it = instanceMethods.find(mname);
+        if (it == instanceMethods.end()) continue;
+        for (const auto& m : it->second) {
+            if (!m || m->isSynthetic()) continue;
+            methodLines.push_back(formatMethodSignature(cls.getName(), *m));
+        }
+    }
+    for (size_t i = 0; i < methodLines.size(); ++i) {
+        if (i >= METHOD_CAP) {
+            out += "\n    ... (" + std::to_string(methodLines.size() - METHOD_CAP) + " more)";
+            break;
+        }
+        out += "\n    " + methodLines[i];
+    }
+
+    return out;
+}
+
+std::string DocumentManager::formatInterfaceHover(
+    const runtimeTypes::klass::InterfaceDefinition& iface) const {
+    std::string out = "interface " + iface.getName();
+
+    const auto& generics = iface.getGenericParameters();
+    if (!generics.empty()) {
+        out += "<";
+        for (size_t i = 0; i < generics.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += generics[i].name;
+        }
+        out += ">";
+    }
+
+    const auto& exts = iface.getExtendedInterfaces();
+    if (!exts.empty()) {
+        out += " extends ";
+        for (size_t i = 0; i < exts.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += exts[i];
+        }
+    }
+
+    for (const auto& sig : iface.getMethodSignatures()) {
+        out += "\n    " + sig.name + "(";
+        for (size_t i = 0; i < sig.parameters.size(); ++i) {
+            if (i > 0) out += ", ";
+            const auto& [pname, ptype] = sig.parameters[i];
+            std::string typeStr = ptype ? ptype->toString() : std::string("?");
+            out += typeStr + " " + pname;
+        }
+        out += ")";
+        if (sig.returnType) {
+            out += " : " + sig.returnType->toString();
+        }
+    }
+    return out;
+}
+
 std::optional<std::string> DocumentManager::getTypeInfo(
     const std::string& uri, int line, int character) const {
 
@@ -455,60 +928,135 @@ std::optional<std::string> DocumentManager::getTypeInfo(
 
     // Try to get type information from environment
     try {
-        // Check for variables
+        // Check for variables (unchanged from pre-MYT-357 behavior)
         auto varDef = doc->environment->findVariable(symbolName);
         if (varDef) {
-            std::string typeInfo = symbolName + ": ";
+            return symbolName + ": "
+                + renderValueTypeName(varDef->getType(), varDef->getClassName());
+        }
 
-            // Get the value type
-            auto valueType = varDef->getType();
-            switch (valueType) {
-                case value::ValueType::INT:
-                    typeInfo += "int";
-                    break;
-                case value::ValueType::FLOAT:
-                    typeInfo += "float";
-                    break;
-                case value::ValueType::BOOL:
-                    typeInfo += "bool";
-                    break;
-                case value::ValueType::STRING:
-                    typeInfo += "string";
-                    break;
-                case value::ValueType::OBJECT: {
-                    const auto& className = varDef->getClassName();
-                    if (!className.empty()) {
-                        typeInfo += className;
-                    } else {
-                        typeInfo += "object";
-                    }
-                    break;
+        // Classify call site once so each branch can route precisely.
+        CallContext ctx = classifyCallContext(doc->content, line, character);
+        auto classReg = doc->environment->getClassRegistry();
+        auto funcReg = doc->environment->getFunctionRegistry();
+
+        // `new Foo(...)` — list every constructor of Foo. Fall through to the
+        // bare class lookup below when Foo has no explicit constructors.
+        if (ctx.kind == CallContext::Kind::Constructor && classReg) {
+            auto cls = classReg->findClass(symbolName);
+            if (cls && !cls->getConstructors().empty()) {
+                std::string out;
+                for (const auto& ctor : cls->getConstructors()) {
+                    if (!ctor) continue;
+                    if (!out.empty()) out += "\n";
+                    out += formatConstructorSignature(symbolName, *ctor);
                 }
-                case value::ValueType::VOID:
-                    typeInfo += "void";
-                    break;
-                default:
-                    typeInfo += "unknown";
-                    break;
-            }
-
-            return typeInfo;
-        }
-
-        // Check for functions
-        if (doc->environment->getFunctionRegistry()) {
-            auto funcDef = doc->environment->getFunctionRegistry()->findFunction(symbolName);
-            if (funcDef) {
-                return "function " + symbolName + "()";
+                if (!out.empty()) return out;
             }
         }
 
-        // Check for classes
-        if (doc->environment->getClassRegistry()) {
-            if (doc->environment->getClassRegistry()->hasClass(symbolName)) {
-                return "class " + symbolName;
+        // `obj.method(...)` — MYT-359: type the receiver via the AST-based
+        // ReceiverTypeResolver. Gate on findMethodCallAt finding a call at
+        // the cursor (not on ctx.kind), because classifyCallContext's text
+        // walk-left returns Bare when the receiver ends in `)`, `]`, or `:`
+        // (i.e., `getFoo().play()`, `arr[0].play()`, `(c?a:b).play()`),
+        // even though the AST has a perfectly good MethodCallNode there.
+        // The "upper-case receiver = class" heuristic stays as a graceful
+        // fallback for parse-recovery cases where the AST node isn't found.
+        if (classReg) {
+            std::string receiverType;
+            if (auto* call = findMethodCallAt(doc->ast, line, character, symbolName)) {
+                ReceiverTypeResolver resolver(doc->environment, &doc->ast, line, character);
+                receiverType = resolver.resolveName(call->getObject());
+            }
+            if (receiverType.empty() && ctx.kind == CallContext::Kind::Method
+                && !ctx.receiver.empty()
+                && std::isupper(static_cast<unsigned char>(ctx.receiver.front()))) {
+                receiverType = ctx.receiver;
+            }
+            if (!receiverType.empty()) {
+                auto lt = receiverType.find('<');
+                if (lt != std::string::npos) receiverType = receiverType.substr(0, lt);
+                auto cls = classReg->findClass(receiverType);
+                if (cls) {
+                    auto overloads = cls->getAllInstanceMethodOverloads(symbolName);
+                    if (overloads.empty()) {
+                        overloads = cls->getAllStaticMethodOverloads(symbolName);
+                    }
+                    std::string out;
+                    for (const auto& m : overloads) {
+                        if (!m) continue;
+                        if (!out.empty()) out += "\n";
+                        out += formatMethodSignature(cls->getName(), *m);
+                    }
+                    if (!out.empty()) return out;
+                }
+
+                // Receiver typed as an interface (e.g. `Function mult = ...; mult.apply(x);`).
+                // ClassRegistry misses these — fall back to InterfaceRegistry and
+                // render any matching abstract method signature.
+                if (auto iface = doc->environment->findInterface(receiverType)) {
+                    std::string out;
+                    for (const auto& sig : iface->getMethodSignatures()) {
+                        if (sig.name != symbolName) continue;
+                        std::string line = iface->getName() + "::" + sig.name + "(";
+                        for (size_t i = 0; i < sig.parameters.size(); ++i) {
+                            if (i > 0) line += ", ";
+                            const auto& [pname, ptype] = sig.parameters[i];
+                            std::string typeStr = ptype ? ptype->toString() : std::string("?");
+                            line += typeStr + " " + pname;
+                        }
+                        line += ")";
+                        if (sig.returnType) line += " : " + sig.returnType->toString();
+                        if (!out.empty()) out += "\n";
+                        out += line;
+                    }
+                    if (!out.empty()) return out;
+                }
             }
         }
+
+        // `Class::method(...)` — static-method lookup; fall back to instance
+        // lookup in case the receiver was upper-case but the method is
+        // actually instance-side.
+        if (ctx.kind == CallContext::Kind::StaticMethod && classReg && !ctx.receiver.empty()) {
+            auto cls = classReg->findClass(ctx.receiver);
+            if (cls) {
+                auto overloads = cls->getAllStaticMethodOverloads(symbolName);
+                if (overloads.empty()) {
+                    overloads = cls->getAllInstanceMethodOverloads(symbolName);
+                }
+                std::string out;
+                for (const auto& m : overloads) {
+                    if (!m) continue;
+                    if (!out.empty()) out += "\n";
+                    out += formatMethodSignature(cls->getName(), *m);
+                }
+                if (!out.empty()) return out;
+            }
+        }
+
+        // Bare function — list every overload registered under this name.
+        if (funcReg) {
+            auto overloads = funcReg->getAllFunctionOverloads(symbolName);
+            std::string out;
+            for (const auto& fn : overloads) {
+                if (!fn) continue;
+                if (!out.empty()) out += "\n";
+                out += formatFunctionSignature(*fn);
+            }
+            if (!out.empty()) return out;
+        }
+
+        // Bare class -> full class summary.
+        if (classReg) {
+            auto cls = classReg->findClass(symbolName);
+            if (cls) return formatClassHover(*cls);
+        }
+
+        // Bare interface -> interface summary.
+        auto iface = doc->environment->findInterface(symbolName);
+        if (iface) return formatInterfaceHover(*iface);
 
     } catch (...) {
         // Ignore errors
@@ -575,54 +1123,22 @@ std::vector<DocumentManager::SymbolInfo> DocumentManager::getDocumentSymbols(con
     return symbols;
 }
 
-std::string DocumentManager::inferVariableType(const std::string& content, const std::string& varName) const {
-    // Pattern 1: ClassName<GenericType> varName = new ClassName<GenericType>(...)
-    // Pattern 2: ClassName<GenericType> varName = ...
-    // Pattern 3: for (ClassName varName : ...) - for-each loop variable
-    // Pattern 4: for (ClassName<GenericType> varName : ...) - for-each loop with generic type
-    // Note: <GenericType> is optional, handles both generic and non-generic types
-    // Captures only the base class name without generic parameters
-    std::regex declPattern1("([A-Z][a-zA-Z0-9_]*)(?:<[^>]+>)?\\s+" + varName + "\\s*=\\s*new\\s+([A-Z][a-zA-Z0-9_]*)");
-    std::regex declPattern2("([A-Z][a-zA-Z0-9_]*)(?:<[^>]+>)?\\s+" + varName + "\\s*=");
-    std::regex forEachPattern("for\\s*\\(\\s*([A-Z][a-zA-Z0-9_]*)(?:<[^>]+>)?\\s+" + varName + "\\s*:");
-
-    std::istringstream stream(content);
-    std::string line;
-
-    while (std::getline(stream, line)) {
-        std::smatch match;
-
-        // Try pattern 1: with "new" keyword
-        if (std::regex_search(line, match, declPattern1)) {
-            // Prefer the type from "new" if it matches the declaration type
-            std::string newType = match[2].str();
-            return newType; // Return the type from "new" as it's the actual instantiated type
-        }
-
-        // Try pattern 2: simple declaration
-        if (std::regex_search(line, match, declPattern2)) {
-            std::string declType = match[1].str();
-            return declType;
-        }
-
-        // Try pattern 3: for-each loop variable
-        if (std::regex_search(line, match, forEachPattern)) {
-            std::string loopVarType = match[1].str();
-            return loopVarType;
-        }
-    }
-
-    return ""; // Type not found
-}
-
 std::string DocumentManager::getVariableType(const std::string& uri, const std::string& varName, int line) const {
     auto doc = getDocument(uri);
-    if (!doc) {
+    if (!doc || !doc->isParsed) {
         return "";
     }
-
-    // Use the existing inferVariableType method
-    return inferVariableType(doc->content, varName);
+    // MYT-359 — the public getVariableType API is consumed by
+    // MemberCompletionProvider, SignatureHelpHandler, and ReferencesHandler.
+    // Route through the same AST-based ReceiverTypeResolver used by F12 /
+    // hover so all four LSP paths agree on what a name's type is.
+    ReceiverTypeResolver resolver(doc->environment, &doc->ast, line, /*cursorCol*/ 0);
+    auto ut = resolver.lookupVariableType(varName);
+    if (!ut) return "";
+    // Mirror the legacy callers' expectation of an unwrapped base class name
+    // (they each strip outer `<...>` themselves; arrays are unwrapped here).
+    while (ut && ut->isArray()) ut = ut->getElementType();
+    return ut ? ut->getName() : std::string{};
 }
 
 } // namespace mtype::lsp

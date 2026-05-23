@@ -44,7 +44,7 @@ private:
         std::string identifierText; // Lexeme when isBareIdentifier; empty otherwise
     };
 
-    enum class CalleeKind { Function, Method, Constructor };
+    enum class CalleeKind { Function, Method, Constructor, StaticMethod };
 
     // A pending call site discovered during the token walk; resolved
     // to parameter names in a second pass.

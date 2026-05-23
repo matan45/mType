@@ -35,6 +35,72 @@ bool isWalkBackBoundary(TT t) {
         || t == TT::COMMA;
 }
 
+// MYT-354 — for a `return <lambda>` whose walk-back hit RETURN, find the
+// enclosing function's declared return-type identifier so it can serve
+// as the lambda's target interface. Token-stream only — keeps the
+// handler stable on partially-parsed source.
+std::string resolveEnclosingFunctionReturnType(
+    const Document* doc, std::size_t fromIdx)
+{
+    const auto& toks = doc->tokens;
+    // Walk LEFT from RETURN, brace-balancing. We must pass through
+    // enclosing block openers (if/while/function body) until we reach
+    // the enclosing `function` keyword at depth 0.
+    int braceDepth = 0;
+    std::size_t fnIdx = 0;
+    bool foundFn = false;
+    for (std::size_t r = fromIdx; r > 0;) {
+        r--;
+        if (toks[r].type == TT::RBRACE) {
+            braceDepth++;
+        } else if (toks[r].type == TT::LBRACE) {
+            if (braceDepth > 0) braceDepth--;
+            // else: crossing an enclosing block opener — keep going.
+        } else if (toks[r].type == TT::FUNCTION && braceDepth == 0) {
+            fnIdx = r;
+            foundFn = true;
+            break;
+        }
+    }
+    if (!foundFn) return "";
+    // From `function`, scan forward, paren-balancing, until the first
+    // LBRACE at paren depth 0 that follows at least one matched RPAREN.
+    // That LBRACE is the function body opener.
+    int parenDepth = 0;
+    bool sawRparen = false;
+    std::size_t lb = 0;
+    for (std::size_t s = fnIdx + 1; s < toks.size(); ++s) {
+        if (toks[s].type == TT::LPAREN) parenDepth++;
+        else if (toks[s].type == TT::RPAREN) {
+            parenDepth--;
+            if (parenDepth == 0) sawRparen = true;
+        } else if (toks[s].type == TT::LBRACE && parenDepth == 0 && sawRparen) {
+            lb = s;
+            break;
+        }
+    }
+    if (lb == 0) return "";
+    // Inspect tokens immediately before LBRACE: pattern `: IDENTIFIER [<…>] {`.
+    std::size_t p = lb;
+    // Strip a trailing generic argument list: `…<X, Y>` → `…`.
+    if (p > 0 && toks[p - 1].type == TT::GREATER) {
+        int gd = 1;
+        std::size_t g = p - 1;
+        while (g > 0 && gd > 0) {
+            g--;
+            if (toks[g].type == TT::GREATER) gd++;
+            else if (toks[g].type == TT::LESS) gd--;
+        }
+        if (gd != 0) return "";
+        p = g; // now points at LESS
+    }
+    if (p >= 2 && toks[p - 1].type == TT::IDENTIFIER
+        && toks[p - 2].type == TT::COLON) {
+        return tokenText(doc, toks[p - 1]);
+    }
+    return "";  // void function or unrecognized signature shape
+}
+
 } // namespace
 
 InlayHintHandler::InlayHintHandler(DocumentManager* docMgr)
@@ -244,23 +310,32 @@ void InlayHintHandler::collectSites(
                 }
                 if (inWindow) {
                     // Resolve target interface by walking back from the
-                    // first token of the param list. We expect to find
-                    //     <InterfaceName> <varName> = <param-list> -> ...
-                    // immediately. Hitting any walk-back boundary
-                    // (semicolon, paren, brace, bracket, comma) before
-                    // ASSIGN means this lambda isn't a plain variable
-                    // initializer — leave targetInterface empty.
+                    // first token of the param list. Two recognised hits:
+                    //   - ASSIGN: shape `<InterfaceName> <varName> = <lambda>`.
+                    //   - RETURN (MYT-354): shape `return <lambda>` —
+                    //     target interface is the enclosing function's
+                    //     declared return type.
+                    // Hitting any walk-back boundary first means this
+                    // lambda isn't recognised — leave targetInterface empty.
                     std::size_t w = paramListStart;
                     bool foundAssign = false;
+                    bool foundReturn = false;
+                    std::size_t returnIdx = 0;
                     while (w > 0) {
                         w--;
                         if (toks[w].type == TT::ASSIGN) { foundAssign = true; break; }
+                        if (toks[w].type == TT::RETURN) {
+                            foundReturn = true; returnIdx = w; break;
+                        }
                         if (isWalkBackBoundary(toks[w].type)) break;
                     }
                     if (foundAssign && w >= 2
                         && toks[w - 1].type == TT::IDENTIFIER
                         && toks[w - 2].type == TT::IDENTIFIER) {
                         lam.targetInterface = tokenText(doc, toks[w - 2]);
+                    } else if (foundReturn) {
+                        lam.targetInterface =
+                            resolveEnclosingFunctionReturnType(doc, returnIdx);
                     }
                     lambdas.push_back(std::move(lam));
                 }
@@ -301,6 +376,14 @@ void InlayHintHandler::collectSites(
                         f.call.receiverName = tokenText(doc, toks[i - 3]);
                     } else if (i >= 2 && toks[i - 2].type == TT::NEW) {
                         f.call.kind = CalleeKind::Constructor;
+                    } else if (i >= 2 && toks[i - 2].type == TT::SCOPE
+                               && i >= 3 && toks[i - 3].type == TT::IDENTIFIER) {
+                        // MYT-355 — static call `ClassName::method(...)`.
+                        // The receiver token IS the class name, not a
+                        // variable, so no receiverTypes lookup is needed
+                        // in emitParameterHints.
+                        f.call.kind = CalleeKind::StaticMethod;
+                        f.call.receiverName = tokenText(doc, toks[i - 3]);
                     } else if (i >= 2 && toks[i - 2].type == TT::DOT) {
                         // Chained / complex receiver — v1 can't resolve.
                         f.isCall = false;
@@ -383,7 +466,50 @@ std::vector<std::string> lookupFunctionParams(
 // Resolve a method's parameter names. MethodDefinition::getParameters()
 // places `this` first for instance methods — drop it so positional
 // arguments align.
+// MYT-356 — when the receiver's declared type is an interface, the
+// class registry misses; fall back to the interface registry. Interface
+// methods carry no implicit `this`, so the leading-param skip doesn't
+// apply on that path.
 std::vector<std::string> lookupMethodParams(
+    const Document* doc, const std::string& className,
+    const std::string& methodName)
+{
+    std::vector<std::string> out;
+    if (!doc || !doc->environment) return out;
+
+    // Try class registry first.
+    if (auto creg = doc->environment->getClassRegistry()) {
+        if (auto cls = creg->findClass(className)) {
+            if (auto method = cls->getMethod(methodName)) {
+                bool first = true;
+                for (const auto& [pname, _ptype] : method->getParameters()) {
+                    if (first && pname == "this") { first = false; continue; }
+                    first = false;
+                    out.push_back(pname);
+                }
+                return out;
+            }
+        }
+    }
+
+    // Interface fallback. Scan by name; first overload wins, mirroring
+    // the class path's getMethod(name) semantics.
+    if (auto iface = doc->environment->findInterface(className)) {
+        for (const auto& sig : iface->getMethodSignatures()) {
+            if (sig.name == methodName) {
+                for (const auto& [pname, _ptype] : sig.parameters) {
+                    out.push_back(pname);
+                }
+                return out;
+            }
+        }
+    }
+    return out;
+}
+
+// MYT-355 — resolve a static method's parameter names. Static methods
+// have no implicit `this`, so no leading-param skip is needed.
+std::vector<std::string> lookupStaticMethodParams(
     const Document* doc, const std::string& className,
     const std::string& methodName)
 {
@@ -393,13 +519,9 @@ std::vector<std::string> lookupMethodParams(
     if (!creg) return out;
     auto cls = creg->findClass(className);
     if (!cls) return out;
-    auto method = cls->getMethod(methodName);
+    auto method = cls->getStaticMethod(methodName);
     if (!method) return out;
-    const auto& params = method->getParameters();
-    bool first = true;
-    for (const auto& [pname, _ptype] : params) {
-        if (first && pname == "this") { first = false; continue; }
-        first = false;
+    for (const auto& [pname, _ptype] : method->getParameters()) {
         out.push_back(pname);
     }
     return out;
@@ -534,6 +656,10 @@ void InlayHintHandler::emitParameterHints(
                 paramNames = lookupMethodParams(doc, it->second, call.calleeName);
                 break;
             }
+            case CalleeKind::StaticMethod:
+                // receiverName IS the class name for `Class::method(...)`.
+                paramNames = lookupStaticMethodParams(doc, call.receiverName, call.calleeName);
+                break;
         }
         if (paramNames.empty()) continue;
 
@@ -580,7 +706,6 @@ void InlayHintHandler::emitLambdaTypeHints(
             h.position = lam.params[i].endPos;
             h.label = ": " + typeName;
             h.kind = InlayHintKind::Type;
-            h.paddingLeft = true;
             out.push_back(std::move(h));
         }
     }

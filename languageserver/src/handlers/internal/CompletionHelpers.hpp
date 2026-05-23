@@ -72,6 +72,7 @@ namespace mtype::lsp::internal
     // environment, so they live alongside the other helpers rather than
     // as CompletionHandler members.
     std::vector<CompletionItem> keywordCompletions();
+    std::vector<CompletionItem> templateSnippetCompletions();
     std::vector<CompletionItem> builtinCompletions();
     std::vector<CompletionItem> collectionCompletions();
 }

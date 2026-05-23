@@ -8,6 +8,19 @@
 
 namespace mtype::lsp {
 
+// Find-references handler for textDocument/references.
+//
+// Methods and free/static functions are matched against the parsed AST
+// so that a search for `Foo.bar` only returns `Foo.bar` (and overrides),
+// not every `bar` token in the file. Classes and bare variables still
+// use a textual whole-word scan; classes need it to match type
+// annotations / extends / implements, and variable scope inference is
+// out of scope for this handler (rename owns that).
+//
+// Scope: every document currently open in DocumentManager. Files that
+// the editor hasn't opened are not scanned — adding a parse-on-demand
+// path is follow-up work; the same constraint applies to the call
+// hierarchy handler.
 class ReferencesHandler {
 public:
     ReferencesHandler(DocumentManager* docMgr,
@@ -20,45 +33,6 @@ public:
     );
 
 private:
-    // Determine what kind of symbol is at the cursor
-    struct SymbolContext {
-        std::string name;
-        std::string type;       // "class", "method", "field", "variable", "constructor"
-        std::string className;  // owning class (empty for top-level symbols)
-    };
-
-    SymbolContext getSymbolContext(
-        const std::string& word,
-        const std::string& line,
-        const std::string& uri
-    ) const;
-
-    // Find references within a single document
-    std::vector<Location> findReferencesInDocument(
-        const std::string& symbolName,
-        const std::string& uri,
-        const std::string& content
-    ) const;
-
-    // Find class-specific references (type annotations, new, extends, implements, static access)
-    std::vector<Location> findClassReferences(
-        const std::string& className,
-        const std::string& uri,
-        const std::string& content,
-        bool includeDeclaration
-    ) const;
-
-    // Find variable references (whole-word matches)
-    std::vector<Location> findVariableReferences(
-        const std::string& varName,
-        const std::string& uri,
-        const std::string& content,
-        bool includeDeclaration
-    ) const;
-
-    // Check if a character position is a whole-word boundary
-    static bool isWordBoundary(char c);
-
     DocumentManager* documentManager_;
     std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex_;
 };

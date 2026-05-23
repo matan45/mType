@@ -14,6 +14,8 @@ namespace mtype::lsp::analysis
 
 namespace mtype::lsp {
 
+class ProjectConfigProvider;
+
 class CodeActionHandler {
 public:
     // MYT-47 — `workspaceIndex` may be null (e.g., in tests). The
@@ -27,6 +29,8 @@ public:
         const Range& range,
         const std::vector<Diagnostic>& diagnostics
     );
+
+    void setProjectConfig(std::shared_ptr<ProjectConfigProvider> config);
 
 private:
     // ----- Diagnostic-driven dispatch (MYT-35 Phase 5) -----
@@ -59,6 +63,17 @@ private:
         const Diagnostic& diagnostic
     );
 
+    // MYT-360 — primitive type used in a generic argument
+    // (e.g. `Predicate<int>`). Triggered when the diagnostic carries
+    // `data["exceptionType"] == "PrimitiveInGenericException"`. Rewrites
+    // the primitive token (int/float/bool/string) to its boxed class
+    // (Int/Float/Bool/String) and inserts the corresponding import when
+    // it isn't already present.
+    std::vector<CodeAction> generatePrimitiveInGenericFixes(
+        const std::string& uri,
+        const Diagnostic& diagnostic
+    );
+
     // ----- Diagnostic-agnostic actions (always considered) -----
 
     // Generate code actions for implementing missing interface methods
@@ -67,25 +82,9 @@ private:
         int line
     );
 
-    // Helper to get all methods required by an interface. When
-    // `outReferencedTypes` is non-null it also collects the unique
-    // type names appearing in parameter and return positions so the
-    // caller can attach matching import edits.
-    std::vector<std::string> getRequiredMethods(
-        const std::string& interfaceName,
-        const Document* doc,
-        std::unordered_set<std::string>* outReferencedTypes = nullptr
-    );
-
-    // Helper to check if a class already has a method
-    bool classHasMethod(
-        const std::string& className,
-        const std::string& methodName,
-        const Document* doc
-    );
-
     DocumentManager* documentManager_;
     std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex_;
+    std::shared_ptr<ProjectConfigProvider> projectConfig_;
 };
 
 } // namespace mtype::lsp

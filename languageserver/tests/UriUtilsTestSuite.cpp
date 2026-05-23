@@ -59,6 +59,41 @@ void UriUtilsTestSuite::registerTests(LspTestHarness& harness) {
     harness.addTest("filePathToUri: empty path returns empty", []() {
         require(UriUtils::filePathToUri("").empty(), "empty path should return empty URI");
     });
+
+    // The POSIX form of a `file://` URI carries the path's leading `/`
+    // as the third slash (file:///tmp/x = "file://" + "/tmp/x"). An
+    // earlier version stripped `file:///` wholesale, which ate the
+    // leading slash and left a relative-looking path — the LSP's
+    // mt_modules alias auto-import test on Linux/Mac fell back to a
+    // relative import because of it. These guard the roundtrip.
+
+    harness.addTest("uriToFilePath: POSIX absolute path keeps leading slash", []() {
+        std::string result = UriUtils::uriToFilePath("file:///home/user/file.mt");
+        require(result == "/home/user/file.mt",
+            "expected '/home/user/file.mt', got '" + result + "'");
+    });
+
+    harness.addTest("filePathToUri: POSIX absolute path", []() {
+        std::string result = UriUtils::filePathToUri("/home/user/file.mt");
+        require(result == "file:///home/user/file.mt",
+            "expected 'file:///home/user/file.mt', got '" + result + "'");
+    });
+
+    harness.addTest("URI roundtrip: POSIX absolute path", []() {
+        const std::string original = "/var/folders/zz/test/file.mt";
+        std::string roundtrip = UriUtils::uriToFilePath(
+            UriUtils::filePathToUri(original));
+        require(roundtrip == original,
+            "POSIX roundtrip should preserve the path, got '" + roundtrip + "'");
+    });
+
+    harness.addTest("URI roundtrip: Windows drive letter path", []() {
+        const std::string original = "C:/Users/foo/bar.mt";
+        std::string roundtrip = UriUtils::uriToFilePath(
+            UriUtils::filePathToUri(original));
+        require(roundtrip == original,
+            "Windows roundtrip should preserve the path, got '" + roundtrip + "'");
+    });
 }
 
 } // namespace mtype::lsp::test

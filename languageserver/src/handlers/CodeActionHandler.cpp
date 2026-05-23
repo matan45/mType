@@ -1,15 +1,36 @@
 #include "CodeActionHandler.hpp"
 #include "../analysis/WorkspaceSymbolIndex.hpp"
 #include "../utils/ImportUtils.hpp"
+#include "../utils/ProjectConfigProvider.hpp"
 #include "../utils/UriUtils.hpp"
+#include "../../../mType/ast/nodes/classes/ClassNode.hpp"
+#include "../../../mType/ast/nodes/classes/MethodNode.hpp"
+#include "../../../mType/ast/nodes/statements/ProgramNode.hpp"
 #include "../../../mType/environment/registry/InterfaceDefinition.hpp"
+#include "../../../mType/environment/registry/InterfaceRegistry.hpp"
 #include "../../../mType/environment/registry/ClassDefinition.hpp"
+#include "../../../mType/environment/registry/MethodDefinition.hpp"
+#include "../../../mType/types/TypeSubstitutionService.hpp"
 #include "../../../mType/util/ImportScan.hpp"
+#include "../analysis/InterfaceHierarchyWalker.hpp"
+#include <algorithm>
 #include <cctype>
+#include <cstdlib>
+#include <filesystem>
+#include <limits>
+#include <optional>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 
 namespace {
+
+namespace fs = std::filesystem;
+
+using mtype::lsp::Document;
+using mtype::lsp::Position;
+using runtimeTypes::klass::InterfaceDefinition;
+using runtimeTypes::klass::MethodSignature;
 
 // Compute the start/end character offsets of the identifier surrounding
 // the given character position on a single source line. Returns
@@ -146,6 +167,245 @@ std::string getLine(const std::string& content, int lineNumber) {
     return "";
 }
 
+std::string trimTypeBaseName(const std::string& name) {
+    const size_t generic = name.find('<');
+    return generic == std::string::npos ? name : name.substr(0, generic);
+}
+
+std::string renderType(
+    const types::UnifiedTypePtr& type,
+    const std::unordered_map<std::string, std::string>& substitutions)
+{
+    if (!type) return "void";
+    const std::string rendered = type->toString();
+    auto it = substitutions.find(rendered);
+    if (it != substitutions.end()) return it->second;
+    return rendered;
+}
+
+std::string methodSignatureKey(
+    const MethodSignature& sig,
+    const std::unordered_map<std::string, std::string>& substitutions)
+{
+    std::stringstream key;
+    key << sig.name << "(";
+    for (size_t i = 0; i < sig.parameters.size(); ++i) {
+        if (i > 0) key << ",";
+        key << renderType(sig.parameters[i].second, substitutions);
+    }
+    key << ")";
+    return key.str();
+}
+
+struct RequiredMethod {
+    const MethodSignature* signature = nullptr;
+    std::unordered_map<std::string, std::string> substitutions;
+};
+
+// Hierarchy traversal delegates to analysis::walkInterfaceHierarchy so the
+// implement-interface-methods quick fix and DocumentManager's missing-
+// methods diagnostic stay in lock-step. The walker substitutes parent
+// generic args recursively (so `Child<T> extends Parent<List<T>>` viewed
+// as `Child<int>` resolves to `Parent<List<int>>`), which matches the
+// compiler-side InterfaceRegistrar; the previous local implementation
+// only substituted at the leaf, dropping coverage on multi-level chains.
+void collectInterfaceMethods(
+    const std::string& interfaceName,
+    const std::shared_ptr<runtimeTypes::klass::InterfaceRegistry>& registry,
+    const ::types::TypeSubstitutionService& subst,
+    std::vector<RequiredMethod>& out,
+    std::unordered_set<std::string>& emitted)
+{
+    mtype::lsp::analysis::walkInterfaceHierarchy(interfaceName, registry, subst,
+        [&](const runtimeTypes::klass::InterfaceDefinition& iface,
+            const std::unordered_map<std::string, std::string>& substitutions) {
+            for (const auto& sig : iface.getMethodSignatures()) {
+                const std::string key = methodSignatureKey(sig, substitutions);
+                if (emitted.insert(key).second) {
+                    out.push_back(RequiredMethod{&sig, substitutions});
+                }
+            }
+        });
+}
+
+std::vector<const ast::nodes::classes::ClassNode*> getTopLevelClasses(const Document* doc) {
+    std::vector<const ast::nodes::classes::ClassNode*> classes;
+    if (!doc) return classes;
+    for (const auto& root : doc->ast) {
+        auto* program = dynamic_cast<ast::nodes::statements::ProgramNode*>(root.get());
+        if (!program) continue;
+        for (const auto& statement : program->getStatements()) {
+            auto* cls = dynamic_cast<ast::nodes::classes::ClassNode*>(statement.get());
+            if (cls) classes.push_back(cls);
+        }
+    }
+    return classes;
+}
+
+std::optional<Position> findClassClosingBrace(const std::string& content, int classLine) {
+    std::istringstream stream(content);
+    std::string line;
+    int lineNumber = 0;
+    int depth = 0;
+    bool inClass = false;
+
+    while (std::getline(stream, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (lineNumber < classLine) {
+            ++lineNumber;
+            continue;
+        }
+
+        for (int col = 0; col < static_cast<int>(line.size()); ++col) {
+            if (line[col] == '{') {
+                ++depth;
+                inClass = true;
+            } else if (line[col] == '}' && inClass) {
+                --depth;
+                if (depth == 0) {
+                    return Position{lineNumber, col};
+                }
+            }
+        }
+        ++lineNumber;
+    }
+
+    return std::nullopt;
+}
+
+struct ClassTarget {
+    const ast::nodes::classes::ClassNode* node = nullptr;
+    int declarationLine = 0;
+    Position insertionPoint{0, 0};
+    std::string declarationText;
+};
+
+std::optional<ClassTarget> findClassTarget(
+    const Document* doc,
+    int line,
+    bool declarationLineOnly)
+{
+    for (const auto* cls : getTopLevelClasses(doc)) {
+        if (!cls) continue;
+        const int declLine = cls->getLocation().getLine() - 1;
+        auto close = findClassClosingBrace(doc->content, declLine);
+        if (!close) continue;
+
+        const bool matches = declarationLineOnly
+            ? (declLine == line)
+            : (declLine <= line && line <= close->line);
+        if (!matches) continue;
+
+        return ClassTarget{
+            cls,
+            declLine,
+            *close,
+            getLine(doc->content, declLine)
+        };
+    }
+    return std::nullopt;
+}
+
+std::unordered_set<std::string> collectClassGenericParams(
+    const ast::nodes::classes::ClassNode* cls,
+    const std::string& declarationLine)
+{
+    std::unordered_set<std::string> params = extractClassGenericParams(declarationLine);
+    if (!cls) return params;
+    for (const auto& param : cls->getGenericParameters()) {
+        params.insert(param.name);
+    }
+    return params;
+}
+
+bool existingMethodMatches(
+    const runtimeTypes::klass::MethodDefinition& method,
+    const MethodSignature& sig,
+    const std::unordered_map<std::string, std::string>& substitutions)
+{
+    if (method.getName() != sig.name) return false;
+    if (method.getParameters().size() != sig.parameters.size()) return false;
+
+    const auto& existingUnifiedParams = method.getUnifiedParameters();
+    if (existingUnifiedParams.size() == sig.parameters.size()) {
+        for (size_t i = 0; i < sig.parameters.size(); ++i) {
+            if (!existingUnifiedParams[i].second) continue;
+            const std::string expected = renderType(sig.parameters[i].second, substitutions);
+            if (existingUnifiedParams[i].second->toString() != expected) {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+bool classHasMethod(
+    const runtimeTypes::klass::ClassDefinition& cls,
+    const RequiredMethod& required)
+{
+    if (!required.signature) return true;
+    const auto overloads = cls.getAllInstanceMethodOverloads(required.signature->name);
+    for (const auto& method : overloads) {
+        if (method && existingMethodMatches(*method, *required.signature, required.substitutions)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::string buildMethodStub(
+    const RequiredMethod& required,
+    std::unordered_set<std::string>& referencedTypes)
+{
+    const auto& sig = *required.signature;
+    std::stringstream methodBuilder;
+    methodBuilder << "public function " << sig.name << "(";
+
+    for (size_t i = 0; i < sig.parameters.size(); ++i) {
+        if (i > 0) methodBuilder << ", ";
+        const std::string typeName = renderType(sig.parameters[i].second, required.substitutions);
+        methodBuilder << typeName << " " << sig.parameters[i].first;
+        extractTypeNames(typeName, referencedTypes);
+    }
+
+    const std::string returnTypeName = renderType(sig.returnType, required.substitutions);
+    methodBuilder << "): " << returnTypeName;
+    extractTypeNames(returnTypeName, referencedTypes);
+
+    return methodBuilder.str();
+}
+
+std::string aliasImportSpelling(
+    const mtype::lsp::ProjectConfigProvider& config,
+    const std::string& symbolFilePath)
+{
+    std::error_code ec;
+    const fs::path symbolPath = fs::weakly_canonical(fs::path(symbolFilePath), ec);
+    if (ec) return "";
+
+    for (const auto& [alias, aliasPathText] : config.getAliases()) {
+        std::error_code aliasEc;
+        const fs::path aliasPath = fs::weakly_canonical(fs::path(aliasPathText), aliasEc);
+        if (aliasEc) continue;
+
+        std::error_code relEc;
+        fs::path rel = fs::relative(symbolPath, aliasPath, relEc);
+        if (relEc || rel.empty()) continue;
+        const std::string relText = rel.generic_string();
+        if (relText.rfind("..", 0) == 0) continue;
+
+        std::string spelling = alias + "/" + relText;
+        if (spelling.size() < 3
+            || spelling.compare(spelling.size() - 3, 3, ".mt") != 0) {
+            spelling += ".mt";
+        }
+        return spelling;
+    }
+
+    return "";
+}
+
 } // namespace
 
 namespace mtype::lsp {
@@ -154,6 +414,10 @@ CodeActionHandler::CodeActionHandler(
     DocumentManager* docMgr,
     std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex)
     : documentManager_(docMgr), workspaceIndex_(std::move(workspaceIndex)) {}
+
+void CodeActionHandler::setProjectConfig(std::shared_ptr<ProjectConfigProvider> config) {
+    projectConfig_ = std::move(config);
+}
 
 std::vector<CodeAction> CodeActionHandler::handleCodeAction(
     const std::string& uri,
@@ -171,10 +435,16 @@ std::vector<CodeAction> CodeActionHandler::handleCodeAction(
     }
 
     // Diagnostic-agnostic refactor: implement interface methods. This
-    // fires whenever the cursor is on a class declaration line, even
-    // when there's no diagnostic on the range.
-    auto implementActions = getImplementInterfaceActions(uri, range.start.line);
-    actions.insert(actions.end(), implementActions.begin(), implementActions.end());
+    // fires when the cursor is inside a class with missing interface
+    // methods; diagnostic-triggered calls use the same path.
+    const bool alreadyHasImplementAction =
+        std::any_of(actions.begin(), actions.end(), [](const CodeAction& action) {
+            return action.title.find("Implement interface methods") != std::string::npos;
+        });
+    if (!alreadyHasImplementAction) {
+        auto implementActions = getImplementInterfaceActions(uri, range.start.line);
+        actions.insert(actions.end(), implementActions.begin(), implementActions.end());
+    }
 
     return actions;
 }
@@ -202,6 +472,12 @@ std::vector<CodeAction> CodeActionHandler::generateFixesForDiagnostic(
                 auto importFixes = generateMissingImportFixes(uri, diagnostic);
                 actions.insert(actions.end(), importFixes.begin(), importFixes.end());
             }
+            else if (s == "PrimitiveInGenericException")
+            {
+                // MYT-360 — replace `<int>` with `<Int>` and auto-import.
+                auto primFixes = generatePrimitiveInGenericFixes(uri, diagnostic);
+                actions.insert(actions.end(), primFixes.begin(), primFixes.end());
+            }
         }
     }
 
@@ -219,6 +495,13 @@ std::vector<CodeAction> CodeActionHandler::generateFixesForDiagnostic(
     {
         auto typoFixes = generateTypoFixActions(uri, diagnostic);
         actions.insert(actions.end(), typoFixes.begin(), typoFixes.end());
+    }
+
+    auto implementFixes = getImplementInterfaceActions(
+        uri, diagnostic.range.start.line);
+    for (auto& action : implementFixes) {
+        action.diagnostics.push_back(diagnostic);
+        actions.push_back(std::move(action));
     }
 
     return actions;
@@ -282,6 +565,117 @@ std::vector<CodeAction> CodeActionHandler::generateMissingImportFixes(
         actions.push_back(std::move(action));
     }
 
+    return actions;
+}
+
+std::vector<CodeAction> CodeActionHandler::generatePrimitiveInGenericFixes(
+    const std::string& uri,
+    const Diagnostic& diagnostic
+) {
+    std::vector<CodeAction> actions;
+
+    auto doc = documentManager_->getDocument(uri);
+    if (!doc) return actions;
+
+    // Parse `primitive` and `boxed` out of the canonical message shape:
+    // "Primitive type 'int' cannot be used as generic type argument.
+    //  Use boxed type 'Int' instead". The exception type already gated us
+    // here, so a missed match means the message format changed under us —
+    // bail rather than guess.
+    const std::string& msg = diagnostic.message;
+    const size_t q1 = msg.find('\'');
+    if (q1 == std::string::npos) return actions;
+    const size_t q2 = msg.find('\'', q1 + 1);
+    if (q2 == std::string::npos) return actions;
+    const size_t q3 = msg.find('\'', q2 + 1);
+    if (q3 == std::string::npos) return actions;
+    const size_t q4 = msg.find('\'', q3 + 1);
+    if (q4 == std::string::npos) return actions;
+
+    const std::string primitive = msg.substr(q1 + 1, q2 - q1 - 1);
+    const std::string boxed = msg.substr(q3 + 1, q4 - q3 - 1);
+    if (primitive.empty() || boxed.empty()) return actions;
+
+    // Locate the primitive token in the source. The diagnostic range is
+    // anchored at the parser's stream location when it threw — typically
+    // on or just after the primitive token, but with a 1-character span.
+    // Search the diagnostic's line for the primitive as a whole word and
+    // pick the occurrence whose start is closest to the diagnostic anchor.
+    const int anchorLine = diagnostic.range.start.line;
+    const int anchorCol = diagnostic.range.start.character;
+    const std::string line = getLine(doc->content, anchorLine);
+    if (line.empty()) return actions;
+
+    auto isIdent = [](char c) {
+        return (std::isalnum(static_cast<unsigned char>(c)) != 0) || c == '_';
+    };
+
+    int bestStart = -1;
+    int bestDistance = std::numeric_limits<int>::max();
+    size_t searchFrom = 0;
+    while (searchFrom <= line.size()) {
+        const size_t hit = line.find(primitive, searchFrom);
+        if (hit == std::string::npos) break;
+        const size_t hitEnd = hit + primitive.size();
+        const bool leftOk = (hit == 0) || !isIdent(line[hit - 1]);
+        const bool rightOk = (hitEnd >= line.size()) || !isIdent(line[hitEnd]);
+        if (leftOk && rightOk) {
+            const int distance = std::abs(static_cast<int>(hit) - anchorCol);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestStart = static_cast<int>(hit);
+            }
+        }
+        searchFrom = hit + 1;
+    }
+    if (bestStart < 0) return actions;
+
+    CodeAction action;
+    action.title = "Replace '" + primitive + "' with '" + boxed
+                   + "' and add import";
+    action.kind = "quickfix";
+    action.diagnostics.push_back(diagnostic);
+
+    WorkspaceEdit edit;
+
+    // 1. Replace the primitive token with the boxed type name.
+    TextEdit replaceEdit;
+    replaceEdit.range.start.line = anchorLine;
+    replaceEdit.range.start.character = bestStart;
+    replaceEdit.range.end.line = anchorLine;
+    replaceEdit.range.end.character = bestStart + static_cast<int>(primitive.size());
+    replaceEdit.newText = boxed;
+    edit.changes[uri].push_back(std::move(replaceEdit));
+
+    // 2. Auto-import the boxed type when it isn't already visible. Same
+    // "already-imported?" check the auto-import completion path uses
+    // (AutoImportCompletionProvider::enrichWithWrapperImport).
+    auto classRegistry = doc->environment
+        ? doc->environment->getClassRegistry()
+        : nullptr;
+    const bool alreadyImported =
+        classRegistry && classRegistry->hasClass(boxed);
+
+    if (!alreadyImported && workspaceIndex_) {
+        workspaceIndex_->waitForReady(std::chrono::milliseconds(50));
+        auto matches = workspaceIndex_->findByName(boxed, /*maxResults=*/1);
+        if (!matches.empty()) {
+            const std::string referencingPath = UriUtils::uriToFilePath(uri);
+            const std::string symbolPath =
+                UriUtils::uriToFilePath(matches.front().fileUri);
+            if (symbolPath != referencingPath) {
+                const std::string spelling =
+                    analysis::WorkspaceSymbolIndex::computeImportSpelling(
+                        symbolPath, referencingPath);
+                const int insertLine = util::findImportInsertLine(doc->content);
+                edit.changes[uri].push_back(
+                    utils::buildImportInsertEdit(insertLine, boxed, spelling));
+            }
+        }
+    }
+
+    action.edit = edit;
+    actions.push_back(std::move(action));
     return actions;
 }
 
@@ -372,112 +766,72 @@ std::vector<CodeAction> CodeActionHandler::getImplementInterfaceActions(
         return actions;
     }
 
-    // Get the content of the current line
-    std::string content = doc->content;
-    std::istringstream stream(content);
-    std::string currentLine;
-    int currentLineNum = 0;
-
-    while (std::getline(stream, currentLine) && currentLineNum < line) {
-        currentLineNum++;
-    }
-
-    if (currentLineNum != line) {
+    auto target = findClassTarget(doc, line, /*declarationLineOnly=*/false);
+    if (!target || !target->node) {
         return actions;
     }
 
-    // Simple parsing: look for "class ClassName implements InterfaceName"
-    size_t classPos = currentLine.find("class ");
-    size_t implementsPos = currentLine.find("implements ");
-
-    if (classPos == std::string::npos || implementsPos == std::string::npos) {
+    const auto& implementedInterfaces = target->node->getImplementedInterfaces();
+    if (implementedInterfaces.empty()) {
         return actions;
     }
 
-    // Extract class name
-    size_t classNameStart = classPos + 6; // "class ".length()
-    size_t classNameEnd = currentLine.find_first_of(" \t{", classNameStart);
-    if (classNameEnd == std::string::npos) classNameEnd = currentLine.length();
-    std::string className = currentLine.substr(classNameStart, classNameEnd - classNameStart);
-
-    // Extract interface name
-    size_t interfaceNameStart = implementsPos + 11; // "implements ".length()
-    size_t interfaceNameEnd = currentLine.find_first_of(" \t{", interfaceNameStart);
-    if (interfaceNameEnd == std::string::npos) interfaceNameEnd = currentLine.length();
-    std::string interfaceName = currentLine.substr(interfaceNameStart, interfaceNameEnd - interfaceNameStart);
-
-    // Trim whitespace
-    interfaceName.erase(interfaceName.find_last_not_of(" \t\r\n") + 1);
-
-    // Get required methods from interface, collecting the unique type
-    // names referenced in parameter / return positions. We use that
-    // set below to attach `import` edits for any type that isn't a
-    // built-in, isn't a generic parameter declared on the implementing
-    // class, and isn't already in scope.
-    std::unordered_set<std::string> referencedTypes;
-    auto requiredMethods = getRequiredMethods(interfaceName, doc, &referencedTypes);
-
-    if (requiredMethods.empty()) {
+    auto classRegistry = doc->environment->getClassRegistry();
+    auto interfaceRegistry = doc->environment->getInterfaceRegistry();
+    if (!classRegistry || !interfaceRegistry) {
         return actions;
     }
 
-    // Generate code action to implement all methods
+    auto classDef = classRegistry->findClass(target->node->getClassName());
+    if (!classDef) {
+        return actions;
+    }
+
+    std::vector<RequiredMethod> requiredMethods;
+    std::unordered_set<std::string> emittedMethodKeys;
+    ::types::TypeSubstitutionService subst;
+    for (const auto& interfaceName : implementedInterfaces) {
+        collectInterfaceMethods(
+            interfaceName,
+            interfaceRegistry,
+            subst,
+            requiredMethods,
+            emittedMethodKeys);
+    }
+
+    std::vector<RequiredMethod> missingMethods;
+    for (const auto& required : requiredMethods) {
+        if (!required.signature) continue;
+        if (!classHasMethod(*classDef, required)) {
+            missingMethods.push_back(required);
+        }
+    }
+
+    if (missingMethods.empty()) {
+        return actions;
+    }
+
     CodeAction action;
     action.title = "Implement interface methods";
     action.kind = "quickfix";
 
-    // Build method stubs with @Override annotation
+    std::unordered_set<std::string> referencedTypes;
     std::stringstream stubsBuilder;
-    for (const auto& methodStub : requiredMethods) {
+    for (const auto& required : missingMethods) {
+        const std::string methodStub = buildMethodStub(required, referencedTypes);
         stubsBuilder << "    @Override\n";
         stubsBuilder << "    " << methodStub << " {\n";
         stubsBuilder << "        // TODO: Implement method\n";
         stubsBuilder << "    }\n\n";
     }
 
-    // Find the closing brace of the class
-    std::istringstream braceStream(doc->content);
-    std::string docLine;
-    int closingBraceLine = line + 1;
-    int braceLineNum = 0;
-    int braceDepth = 0;
-    bool foundClassBody = false;
-
-    // Start from the class declaration line
-    while (std::getline(braceStream, docLine)) {
-        if (braceLineNum == line) {
-            // This is the class declaration line, start counting braces
-            foundClassBody = true;
-            // Count opening braces on this line
-            for (char c : docLine) {
-                if (c == '{') braceDepth++;
-                else if (c == '}') braceDepth--;
-            }
-        } else if (foundClassBody) {
-            // Count braces on subsequent lines
-            for (char c : docLine) {
-                if (c == '{') braceDepth++;
-                else if (c == '}') {
-                    braceDepth--;
-                    if (braceDepth == 0) {
-                        // Found the closing brace of the class
-                        closingBraceLine = braceLineNum;
-                        break;
-                    }
-                }
-            }
-            if (braceDepth == 0) break;
-        }
-        braceLineNum++;
-    }
-
-    // Create text edit to insert methods before the closing brace
     WorkspaceEdit edit;
     TextEdit textEdit;
-    textEdit.range.start.line = closingBraceLine;
-    textEdit.range.start.character = 0;
+    textEdit.range.start = target->insertionPoint;
     textEdit.range.end = textEdit.range.start;
-    textEdit.newText = stubsBuilder.str();
+    textEdit.newText = target->insertionPoint.character == 0
+        ? stubsBuilder.str()
+        : "\n" + stubsBuilder.str();
 
     edit.changes[uri].push_back(textEdit);
 
@@ -487,9 +841,12 @@ std::vector<CodeAction> CodeActionHandler::getImplementInterfaceActions(
     // util::findImportInsertLine + buildImportInsertEdit so the
     // emitted import lines match the rest of the codebase byte for byte.
     if (workspaceIndex_ && !referencedTypes.empty()) {
-        const auto genericParams = extractClassGenericParams(currentLine);
-        auto classRegistry = doc->environment ? doc->environment->getClassRegistry() : nullptr;
-        auto interfaceRegistry = doc->environment ? doc->environment->getInterfaceRegistry() : nullptr;
+        const auto genericParams = collectClassGenericParams(
+            target->node, target->declarationText);
+        std::unordered_set<std::string> implementedInterfaceNames;
+        for (const auto& interfaceName : implementedInterfaces) {
+            implementedInterfaceNames.insert(trimTypeBaseName(interfaceName));
+        }
 
         // Workspace index is built off-thread at initialise; short-block
         // so an action fired before the scan finishes still sees results.
@@ -500,8 +857,8 @@ std::vector<CodeAction> CodeActionHandler::getImplementInterfaceActions(
         std::unordered_set<std::string> emittedSpellings;
 
         for (const auto& typeName : referencedTypes) {
-            if (typeName == className) continue;
-            if (typeName == interfaceName) continue;  // already in scope
+            if (typeName == target->node->getClassName()) continue;
+            if (implementedInterfaceNames.count(typeName) > 0) continue;
             if (isBuiltinTypeName(typeName)) continue;
             if (genericParams.count(typeName) > 0) continue;
             if (classRegistry && classRegistry->hasClass(typeName)) continue;
@@ -514,9 +871,14 @@ std::vector<CodeAction> CodeActionHandler::getImplementInterfaceActions(
             const std::string symbolPath = UriUtils::uriToFilePath(match.fileUri);
             if (symbolPath == referencingPath) continue;
 
-            const std::string spelling =
-                analysis::WorkspaceSymbolIndex::computeImportSpelling(
+            std::string spelling;
+            if (projectConfig_ && projectConfig_->isLoaded()) {
+                spelling = aliasImportSpelling(*projectConfig_, symbolPath);
+            }
+            if (spelling.empty()) {
+                spelling = analysis::WorkspaceSymbolIndex::computeImportSpelling(
                     symbolPath, referencingPath);
+            }
 
             const std::string dedupKey = typeName + "\n" + spelling;
             if (!emittedSpellings.insert(dedupKey).second) continue;
@@ -531,79 +893,6 @@ std::vector<CodeAction> CodeActionHandler::getImplementInterfaceActions(
     actions.push_back(action);
 
     return actions;
-}
-
-std::vector<std::string> CodeActionHandler::getRequiredMethods(
-    const std::string& interfaceName,
-    const Document* doc,
-    std::unordered_set<std::string>* outReferencedTypes
-) {
-    std::vector<std::string> methods;
-
-    if (!doc->environment) {
-        return methods;
-    }
-
-    auto interfaceRegistry = doc->environment->getInterfaceRegistry();
-    if (!interfaceRegistry) {
-        return methods;
-    }
-
-    // Get interface definition
-    auto interfaceDef = interfaceRegistry->findInterface(interfaceName);
-    if (!interfaceDef) {
-        return methods;
-    }
-
-    // Get method signatures from interface
-    const auto& signatures = interfaceDef->getMethodSignatures();
-
-    for (const auto& sig : signatures) {
-        // Build method signature string. mType uses C/Java-style param
-        // syntax (`int index`, not `index: int`); interface-implemented
-        // methods are conventionally `public`.
-        std::stringstream methodBuilder;
-        methodBuilder << "public function " << sig.name << "(";
-
-        bool first = true;
-        for (const auto& [paramName, paramType] : sig.parameters) {
-            if (!first) methodBuilder << ", ";
-            const std::string typeName = paramType->getName();
-            methodBuilder << typeName << " " << paramName;
-            if (outReferencedTypes) extractTypeNames(typeName, *outReferencedTypes);
-            first = false;
-        }
-
-        const std::string returnTypeName = sig.returnType->getName();
-        methodBuilder << "): " << returnTypeName;
-        if (outReferencedTypes) extractTypeNames(returnTypeName, *outReferencedTypes);
-
-        methods.push_back(methodBuilder.str());
-    }
-
-    return methods;
-}
-
-bool CodeActionHandler::classHasMethod(
-    const std::string& className,
-    const std::string& methodName,
-    const Document* doc
-) {
-    if (!doc->environment) {
-        return false;
-    }
-
-    auto classRegistry = doc->environment->getClassRegistry();
-    if (!classRegistry) {
-        return false;
-    }
-
-    auto classDef = classRegistry->findClass(className);
-    if (!classDef) {
-        return false;
-    }
-
-    return classDef->hasMethod(methodName);
 }
 
 } // namespace mtype::lsp

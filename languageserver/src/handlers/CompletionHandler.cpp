@@ -224,6 +224,7 @@ namespace mtype::lsp
                 std::make_move_iterator(src.end()));
         };
         append(internal::keywordCompletions());
+        append(internal::templateSnippetCompletions());
         append(getTypeCompletions(uri));
         append(internal::builtinCompletions());
         append(internal::collectionCompletions());

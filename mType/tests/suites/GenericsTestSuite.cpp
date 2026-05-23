@@ -17,6 +17,10 @@ namespace tests::testSuite
                         passPath + "multipleTypeParameters.mt");
         addOutputVerificationTest("Generic with Primitive Types",
                         passPath + "genericWithPrimitiveTypes.mt");
+        // MYT-360 regression guard — boxed-class form of `implements
+        // Predicate<Int>` must keep working after primitive rejection landed.
+        addOutputVerificationTest("Boxed Class In Implements Clause",
+                        passPath + "boxedClassInImplementsClause.mt");
         addOutputVerificationTest("Generic Constructors",
                         passPath + "genericConstructors.mt");
         addOutputVerificationTest("Generic Method Overloading",
@@ -357,6 +361,31 @@ namespace tests::testSuite
         addTestFromFile("Multiple Primitive Types Rejected",
                     errorPath + "multiplePrimitiveTypes.mt",
                     TestType::ERROR_EXPECTED);
+
+        // MYT-360 — primitive types must also be rejected in `implements`,
+        // `extends`, and generic-constraint paths (which go through
+        // ParserUtils::parseNestedGenericExpression, not TypeParser).
+        // The 4-arg overload pins the message substring so silent drift fails.
+        addTestFromFile("Primitive In Implements Clause Rejected",
+                    errorPath + "primitiveInImplementsClause.mt",
+                    TestType::ERROR_EXPECTED,
+                    "cannot be used as generic type argument");
+        addTestFromFile("Primitive In Extends Class Rejected",
+                    errorPath + "primitiveInExtendsClass.mt",
+                    TestType::ERROR_EXPECTED,
+                    "cannot be used as generic type argument");
+        addTestFromFile("Primitive In Extends Interface Rejected",
+                    errorPath + "primitiveInExtendsInterface.mt",
+                    TestType::ERROR_EXPECTED,
+                    "cannot be used as generic type argument");
+        addTestFromFile("Primitive In Generic Constraint Rejected",
+                    errorPath + "primitiveInGenericConstraint.mt",
+                    TestType::ERROR_EXPECTED,
+                    "cannot be used as generic type argument");
+        addTestFromFile("Primitive In Implements Mixed Rejected",
+                    errorPath + "primitiveInImplementsMixed.mt",
+                    TestType::ERROR_EXPECTED,
+                    "cannot be used as generic type argument");
 
         // Global generic function error tests
         addTestFromFile("Global Non-Generic with Type Args",

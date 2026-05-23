@@ -42,6 +42,15 @@ namespace parser
         [[nodiscard]] static std::string parseNestedGenericExpression(TokenStream& stream);
 
     private:
+        /// @brief Throw a uniform "primitive in generic argument" ParseException.
+        /// Shared between parseNestedGenericExpression and TypeParser so error
+        /// messages stay identical across `implements`/`extends`/constraint
+        /// paths and regular type-position parses.
+        [[noreturn]] static void throwPrimitiveInGeneric(
+            TokenStream& stream,
+            std::string_view primitiveName,
+            std::string_view boxedName);
+
         ParserUtils() = delete;
         ~ParserUtils() = delete;
         ParserUtils(const ParserUtils&) = delete;
