@@ -153,9 +153,39 @@ namespace mtype::lsp
                 json sj = json::object();
                 if (!s.label.empty()) sj["label"] = s.label;
                 if (!s.renderedHint.empty()) sj["hint"] = s.renderedHint;
-                suggestionsArr.push_back(sj);
+                if (!s.edits.empty())
+                {
+                    // Convert 1-based source coordinates to 0-based LSP
+                    // coordinates directly. We deliberately do NOT use
+                    // toLspRange here — its point-span widening
+                    // (start == end → end = start+1) would corrupt
+                    // zero-width inserts (e.g. the "insert ';'" edit
+                    // emitted by convertMissingSemicolon). Zero-width
+                    // ranges are intentional and must round-trip verbatim
+                    // so the code-action handler can apply them as inserts
+                    // rather than as 1-char overwrites of the next token
+                    // (MYT-364).
+                    json editsArr = json::array();
+                    for (const auto& e : s.edits)
+                    {
+                        json ej = json::object();
+                        ej["start"] = {
+                            {"line", toLspLine(e.start.getLine())},
+                            {"character", toLspColumn(e.start.getColumn())}
+                        };
+                        ej["end"] = {
+                            {"line", toLspLine(e.end.getLine())},
+                            {"character", toLspColumn(e.end.getColumn())}
+                        };
+                        ej["newText"] = e.newText;
+                        editsArr.push_back(std::move(ej));
+                    }
+                    sj["edits"] = std::move(editsArr);
+                }
+                sj["applicability"] = static_cast<int>(s.applicability);
+                suggestionsArr.push_back(std::move(sj));
             }
-            data["suggestions"] = suggestionsArr;
+            data["suggestions"] = std::move(suggestionsArr);
         }
         if (!data.empty())
         {

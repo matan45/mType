@@ -717,10 +717,92 @@ std::vector<CodeAction> CodeActionHandler::generateTypoFixActions(
     // Pull the candidate identifier out of the label so we can use it
     // both as the action title and as the replacement text.
     for (const auto& suggestionJson : data["suggestions"]) {
-        if (!suggestionJson.is_object() || !suggestionJson.contains("label")) {
+        if (!suggestionJson.is_object()) {
             continue;
         }
 
+        // Structured-edits path. When the diagnostic source attached
+        // explicit edits (e.g. ExceptionConverter::convertMissingSemicolon
+        // emits a zero-width "insert ';'" edit), use those verbatim
+        // instead of synthesising a range via wordRangeAt — the producer
+        // knows the exact range and the synthesis would expand a `;`
+        // insert into a replace over the next identifier (MYT-364).
+        //
+        // The presence of the `edits` key (even when empty) signals that
+        // the producer chose the structured route deliberately, so we
+        // skip the legacy label-based synthesis for this suggestion
+        // either way: producing the right action when edits are valid,
+        // producing no action when they're missing/malformed. Falling
+        // through to the typo path would re-introduce the MYT-364
+        // overwrite for labels like "insert ';'" whose extracted
+        // candidate (`;`) feeds wordRangeAt incorrectly.
+        if (suggestionJson.contains("edits")) {
+            if (!suggestionJson["edits"].is_array()
+                || suggestionJson["edits"].empty())
+            {
+                continue;
+            }
+            WorkspaceEdit edit;
+            for (const auto& editJson : suggestionJson["edits"]) {
+                if (!editJson.is_object()
+                    || !editJson.contains("start")
+                    || !editJson.contains("end")
+                    || !editJson.contains("newText")
+                    || !editJson["start"].is_object()
+                    || !editJson["end"].is_object()
+                    || !editJson["newText"].is_string())
+                {
+                    continue;
+                }
+                TextEdit textEdit;
+                textEdit.range.start.line =
+                    editJson["start"].value("line", 0);
+                textEdit.range.start.character =
+                    editJson["start"].value("character", 0);
+                textEdit.range.end.line =
+                    editJson["end"].value("line", 0);
+                textEdit.range.end.character =
+                    editJson["end"].value("character", 0);
+                textEdit.newText = editJson["newText"].get<std::string>();
+                edit.changes[uri].push_back(std::move(textEdit));
+            }
+            // If every entry was malformed, skip to avoid emitting a
+            // no-op action — the legacy label path below cannot help
+            // either since the producer signalled it wanted explicit
+            // edits.
+            if (edit.changes[uri].empty()) {
+                continue;
+            }
+
+            CodeAction action;
+            // Title from the label if present (capitalize the first
+            // letter so "insert ';'" → "Insert ';'"); otherwise use the
+            // newText of the first edit as a last-resort label.
+            std::string title;
+            if (suggestionJson.contains("label")
+                && suggestionJson["label"].is_string())
+            {
+                title = suggestionJson["label"].get<std::string>();
+                if (!title.empty()) {
+                    title[0] = static_cast<char>(
+                        std::toupper(static_cast<unsigned char>(title[0])));
+                }
+            }
+            if (title.empty()) {
+                title = "Quick fix: "
+                    + edit.changes[uri].front().newText;
+            }
+            action.title = std::move(title);
+            action.kind = "quickfix";
+            action.diagnostics.push_back(diagnostic);
+            action.edit = std::move(edit);
+            actions.push_back(std::move(action));
+            continue;
+        }
+
+        if (!suggestionJson.contains("label")) {
+            continue;
+        }
         const std::string label = suggestionJson["label"].get<std::string>();
         // Extract the candidate name from inside the single quotes.
         const size_t quoteStart = label.find('\'');

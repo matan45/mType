@@ -99,6 +99,51 @@ void LspDiagnosticConverterTestSuite::registerTests(LspTestHarness& harness) {
             "end should be 0:1");
     });
 
+    // MYT-364: a Suggestion with structured TextEdits must round-trip
+    // through the JSON `data.suggestions[*].edits` payload so the LSP
+    // code-action handler can apply them verbatim. Critically, zero-width
+    // inserts (start == end) must NOT be widened — the legacy
+    // `toLspRange` helper widens point spans for squiggle visibility,
+    // but applying that widening to a structured edit would turn an
+    // "insert ';'" into a 1-character REPLACE over the next byte, which
+    // is exactly the MYT-364 corruption.
+    harness.addTest("suggestion edits round-trip with zero-width preserved", []() {
+        auto core = makeCoreDiag("expected ';'", "test.mt", 5, 10);
+        diagnostics::Suggestion s;
+        s.label = "insert ';'";
+        // Zero-width insert at line 5, column 10 (1-based) →
+        // LSP (line 4, character 9), end == start.
+        diagnostics::TextEdit te;
+        te.start = errors::SourceLocation("test.mt", 5, 10);
+        te.end = errors::SourceLocation("test.mt", 5, 10);
+        te.newText = ";";
+        s.edits.push_back(te);
+        s.applicability = diagnostics::FixApplicability::MachineApplicable;
+        core.suggestions.push_back(std::move(s));
+
+        auto lsp = toLspDiagnostic(core, "file:///test.mt");
+        require(lsp.data.has_value(), "data should be present");
+        require((*lsp.data).contains("suggestions"), "suggestions key missing");
+        const auto& sug = (*lsp.data)["suggestions"][0];
+        require(sug.contains("edits") && sug["edits"].is_array(),
+            "edits array should be serialized");
+        require(sug["edits"].size() == 1, "expected exactly one edit");
+        const auto& ej = sug["edits"][0];
+        require(ej["start"]["line"] == 4,
+            "edit start line should be 4 (5-1)");
+        require(ej["start"]["character"] == 9,
+            "edit start character should be 9 (10-1)");
+        require(ej["end"]["line"] == 4,
+            "edit end line should be 4 (5-1)");
+        require(ej["end"]["character"] == 9,
+            "edit end character MUST equal start (zero-width insert preserved, "
+            "not widened by toLspRange) — MYT-364 regression");
+        require(ej["newText"] == ";", "newText should be ';'");
+        require(sug["applicability"]
+                == static_cast<int>(diagnostics::FixApplicability::MachineApplicable),
+            "applicability should round-trip as MachineApplicable");
+    });
+
     harness.addTest("notes become relatedInformation entries", []() {
         auto core = makeCoreDiag("error", "test.mt", 1, 1, 1, 5);
         core.notes.push_back("consider adding a type annotation");
