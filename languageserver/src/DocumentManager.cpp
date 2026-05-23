@@ -780,6 +780,28 @@ std::optional<std::string> DocumentManager::getTypeInfo(
                     }
                     if (!out.empty()) return out;
                 }
+
+                // Receiver typed as an interface (e.g. `Function mult = ...; mult.apply(x);`).
+                // ClassRegistry misses these — fall back to InterfaceRegistry and
+                // render any matching abstract method signature.
+                if (auto iface = doc->environment->findInterface(receiverType)) {
+                    std::string out;
+                    for (const auto& sig : iface->getMethodSignatures()) {
+                        if (sig.name != symbolName) continue;
+                        std::string line = iface->getName() + "::" + sig.name + "(";
+                        for (size_t i = 0; i < sig.parameters.size(); ++i) {
+                            if (i > 0) line += ", ";
+                            const auto& [pname, ptype] = sig.parameters[i];
+                            std::string typeStr = ptype ? ptype->toString() : std::string("?");
+                            line += typeStr + " " + pname;
+                        }
+                        line += ")";
+                        if (sig.returnType) line += " : " + sig.returnType->toString();
+                        if (!out.empty()) out += "\n";
+                        out += line;
+                    }
+                    if (!out.empty()) return out;
+                }
             }
         }
 
