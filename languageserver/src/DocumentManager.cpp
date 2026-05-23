@@ -2,6 +2,8 @@
 #include "../../mType/token/TokenType.hpp"
 #include "../../mType/environment/EnvironmentBuilder.hpp"
 #include "../../mType/environment/registry/ClassRegistry.hpp"
+#include "../../mType/environment/registry/InterfaceRegistry.hpp"
+#include "../../mType/ast/AccessModifier.hpp"
 #include "../../mType/diagnostics/ExceptionConverter.hpp"
 #include "../../mType/diagnostics/SourceFileCache.hpp"
 #include "../../mType/analysis/OverrideAnnotationChecker.hpp"
@@ -439,6 +441,276 @@ std::optional<DocumentManager::SymbolLocation> DocumentManager::findDefinition(
     return std::nullopt;
 }
 
+std::string DocumentManager::renderValueTypeName(
+    value::ValueType vt, const std::string& className) const {
+    switch (vt) {
+        case value::ValueType::INT: return "int";
+        case value::ValueType::FLOAT: return "float";
+        case value::ValueType::BOOL: return "bool";
+        case value::ValueType::STRING: return "string";
+        case value::ValueType::VOID: return "void";
+        case value::ValueType::OBJECT:
+            return className.empty() ? "object" : className;
+        case value::ValueType::LAMBDA: return "lambda";
+        case value::ValueType::ARRAY:
+            return className.empty() ? "array" : className;
+        case value::ValueType::NULL_TYPE: return "null";
+        default: return "unknown";
+    }
+}
+
+DocumentManager::CallContext DocumentManager::classifyCallContext(
+    const std::string& content, int line, int character) const {
+    CallContext ctx;
+
+    std::istringstream stream(content);
+    std::string currentLine;
+    int currentLineNum = 0;
+    while (std::getline(stream, currentLine) && currentLineNum < line) {
+        currentLineNum++;
+    }
+    if (currentLineNum != line) return ctx;
+
+    int lineLen = static_cast<int>(currentLine.length());
+    if (character < 0 || character > lineLen) return ctx;
+
+    // Walk left to the start of the hovered word.
+    int wordStart = character;
+    while (wordStart > 0
+           && (std::isalnum(static_cast<unsigned char>(currentLine[wordStart - 1]))
+               || currentLine[wordStart - 1] == '_')) {
+        wordStart--;
+    }
+
+    // Skip whitespace before the word.
+    int i = wordStart - 1;
+    while (i >= 0 && std::isspace(static_cast<unsigned char>(currentLine[i]))) i--;
+    if (i < 0) return ctx;
+
+    // `::` lookbehind -> StaticMethod
+    if (i >= 1 && currentLine[i] == ':' && currentLine[i - 1] == ':') {
+        int idEnd = i - 2;
+        while (idEnd >= 0 && std::isspace(static_cast<unsigned char>(currentLine[idEnd]))) idEnd--;
+        int idStart = idEnd;
+        while (idStart >= 0
+               && (std::isalnum(static_cast<unsigned char>(currentLine[idStart]))
+                   || currentLine[idStart] == '_')) {
+            idStart--;
+        }
+        if (idEnd > idStart) {
+            ctx.kind = CallContext::Kind::StaticMethod;
+            ctx.receiver = currentLine.substr(idStart + 1, idEnd - idStart);
+        }
+        return ctx;
+    }
+
+    // `.` lookbehind -> Method
+    if (currentLine[i] == '.') {
+        int idEnd = i - 1;
+        while (idEnd >= 0 && std::isspace(static_cast<unsigned char>(currentLine[idEnd]))) idEnd--;
+        int idStart = idEnd;
+        while (idStart >= 0
+               && (std::isalnum(static_cast<unsigned char>(currentLine[idStart]))
+                   || currentLine[idStart] == '_')) {
+            idStart--;
+        }
+        if (idEnd > idStart) {
+            ctx.kind = CallContext::Kind::Method;
+            ctx.receiver = currentLine.substr(idStart + 1, idEnd - idStart);
+        }
+        return ctx;
+    }
+
+    // Preceding identifier -> check for `new` keyword
+    int idEnd = i;
+    int idStart = idEnd;
+    while (idStart >= 0
+           && (std::isalnum(static_cast<unsigned char>(currentLine[idStart]))
+               || currentLine[idStart] == '_')) {
+        idStart--;
+    }
+    if (idEnd > idStart) {
+        std::string prev = currentLine.substr(idStart + 1, idEnd - idStart);
+        if (prev == "new") {
+            ctx.kind = CallContext::Kind::Constructor;
+        }
+    }
+    return ctx;
+}
+
+std::string DocumentManager::formatFunctionSignature(
+    const runtimeTypes::global::FunctionDefinition& fn) const {
+    std::string out;
+    if (fn.getIsAsync()) out += "async ";
+    out += "function " + fn.getName() + "(";
+    const auto& params = fn.getParameters();
+    for (size_t i = 0; i < params.size(); ++i) {
+        if (i > 0) out += ", ";
+        out += params[i].second.toString() + " " + params[i].first;
+    }
+    out += ") : " + renderValueTypeName(fn.getReturnType(), fn.getReturnClassName());
+    return out;
+}
+
+std::string DocumentManager::formatMethodSignature(
+    const std::string& ownerClass,
+    const runtimeTypes::klass::MethodDefinition& m) const {
+    std::string out;
+    out += std::string(ast::accessModifierToString(m.getAccessModifier())) + " ";
+    if (m.isStatic()) out += "static ";
+    if (m.getIsAsync()) out += "async ";
+    if (m.isAbstract()) out += "abstract ";
+    if (m.isFinal()) out += "final ";
+    out += ownerClass + "::" + m.getName() + "(";
+
+    const auto& params = m.getParameters();
+    size_t startIdx = 0;
+    // Skip implicit leading `this` parameter on instance methods (matches
+    // InlayHintHandler's lookup convention).
+    if (!m.isStatic() && !params.empty() && params.front().first == "this") {
+        startIdx = 1;
+    }
+    bool first = true;
+    for (size_t i = startIdx; i < params.size(); ++i) {
+        if (!first) out += ", ";
+        first = false;
+        out += params[i].second.toString() + " " + params[i].first;
+    }
+    out += ") : ";
+
+    // Prefer the unified return type when present (carries class names);
+    // fall back to the basic ValueType switch when only the legacy field is set.
+    if (auto unifiedRet = m.getUnifiedReturnType()) {
+        out += unifiedRet->toString();
+    } else {
+        out += renderValueTypeName(m.getReturnType(), "");
+    }
+    return out;
+}
+
+std::string DocumentManager::formatConstructorSignature(
+    const std::string& className,
+    const runtimeTypes::klass::ConstructorDefinition& ctor) const {
+    std::string out;
+    out += std::string(ast::accessModifierToString(ctor.getAccessModifier())) + " ";
+    out += className + "(";
+    const auto& params = ctor.getParametersWithTypes();
+    for (size_t i = 0; i < params.size(); ++i) {
+        if (i > 0) out += ", ";
+        out += params[i].second.toString() + " " + params[i].first;
+    }
+    out += ")";
+    return out;
+}
+
+std::string DocumentManager::formatClassHover(
+    const runtimeTypes::klass::ClassDefinition& cls) const {
+    std::string out = "class " + cls.getName();
+
+    const auto& generics = cls.getGenericParameters();
+    if (!generics.empty()) {
+        out += "<";
+        for (size_t i = 0; i < generics.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += generics[i].name;
+        }
+        out += ">";
+    }
+
+    if (cls.hasParentClass()) {
+        out += " extends " + cls.getParentClassName();
+    }
+
+    const auto& interfaces = cls.getImplementedInterfaces();
+    if (!interfaces.empty()) {
+        out += " implements ";
+        for (size_t i = 0; i < interfaces.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += interfaces[i];
+        }
+    }
+
+    // Fields in declaration order.
+    const auto& fieldOrder = cls.getInstanceFieldOrder();
+    const auto& instanceFields = cls.getInstanceFields();
+    for (const auto& fieldName : fieldOrder) {
+        auto it = instanceFields.find(fieldName);
+        if (it == instanceFields.end() || !it->second) continue;
+        const auto& f = *it->second;
+        out += "\n    " + f.getName() + ": " + renderValueTypeName(f.getType(), "");
+    }
+
+    // Constructors.
+    for (const auto& ctor : cls.getConstructors()) {
+        if (!ctor) continue;
+        out += "\n    " + formatConstructorSignature(cls.getName(), *ctor);
+    }
+
+    // Method signatures in declaration order; hide compiler-synthesized ones
+    // (auto hashCode / equals etc., per ClassDefinition.hpp:40-48). Hard-cap
+    // at 10 lines and append `... (N more)` when truncated.
+    constexpr size_t METHOD_CAP = 10;
+    const auto& methodOrder = cls.getInstanceMethodOrder();
+    const auto& instanceMethods = cls.getInstanceMethods();
+    std::vector<std::string> methodLines;
+    for (const auto& mname : methodOrder) {
+        auto it = instanceMethods.find(mname);
+        if (it == instanceMethods.end()) continue;
+        for (const auto& m : it->second) {
+            if (!m || m->isSynthetic()) continue;
+            methodLines.push_back(formatMethodSignature(cls.getName(), *m));
+        }
+    }
+    for (size_t i = 0; i < methodLines.size(); ++i) {
+        if (i >= METHOD_CAP) {
+            out += "\n    ... (" + std::to_string(methodLines.size() - METHOD_CAP) + " more)";
+            break;
+        }
+        out += "\n    " + methodLines[i];
+    }
+
+    return out;
+}
+
+std::string DocumentManager::formatInterfaceHover(
+    const runtimeTypes::klass::InterfaceDefinition& iface) const {
+    std::string out = "interface " + iface.getName();
+
+    const auto& generics = iface.getGenericParameters();
+    if (!generics.empty()) {
+        out += "<";
+        for (size_t i = 0; i < generics.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += generics[i].name;
+        }
+        out += ">";
+    }
+
+    const auto& exts = iface.getExtendedInterfaces();
+    if (!exts.empty()) {
+        out += " extends ";
+        for (size_t i = 0; i < exts.size(); ++i) {
+            if (i > 0) out += ", ";
+            out += exts[i];
+        }
+    }
+
+    for (const auto& sig : iface.getMethodSignatures()) {
+        out += "\n    " + sig.name + "(";
+        for (size_t i = 0; i < sig.parameters.size(); ++i) {
+            if (i > 0) out += ", ";
+            const auto& [pname, ptype] = sig.parameters[i];
+            std::string typeStr = ptype ? ptype->toString() : std::string("?");
+            out += typeStr + " " + pname;
+        }
+        out += ")";
+        if (sig.returnType) {
+            out += " : " + sig.returnType->toString();
+        }
+    }
+    return out;
+}
+
 std::optional<std::string> DocumentManager::getTypeInfo(
     const std::string& uri, int line, int character) const {
 
@@ -455,60 +727,103 @@ std::optional<std::string> DocumentManager::getTypeInfo(
 
     // Try to get type information from environment
     try {
-        // Check for variables
+        // Check for variables (unchanged from pre-MYT-357 behavior)
         auto varDef = doc->environment->findVariable(symbolName);
         if (varDef) {
-            std::string typeInfo = symbolName + ": ";
+            return symbolName + ": "
+                + renderValueTypeName(varDef->getType(), varDef->getClassName());
+        }
 
-            // Get the value type
-            auto valueType = varDef->getType();
-            switch (valueType) {
-                case value::ValueType::INT:
-                    typeInfo += "int";
-                    break;
-                case value::ValueType::FLOAT:
-                    typeInfo += "float";
-                    break;
-                case value::ValueType::BOOL:
-                    typeInfo += "bool";
-                    break;
-                case value::ValueType::STRING:
-                    typeInfo += "string";
-                    break;
-                case value::ValueType::OBJECT: {
-                    const auto& className = varDef->getClassName();
-                    if (!className.empty()) {
-                        typeInfo += className;
-                    } else {
-                        typeInfo += "object";
-                    }
-                    break;
+        // Classify call site once so each branch can route precisely.
+        CallContext ctx = classifyCallContext(doc->content, line, character);
+        auto classReg = doc->environment->getClassRegistry();
+        auto funcReg = doc->environment->getFunctionRegistry();
+
+        // `new Foo(...)` — list every constructor of Foo. Fall through to the
+        // bare class lookup below when Foo has no explicit constructors.
+        if (ctx.kind == CallContext::Kind::Constructor && classReg) {
+            auto cls = classReg->findClass(symbolName);
+            if (cls && !cls->getConstructors().empty()) {
+                std::string out;
+                for (const auto& ctor : cls->getConstructors()) {
+                    if (!ctor) continue;
+                    if (!out.empty()) out += "\n";
+                    out += formatConstructorSignature(symbolName, *ctor);
                 }
-                case value::ValueType::VOID:
-                    typeInfo += "void";
-                    break;
-                default:
-                    typeInfo += "unknown";
-                    break;
-            }
-
-            return typeInfo;
-        }
-
-        // Check for functions
-        if (doc->environment->getFunctionRegistry()) {
-            auto funcDef = doc->environment->getFunctionRegistry()->findFunction(symbolName);
-            if (funcDef) {
-                return "function " + symbolName + "()";
+                if (!out.empty()) return out;
             }
         }
 
-        // Check for classes
-        if (doc->environment->getClassRegistry()) {
-            if (doc->environment->getClassRegistry()->hasClass(symbolName)) {
-                return "class " + symbolName;
+        // `obj.method(...)` — resolve receiver's class via inferVariableType.
+        // If the receiver looks like a class (starts upper-case) we treat it
+        // as a class name directly, which covers `Foo.staticField` style.
+        if (ctx.kind == CallContext::Kind::Method && classReg) {
+            std::string receiverType = inferVariableType(doc->content, ctx.receiver);
+            if (receiverType.empty() && !ctx.receiver.empty()
+                && std::isupper(static_cast<unsigned char>(ctx.receiver.front()))) {
+                receiverType = ctx.receiver;
+            }
+            if (!receiverType.empty()) {
+                auto lt = receiverType.find('<');
+                if (lt != std::string::npos) receiverType = receiverType.substr(0, lt);
+                auto cls = classReg->findClass(receiverType);
+                if (cls) {
+                    auto overloads = cls->getAllInstanceMethodOverloads(symbolName);
+                    if (overloads.empty()) {
+                        overloads = cls->getAllStaticMethodOverloads(symbolName);
+                    }
+                    std::string out;
+                    for (const auto& m : overloads) {
+                        if (!m) continue;
+                        if (!out.empty()) out += "\n";
+                        out += formatMethodSignature(cls->getName(), *m);
+                    }
+                    if (!out.empty()) return out;
+                }
             }
         }
+
+        // `Class::method(...)` — static-method lookup; fall back to instance
+        // lookup in case the receiver was upper-case but the method is
+        // actually instance-side.
+        if (ctx.kind == CallContext::Kind::StaticMethod && classReg && !ctx.receiver.empty()) {
+            auto cls = classReg->findClass(ctx.receiver);
+            if (cls) {
+                auto overloads = cls->getAllStaticMethodOverloads(symbolName);
+                if (overloads.empty()) {
+                    overloads = cls->getAllInstanceMethodOverloads(symbolName);
+                }
+                std::string out;
+                for (const auto& m : overloads) {
+                    if (!m) continue;
+                    if (!out.empty()) out += "\n";
+                    out += formatMethodSignature(cls->getName(), *m);
+                }
+                if (!out.empty()) return out;
+            }
+        }
+
+        // Bare function — list every overload registered under this name.
+        if (funcReg) {
+            auto overloads = funcReg->getAllFunctionOverloads(symbolName);
+            std::string out;
+            for (const auto& fn : overloads) {
+                if (!fn) continue;
+                if (!out.empty()) out += "\n";
+                out += formatFunctionSignature(*fn);
+            }
+            if (!out.empty()) return out;
+        }
+
+        // Bare class -> full class summary.
+        if (classReg) {
+            auto cls = classReg->findClass(symbolName);
+            if (cls) return formatClassHover(*cls);
+        }
+
+        // Bare interface -> interface summary.
+        auto iface = doc->environment->findInterface(symbolName);
+        if (iface) return formatInterfaceHover(*iface);
 
     } catch (...) {
         // Ignore errors

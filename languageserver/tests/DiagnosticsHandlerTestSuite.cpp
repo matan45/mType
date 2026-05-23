@@ -95,6 +95,33 @@ void DiagnosticsHandlerTestSuite::registerTests(LspTestHarness& harness) {
             }
         }
     });
+
+    harness.addTest("warning diagnostics are published with warning severity", []() {
+        auto docMgr = makeDocManager("file:///test.mt", "int unused = 1;\n");
+        DiagnosticsHandler handler(docMgr.get());
+
+        std::vector<Diagnostic> capturedDiags;
+        handler.setPublisher([&](const std::string&, const std::vector<Diagnostic>& diags) {
+            capturedDiags = diags;
+        });
+
+        handler.publishDiagnostics("file:///test.mt");
+
+        bool sawWarning = false;
+        for (const auto& d : capturedDiags) {
+            if (d.severity == 2) {
+                sawWarning = true;
+                require(d.source.has_value() && *d.source == "mType",
+                    "warning diagnostic source should be 'mType'");
+                if (d.code.has_value()) {
+                    require(d.code->get<std::string>() == "MT-W2001",
+                        "expected unused-variable warning code MT-W2001");
+                }
+            }
+        }
+
+        require(sawWarning, "expected at least one warning-severity diagnostic");
+    });
 }
 
 } // namespace mtype::lsp::test

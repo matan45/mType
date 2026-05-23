@@ -112,6 +112,27 @@ private:
 
     std::string extractWordAtPosition(const std::string& content, int line, int character) const;
     std::string inferVariableType(const std::string& content, const std::string& varName) const;
+
+    // MYT-357 — rich hover formatting helpers. classifyCallContext probes the
+    // text immediately preceding the hovered word so getTypeInfo can route to
+    // the right registry: `new X(...)`, `obj.x`, and `Class::x` each map to a
+    // different lookup. Formatters live next to getTypeInfo because the hover
+    // path is the only consumer; SignatureHelp keeps its own renderer.
+    struct CallContext {
+        enum class Kind { Bare, Constructor, Method, StaticMethod };
+        Kind kind = Kind::Bare;
+        std::string receiver;
+    };
+
+    CallContext classifyCallContext(const std::string& content, int line, int character) const;
+    std::string renderValueTypeName(value::ValueType vt, const std::string& className) const;
+    std::string formatFunctionSignature(const runtimeTypes::global::FunctionDefinition& fn) const;
+    std::string formatMethodSignature(const std::string& ownerClass,
+                                      const runtimeTypes::klass::MethodDefinition& m) const;
+    std::string formatConstructorSignature(const std::string& className,
+                                           const runtimeTypes::klass::ConstructorDefinition& ctor) const;
+    std::string formatClassHover(const runtimeTypes::klass::ClassDefinition& cls) const;
+    std::string formatInterfaceHover(const runtimeTypes::klass::InterfaceDefinition& iface) const;
 };
 
 } // namespace mtype::lsp

@@ -5,10 +5,12 @@
 #include "../../../mType/ast/nodes/classes/MethodNode.hpp"
 #include "../../../mType/ast/nodes/classes/FieldNode.hpp"
 #include "../../../mType/ast/nodes/classes/InterfaceNode.hpp"
+#include "../../../mType/ast/nodes/classes/ConstructorNode.hpp"
 #include "../../../mType/ast/nodes/functions/FunctionNode.hpp"
 #include "../../../mType/environment/registry/ClassDefinition.hpp"
 #include "../../../mType/environment/registry/MethodDefinition.hpp"
 #include "../../../mType/environment/registry/FieldDefinition.hpp"
+#include "../../../mType/environment/registry/ConstructorDefinition.hpp"
 #include "../../../mType/environment/registry/InterfaceDefinition.hpp"
 #include "../../../mType/environment/registry/FunctionDefinition.hpp"
 #include "../../../mType/value/ValueType.hpp"
@@ -167,6 +169,19 @@ void SymbolRegistrationVisitor::processClassNode(ast::ASTNode* node) {
                         className  // Track which class this field belongs to
                     };
                 }
+            }
+
+            // MYT-357 — register constructors so hover/sig-help can resolve
+            // `new Foo(...)` to a real ConstructorDefinition with params.
+            for (const auto& ctorNode : classNode->getConstructors()) {
+                auto* ctor = dynamic_cast<ast::nodes::classes::ConstructorNode*>(ctorNode.get());
+                if (!ctor) continue;
+                auto ctorDef = std::make_shared<runtimeTypes::klass::ConstructorDefinition>(
+                    ctor->getParametersWithTypes(),
+                    ctor->getBody(),
+                    ctor->getAccessModifier()
+                );
+                classDef->addConstructor(ctorDef);
             }
 
             environment_->registerClass(className, classDef);

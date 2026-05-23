@@ -66,6 +66,143 @@ void HoverHandlerTestSuite::registerTests(LspTestHarness& harness) {
         require(result.has_value(), "expected hover for keyword 'return'");
         require(!result->contents.empty(), "hover contents should not be empty");
     });
+
+    // MYT-357 — rich hover signatures for user-declared symbols.
+
+    harness.addTest("hover on function call shows full signature with params and return type", []() {
+        const std::string src =
+            "function add(int a, int b): int { return a + b; }\n"
+            "add(1, 2);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+        // "add" call site at line 1 col 0-2; hover at (1, 1).
+        auto result = handler.handleHover("file:///t.mt", {1, 1});
+        require(result.has_value(), "expected hover for function 'add'");
+        require(result->contents.find("function add(int a, int b)") != std::string::npos,
+            "hover should contain full parameter list 'function add(int a, int b)'");
+        require(result->contents.find(": int") != std::string::npos,
+            "hover should mention return type ': int'");
+        require(result->contents.find("```mtype") != std::string::npos,
+            "hover should be wrapped in mtype code fence");
+    });
+
+    harness.addTest("hover on instance method resolves obj.method to class signature", []() {
+        const std::string src =
+            "class Foo {\n"
+            "    public constructor() {}\n"
+            "    public function bar(string s): void {}\n"
+            "}\n"
+            "Foo f = new Foo();\n"
+            "f.bar(\"hi\");\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+        // "bar" inside `f.bar("hi");` at line 5 cols 2-4; hover at (5, 3).
+        auto result = handler.handleHover("file:///t.mt", {5, 3});
+        require(result.has_value(), "expected hover for method 'bar'");
+        require(result->contents.find("Foo::bar(string s)") != std::string::npos,
+            "hover should resolve receiver to 'Foo::bar(string s)'");
+        require(result->contents.find("void") != std::string::npos,
+            "hover should mention return type 'void'");
+    });
+
+    harness.addTest("hover on static method Class::method shows static signature", []() {
+        const std::string src =
+            "class MyCls {\n"
+            "    public static function ping(int n): int { return n; }\n"
+            "}\n"
+            "MyCls::ping(7);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+        // "ping" in line 3 at cols 7-10; hover at (3, 8).
+        auto result = handler.handleHover("file:///t.mt", {3, 8});
+        require(result.has_value(), "expected hover for static method 'ping'");
+        require(result->contents.find("static") != std::string::npos,
+            "hover should mark method as static");
+        require(result->contents.find("MyCls::ping(int n)") != std::string::npos,
+            "hover should resolve to 'MyCls::ping(int n)'");
+    });
+
+    harness.addTest("hover on constructor in new-expression shows constructor signature", []() {
+        const std::string src =
+            "class Bar {\n"
+            "    public constructor(int x) {}\n"
+            "}\n"
+            "Bar b = new Bar(5);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+        // 'Bar' after 'new ' on line 3 at cols 12-14; hover at (3, 13).
+        auto result = handler.handleHover("file:///t.mt", {3, 13});
+        require(result.has_value(), "expected hover for constructor 'Bar'");
+        require(result->contents.find("Bar(int x)") != std::string::npos,
+            "hover should show constructor 'Bar(int x)'");
+        require(result->contents.find("function") == std::string::npos,
+            "constructor hover should not contain the word 'function'");
+    });
+
+    harness.addTest("hover on class name shows full class summary", []() {
+        const std::string src =
+            "class Box {\n"
+            "    public int v;\n"
+            "    public function get(): int { return v; }\n"
+            "}\n"
+            "Box b = new Box();\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+        // First 'Box' on line 4 (not after `new`) cols 0-2; hover at (4, 1).
+        auto result = handler.handleHover("file:///t.mt", {4, 1});
+        require(result.has_value(), "expected hover for class 'Box'");
+        require(result->contents.find("class Box") != std::string::npos,
+            "hover should contain header 'class Box'");
+        require(result->contents.find("v: int") != std::string::npos,
+            "hover should list instance field 'v: int'");
+        require(result->contents.find("Box::get()") != std::string::npos,
+            "hover should list method 'Box::get()'");
+    });
+
+    harness.addTest("hover on interface name shows interface summary with method signatures", []() {
+        const std::string src =
+            "interface Comparable {\n"
+            "    function compareTo(int other): int;\n"
+            "}\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+        // 'Comparable' on line 0 at cols 10-19; hover at (0, 15).
+        auto result = handler.handleHover("file:///t.mt", {0, 15});
+        require(result.has_value(), "expected hover for interface 'Comparable'");
+        require(result->contents.find("interface Comparable") != std::string::npos,
+            "hover should contain 'interface Comparable'");
+        require(result->contents.find("compareTo") != std::string::npos,
+            "hover should list abstract method 'compareTo'");
+    });
+
+    harness.addTest("hover on overloaded function lists all overloads", []() {
+        const std::string src =
+            "function ovr(int x): int { return x; }\n"
+            "function ovr(string s): int { return 0; }\n"
+            "ovr(42);\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+        // 'ovr' call on line 2 at cols 0-2; hover at (2, 1).
+        auto result = handler.handleHover("file:///t.mt", {2, 1});
+        require(result.has_value(), "expected hover for overloaded function 'ovr'");
+        require(result->contents.find("function ovr(int x)") != std::string::npos,
+            "hover should list int overload");
+        require(result->contents.find("function ovr(string s)") != std::string::npos,
+            "hover should list string overload");
+    });
+
+    harness.addTest("hover on unknown identifier returns nullopt", []() {
+        const std::string src =
+            "function known(): int { return 0; }\n"
+            "// nonExistentThing here\n";
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        HoverHandler handler(docMgr.get());
+        // 'nonExistentThing' is inside a comment; not in any registry, not a
+        // keyword/type/builtin. extractWordAtPosition still returns it.
+        auto result = handler.handleHover("file:///t.mt", {1, 10});
+        require(!result.has_value(),
+            "expected nullopt for identifier not in environment or fallback maps");
+    });
 }
 
 } // namespace mtype::lsp::test

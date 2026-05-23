@@ -706,7 +706,6 @@ void InlayHintHandler::emitLambdaTypeHints(
             h.position = lam.params[i].endPos;
             h.label = ": " + typeName;
             h.kind = InlayHintKind::Type;
-            h.paddingLeft = true;
             out.push_back(std::move(h));
         }
     }
