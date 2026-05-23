@@ -753,19 +753,21 @@ std::optional<std::string> DocumentManager::getTypeInfo(
         }
 
         // `obj.method(...)` — MYT-359: type the receiver via the AST-based
-        // ReceiverTypeResolver. It walks the receiver subtree of the call
-        // expression at the cursor, so chained shapes (`obj.field.method()`,
-        // `getFoo().play()`, `arr[0].play()`, `Class::field.field.method()`,
-        // `(cond ? a : b).play()`) all resolve through the same code path.
+        // ReceiverTypeResolver. Gate on findMethodCallAt finding a call at
+        // the cursor (not on ctx.kind), because classifyCallContext's text
+        // walk-left returns Bare when the receiver ends in `)`, `]`, or `:`
+        // (i.e., `getFoo().play()`, `arr[0].play()`, `(c?a:b).play()`),
+        // even though the AST has a perfectly good MethodCallNode there.
         // The "upper-case receiver = class" heuristic stays as a graceful
         // fallback for parse-recovery cases where the AST node isn't found.
-        if (ctx.kind == CallContext::Kind::Method && classReg) {
+        if (classReg) {
             std::string receiverType;
             if (auto* call = findMethodCallAt(doc->ast, line, character, symbolName)) {
                 ReceiverTypeResolver resolver(doc->environment, &doc->ast, line, character);
                 receiverType = resolver.resolveName(call->getObject());
             }
-            if (receiverType.empty() && !ctx.receiver.empty()
+            if (receiverType.empty() && ctx.kind == CallContext::Kind::Method
+                && !ctx.receiver.empty()
                 && std::isupper(static_cast<unsigned char>(ctx.receiver.front()))) {
                 receiverType = ctx.receiver;
             }

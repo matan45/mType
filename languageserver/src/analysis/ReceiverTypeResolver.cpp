@@ -239,6 +239,36 @@ types::UnifiedTypePtr ReceiverTypeResolver::lookupVariableType(
         }
     }
 
+    // MYT-359 — qualified `Class::staticField` form. `parseScopeResolution`
+    // (ExpressionParser.cpp:637) collapses `Audio::sndChord` to a single
+    // `VariableNode("Audio::sndChord")` whenever it isn't followed by `(`,
+    // so chains like `Audio::sndChord.play()` and `App::outer.inner.play()`
+    // both surface here with a `::` in the name. Split at the last `::`,
+    // resolve the LHS as a class, and look up the RHS as a static field
+    // (falling back to instance fields for parity with MYT-358).
+    if (auto sep = name.rfind("::"); sep != std::string::npos && env_) {
+        const std::string ownerName = name.substr(0, sep);
+        const std::string memberName = name.substr(sep + 2);
+        if (auto classReg = env_->getClassRegistry()) {
+            if (auto cls = classReg->findClass(ownerName)) {
+                std::shared_ptr<runtimeTypes::klass::FieldDefinition> field;
+                const auto& staticFields = cls->getStaticFields();
+                if (auto it = staticFields.find(memberName); it != staticFields.end()) {
+                    field = it->second;
+                }
+                if (!field) {
+                    const auto& instanceFields = cls->getInstanceFields();
+                    if (auto it = instanceFields.find(memberName); it != instanceFields.end()) {
+                        field = it->second;
+                    }
+                }
+                if (field) {
+                    if (auto ut = field->getUnifiedType()) return ut;
+                }
+            }
+        }
+    }
+
     // Local decl scan (most common path for `Foo f = ...` / `for (Foo f : ...)`).
     if (auto t = findLocalDeclType(name)) return t;
 
