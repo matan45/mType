@@ -87,8 +87,7 @@ namespace tests::testSuite
                         passPath + "genericInheritanceCast.mt");
         addOutputVerificationTest("Generic Interface Cast",
                         passPath + "genericInterfaceCast.mt");
-        addOutputVerificationTest("Generic Wildcard Cast",
-                        passPath + "genericWildcardCast.mt");
+        // REMOVED - genericWildcardCast.mt (mType doesn't support wildcard `?` in type syntax)
 
         // === COLLECTION CASTING TESTS (4 tests) ===
         addOutputVerificationTest("Array Element Cast",
@@ -188,8 +187,7 @@ namespace tests::testSuite
                         passPath + "polymorphicCollectionCast.mt");
         addOutputVerificationTest("Complex Type Hierarchy Cast",
                         passPath + "complexHierarchyCast.mt");
-        addOutputVerificationTest("Cast with Namespace",
-                        passPath + "castWithNamespace.mt");
+        // REMOVED - castWithNamespace.mt (mType doesn't support namespace keyword)
 
         // === ERROR TESTS ===
         addTestFromFile("Invalid Primitive to Object Cast",

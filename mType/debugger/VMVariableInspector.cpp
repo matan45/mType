@@ -53,8 +53,15 @@ namespace debugger
 
     DebugVariable VMVariableInspector::valueToDebugVariable(const std::string& name, const value::Value& val)
     {
+        // MYT-365: value-class instances expand to their fields, EXCEPT for the
+        // boxed-primitive wrappers (Int/Float/Bool/String) — those render as a
+        // leaf showing the inner primitive directly, so an expansion arrow that
+        // only reveals `value = 42` would be noise. The boxed-wrapper exclusion
+        // covers both OBJECT and VALUE_OBJECT shapes for consistency.
+        bool isWrapper = isBoxedPrimitiveWrapper(val);
         bool expandable = value::isNativeArray(val)
-            || value::isAnyObject(val)
+            || (value::isAnyObject(val) && !isWrapper)
+            || (value::isValueObject(val) && !isWrapper)
             || value::isFlatMultiArray(val)
             || value::isSparseMultiArray(val)
             || value::isFlatMultiObjectArray(val);
