@@ -144,7 +144,8 @@ namespace vm::runtime
             TypeComponents targetComp = extractTypeComponents(targetTypeName);
 
             bool canCast = checkExactMatch(className, targetTypeName, classComp, targetComp) ||
-                           checkInterfaceMatch(classDef, targetTypeName);
+                           matchInterfaceWalk(classDef, obj->getGenericTypeBindings(),
+                                              targetTypeName, environment.get());
 
             if (canCast) {
                 return val;
@@ -173,7 +174,8 @@ namespace vm::runtime
         bool canCast = checkExactMatch(className, targetTypeName, classComp, targetComp) ||
                        checkUpcastMatch(classDef, targetTypeName, targetComp, classComp.baseName, classComp.typeParams) ||
                        checkDowncastMatch(classComp.baseName, targetComp.baseName, classComp.typeParams, targetComp.typeParams) ||
-                       checkInterfaceMatch(classDef, targetTypeName);
+                       matchInterfaceWalk(classDef, obj->getGenericTypeBindings(),
+                                          targetTypeName, environment.get());
 
         if (canCast) {
             // Cast is a runtime type check — preserve the original Value's tag

@@ -1,9 +1,7 @@
-// Test: cast a generic class instance to an interface, invoke the interface
-// method. Uses a non-parameterized interface because casting to a
-// parameterized interface form like `(IHolder<Int>)` currently throws —
-// the cast path lacks the MYT-44 substitution that isClassOf has. See
-// MYT-367; once fixed, extend or add a sibling fixture using
-// `(IDescribable<Int>)` style targets.
+// Test: cast a generic class instance to a non-parameterized interface,
+// invoke the interface method. The parameterized-interface form
+// (IHolder<Int>) is covered by genericInterfaceCastParameterized.mt
+// (MYT-367 — fixed).
 import * from "../../lib/primitives/Int.mt";
 
 interface IDescribable {

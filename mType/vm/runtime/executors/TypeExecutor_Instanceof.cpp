@@ -310,50 +310,64 @@ namespace vm::runtime
             }
         }
 
-        // Check implemented interfaces. Two paths:
-        //   - Raw target (MYT-41): strip generics, compare base names, recurse
-        //     via raw checkInterfaceHierarchy.
-        //   - Parameterized target (MYT-44): substitute interface entries
-        //     through the receiver's generic bindings, compare reconstructed
-        //     form verbatim, recurse via checkInterfaceHierarchyParam with
-        //     rebound bindings at each interface-inheritance step.
+        // Check implemented interfaces via the shared MYT-367 helper. Both
+        // raw and parameterized paths live there; this site previously
+        // inlined the same logic but it now also serves the cast path.
         if (!result) {
-            auto currentClass = classDef;
-            while (currentClass && !result) {
-                const auto& interfaces = currentClass->getImplementedInterfaces();
-                for (const auto& iface : interfaces) {
-                    if (targetHasParams) {
-                        std::string substituted = substituteTypeExpression(iface, objBindings);
-                        if (substituted == targetTypeName) {
-                            result = true;
-                            break;
-                        }
-                        std::unordered_set<std::string> visited;
-                        if (checkInterfaceHierarchyParam(
-                                substituted, targetTypeName, visited,
-                                objBindings, env)) {
-                            result = true;
-                            break;
-                        }
-                    } else {
-                        std::string baseIfaceName =
-                            ::types::TypeConversionUtils::extractBaseTypeName(iface);
-                        if (iface == targetTypeName || baseIfaceName == baseTargetName) {
-                            result = true;
-                            break;
-                        }
-                        std::unordered_set<std::string> visited;
-                        if (checkInterfaceHierarchy(iface, targetTypeName, visited, env)) {
-                            result = true;
-                            break;
-                        }
-                    }
-                }
-                currentClass = currentClass->getParentClass();
-            }
+            result = matchInterfaceWalk(classDef, objBindings, targetTypeName, env);
         }
 
         return result;
+    }
+
+    // MYT-367: lifted out of matchClassAgainstTarget so the cast path
+    // (TypeExecutor_Cast.cpp::castToObject) can route through the same
+    // parameterized-aware walk that instanceof already uses. Walking
+    // shape and target-arity discrimination is byte-equivalent to the
+    // previous inline copy — preserves the parent-class chain so a
+    // parameterized cast against an interface inherited from a parent
+    // class still matches.
+    bool TypeExecutor::matchInterfaceWalk(
+        std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
+        const std::unordered_map<std::string, std::string>& objBindings,
+        const std::string& targetTypeName,
+        environment::Environment* env)
+    {
+        bool targetHasParams = (targetTypeName.find('<') != std::string::npos);
+        std::string baseTargetName =
+            ::types::TypeConversionUtils::extractBaseTypeName(targetTypeName);
+
+        auto currentClass = classDef;
+        while (currentClass) {
+            const auto& interfaces = currentClass->getImplementedInterfaces();
+            for (const auto& iface : interfaces) {
+                if (targetHasParams) {
+                    std::string substituted = substituteTypeExpression(iface, objBindings);
+                    if (substituted == targetTypeName) {
+                        return true;
+                    }
+                    std::unordered_set<std::string> visited;
+                    if (checkInterfaceHierarchyParam(
+                            substituted, targetTypeName, visited,
+                            objBindings, env)) {
+                        return true;
+                    }
+                } else {
+                    std::string baseIfaceName =
+                        ::types::TypeConversionUtils::extractBaseTypeName(iface);
+                    if (iface == targetTypeName || baseIfaceName == baseTargetName) {
+                        return true;
+                    }
+                    std::unordered_set<std::string> visited;
+                    if (checkInterfaceHierarchy(iface, targetTypeName, visited, env)) {
+                        return true;
+                    }
+                }
+            }
+            currentClass = currentClass->getParentClass();
+        }
+
+        return false;
     }
 
     TypeExecutor::TypeComponents TypeExecutor::extractTypeComponents(const std::string& typeName) {
@@ -422,15 +436,4 @@ namespace vm::runtime
         return true;
     }
 
-    bool TypeExecutor::checkInterfaceMatch(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
-                                           const std::string& targetTypeName) {
-        const auto& interfaces = classDef->getImplementedInterfaces();
-        for (const auto& iface : interfaces) {
-            std::unordered_set<std::string> visited;
-            if (checkInterfaceHierarchy(iface, targetTypeName, visited, environment.get())) {
-                return true;
-            }
-        }
-        return false;
-    }
 }
