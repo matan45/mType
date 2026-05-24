@@ -351,6 +351,7 @@ namespace debugger
                           << e.what() << "\n";
             }
         }
+
     } // namespace
 
     std::vector<DebugVariable> VMVariableInspector::getVariableChildren(
@@ -394,6 +395,10 @@ namespace debugger
             {
                 collectObjectChildren(val, toVar, children);
             }
+            else if (value::isValueObject(val))
+            {
+                collectValueObjectChildren(val, children);
+            }
         }
         catch (const std::exception& e)
         {
@@ -412,9 +417,13 @@ namespace debugger
     {
         try
         {
+            // MYT-365: unwrap boxed Int/Float/Bool/String to inner primitive first;
+            // non-primitive value classes get rendered as "ClassName instance".
+            if (auto s = tryFormatBoxedPrimitive(val)) return *s;
             if (auto s = tryFormatNullOrPrimitive(val)) return *s;
             if (auto s = tryFormatStringValue(val)) return *s;
             if (auto s = tryFormatArrayValue(val)) return *s;
+            if (auto s = tryFormatValueObjectComposite(val)) return *s;
             if (auto s = tryFormatComposite(val)) return *s;
             return "<unknown>";
         }
@@ -432,8 +441,12 @@ namespace debugger
     {
         try
         {
+            // MYT-365: prefer wrapper class name; otherwise non-primitive value
+            // classes report their actual class name before the generic fallback.
+            if (auto n = tryGetBoxedPrimitiveTypeName(val)) return *n;
             if (auto n = tryGetPrimitiveTypeName(val)) return *n;
             if (auto n = tryGetCollectionTypeName(val)) return *n;
+            if (auto n = tryGetValueObjectTypeName(val)) return *n;
             if (auto n = tryGetCompositeTypeName(val)) return *n;
             return "Unknown";
         }

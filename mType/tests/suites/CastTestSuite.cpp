@@ -87,8 +87,18 @@ namespace tests::testSuite
                         passPath + "genericInheritanceCast.mt");
         addOutputVerificationTest("Generic Interface Cast",
                         passPath + "genericInterfaceCast.mt");
-        addOutputVerificationTest("Generic Wildcard Cast",
-                        passPath + "genericWildcardCast.mt");
+        // MYT-367: parameterized-interface cast now works via shared
+        // matchInterfaceWalk that substitutes receiver bindings before
+        // comparison (was raw-string-equal-only before the fix).
+        addOutputVerificationTest("Generic Interface Cast Parameterized",
+                        passPath + "genericInterfaceCastParameterized.mt");
+        addOutputVerificationTest("Generic Interface Cast Multi-Arg",
+                        passPath + "genericInterfaceCastMultiArg.mt");
+        addOutputVerificationTest("Generic Interface Cast Inherited",
+                        passPath + "genericInterfaceCastInherited.mt");
+        addOutputVerificationTest("Generic Interface Cast Nested",
+                        passPath + "genericInterfaceCastNested.mt");
+        // REMOVED - genericWildcardCast.mt (mType doesn't support wildcard `?` in type syntax)
 
         // === COLLECTION CASTING TESTS (4 tests) ===
         addOutputVerificationTest("Array Element Cast",
@@ -188,8 +198,7 @@ namespace tests::testSuite
                         passPath + "polymorphicCollectionCast.mt");
         addOutputVerificationTest("Complex Type Hierarchy Cast",
                         passPath + "complexHierarchyCast.mt");
-        addOutputVerificationTest("Cast with Namespace",
-                        passPath + "castWithNamespace.mt");
+        // REMOVED - castWithNamespace.mt (mType doesn't support namespace keyword)
 
         // === ERROR TESTS ===
         addTestFromFile("Invalid Primitive to Object Cast",
@@ -206,6 +215,12 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED);
         addTestFromFile("Generic Type Mismatch Cast",
                         errorPath + "genericTypeMismatchCast.mt",
+                        TestType::ERROR_EXPECTED);
+        // MYT-367: parameterized-interface cast with mismatched type arg
+        // must still throw — guards the substitution fix against becoming
+        // over-permissive.
+        addTestFromFile("Generic Interface Cast Mismatch",
+                        errorPath + "genericInterfaceCastMismatch.mt",
                         TestType::ERROR_EXPECTED);
 
         // === MYT-41: isClassOf ERROR TESTS ===

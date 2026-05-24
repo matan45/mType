@@ -133,6 +133,20 @@ namespace vm::runtime
             const std::string& targetTypeName,
             environment::Environment* env);
 
+        // MYT-367: shared interface-hierarchy walk for cast + instanceof.
+        // Walks classDef and its parent-class chain, iterating each
+        // implementedInterfaces entry. For parameterized targets it routes
+        // through substituteTypeExpression + checkInterfaceHierarchyParam
+        // (MYT-44 substitution); for raw targets it uses checkInterfaceHierarchy.
+        // Requires the receiver's generic bindings — empty bindings combined
+        // with a parameterized target fall through to the verbatim
+        // substituteTypeExpression fallback and reject correctly.
+        static bool matchInterfaceWalk(
+            std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
+            const std::unordered_map<std::string, std::string>& objBindings,
+            const std::string& targetTypeName,
+            environment::Environment* env);
+
         // MYT-44 helpers for parameterized-interface matching. Promoted from
         // anonymous-namespace to private statics so both _Instanceof.cpp and
         // _Interface.cpp (which both walk the interface hierarchy) can share
@@ -204,8 +218,6 @@ namespace vm::runtime
                              const std::string& baseClassName, const std::string& classTypeParams);
         bool checkDowncastMatch(const std::string& baseClassName, const std::string& baseTargetName,
                                const std::string& classTypeParams, const std::string& targetTypeParams);
-        bool checkInterfaceMatch(std::shared_ptr<runtimeTypes::klass::ClassDefinition> classDef,
-                                const std::string& targetTypeName);
         void throwIncompatibleCastError(const std::string& className, const std::string& targetTypeName);
         [[noreturn]] void throwCastError(const std::string& message);
     };

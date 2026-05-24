@@ -83,6 +83,19 @@ namespace debugger
         // Helper to get the type name of a value
         std::string getTypeName(const value::Value& val);
 
+        // MYT-365: boxed-primitive (Int/Float/Bool/String) and non-primitive
+        // value-class formatting. Implementations live in the sibling TU
+        // VMVariableInspector_BoxedPrimitive.cpp to keep _Format.cpp under the
+        // 500-line cap. See PrimitiveTypeTag.hpp for the "field 0 holds the
+        // wrapped primitive" invariant these helpers rely on.
+        static bool isBoxedPrimitiveWrapper(const value::Value& val);
+        static std::optional<std::string> tryFormatBoxedPrimitive(const value::Value& val);
+        static std::optional<std::string> tryGetBoxedPrimitiveTypeName(const value::Value& val);
+        static std::optional<std::string> tryFormatValueObjectComposite(const value::Value& val);
+        static std::optional<std::string> tryGetValueObjectTypeName(const value::Value& val);
+        void collectValueObjectChildren(const value::Value& val,
+                                        std::vector<DebugVariable>& children);
+
         // Frame-classification helpers (promoted from an anonymous namespace
         // so the split _Find.cpp / _Collect.cpp translation units can share them).
         static bool isTopLevelScriptFrame(std::shared_ptr<vm::runtime::VirtualMachine> vm,
