@@ -93,8 +93,8 @@ SemanticTokensHandler::SemanticTokensHandler(DocumentManager* docMgr)
     , classRegex_(R"(\b(value\s+|abstract\s+)?class\s+(\w+))")
     , interfaceRegex_(R"(\binterface\s+(\w+))")
     , methodRegex_(R"(\b(static\s+)?(async\s+)?function\s+(\w+)\s*\()")
-    , parameterRegex_(R"mt(\b(?:final\s+)?([A-Za-z_]\w*(?:\s*<[^,(){}]*>)?(?:\s*\[\])?)\s+([A-Za-z_]\w*)\b(?=\s*[,)]))mt")
-    , varRegex_(R"(\b(?:public|private|protected)?\s*(?:static\s+)?(?:final\s+)?(\w+(?:<[^>]+>)?)\s+(\w+)\s*[;=])")
+    , parameterRegex_(R"mt(\b(?:final\s+)?([A-Za-z_]\w*(?:\s*<[^,(){}]*>)?(?:\s*\[\])?[?]?)\s+([A-Za-z_]\w*)\b(?=\s*[,)]))mt")
+    , varRegex_(R"(\b(?:public|private|protected)?\s*(?:static\s+)?(?:final\s+)?(\w+(?:<[^>]+>)?(?:\s*\[\])?[?]?)\s+(\w+)\s*[;=])")
     , memberAccessRegex_(R"((\.|::)\s*([A-Za-z_]\w*))")
     // Single alternation — no per-keyword/per-modifier regex construction.
     // Keywords that are also modifiers are excluded here; they are handled
