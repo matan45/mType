@@ -87,7 +87,7 @@ namespace vm::compiler::types
         }
 
         if (currentClassNode && inInstanceMethod) {
-            auto fieldValueType = [](value::ValueType type, const std::string& typeName) {
+            auto fieldValueType = [this](value::ValueType type, const std::string& typeName) {
                 if (type == value::ValueType::ARRAY) {
                     return value::ValueType::ARRAY;
                 }
@@ -95,6 +95,13 @@ namespace vm::compiler::types
                 if (!typeName.empty() &&
                     (typeName.find("[]") != std::string::npos || typeName.find("Array<") == 0)) {
                     return value::ValueType::ARRAY;
+                }
+
+                if (type == value::ValueType::OBJECT && environment && !environment->findClass(typeName)) {
+                    if (typeName == "Int") return value::ValueType::INT;
+                    if (typeName == "Float") return value::ValueType::FLOAT;
+                    if (typeName == "Bool") return value::ValueType::BOOL;
+                    if (typeName == "String") return value::ValueType::STRING;
                 }
 
                 return type;

@@ -137,7 +137,7 @@ namespace vm::compiler::visitors
             if (operandType == value::ValueType::OBJECT)
             {
                 std::string operandClassName = ctx.typeInference.inferExpressionClassName(node->getOperand());
-                if (operandClassName == "Bool")
+                if (operandClassName == "Bool" && ctx.env->findClass("Bool"))
                 {
                     size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
                     ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,

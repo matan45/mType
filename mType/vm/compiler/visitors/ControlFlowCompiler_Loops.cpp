@@ -25,7 +25,7 @@ namespace vm::compiler::visitors
         if (conditionType == value::ValueType::OBJECT)
         {
             std::string conditionClassName = ctx.typeInference.inferExpressionClassName(node->getCondition());
-            if (conditionClassName == "Bool")
+            if (conditionClassName == "Bool" && ctx.env->findClass("Bool"))
             {
                 size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
@@ -120,7 +120,7 @@ namespace vm::compiler::visitors
         if (conditionType == value::ValueType::OBJECT)
         {
             std::string conditionClassName = ctx.typeInference.inferExpressionClassName(node->getCondition());
-            if (conditionClassName == "Bool")
+            if (conditionClassName == "Bool" && ctx.env->findClass("Bool"))
             {
                 size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
                 ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
