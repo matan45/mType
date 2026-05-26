@@ -235,6 +235,13 @@ namespace vm::bytecode
             std::string name;
             std::string mangledName;
             size_t startOffset;
+            // INVARIANT (MYT-368): instructionCount always equals the number of
+            // instructions actually belonging to this function in the program's
+            // instruction stream — i.e. [startOffset, startOffset + instructionCount)
+            // is exactly the function body, end-to-end in memory and on disk.
+            // Maintained by BytecodeProgram::replaceInstructions /
+            // removeInstructions, which call shrinkContainingFunction before
+            // mutating the instruction vector.
             size_t instructionCount;
             size_t localCount;
             size_t parameterCount;
@@ -629,6 +636,16 @@ namespace vm::bytecode
         static void readAnnotationList(std::istream& in, std::vector<AnnotationData>& list);
 
         void updateSourceLocationsAfterOffset(size_t afterOffset, int delta);
+
+        // MYT-368: maintain the FunctionMetadata.instructionCount invariant
+        // when peephole / future passes mutate a function body in place.
+        // `offset` is the start of the mutation; `oldCount` is the number of
+        // instructions being removed at offset; `newCount` is the number
+        // being inserted (0 for a pure removal). Called from
+        // replaceInstructions and removeInstructions BEFORE the underlying
+        // instruction-vector mutation. Throws std::runtime_error if the
+        // mutation range straddles a function boundary.
+        void shrinkContainingFunction(size_t offset, size_t oldCount, size_t newCount);
 
         void writeFieldMetadata(std::ostream& out, const FieldMetadata& field) const;
         void writeMethodMetadata(std::ostream& out, const MethodMetadata& method) const;

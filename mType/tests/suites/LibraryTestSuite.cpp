@@ -183,12 +183,15 @@ namespace tests::testSuite
                 requireEq("int", interfaces[0].methods[0].returnType, "Return type");
             });
 
-        // MYT-286: peephole shrinking instructions inside a function body
-        // leaves that function's recorded instructionCount stale (too large).
-        // Pre-fix, deserialize at load rejected start+count > instructions.size()
-        // and the user's RTSCameraController.mtcLib failed to load. Fix: clamp
-        // instructionCount at serialize time so the on-disk range always fits.
-        addCallbackTest("Stale FunctionMetadata.instructionCount round-trips (MYT-286)",
+        // MYT-368 (was MYT-286): peephole shrinking instructions inside a
+        // function body must update that function's instructionCount in
+        // memory, not at serialize time. Predecessor MYT-286 clamped on the
+        // way out; that masked the runtime hazard because downstream readers
+        // (JIT codegen scans, ExceptionHandler search bounds, direct-call
+        // size gate) all read the stale in-memory count and could walk into
+        // the next function. MYT-368 maintains the invariant at the mutator
+        // (shrinkContainingFunction) and removes the clamp.
+        addCallbackTest("Peephole shrink updates in-memory instructionCount (MYT-368)",
             "",
             [](ScriptAPI&) {
                 BytecodeProgram prog;
@@ -215,34 +218,38 @@ namespace tests::testSuite
                 prog.registerFunction(meta.name, meta);
                 prog.setEntryPoint(0);
 
-                // Simulate peephole shrinking the body by 1 (replace 2 NOPs with
-                // 1 NOP) without updating instructionCount — this is exactly the
-                // state the RTSCameraController constructor was in on disk.
+                // Peephole replaces 2 NOPs with 1. shrinkContainingFunction
+                // must decrement Inner::method's instructionCount by 1
+                // BEFORE the underlying vector mutation lands.
                 std::vector<BytecodeProgram::Instruction> replacement;
                 BytecodeProgram::Instruction r;
                 r.opcode = OpCode::NOP;
                 replacement.push_back(r);
                 prog.replaceInstructions(2, 2, replacement);
-                prog.updateFunctionOffsets(2 + 2, -1);  // current behavior: only shifts later startOffsets
+                prog.updateFunctionOffsets(2 + 2, -1);
 
-                // In-memory: instructionCount is still 5 (stale). The body
-                // [1, 6) overflows the now-5-instruction array by exactly 1.
+                // In-memory invariant: instructionCount == number of
+                // instructions actually living in [startOffset, startOffset+count).
                 const auto* f = prog.getFunction("Inner::method");
                 require(f != nullptr, "Function should be registered");
-                require(f->instructionCount == 5, "In-memory count is intentionally stale");
+                require(f->instructionCount == 4, "In-memory count must reflect shrink");
                 require(prog.getInstructionCount() == 5, "Array should have shrunk by 1");
+                require(f->startOffset + f->instructionCount
+                            == prog.getInstructionCount(),
+                    "Body fits exactly — no slack past the function end");
 
-                // Round-trip — the writer must clamp the count so deserialize
-                // doesn't reject the body as out-of-range. Pre-fix this throws.
+                // Round-trip: no clamp involved any more; on-disk count must
+                // equal the in-memory count exactly.
                 std::stringstream ss;
                 prog.serialize(ss);
                 auto deserialized = BytecodeProgram::deserialize(ss);
 
                 const auto* g = deserialized.getFunction("Inner::method");
                 require(g != nullptr, "Function should round-trip");
+                require(g->instructionCount == 4, "Deserialized count == in-memory count");
                 require(g->startOffset + g->instructionCount
                             <= deserialized.getInstructionCount(),
-                    "Deserialized body must fit within the instruction array");
+                    "Deserialized body fits within the instruction array");
             });
 
         // MYT-286: end-to-end repro. Mirrors C:\matan\RTSDemo\scripts\game\
@@ -303,10 +310,10 @@ namespace tests::testSuite
                 require(foundCtor, "expected to find RTSCameraStyleScript::<init>");
             });
 
-        // MYT-286 edge: function whose body shrinks ALL the way down to zero
-        // (peephole removes everything between the entry and the trailing
-        // RETURN). The clamp must produce a non-negative count.
-        addCallbackTest("Peephole shrink-to-empty body still serializes (MYT-286 edge)",
+        // MYT-368 edge (was MYT-286): function whose body shrinks ALL the
+        // way down to zero (peephole removes everything between the entry
+        // and the trailing RETURN). The in-memory count must hit 0 exactly.
+        addCallbackTest("Peephole shrink-to-empty body updates count (MYT-368 edge)",
             "",
             [](ScriptAPI&) {
                 BytecodeProgram prog;
@@ -333,22 +340,30 @@ namespace tests::testSuite
                 require(prog.getInstructionCount() == 2,
                     "Array should be JUMP + HALT only");
 
+                const auto* live = prog.getFunction("Empty::method");
+                require(live != nullptr, "Function should survive");
+                require(live->instructionCount == 0,
+                    "Empty body must decrement count all the way to 0");
+
                 std::stringstream ss;
                 prog.serialize(ss);
                 auto reloaded = BytecodeProgram::deserialize(ss);
                 const auto* f = reloaded.getFunction("Empty::method");
                 require(f != nullptr, "Function survives empty-body shrink");
+                require(f->instructionCount == 0,
+                    "Deserialized count is 0 (matches in-memory)");
                 require(f->startOffset + f->instructionCount
                             <= reloaded.getInstructionCount(),
-                    "Empty body fits inside array (count clamped to 0 or less)");
+                    "Empty body fits inside array");
             });
 
-        // MYT-286 edge: function whose body sits at the very end of the
-        // instructions array — there's no padding past startOffset+count for a
-        // stale count to "spill into," so the clamp is the only thing keeping
-        // serialize honest. (Real-world: RTSCameraController's <init> was the
-        // last function before HALT; this is the same shape.)
-        addCallbackTest("Peephole shrink at end-of-program clamps correctly (MYT-286 edge)",
+        // MYT-368 edge (was MYT-286): function whose body sits at the very
+        // end of the instructions array — no padding past startOffset+count
+        // for a stale count to spill into. With the invariant maintained at
+        // mutator time, in-memory and on-disk counts must match exactly.
+        // (Real-world: RTSCameraController's <init> was the last function
+        // before HALT; this is the same shape.)
+        addCallbackTest("Peephole shrink at end-of-program: in-memory == on-disk (MYT-368 edge)",
             "",
             [](ScriptAPI&) {
                 BytecodeProgram prog;
@@ -375,16 +390,25 @@ namespace tests::testSuite
                 prog.replaceInstructions(2, 2, one);
                 prog.updateFunctionOffsets(2 + 2, -1);
 
-                // In-memory the count is still 4; on-disk must be clamped.
+                // In-memory count must already be 3 (4 - 2 + 1) after the
+                // mutator's shrinkContainingFunction call; on-disk count
+                // matches exactly.
+                const auto* live = prog.getFunction("Tail::method");
+                require(live != nullptr, "function should be present");
+                require(live->instructionCount == 3,
+                    "in-memory count must already be decremented");
+
                 std::stringstream ss;
                 prog.serialize(ss);
                 auto reloaded = BytecodeProgram::deserialize(ss);
                 const auto* f = reloaded.getFunction("Tail::method");
                 require(f != nullptr, "function round-trips");
                 require(f->startOffset == 1, "startOffset preserved");
+                require(f->instructionCount == live->instructionCount,
+                    "in-memory and on-disk counts agree");
                 require(f->startOffset + f->instructionCount
                             <= reloaded.getInstructionCount(),
-                    "clamped count fits in deserialized array");
+                    "body fits in deserialized array");
             });
 
         // MYT-286 edge: native functions have instructionCount = 0 and
@@ -421,12 +445,11 @@ namespace tests::testSuite
                     "native instructionCount preserved");
             });
 
-        // MYT-286 edge: peephole INSERTS instructions (delta > 0). The clamp
-        // only applies when start+count overflows; growth must pass through
-        // untouched. Without my fix this case wasn't broken either, but it
-        // pins the boundary behavior so a tighter clamp later doesn't
-        // accidentally shrink a perfectly valid body.
-        addCallbackTest("Peephole insertion preserves on-disk instructionCount",
+        // MYT-368 edge (was MYT-286): peephole INSERTS instructions
+        // (delta > 0). shrinkContainingFunction must also handle growth;
+        // the affected function's count grows by the inserted amount minus
+        // the removed amount.
+        addCallbackTest("Peephole insertion grows instructionCount (MYT-368 edge)",
             "",
             [](ScriptAPI&) {
                 BytecodeProgram prog;
@@ -455,22 +478,26 @@ namespace tests::testSuite
 
                 require(prog.getInstructionCount() == 6, "array grew by 1");
 
+                // In-memory: count grew from 3 to 4 (3 - 1 removed + 2 added).
+                const auto* live = prog.getFunction("Grow::method");
+                require(live != nullptr, "function should be present");
+                require(live->instructionCount == 4,
+                    "in-memory count grows with the body (3 - 1 + 2 == 4)");
+
                 std::stringstream ss;
                 prog.serialize(ss);
                 auto reloaded = BytecodeProgram::deserialize(ss);
                 const auto* f = reloaded.getFunction("Grow::method");
                 require(f != nullptr, "function round-trips after growth");
-                // In-memory count is still 3 (peephole's updateFunctionOffsets
-                // does not grow either), and start+count = 4 <= size 6, so the
-                // clamp is a no-op and the original 3 is what we should see.
-                require(f->instructionCount == 3,
-                    "growth path leaves count untouched (no clamp triggered)");
+                require(f->instructionCount == 4,
+                    "on-disk count matches in-memory growth");
             });
 
-        // MYT-286 adversarial: two functions, peephole shrinks INSIDE the
-        // second one. The first must round-trip with its original count
-        // unchanged, the second's stale count must be clamped on disk.
-        addCallbackTest("Two functions, mod inside second — first preserved",
+        // MYT-368 (was MYT-286): two functions, peephole shrinks INSIDE
+        // the second one. The first must round-trip with its original count
+        // unchanged; the second's count must be decremented in memory and
+        // round-trip identically on disk.
+        addCallbackTest("Two functions, mod inside second — first preserved (MYT-368)",
             "",
             [](ScriptAPI&) {
                 BytecodeProgram prog;
@@ -510,6 +537,16 @@ namespace tests::testSuite
                 prog.replaceInstructions(6, 2, one);  // shrink inside fn2
                 prog.updateFunctionOffsets(6 + 2, -1);
 
+                // In-memory: fn1 untouched, fn2 decremented by 1.
+                const auto* live1 = prog.getFunction("Two::first");
+                const auto* live2 = prog.getFunction("Two::second");
+                require(live1 != nullptr && live2 != nullptr,
+                    "both functions present in memory");
+                require(live1->instructionCount == 3,
+                    "fn1 count untouched by mod inside fn2");
+                require(live2->instructionCount == 2,
+                    "fn2 count decremented (3 - 2 + 1 == 2)");
+
                 std::stringstream ss;
                 prog.serialize(ss);
                 auto reloaded = BytecodeProgram::deserialize(ss);
@@ -518,7 +555,9 @@ namespace tests::testSuite
                 const auto* f2 = reloaded.getFunction("Two::second");
                 require(f1 != nullptr && f2 != nullptr, "both functions present");
                 require(f1->startOffset == 1 && f1->instructionCount == 3,
-                    "fn1 untouched by mod inside fn2");
+                    "fn1 round-trips unchanged");
+                require(f2->instructionCount == 2,
+                    "fn2 on-disk count matches in-memory");
                 require(f2->startOffset + f2->instructionCount
                             <= reloaded.getInstructionCount(),
                     "fn2 body fits in array on reload");
@@ -558,6 +597,174 @@ namespace tests::testSuite
                     "deserializer must reject a non-native function whose "
                     "startOffset is past the instruction array end");
             });
+
+        // MYT-368: multiple sequential peephole mutations on the same
+        // function body must each maintain the invariant. The first call
+        // shrinks by 1, the second shrinks by 1, the third grows by 1.
+        // Catches helper bugs that show up only after repeated calls
+        // (e.g. picking the wrong containing function once startOffset
+        // moves, or arithmetic drift in the count adjust).
+        addCallbackTest("Sequential peephole mutations maintain invariant (MYT-368)",
+            "",
+            [](ScriptAPI&) {
+                BytecodeProgram prog;
+                prog.emit(OpCode::JUMP, 7);
+                prog.emit(OpCode::NOP);   // 1
+                prog.emit(OpCode::NOP);   // 2  <- shrink 1
+                prog.emit(OpCode::NOP);   // 3  <- shrink 1
+                prog.emit(OpCode::NOP);   // 4
+                prog.emit(OpCode::NOP);   // 5
+                prog.emit(OpCode::NOP);   // 6
+                prog.emit(OpCode::HALT);  // 7
+
+                BytecodeProgram::FunctionMetadata meta;
+                meta.name = "Seq::method";
+                meta.mangledName = meta.name;
+                meta.startOffset = 1;
+                meta.instructionCount = 6;
+                meta.parameterCount = 1;
+                meta.parameterNames = {"this"};
+                meta.returnType = "void";
+                prog.registerFunction(meta.name, meta);
+                prog.setEntryPoint(0);
+
+                std::vector<BytecodeProgram::Instruction> one(1);
+                one[0].opcode = OpCode::NOP;
+
+                // Mutation 1: shrink [2,4) from 2 instrs to 1.
+                prog.replaceInstructions(2, 2, one);
+                prog.updateFunctionOffsets(2 + 2, -1);
+                require(prog.getFunction("Seq::method")->instructionCount == 5,
+                    "after mutation 1: count == 5");
+
+                // Mutation 2: shrink again at the new tail [3,5) -> 1.
+                prog.replaceInstructions(3, 2, one);
+                prog.updateFunctionOffsets(3 + 2, -1);
+                require(prog.getFunction("Seq::method")->instructionCount == 4,
+                    "after mutation 2: count == 4");
+
+                // Mutation 3: grow [2,3) -> 2 instrs.
+                std::vector<BytecodeProgram::Instruction> two(2);
+                two[0].opcode = OpCode::NOP;
+                two[1].opcode = OpCode::NOP;
+                prog.replaceInstructions(2, 1, two);
+                prog.updateFunctionOffsets(2 + 1, +1);
+                require(prog.getFunction("Seq::method")->instructionCount == 5,
+                    "after mutation 3: count == 5 (4 - 1 + 2)");
+
+                // Round-trip: on-disk == in-memory throughout.
+                std::stringstream ss;
+                prog.serialize(ss);
+                auto reloaded = BytecodeProgram::deserialize(ss);
+                const auto* f = reloaded.getFunction("Seq::method");
+                require(f != nullptr && f->instructionCount == 5,
+                    "round-trip preserves the final count");
+            });
+
+        // MYT-368: end-to-end repro on the user-reported shape. Mirrors
+        // C:\matan\RTSDemo\scripts\game\RTSHUDController.mt — @Script class
+        // with 14 literal `this.fN = -1;` constructor statements. Verifies
+        // the constructor body fits cleanly in its recorded range after
+        // peephole runs, AND that all 14 SET_FIELD opcodes are present in
+        // the on-disk body (no silent code deletion).
+        addCallbackTest("@Script 14-field ctor: in-memory count matches on-disk count (MYT-368)",
+            "",
+            [](ScriptAPI&) {
+                namespace fs = std::filesystem;
+
+                std::string sourcePath =
+                    "mType/tests/testFiles/library/pass/rtsHudStyleManyFieldsCtor.mt";
+                require(fs::exists(sourcePath),
+                    "fixture not found at: " + sourcePath);
+
+                fs::path tempDir = fs::temp_directory_path() / "myt368";
+                fs::create_directories(tempDir);
+                std::string outPath = (tempDir / "rtsHudStyleManyFieldsCtor.mtc").string();
+                if (fs::exists(outPath)) fs::remove(outPath);
+
+                struct ScopedRemove {
+                    fs::path dir;
+                    ~ScopedRemove() { std::error_code ec; fs::remove_all(dir, ec); }
+                } cleanup{tempDir};
+
+                {
+                    ScriptInterpreter interpreter;
+                    interpreter.compileToFile(sourcePath, outPath);
+                }
+                require(fs::exists(outPath), ".mtc not produced at: " + outPath);
+
+                std::ifstream in(outPath, std::ios::binary);
+                require(in.good(), "cannot open compiled .mtc");
+                auto reloaded = BytecodeProgram::deserialize(in);
+                in.close();
+
+                // Locate the constructor and verify (a) range fits, (b) all
+                // 14 SET_FIELD opcodes survived peephole.
+                const BytecodeProgram::FunctionMetadata* ctor = nullptr;
+                std::string ctorName;
+                for (const auto& [name, meta] : reloaded.getFunctions()) {
+                    if (name.find("RTSHudStyleManyFields::<init>") == 0) {
+                        ctor = &meta;
+                        ctorName = name;
+                        break;
+                    }
+                }
+                require(ctor != nullptr,
+                    "expected RTSHudStyleManyFields::<init> in deserialized program");
+                require(ctor->startOffset + ctor->instructionCount
+                            <= reloaded.getInstructionCount(),
+                    "ctor body must fit in instruction array: " + ctorName);
+
+                size_t setFieldCount = 0;
+                const auto& instrs = reloaded.getInstructions();
+                for (size_t i = ctor->startOffset;
+                     i < ctor->startOffset + ctor->instructionCount; ++i) {
+                    switch (instrs[i].opcode) {
+                        case OpCode::SET_FIELD:
+                        case OpCode::SET_FIELD_FAST:
+                        case OpCode::SET_FIELD_CACHED:
+                        case OpCode::INLINE_SET_FIELD:
+                        case OpCode::SET_FIELD_TYPED:
+                            ++setFieldCount;
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                require(setFieldCount == 14,
+                    "expected 14 SET_FIELD-family opcodes in <init> body (one "
+                    "per user assignment), found " + std::to_string(setFieldCount));
+            });
+
+        // MYT-368: smoking-gun behavior test for the user-reported symptom.
+        // Compiles, runs, and checks that every one of the 14 field
+        // assignments in RTSHudStyleManyFields::<init> actually executes.
+        // Pre-fix, peephole-shrunk metadata could cause downstream readers
+        // (JIT, ExceptionHandler) to walk past the constructor body and
+        // host engines saw uninitialized fields.
+        addOutputVerificationTest(
+            "@Script 14-field ctor: all field assignments execute (MYT-368)",
+            passPath + "rtsHudStyleManyFieldsCtor.mt");
+
+        // MYT-368: ExceptionHandler::computeSearchLimit reads
+        // FunctionMetadata.instructionCount to bound try-block scans. A
+        // stale-larger count let the scan walk past the function's true
+        // end into adjacent bytecode. This fixture sticks peephole-foldable
+        // arithmetic before a try/throw/catch so the body gets shrunk;
+        // catching the exception must still return -1.
+        addOutputVerificationTest(
+            "try/catch in peephole-shrunk function dispatches correctly (MYT-368)",
+            passPath + "peepholeShrunkTryCatch.mt");
+
+        // MYT-368: JIT codegen loops (JitCompiler_Frame, JitCompiler_Calls)
+        // walk [startOffset, startOffset+instructionCount) as the
+        // function's body. A stale count made the JIT emit code for
+        // instructions belonging to the next function. This fixture
+        // shrinks a hot-loop function via peephole-foldable arithmetic
+        // prologue; the loop must still compute the correct sum.
+        addOutputVerificationTest(
+            "hot loop in peephole-shrunk method computes correctly (MYT-368)",
+            passPath + "peepholeShrunkHotLoop.mt");
     }
 
     // =========================================================================

@@ -161,39 +161,13 @@ namespace vm::bytecode
             out.write(reinterpret_cast<const char*>(&len), sizeof(len));
             out.write(name.data(), len);
 
-            // MYT-286 serialize-time backstop for stale instructionCount.
-            // Root cause is in updateFunctionOffsets: when peephole removes
-            // instructions inside a function body, the recorded length stays at
-            // pre-shrink value. The proper fix (teach updateFunctionOffsets to
-            // shrink instructionCount of the enclosing function) broke 22 tests
-            // in call sites that read the loose count without defensive caps;
-            // pinning those down is a follow-up. Until then, clamp here so the
-            // on-disk range never overruns instructions.size(). Runtime users
-            // (JIT scanCalleeOpcodes, JumpThreading, fuseLocalArrayOps) already
-            // cap defensively, so a tighter on-disk count is safe.
-            size_t writeCount = func.instructionCount;
-            if (!func.isNative) {
-                // Guard the subtraction: startOffset can be >= instructions.size()
-                // on corrupt/placeholder metadata, in which case size_t arithmetic
-                // would wrap. Producing 0 here is fine — the deserializer's
-                // startOffset > size check rejects that record anyway.
-                size_t available = (func.startOffset < instructions.size())
-                                   ? instructions.size() - func.startOffset
-                                   : 0;
-                if (writeCount > available) {
-#ifndef NDEBUG
-                    std::cerr << "[MYT-286] writeFunctions clamped '"
-                              << name << "': "
-                              << writeCount << " -> " << available
-                              << " (startOffset=" << func.startOffset
-                              << ", instructions.size=" << instructions.size()
-                              << ")\n";
-#endif
-                    writeCount = available;
-                }
-            }
+            // MYT-368: instructionCount is maintained as a strict invariant
+            // in memory by replaceInstructions / removeInstructions (see
+            // shrinkContainingFunction). No serialize-time clamp; the
+            // deserializer's range validator (readFunctions) is the on-disk
+            // sanity net if a future bug ever breaks the invariant.
             out.write(reinterpret_cast<const char*>(&func.startOffset), sizeof(func.startOffset));
-            out.write(reinterpret_cast<const char*>(&writeCount), sizeof(writeCount));
+            out.write(reinterpret_cast<const char*>(&func.instructionCount), sizeof(func.instructionCount));
             out.write(reinterpret_cast<const char*>(&func.localCount), sizeof(func.localCount));
             out.write(reinterpret_cast<const char*>(&func.parameterCount), sizeof(func.parameterCount));
             out.write(reinterpret_cast<const char*>(&func.isStatic), sizeof(func.isStatic));

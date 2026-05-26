@@ -48,6 +48,13 @@ namespace vm::compiler::visitors
         // Phase 4: Auto-boxing helper for return statements
         bool tryEmitReturnAutoBoxing(ast::ASTNode* returnValue);
 
+        // MYT-369: complement to tryEmitReturnAutoBoxing for the reverse direction
+        // (OBJECT wrapper -> primitive). validateReturnType permits returning an
+        // Int/Float/Bool/String wrapper from a primitive-typed function; without
+        // emitting the corresponding `getValue` call here, the caller would
+        // receive an OBJECT in a primitive-tagged slot.
+        bool tryEmitReturnAutoUnboxing(ast::ASTNode* returnValue);
+
         // Helper methods for compileLambda
         std::vector<variables::VariableTracker::LocalVariable> captureScopeVariables();
         std::vector<std::string> setupLambdaFrame(ast::LambdaNode* node,

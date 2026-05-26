@@ -86,6 +86,55 @@ namespace vm::compiler::types
             return globalRegistry.getType(varName);
         }
 
+        if (currentClassNode && inInstanceMethod) {
+            auto fieldValueType = [this](value::ValueType type, const std::string& typeName) {
+                if (type == value::ValueType::ARRAY) {
+                    return value::ValueType::ARRAY;
+                }
+
+                if (!typeName.empty() &&
+                    (typeName.find("[]") != std::string::npos || typeName.find("Array<") == 0)) {
+                    return value::ValueType::ARRAY;
+                }
+
+                if (type == value::ValueType::OBJECT && environment && !environment->findClass(typeName)) {
+                    if (typeName == "Int") return value::ValueType::INT;
+                    if (typeName == "Float") return value::ValueType::FLOAT;
+                    if (typeName == "Bool") return value::ValueType::BOOL;
+                    if (typeName == "String") return value::ValueType::STRING;
+                }
+
+                return type;
+            };
+
+            for (const auto& field : currentClassNode->getFields()) {
+                if (auto* fieldNode = dynamic_cast<ast::FieldNode*>(field.get())) {
+                    if (fieldNode->getName() == varName && !fieldNode->getIsStatic()) {
+                        auto genericType = fieldNode->getGenericType();
+                        return fieldValueType(
+                            fieldNode->getType(),
+                            genericType ? genericType->toString() : "");
+                    }
+                }
+            }
+
+            if (environment && currentClassNode->hasParentClass()) {
+                auto parentDef = environment->getClassRegistry()->findClass(currentClassNode->getParentClassName());
+                while (parentDef) {
+                    auto field = parentDef->getField(varName);
+                    if (field && !field->isStatic() &&
+                        field->getAccessModifier() != ast::AccessModifier::PRIVATE) {
+                        auto unifiedType = field->getUnifiedType();
+                        return fieldValueType(
+                            field->getType(),
+                            unifiedType ? unifiedType->toString() : "");
+                    }
+
+                    parentDef = parentDef->getParentClass();
+                }
+            }
+        }
+
         return value::ValueType::VOID;
     }
 

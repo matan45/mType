@@ -13,6 +13,50 @@
 
 namespace vm::compiler::visitors
 {
+    namespace
+    {
+        bool unwrapAsyncPromiseReturn(const std::string& returnType, std::string& innerType)
+        {
+            if (returnType.find("Promise<") != 0)
+            {
+                return false;
+            }
+
+            size_t start = returnType.find('<') + 1;
+            size_t end = returnType.rfind('>');
+            if (start == std::string::npos || end == std::string::npos || end <= start)
+            {
+                return false;
+            }
+
+            innerType = returnType.substr(start, end - start);
+            innerType.erase(0, innerType.find_first_not_of(" \t"));
+            innerType.erase(innerType.find_last_not_of(" \t") + 1);
+            return true;
+        }
+
+        value::ValueType declaredTypeToValueType(const std::string& typeName)
+        {
+            if (typeName == "int") return value::ValueType::INT;
+            if (typeName == "float") return value::ValueType::FLOAT;
+            if (typeName == "string") return value::ValueType::STRING;
+            if (typeName == "bool") return value::ValueType::BOOL;
+            if (typeName == "void") return value::ValueType::VOID;
+            if (typeName.find("Array<") == 0 || typeName.find("[]") != std::string::npos) {
+                return value::ValueType::ARRAY;
+            }
+            return value::ValueType::OBJECT;
+        }
+
+        bool isPrimitiveWrapperForValueType(const std::string& className, value::ValueType type)
+        {
+            return (className == "Int" && type == value::ValueType::INT) ||
+                   (className == "Float" && type == value::ValueType::FLOAT) ||
+                   (className == "Bool" && type == value::ValueType::BOOL) ||
+                   (className == "String" && type == value::ValueType::STRING);
+        }
+    }
+
     // MYT-352: drain open stack-object scopes before a return transfers control.
     // Mirrors the break/continue precedent (ControlFlowCompiler::compileBreak /
     // compileContinue) so the LEAVE-before-jump invariant holds for *all* control-
@@ -46,6 +90,15 @@ namespace vm::compiler::visitors
 
         bool returnTypeNullable = ::types::TypeConversionUtils::isNullableType(expectedReturnType);
         expectedReturnType = ::types::TypeConversionUtils::stripNullable(expectedReturnType);
+        std::string validationReturnType = expectedReturnType;
+        if (ctx.functionFrameManager.currentFrame().isAsync)
+        {
+            std::string promiseInnerType;
+            if (unwrapAsyncPromiseReturn(expectedReturnType, promiseInnerType))
+            {
+                validationReturnType = promiseInnerType;
+            }
+        }
 
         if (returnValue)
         {
@@ -69,36 +122,7 @@ namespace vm::compiler::visitors
 
             value::ValueType actualType = ctx.typeInference.inferExpressionType(returnValue);
 
-            value::ValueType expectedType = value::ValueType::VOID;
-            if (expectedReturnType == "int") expectedType = value::ValueType::INT;
-            else if (expectedReturnType == "float") expectedType = value::ValueType::FLOAT;
-            else if (expectedReturnType == "string") expectedType = value::ValueType::STRING;
-            else if (expectedReturnType == "bool") expectedType = value::ValueType::BOOL;
-            else if (expectedReturnType == "void") expectedType = value::ValueType::VOID;
-            else if (expectedReturnType.find("Array<") == 0 || expectedReturnType.find("[]") != std::string::npos) {
-                expectedType = value::ValueType::ARRAY;
-            }
-            // PHASE 4: Promise<Array<T>> or Promise<T[]> for async functions.
-            else if (expectedReturnType.find("Promise<") == 0) {
-                size_t start = expectedReturnType.find('<') + 1;
-                size_t end = expectedReturnType.rfind('>');
-                if (start != std::string::npos && end != std::string::npos && end > start) {
-                    std::string innerType = expectedReturnType.substr(start, end - start);
-                    innerType.erase(0, innerType.find_first_not_of(" \t"));
-                    innerType.erase(innerType.find_last_not_of(" \t") + 1);
-
-                    if (innerType.find("Array<") == 0 || innerType.find("[]") != std::string::npos) {
-                        expectedType = value::ValueType::ARRAY;
-                    }
-                    else {
-                        expectedType = value::ValueType::OBJECT;
-                    }
-                }
-                else {
-                    expectedType = value::ValueType::OBJECT;
-                }
-            }
-            else expectedType = value::ValueType::OBJECT;
+            value::ValueType expectedType = declaredTypeToValueType(validationReturnType);
 
             if (actualType != value::ValueType::VOID && expectedType != value::ValueType::VOID)
             {
@@ -111,10 +135,7 @@ namespace vm::compiler::visitors
                             bool canAutoBox = false;
                             if (expectedType == value::ValueType::OBJECT)
                             {
-                                if ((expectedReturnType == "Int" && actualType == value::ValueType::INT) ||
-                                    (expectedReturnType == "Float" && actualType == value::ValueType::FLOAT) ||
-                                    (expectedReturnType == "Bool" && actualType == value::ValueType::BOOL) ||
-                                    (expectedReturnType == "String" && actualType == value::ValueType::STRING))
+                                if (isPrimitiveWrapperForValueType(validationReturnType, actualType))
                                 {
                                     canAutoBox = true;
                                 }
@@ -123,6 +144,16 @@ namespace vm::compiler::visitors
                                 // assignment / parameter passing.
                                 if (expectedReturnType == "Object" &&
                                     actualType == value::ValueType::ARRAY)
+                                {
+                                    canAutoBox = true;
+                                }
+                            }
+
+                            if (!canAutoBox && expectedType != value::ValueType::OBJECT &&
+                                actualType == value::ValueType::OBJECT)
+                            {
+                                std::string actualClassName = ctx.typeInference.inferExpressionClassName(returnValue);
+                                if (isPrimitiveWrapperForValueType(actualClassName, expectedType))
                                 {
                                     canAutoBox = true;
                                 }
@@ -153,7 +184,7 @@ namespace vm::compiler::visitors
                         {
                             bool isNullValue = ctx.typeInference.isEffectivelyNullLiteral(returnValue);
                             ctx.typeValidator.validateAssignment(
-                                expectedType, expectedReturnType,
+                                expectedType, validationReturnType,
                                 actualType, actualClassName,
                                 isNullValue, node->getLocation()
                             );
@@ -357,7 +388,7 @@ namespace vm::compiler::visitors
         {
             bool autoBoxed = tryEmitReturnAutoBoxing(returnValue);
 
-            if (!autoBoxed)
+            if (!autoBoxed && !tryEmitReturnAutoUnboxing(returnValue))
             {
                 returnValue->accept(ctx.visitor);
             }
@@ -462,6 +493,62 @@ namespace vm::compiler::visitors
                                          1u, literalToBox);
         }
 
+        return true;
+    }
+
+    bool FunctionCompiler::tryEmitReturnAutoUnboxing(ast::ASTNode* returnValue)
+    {
+        if (!ctx.functionFrameManager.isInFunction() || !returnValue)
+        {
+            return false;
+        }
+
+        std::string expectedReturnType = ctx.functionFrameManager.currentFrame().returnType;
+        if (expectedReturnType == "auto")
+        {
+            return false;
+        }
+
+        expectedReturnType = ::types::TypeConversionUtils::stripNullable(expectedReturnType);
+        std::string effectiveReturnType = expectedReturnType;
+        if (ctx.functionFrameManager.currentFrame().isAsync)
+        {
+            std::string promiseInnerType;
+            if (unwrapAsyncPromiseReturn(expectedReturnType, promiseInnerType))
+            {
+                effectiveReturnType = promiseInnerType;
+            }
+        }
+
+        value::ValueType expectedType = declaredTypeToValueType(effectiveReturnType);
+        if (expectedType != value::ValueType::INT &&
+            expectedType != value::ValueType::FLOAT &&
+            expectedType != value::ValueType::BOOL &&
+            expectedType != value::ValueType::STRING)
+        {
+            return false;
+        }
+
+        if (ctx.typeInference.inferExpressionType(returnValue) != value::ValueType::OBJECT)
+        {
+            return false;
+        }
+
+        std::string actualClassName = ctx.typeInference.inferExpressionClassName(returnValue);
+        if (!isPrimitiveWrapperForValueType(actualClassName, expectedType))
+        {
+            return false;
+        }
+
+        // Push the wrapper, then unbox via Box.getValue() — mirrors the assignment
+        // path in StatementCompiler_Assignment.cpp:169-187 and the argument path
+        // in FunctionCallHelper_Emit.cpp.
+        returnValue->accept(ctx.visitor);
+        size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
+        ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                     static_cast<uint64_t>(methodNameIndex),
+                                     0u,
+                                     returnValue);
         return true;
     }
 }
