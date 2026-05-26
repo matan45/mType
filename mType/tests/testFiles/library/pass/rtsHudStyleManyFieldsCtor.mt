@@ -62,6 +62,9 @@ class RTSHudStyleManyFields {
         int z = x + y;
     }
 
+    public function onDestroy(): void {
+    }
+
     private function seedWidgets(): void {
         int p = 9 + 10;
         int q = 11 * 12;
