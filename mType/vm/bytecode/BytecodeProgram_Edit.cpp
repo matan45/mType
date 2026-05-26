@@ -83,6 +83,11 @@ namespace vm::bytecode
             throw std::out_of_range("replaceInstructions: offset + count out of range");
         }
 
+        // MYT-368: keep FunctionMetadata.instructionCount in sync with the
+        // instruction-vector mutation. Must run before the erase/insert so
+        // the containing-function lookup uses pre-mutation offsets.
+        shrinkContainingFunction(offset, count, newInstructions.size());
+
         // Capture source location BEFORE erasing the first instruction.
         SourceLocation firstInstrLocation;
         bool hasSourceLocation = false;
@@ -121,6 +126,9 @@ namespace vm::bytecode
             throw std::out_of_range("removeInstructions: offset + count out of range");
         }
 
+        // MYT-368: see comment in replaceInstructions.
+        shrinkContainingFunction(offset, count, 0);
+
         for (size_t i = offset; i < offset + count; ++i) {
             sourceLocations.erase(i);
         }
@@ -131,6 +139,58 @@ namespace vm::bytecode
         instructions.erase(instructions.begin() + offset, instructions.begin() + offset + count);
 
         invalidateFusionUnsafeTargets();
+    }
+
+    void BytecodeProgram::shrinkContainingFunction(size_t offset, size_t oldCount, size_t newCount) {
+        // No-op if the range is empty — nothing to adjust.
+        if (oldCount == 0 && newCount == 0) {
+            return;
+        }
+
+        // Find the function whose body strictly contains the mutation range
+        // [offset, offset + oldCount). The half-open upper bound matters:
+        // a mutation at offset == startOffset + instructionCount belongs to
+        // whatever lives there (typically the next function), not this one.
+        for (auto& [name, metadata] : functions) {
+            if (metadata.isNative) {
+                continue;
+            }
+            const size_t fnStart = metadata.startOffset;
+            const size_t fnEnd   = fnStart + metadata.instructionCount;
+
+            // A pure removal (oldCount > 0) must fall entirely inside one
+            // function. A pure insertion (oldCount == 0) is anchored at
+            // `offset`; treat it as belonging to the function whose
+            // [start, end) covers offset (with end == offset NOT included).
+            const bool startsInside = (fnStart <= offset && offset < fnEnd);
+            if (!startsInside) {
+                continue;
+            }
+
+            // Removal must not extend past this function's end — that would
+            // straddle a boundary, which no well-formed peephole pattern
+            // does. Loud failure beats silent metadata corruption.
+            if (oldCount > 0 && offset + oldCount > fnEnd) {
+                throw std::runtime_error(
+                    "shrinkContainingFunction: mutation range [" +
+                    std::to_string(offset) + ", " +
+                    std::to_string(offset + oldCount) +
+                    ") straddles boundary of function '" + name +
+                    "' [" + std::to_string(fnStart) + ", " +
+                    std::to_string(fnEnd) + "). This indicates a bug in the "
+                    "optimizer pattern emitting the mutation.");
+            }
+
+            // Adjust by the signed delta. Underflow is impossible because
+            // the boundary check above guarantees oldCount <= fnEnd - offset
+            // <= instructionCount.
+            metadata.instructionCount = metadata.instructionCount - oldCount + newCount;
+            return;
+        }
+
+        // Mutation lands outside every registered function body. That can
+        // legitimately happen for instructions in __script_main__ or padding
+        // between functions — nothing to update.
     }
 
     std::vector<BytecodeProgram::Instruction> BytecodeProgram::getInstructionRange(size_t start, size_t end) const {
@@ -211,6 +271,12 @@ namespace vm::bytecode
         invalidateFusionUnsafeTargets();
     }
 
+    // Shifts the startOffset of every function/method/constructor that lives
+    // AFTER `removalOffset` by `delta`. Does NOT update the instructionCount
+    // of the function whose body the mutation happened inside — that's
+    // shrinkContainingFunction's job (called from replaceInstructions /
+    // removeInstructions before the underlying erase). Keep the two
+    // responsibilities split so each function has one job.
     void BytecodeProgram::updateFunctionOffsets(size_t removalOffset, int delta) {
         for (auto& [name, metadata] : functions) {
             if (metadata.startOffset >= removalOffset) {
