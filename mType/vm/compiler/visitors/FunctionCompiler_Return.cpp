@@ -388,7 +388,7 @@ namespace vm::compiler::visitors
         {
             bool autoBoxed = tryEmitReturnAutoBoxing(returnValue);
 
-            if (!autoBoxed)
+            if (!autoBoxed && !tryEmitReturnAutoUnboxing(returnValue))
             {
                 returnValue->accept(ctx.visitor);
             }
@@ -493,6 +493,62 @@ namespace vm::compiler::visitors
                                          1u, literalToBox);
         }
 
+        return true;
+    }
+
+    bool FunctionCompiler::tryEmitReturnAutoUnboxing(ast::ASTNode* returnValue)
+    {
+        if (!ctx.functionFrameManager.isInFunction() || !returnValue)
+        {
+            return false;
+        }
+
+        std::string expectedReturnType = ctx.functionFrameManager.currentFrame().returnType;
+        if (expectedReturnType == "auto")
+        {
+            return false;
+        }
+
+        expectedReturnType = ::types::TypeConversionUtils::stripNullable(expectedReturnType);
+        std::string effectiveReturnType = expectedReturnType;
+        if (ctx.functionFrameManager.currentFrame().isAsync)
+        {
+            std::string promiseInnerType;
+            if (unwrapAsyncPromiseReturn(expectedReturnType, promiseInnerType))
+            {
+                effectiveReturnType = promiseInnerType;
+            }
+        }
+
+        value::ValueType expectedType = declaredTypeToValueType(effectiveReturnType);
+        if (expectedType != value::ValueType::INT &&
+            expectedType != value::ValueType::FLOAT &&
+            expectedType != value::ValueType::BOOL &&
+            expectedType != value::ValueType::STRING)
+        {
+            return false;
+        }
+
+        if (ctx.typeInference.inferExpressionType(returnValue) != value::ValueType::OBJECT)
+        {
+            return false;
+        }
+
+        std::string actualClassName = ctx.typeInference.inferExpressionClassName(returnValue);
+        if (!isPrimitiveWrapperForValueType(actualClassName, expectedType))
+        {
+            return false;
+        }
+
+        // Push the wrapper, then unbox via Box.getValue() — mirrors the assignment
+        // path in StatementCompiler_Assignment.cpp:169-187 and the argument path
+        // in FunctionCallHelper_Emit.cpp.
+        returnValue->accept(ctx.visitor);
+        size_t methodNameIndex = ctx.program.getConstantPool().addString("getValue");
+        ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                     static_cast<uint64_t>(methodNameIndex),
+                                     0u,
+                                     returnValue);
         return true;
     }
 }

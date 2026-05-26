@@ -172,6 +172,8 @@ namespace tests::testSuite
                         passPath + "typeInferenceLocalVariable_pass.mt");
         addOutputVerificationTest("Bare Field As Argument Overload (MYT-369)",
                         passPath + "bareFieldAsArgumentOverload.mt");
+        addOutputVerificationTest("Return Boxed From Primitive Function (MYT-369)",
+                        passPath + "returnBoxedFromPrimitiveFunction.mt");
 
         // === OPERATOR TESTS (5 tests) ===
         addOutputVerificationTest("Type Operator Arithmetic Promotion",
