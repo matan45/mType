@@ -59,6 +59,26 @@ namespace tests::testSuite
         addOutputVerificationTest("Skip-if-exists: user getter not overwritten",
                                   passPath + "skip_existing_getter_pass.mt");
 
+        addOutputVerificationTest("ToString over all primitive field types",
+                                  passPath + "tostring_primitives_pass.mt");
+
+        addOutputVerificationTest("Getter over an array-typed field",
+                                  passPath + "getter_array_pass.mt");
+
+        addOutputVerificationTest("NoArgsConstructor chains to parent (super())",
+                                  passPath + "noargs_inheritance_pass.mt");
+
+        addOutputVerificationTest("Skip-if-exists: user toString not overwritten",
+                                  passPath + "skip_existing_tostring_pass.mt");
+
+        addOutputVerificationTest("Skip-if-exists: user setter not overwritten",
+                                  passPath + "skip_existing_setter_pass.mt");
+
+        // --- JIT / OSR over synthesized methods ---
+
+        addOutputVerificationTest("Synthesized getter/setter in a hot loop (JIT/OSR)",
+                                  passPath + "getter_setter_hotloop_pass.mt");
+
         // ===== ERROR TESTS =====
 
         addTestFromFile("@Getter on function rejected (@Target)",
@@ -74,5 +94,27 @@ namespace tests::testSuite
         addTestFromFile("Generic class skipped — getter not generated",
                         errorPath + "generic_class_skip_error.mt",
                         TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Value class skipped — getter not generated",
+                        errorPath + "value_class_skip_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Abstract class skipped — getter not generated",
+                        errorPath + "abstract_class_skip_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Setter skips final field — no setter generated",
+                        errorPath + "setter_final_skip_error.mt",
+                        TestType::ERROR_EXPECTED);
+
+        addTestFromFile("@Builder on function rejected (@Target)",
+                        errorPath + "builder_on_function_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "cannot be applied to");
+
+        addTestFromFile("@Setter on function rejected (@Target)",
+                        errorPath + "setter_on_function_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "cannot be applied to");
     }
 }
