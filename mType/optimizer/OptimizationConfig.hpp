@@ -15,6 +15,7 @@ namespace optimizer {
 		bool enableConstantFolding;
 		bool enableEscapeAnalysis;  // MYT-134
 		bool enableStructuralEqualitySynthesis;  // MYT-274: auto-synthesize hashCode/equals
+		bool enableLombokSynthesis;  // Lombok: auto-synthesize getters/setters/ctors/builder/toString
 
 		// Performance limits
 		size_t maxPassIterations;
@@ -32,12 +33,14 @@ namespace optimizer {
 		bool isConstantFoldingEnabled() const { return enableConstantFolding; }
 		bool isEscapeAnalysisEnabled() const { return enableEscapeAnalysis; }
 		bool isStructuralEqualitySynthesisEnabled() const { return enableStructuralEqualitySynthesis; }
+		bool isLombokSynthesisEnabled() const { return enableLombokSynthesis; }
 
 		// Pass-specific configuration
 		OptimizationConfig& setDeadCodeElimination(bool enable);
 		OptimizationConfig& setConstantFolding(bool enable);
 		OptimizationConfig& setEscapeAnalysis(bool enable);
 		OptimizationConfig& setStructuralEqualitySynthesis(bool enable);
+		OptimizationConfig& setLombokSynthesis(bool enable);
 
 		// Performance limits
 		OptimizationConfig& setMaxPassIterations(size_t iterations);

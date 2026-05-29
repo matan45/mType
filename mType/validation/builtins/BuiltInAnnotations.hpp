@@ -2,6 +2,8 @@
 
 #include "../../environment/registry/AnnotationRegistry.hpp"
 #include <memory>
+#include <string>
+#include <vector>
 
 namespace validation::builtins
 {
@@ -14,5 +16,14 @@ namespace validation::builtins
     {
     public:
         static void registerAll(std::shared_ptr<environment::registry::AnnotationRegistry> registry);
+
+    private:
+        /// Registers a zero-parameter marker annotation with a @Target meta
+        /// restricting it to the given host kinds (e.g. {"CLASS"}). No-op if a
+        /// definition with this name is already registered.
+        static void registerMarker(
+            std::shared_ptr<environment::registry::AnnotationRegistry> registry,
+            const std::string& name,
+            const std::vector<std::string>& targets);
     };
 }

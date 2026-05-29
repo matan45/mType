@@ -16,6 +16,7 @@
 #include "../tests/suites/ModifiersTestSuite.hpp"
 #include "../tests/suites/AwaitTestSuite.hpp"
 #include "../tests/suites/AnnotationTestSuite.hpp"
+#include "../tests/suites/LombokTestSuite.hpp"
 #include "../tests/suites/OverloadingTestSuite.hpp"
 #include "../tests/suites/IteratorTestSuite.hpp"
 #include "../tests/suites/EnhancedForLoopTestSuite.hpp"
@@ -121,6 +122,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     else if (suiteName == "annotation" || suiteName == "annotations")
     {
         return std::make_unique<AnnotationTestSuite>();
+    }
+    else if (suiteName == "lombok" || suiteName == "synthesis")
+    {
+        return std::make_unique<LombokTestSuite>();
     }
     else if (suiteName == "overload" || suiteName == "overloading")
     {
@@ -330,6 +335,7 @@ int runAllTests(constants::ExecutionMode execMode, bool jitEnabled)
     suites.push_back(std::make_unique<ModifiersTestSuite>());
     suites.push_back(std::make_unique<AwaitTestSuite>());
     suites.push_back(std::make_unique<AnnotationTestSuite>());
+    suites.push_back(std::make_unique<LombokTestSuite>());
     suites.push_back(std::make_unique<OverloadingTestSuite>());
     suites.push_back(std::make_unique<IteratorTestSuite>());
     suites.push_back(std::make_unique<EnhancedForLoopTestSuite>());

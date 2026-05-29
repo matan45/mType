@@ -20,6 +20,9 @@
 #include "../../mType/types/UnifiedType.hpp"
 #include "utils/MemoryFileReader.hpp"
 #include "analysis/SymbolRegistrationVisitor.hpp"
+#include "../../mType/optimizer/passes/LombokSynthesisPass.hpp"
+#include "../../mType/optimizer/base/OptimizationContext.hpp"
+#include "../../mType/optimizer/OptimizationConfig.hpp"
 #include "analysis/ImportResolver.hpp"
 #include "analysis/ReceiverTypeResolver.hpp"
 #include "analysis/AstPositionIndex.hpp"
@@ -352,6 +355,24 @@ void DocumentManager::parseDocument(const std::string& uri) {
         // Build symbol tables from AST using symbol registration (only if we have new AST)
         try {
             if (parseSucceeded && !doc->ast.empty()) {
+                // Run Lombok synthesis on the parsed AST FIRST so the members it
+                // generates (@Getter/@Setter accessors, constructors, toString,
+                // and @Builder companion classes) are visible to completion,
+                // hover, and go-to-definition. The compiler runs this same pass
+                // in the optimizer pipeline; the LSP doesn't execute the full
+                // optimizer, so we invoke just this pass directly here. It
+                // mutates each ProgramNode in place (and appends builder
+                // classes), exactly what the symbol-registration walk below
+                // consumes.
+                {
+                    optimizer::OptimizationConfig lombokCfg;
+                    optimizer::base::OptimizationContext lombokCtx(doc->environment, lombokCfg);
+                    optimizer::passes::LombokSynthesisPass lombokPass;
+                    for (auto& node : doc->ast) {
+                        if (node) node = lombokPass.optimize(std::move(node), lombokCtx);
+                    }
+                }
+
                 // Create symbol registration visitor
                 auto visitor = std::make_unique<SymbolRegistrationVisitor>(doc->environment);
 
