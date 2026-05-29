@@ -27,8 +27,8 @@ std::string capitalize(const std::string& s);
 // "object" when the field has no generic type attached.
 std::string fieldTypeToString(const ast::nodes::classes::FieldNode& field);
 
-// Own instance fields only — static fields are skipped (accessors and
-// no-arg constructors don't apply to them).
+// Every declared field. Static fields are included — they get static
+// accessors (`ClassName::field`) rather than being skipped.
 std::vector<const ast::nodes::classes::FieldNode*>
 eligibleFields(const ast::nodes::classes::ClassNode& cls);
 
@@ -39,8 +39,12 @@ bool hasSetter(const ast::nodes::classes::ClassNode& cls, const std::string& fie
 bool hasNoArgConstructor(const ast::nodes::classes::ClassNode& cls);
 
 // Per-field method text, each ending with the closing-brace line.
-std::string buildGetterText(const ast::nodes::classes::FieldNode& field);
-std::string buildSetterText(const ast::nodes::classes::FieldNode& field);
+// `className` is used to qualify static field access (`ClassName::field`);
+// instance fields use `this.field`.
+std::string buildGetterText(const ast::nodes::classes::FieldNode& field,
+                            const std::string& className);
+std::string buildSetterText(const ast::nodes::classes::FieldNode& field,
+                            const std::string& className);
 
 // Aggregate getter/setter block for every eligible field that lacks an
 // accessor (final fields get a getter but no setter). Returns "" when

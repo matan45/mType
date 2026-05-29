@@ -32,7 +32,6 @@ std::vector<const FieldNode*> eligibleFields(const ClassNode& cls) {
     for (const auto& node : cls.getFields()) {
         const auto* field = dynamic_cast<const FieldNode*>(node.get());
         if (!field) continue;
-        if (field->getIsStatic()) continue;  // statics get no accessor/ctor param
         fields.push_back(field);
     }
     return fields;
@@ -70,39 +69,46 @@ bool hasNoArgConstructor(const ClassNode& cls) {
     return false;
 }
 
-std::string buildGetterText(const FieldNode& field) {
+std::string buildGetterText(const FieldNode& field, const std::string& className) {
     const std::string& name = field.getName();
+    const bool isStatic = field.getIsStatic();
+    // Static fields are referenced as `ClassName::field`; instance
+    // fields via `this.field`.
+    const std::string access = isStatic ? className + "::" + name : "this." + name;
     std::ostringstream out;
-    out << "    public function get" << capitalize(name)
+    out << "    public " << (isStatic ? "static " : "") << "function get" << capitalize(name)
         << "(): " << fieldTypeToString(field) << " {\n";
-    out << "        return this." << name << ";\n";
+    out << "        return " << access << ";\n";
     out << "    }\n";
     return out.str();
 }
 
-std::string buildSetterText(const FieldNode& field) {
+std::string buildSetterText(const FieldNode& field, const std::string& className) {
     const std::string& name = field.getName();
+    const bool isStatic = field.getIsStatic();
+    const std::string access = isStatic ? className + "::" + name : "this." + name;
     std::ostringstream out;
-    out << "    public function set" << capitalize(name)
+    out << "    public " << (isStatic ? "static " : "") << "function set" << capitalize(name)
         << "(" << fieldTypeToString(field) << " " << name << "): void {\n";
-    out << "        this." << name << " = " << name << ";\n";
+    out << "        " << access << " = " << name << ";\n";
     out << "    }\n";
     return out.str();
 }
 
 std::string buildAccessorsBody(const ClassNode& cls) {
+    const std::string& className = cls.getClassName();
     std::ostringstream body;
     bool generatedAny = false;
     for (const auto* field : eligibleFields(cls)) {
         const std::string& name = field->getName();
         if (!hasGetter(cls, name)) {
-            body << buildGetterText(*field) << "\n";
+            body << buildGetterText(*field, className) << "\n";
             generatedAny = true;
         }
         // A setter assigning a `final` field is invalid mType, so final
         // fields get a getter only.
         if (!field->getIsFinal() && !hasSetter(cls, name)) {
-            body << buildSetterText(*field) << "\n";
+            body << buildSetterText(*field, className) << "\n";
             generatedAny = true;
         }
     }

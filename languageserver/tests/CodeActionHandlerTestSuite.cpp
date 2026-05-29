@@ -893,9 +893,10 @@ void CodeActionHandlerTestSuite::registerTests(LspTestHarness& harness) {
     });
 
     // ---------------------------------------------------------------
-    // Generate getters/setters — static fields are skipped entirely
+    // Generate getters/setters — static fields get STATIC accessors
+    // that reference the field as `ClassName::field`.
     // ---------------------------------------------------------------
-    harness.addTest("generate accessors: static field is skipped", []() {
+    harness.addTest("generate accessors: static field gets static accessors", []() {
         const std::string uri = "file:///test/static.mt";
         auto docMgr = makeDocManager(uri,
             "class Counter {\n"
@@ -905,9 +906,40 @@ void CodeActionHandlerTestSuite::registerTests(LspTestHarness& harness) {
 
         Range range{{1, 4}, {1, 4}};
         auto actions = handler.handleCodeAction(uri, range, {});
+        const std::string edits = editsForTitle(actions, "getters and setters");
 
-        require(!hasActionTitled(actions, "getters and setters"),
-            "no accessor action expected when the only field is static");
+        require(hasActionTitled(actions, "Generate getters and setters for all fields"),
+            "static-only class should still offer the accessor refactor");
+        require(edits.find("public static function getCount(): int {") != std::string::npos,
+            "static field should get a static getter. Edits:\n" + edits);
+        require(edits.find("return Counter::count;") != std::string::npos,
+            "static getter should reference the field as ClassName::field. Edits:\n" + edits);
+        require(edits.find("public static function setCount(int count): void {") != std::string::npos,
+            "static field should get a static setter. Edits:\n" + edits);
+        require(edits.find("Counter::count = count;") != std::string::npos,
+            "static setter should assign ClassName::field. Edits:\n" + edits);
+    });
+
+    // ---------------------------------------------------------------
+    // Generate getters/setters — static final field gets a static
+    // getter but no setter (final cannot be reassigned).
+    // ---------------------------------------------------------------
+    harness.addTest("generate accessors: static final field gets static getter only", []() {
+        const std::string uri = "file:///test/staticfinal.mt";
+        auto docMgr = makeDocManager(uri,
+            "class Names {\n"
+            "    public static final string CLASS_NAME = \"Names\";\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{1, 4}, {1, 4}};
+        auto actions = handler.handleCodeAction(uri, range, {});
+        const std::string edits = editsForTitle(actions, "getters and setters");
+
+        require(edits.find("public static function getCLASS_NAME(): string {") != std::string::npos,
+            "static final field should get a static getter. Edits:\n" + edits);
+        require(edits.find("setCLASS_NAME(") == std::string::npos,
+            "static final field must not get a setter. Edits:\n" + edits);
     });
 
     // ---------------------------------------------------------------
