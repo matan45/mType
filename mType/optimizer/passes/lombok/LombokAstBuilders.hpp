@@ -115,30 +115,41 @@ namespace optimizer::passes::lombok::detail
         return std::make_shared<GenericType>(*gt);
     }
 
-    // Maps a field's GenericType to a constructor ParameterType, mirroring the
-    // parser's own GenericType -> ParameterType mapping (ParameterParser.cpp).
-    // A class-typed field is stored as a string-variant GenericType, so
-    // isGenericParameter() is the "named type" branch here (generic classes
-    // are skipped upstream, so a bare type-parameter never reaches this).
+    // Maps a field's GenericType to a constructor ParameterType. Mirrors the
+    // compiler's ClassRegistrar::resolveMethodParameterType so synthesized
+    // constructor parameters match what normal call-site argument resolution
+    // produces. Note an array field (e.g. `int[]`) is stored as a
+    // string-variant GenericType whose base name is "Array", so it lands in
+    // the isGenericParameter() branch and MUST be detected by its "[]" suffix
+    // — otherwise it would be mistaken for a class named "Array".
     inline value::ParameterType fieldToParameterType(const FieldNode* field)
     {
         auto gt = field->getGenericType();
         if (!gt) return value::ParameterType(ValueType::OBJECT);
 
-        value::ParameterType pt = [&]() {
-            if (gt->isGenericParameter())
+        if (gt->isGenericParameter())
+        {
+            // toString() preserves array brackets and generic args
+            // (e.g. "int[]", "Holder<Int>").
+            std::string typeName = gt->toString();
+            if (typeName.size() >= 2 &&
+                typeName.compare(typeName.size() - 2, 2, "[]") == 0)
             {
-                return value::ParameterType::forClass(gt->getGenericName());
+                return value::ParameterType::forArray(typeName);
             }
-            ValueType vt = gt->getConcreteType();
-            if (vt == ValueType::ARRAY)
-            {
-                return value::ParameterType::forArray(gt->toString());
-            }
-            return value::ParameterType(vt);
-        }();
-        pt.nullable = gt->isNullable();
-        return pt;
+            // Class or interface name. The optimizer can't consult the class/
+            // interface registries (they aren't populated until compile), so
+            // we default to forClass — correct for class-typed fields;
+            // interface-typed fields are a known gap.
+            return value::ParameterType::forClass(typeName);
+        }
+
+        ValueType vt = gt->getConcreteType();
+        if (vt == ValueType::ARRAY)
+        {
+            return value::ParameterType::forArray(gt->toString());
+        }
+        return value::ParameterType(vt);
     }
 
     // True for concrete primitive field types that mType implicitly coerces in
