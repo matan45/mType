@@ -1,7 +1,9 @@
 #include "MTypeLanguageServer.hpp"
 #include "utils/UriUtils.hpp"
 #include "version/Version.hpp"
+#include <algorithm>
 #include <chrono>
+#include <cctype>
 #include <filesystem>
 #include <future>
 #include <iostream>
@@ -16,6 +18,33 @@ namespace mtype::lsp
         // to absorb a fast typing burst (~5 keys/sec) without blocking the
         // moment the user pauses. Tweak if it feels sluggish.
         constexpr auto kReindexDebounceWindow = std::chrono::milliseconds(250);
+
+        std::string normalizedLowerPathFromUri(const std::string& uri)
+        {
+            std::string path = UriUtils::uriToFilePath(uri);
+            std::replace(path.begin(), path.end(), '\\', '/');
+            std::transform(path.begin(), path.end(), path.begin(),
+                [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+            return path;
+        }
+
+        bool endsWith(const std::string& value, const std::string& suffix)
+        {
+            return value.size() >= suffix.size()
+                && value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
+        }
+
+        bool isMtFileUri(const std::string& uri)
+        {
+            return endsWith(normalizedLowerPathFromUri(uri), ".mt");
+        }
+
+        bool isMtpkgJsonUri(const std::string& uri)
+        {
+            const std::string path = normalizedLowerPathFromUri(uri);
+            return path.find("/mt_modules/") != std::string::npos
+                && endsWith(path, "/mtpkg.json");
+        }
     }
 
     MTypeLanguageServer::MTypeLanguageServer()
@@ -471,20 +500,48 @@ namespace mtype::lsp
 
     void MTypeLanguageServer::handleDidChangeWatchedFiles(const json& params)
     {
-        // The VS Code extension forwards FS events for
-        // `**/mt_modules/**/mtpkg.json`. When a package is added or
-        // removed via `mtpm`, re-merge the alias map and refresh
-        // diagnostics for any open document so the previously-unresolved
-        // `@pkg/...` import either turns green or surfaces a fresh error.
-        (void)params; // payload is only used to confirm an event fired
-        if (!projectConfig_) return;
-        if (!projectConfig_->reload()) return;
+        bool mtFilesChanged = false;
+        bool projectConfigChanged = !params.contains("changes") || !params["changes"].is_array();
+
+        if (params.contains("changes") && params["changes"].is_array())
+        {
+            for (const auto& change : params["changes"])
+            {
+                if (!change.contains("uri") || !change["uri"].is_string()) continue;
+                const std::string uri = change["uri"];
+
+                if (isMtpkgJsonUri(uri))
+                {
+                    projectConfigChanged = true;
+                }
+
+                if (!workspaceIndex_ || !isMtFileUri(uri)) continue;
+
+                mtFilesChanged = true;
+                const int type = change.value("type", 2);
+                if (type == 3)
+                {
+                    workspaceIndex_->invalidateFile(uri);
+                }
+                else
+                {
+                    workspaceIndex_->reindexFile(uri);
+                }
+            }
+        }
+
+        bool projectConfigReloaded = false;
+        if (projectConfigChanged && projectConfig_)
+        {
+            projectConfigReloaded = projectConfig_->reload();
+        }
+
+        if (!mtFilesChanged && !projectConfigReloaded) return;
 
         // doc->diagnostics is the cached parse output; without a reparse
         // the previous import-not-found error survives even after the
-        // alias is added. publishDiagnostics re-runs path validation
-        // against the live alias map but won't clear the stale entries
-        // from the parse pass.
+        // alias map or workspace file set changes. publishDiagnostics
+        // then validates imports against the refreshed state.
         for (const auto& uri : documentManager_->getAllOpenUris())
         {
             documentManager_->parseDocument(uri);
