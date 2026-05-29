@@ -8,6 +8,7 @@ namespace optimizer
         , enableConstantFolding(true)
         , enableEscapeAnalysis(true)
         , enableStructuralEqualitySynthesis(true)
+        , enableLombokSynthesis(true)
         , maxPassIterations(50)
         , timeoutPerPass(std::chrono::milliseconds(5000))
     {
@@ -25,6 +26,7 @@ namespace optimizer
         config.enableConstantFolding = false;
         config.enableEscapeAnalysis = false;
         config.enableStructuralEqualitySynthesis = false;
+        config.enableLombokSynthesis = false;
         return config;
     }
 
@@ -49,6 +51,12 @@ namespace optimizer
     OptimizationConfig& OptimizationConfig::setStructuralEqualitySynthesis(bool enable)
     {
         enableStructuralEqualitySynthesis = enable;
+        return *this;
+    }
+
+    OptimizationConfig& OptimizationConfig::setLombokSynthesis(bool enable)
+    {
+        enableLombokSynthesis = enable;
         return *this;
     }
 

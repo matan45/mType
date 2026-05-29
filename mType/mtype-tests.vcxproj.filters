@@ -535,6 +535,15 @@
     <Filter Include="testFiles\library\projects\staticfinal-lib\src">
       <UniqueIdentifier>{71CAC8CF-5D48-1969-4640-D700325D5B91}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\lombok">
+      <UniqueIdentifier>{ABD89F4C-97D1-BE9E-C003-A423AC5B9EAA}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\lombok\error">
+      <UniqueIdentifier>{44044F0B-30FE-775D-196B-0E6E0504DEC9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\lombok\pass">
+      <UniqueIdentifier>{9191BA74-FDFD-756F-C6F1-0DCD321D98D7}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\modifiers">
       <UniqueIdentifier>{E9CE7042-5530-4E50-DE9D-94024AFE840F}</UniqueIdentifier>
     </Filter>
@@ -828,6 +837,9 @@
     <ClInclude Include="tests\suites\LibraryTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\LombokTestSuite.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\ModifiersTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
@@ -957,6 +969,9 @@
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\LibraryTestSuite.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\LombokTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\ModifiersTestSuite.cpp">
@@ -3184,6 +3199,9 @@
     <None Include="tests\testFiles\cast\error\downcastUnrelatedTypes.mt">
       <Filter>testFiles\cast\error</Filter>
     </None>
+    <None Include="tests\testFiles\cast\error\genericInterfaceCastMismatch.mt">
+      <Filter>testFiles\cast\error</Filter>
+    </None>
     <None Include="tests\testFiles\cast\error\genericTypeMismatchCast.mt">
       <Filter>testFiles\cast\error</Filter>
     </None>
@@ -3592,12 +3610,6 @@
     <None Include="tests\testFiles\cast\pass\castWithInstanceOf_pass.mt">
       <Filter>testFiles\cast\pass</Filter>
     </None>
-    <None Include="tests\testFiles\cast\pass\castWithNamespace.expected">
-      <Filter>testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\castWithNamespace.mt">
-      <Filter>testFiles\cast\pass</Filter>
-    </None>
     <None Include="tests\testFiles\cast\pass\castWithOverride.expected">
       <Filter>testFiles\cast\pass</Filter>
     </None>
@@ -3676,6 +3688,30 @@
     <None Include="tests\testFiles\cast\pass\genericInterfaceCast.mt">
       <Filter>testFiles\cast\pass</Filter>
     </None>
+    <None Include="tests\testFiles\cast\pass\genericInterfaceCastInherited.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericInterfaceCastInherited.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericInterfaceCastMultiArg.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericInterfaceCastMultiArg.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericInterfaceCastNested.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericInterfaceCastNested.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericInterfaceCastParameterized.expected">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\cast\pass\genericInterfaceCastParameterized.mt">
+      <Filter>testFiles\cast\pass</Filter>
+    </None>
     <None Include="tests\testFiles\cast\pass\genericMethodOnPlainClass.expected">
       <Filter>testFiles\cast\pass</Filter>
     </None>
@@ -3686,12 +3722,6 @@
       <Filter>testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\genericTypeParameterCast.mt">
-      <Filter>testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\genericWildcardCast.expected">
-      <Filter>testFiles\cast\pass</Filter>
-    </None>
-    <None Include="tests\testFiles\cast\pass\genericWildcardCast.mt">
       <Filter>testFiles\cast\pass</Filter>
     </None>
     <None Include="tests\testFiles\cast\pass\intToBoolCast.expected">
@@ -11986,6 +12016,18 @@
     <None Include="tests\testFiles\library\pass\patternMatchLibrary.mt">
       <Filter>testFiles\library\pass</Filter>
     </None>
+    <None Include="tests\testFiles\library\pass\peepholeShrunkHotLoop.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\peepholeShrunkHotLoop.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\peepholeShrunkTryCatch.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\peepholeShrunkTryCatch.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
     <None Include="tests\testFiles\library\pass\reflectionLibraryType.expected">
       <Filter>testFiles\library\pass</Filter>
     </None>
@@ -11993,6 +12035,12 @@
       <Filter>testFiles\library\pass</Filter>
     </None>
     <None Include="tests\testFiles\library\pass\rtsCameraStyleEmptyCtor.mt">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\rtsHudStyleManyFieldsCtor.expected">
+      <Filter>testFiles\library\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\library\pass\rtsHudStyleManyFieldsCtor.mt">
       <Filter>testFiles\library\pass</Filter>
     </None>
     <None Include="tests\testFiles\library\pass\staticMethodCall.expected">
@@ -12051,6 +12099,192 @@
     </None>
     <None Include="tests\testFiles\library\projects\staticfinal-lib\src\ShaderType.mt">
       <Filter>testFiles\library\projects\staticfinal-lib\src</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\error\abstract_class_skip_error.mt">
+      <Filter>testFiles\lombok\error</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\error\builder_on_function_error.mt">
+      <Filter>testFiles\lombok\error</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\error\data_on_function_error.mt">
+      <Filter>testFiles\lombok\error</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\error\generic_class_skip_error.mt">
+      <Filter>testFiles\lombok\error</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\error\getter_on_function_error.mt">
+      <Filter>testFiles\lombok\error</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\error\setter_final_skip_error.mt">
+      <Filter>testFiles\lombok\error</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\error\setter_on_function_error.mt">
+      <Filter>testFiles\lombok\error</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\error\value_class_skip_error.mt">
+      <Filter>testFiles\lombok\error</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\allargs_inheritance_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\allargs_inheritance_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\builder_explicit_ctor_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\builder_explicit_ctor_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\builder_inheritance_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\builder_inheritance_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\builder_nested_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\builder_nested_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\builder_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\builder_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\builder_reorder_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\builder_reorder_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\builder_reuse_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\builder_reuse_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\data_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\data_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\data_string_equals_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\data_string_equals_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\equals_hashcode_object_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\equals_hashcode_object_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\equals_hashcode_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\equals_hashcode_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\field_level_getter_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\field_level_getter_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\getter_allargs_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\getter_allargs_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\getter_array_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\getter_array_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\getter_final_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\getter_final_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\getter_setter_hotloop_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\getter_setter_hotloop_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\getter_setter_only_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\getter_setter_only_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\noargs_data_combo_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\noargs_data_combo_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\noargs_inheritance_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\noargs_inheritance_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\object_fields_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\object_fields_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\setter_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\setter_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\skip_existing_getter_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\skip_existing_getter_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\skip_existing_setter_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\skip_existing_setter_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\skip_existing_tostring_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\skip_existing_tostring_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\tostring_null_object_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\tostring_null_object_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\tostring_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\tostring_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\tostring_primitives_pass.expected">
+      <Filter>testFiles\lombok\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\lombok\pass\tostring_primitives_pass.mt">
+      <Filter>testFiles\lombok\pass</Filter>
     </None>
     <None Include="tests\testFiles\modifiers\error\interfacePrivateField.mt">
       <Filter>testFiles\modifiers\error</Filter>
@@ -13594,6 +13828,12 @@
     <None Include="tests\testFiles\typeChecking\pass\arrayCovariance.mt">
       <Filter>testFiles\typeChecking\pass</Filter>
     </None>
+    <None Include="tests\testFiles\typeChecking\pass\bareFieldAsArgumentOverload.expected">
+      <Filter>testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\bareFieldAsArgumentOverload.mt">
+      <Filter>testFiles\typeChecking\pass</Filter>
+    </None>
     <None Include="tests\testFiles\typeChecking\pass\bitwiseOperators_pass.expected">
       <Filter>testFiles\typeChecking\pass</Filter>
     </None>
@@ -13736,6 +13976,12 @@
       <Filter>testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\objectReturnTypesStaticMethods.mt">
+      <Filter>testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\returnBoxedFromPrimitiveFunction.expected">
+      <Filter>testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\returnBoxedFromPrimitiveFunction.mt">
       <Filter>testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\returnStaticArrayCall.expected">

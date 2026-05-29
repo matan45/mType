@@ -16,6 +16,12 @@
     <Filter Include="optimizer\passes\constant_folding">
       <UniqueIdentifier>{E1A28FFD-4D11-E57C-96FA-9F7C02A8DA18}</UniqueIdentifier>
     </Filter>
+    <Filter Include="optimizer\passes\lombok">
+      <UniqueIdentifier>{992E2B35-0566-73CC-0E70-D7EF7A269AC5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="optimizer\passes\shared">
+      <UniqueIdentifier>{AC4DFA44-1885-42DC-218F-A6FF8D4569D5}</UniqueIdentifier>
+    </Filter>
     <Filter Include="optimizer\passes\structural_equality">
       <UniqueIdentifier>{7B645079-674B-1271-109C-788EFC618BD7}</UniqueIdentifier>
     </Filter>
@@ -78,6 +84,9 @@
     <ClInclude Include="optimizer\passes\EscapeAnalysisPass_Internal.hpp">
       <Filter>optimizer\passes</Filter>
     </ClInclude>
+    <ClInclude Include="optimizer\passes\LombokSynthesisPass.hpp">
+      <Filter>optimizer\passes</Filter>
+    </ClInclude>
     <ClInclude Include="optimizer\passes\StructuralEqualitySynthesisPass.hpp">
       <Filter>optimizer\passes</Filter>
     </ClInclude>
@@ -86,6 +95,24 @@
     </ClInclude>
     <ClInclude Include="optimizer\passes\constant_folding\SafeArithmetic.hpp">
       <Filter>optimizer\passes\constant_folding</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\lombok\LombokAstBuilders.hpp">
+      <Filter>optimizer\passes\lombok</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\lombok\LombokBuilderCodegen.hpp">
+      <Filter>optimizer\passes\lombok</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\lombok\LombokCodegen.hpp">
+      <Filter>optimizer\passes\lombok</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\lombok\LombokPolicy.hpp">
+      <Filter>optimizer\passes\lombok</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\shared\AccessorNaming.hpp">
+      <Filter>optimizer\passes\shared</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\shared\ClassShapePolicy.hpp">
+      <Filter>optimizer\passes\shared</Filter>
     </ClInclude>
     <ClInclude Include="optimizer\passes\structural_equality\StructuralEqualityCodegen.hpp">
       <Filter>optimizer\passes\structural_equality</Filter>
@@ -233,6 +260,9 @@
     <ClCompile Include="optimizer\passes\EscapeAnalysisPass_Detection.cpp">
       <Filter>optimizer\passes</Filter>
     </ClCompile>
+    <ClCompile Include="optimizer\passes\LombokSynthesisPass.cpp">
+      <Filter>optimizer\passes</Filter>
+    </ClCompile>
     <ClCompile Include="optimizer\passes\StructuralEqualitySynthesisPass.cpp">
       <Filter>optimizer\passes</Filter>
     </ClCompile>
@@ -241,6 +271,15 @@
     </ClCompile>
     <ClCompile Include="optimizer\passes\constant_folding\SafeArithmetic.cpp">
       <Filter>optimizer\passes\constant_folding</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\lombok\LombokBuilderCodegen.cpp">
+      <Filter>optimizer\passes\lombok</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\lombok\LombokCodegen.cpp">
+      <Filter>optimizer\passes\lombok</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\lombok\LombokPolicy.cpp">
+      <Filter>optimizer\passes\lombok</Filter>
     </ClCompile>
     <ClCompile Include="optimizer\passes\structural_equality\StructuralEqualityCodegen.cpp">
       <Filter>optimizer\passes\structural_equality</Filter>

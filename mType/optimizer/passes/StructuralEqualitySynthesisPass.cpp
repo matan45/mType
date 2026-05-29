@@ -96,11 +96,16 @@ namespace optimizer::passes
                 return {false, false};
             }
 
-            // Phase 1 safety gate: only synthesize when every own field has
-            // a type the codegen can handle without ambiguous method-call
-            // resolution. Classes with array, generic-parameterized, or
-            // non-int primitive fields fall back to the slow Object native.
-            if (!StructuralEqualityPolicy::allFieldsSafeForSynthesis(ownFields))
+            // Safety gate: only synthesize when every own field has a type the
+            // codegen can handle. Classes that explicitly opt in via @Data /
+            // @EqualsAndHashCode get the broadened field set (object/string/
+            // float/bool); unannotated classes keep the conservative int-only
+            // automatic synthesis so their value-equality semantics are
+            // unchanged. Parameterized-generic fields fall back to the slow
+            // Object native in both tiers.
+            const bool eqRequested = classNode->hasAnnotation("Data") ||
+                                     classNode->hasAnnotation("EqualsAndHashCode");
+            if (!StructuralEqualityPolicy::allFieldsSafeForSynthesis(ownFields, eqRequested))
             {
                 return {false, false};
             }

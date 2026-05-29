@@ -43,6 +43,33 @@ bool hasImplementAction(const std::vector<CodeAction>& actions) {
     return false;
 }
 
+// Concatenate the newText of every edit belonging to actions whose
+// title contains `titleSubstr`. Mirrors editsForImplementAction but is
+// parameterised so the getter/setter and constructor tests can reuse it.
+std::string editsForTitle(const std::vector<CodeAction>& actions,
+                          const std::string& titleSubstr) {
+    std::string allEdits;
+    for (const auto& action : actions) {
+        if (action.title.find(titleSubstr) == std::string::npos) continue;
+        if (!action.edit.has_value()) continue;
+        for (const auto& [uri, edits] : action.edit->changes) {
+            (void)uri;
+            for (const auto& edit : edits) {
+                allEdits += "---\n" + edit.newText;
+            }
+        }
+    }
+    return allEdits;
+}
+
+bool hasActionTitled(const std::vector<CodeAction>& actions,
+                     const std::string& titleSubstr) {
+    for (const auto& action : actions) {
+        if (action.title.find(titleSubstr) != std::string::npos) return true;
+    }
+    return false;
+}
+
 int countOccurrences(const std::string& text, const std::string& needle) {
     int count = 0;
     size_t pos = 0;
@@ -786,6 +813,294 @@ void CodeActionHandlerTestSuite::registerTests(LspTestHarness& harness) {
             "expected a TextEdit replacing 'int' with 'Int' on the implements line");
         require(foundImport,
             "expected a TextEdit inserting an Int import");
+    });
+
+    // ---------------------------------------------------------------
+    // Generate getters/setters — happy path for two fields
+    // ---------------------------------------------------------------
+    harness.addTest("generate accessors: getters and setters for all fields", []() {
+        const std::string uri = "file:///test/person.mt";
+        auto docMgr = makeDocManager(uri,
+            "class Person {\n"
+            "    private string name;\n"
+            "    private int age;\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{1, 4}, {1, 4}};  // cursor inside the class body
+        auto actions = handler.handleCodeAction(uri, range, {});
+        const std::string edits = editsForTitle(actions, "getters and setters");
+
+        require(hasActionTitled(actions, "Generate getters and setters for all fields"),
+            "expected a getters/setters refactor action");
+        require(edits.find("public function getName(): string {") != std::string::npos,
+            "expected getName getter. Edits:\n" + edits);
+        require(edits.find("return this.name;") != std::string::npos,
+            "expected getter body. Edits:\n" + edits);
+        require(edits.find("public function setName(string name): void {") != std::string::npos,
+            "expected setName setter. Edits:\n" + edits);
+        require(edits.find("this.name = name;") != std::string::npos,
+            "expected setter body. Edits:\n" + edits);
+        require(edits.find("public function getAge(): int {") != std::string::npos,
+            "expected getAge getter. Edits:\n" + edits);
+        require(edits.find("public function setAge(int age): void {") != std::string::npos,
+            "expected setAge setter. Edits:\n" + edits);
+    });
+
+    // ---------------------------------------------------------------
+    // Generate getters/setters — skip an accessor the user already wrote
+    // ---------------------------------------------------------------
+    harness.addTest("generate accessors: skips existing getter", []() {
+        const std::string uri = "file:///test/existing.mt";
+        auto docMgr = makeDocManager(uri,
+            "class Box {\n"
+            "    private string name;\n"
+            "    public function getName(): string {\n"
+            "        return this.name;\n"
+            "    }\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{1, 4}, {1, 4}};
+        auto actions = handler.handleCodeAction(uri, range, {});
+        const std::string edits = editsForTitle(actions, "getters and setters");
+
+        require(edits.find("public function getName(): string") == std::string::npos,
+            "should not regenerate the existing getName getter. Edits:\n" + edits);
+        require(edits.find("public function setName(string name): void") != std::string::npos,
+            "should still generate the missing setName setter. Edits:\n" + edits);
+    });
+
+    // ---------------------------------------------------------------
+    // Generate getters/setters — final field gets a getter, no setter
+    // ---------------------------------------------------------------
+    harness.addTest("generate accessors: final field gets getter only", []() {
+        const std::string uri = "file:///test/final.mt";
+        auto docMgr = makeDocManager(uri,
+            "class Config {\n"
+            "    private final int id;\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{1, 4}, {1, 4}};
+        auto actions = handler.handleCodeAction(uri, range, {});
+        const std::string edits = editsForTitle(actions, "getters and setters");
+
+        require(edits.find("public function getId(): int") != std::string::npos,
+            "final field should still get a getter. Edits:\n" + edits);
+        require(edits.find("public function setId(") == std::string::npos,
+            "final field must not get a setter. Edits:\n" + edits);
+    });
+
+    // ---------------------------------------------------------------
+    // Generate getters/setters — static fields get STATIC accessors
+    // that reference the field as `ClassName::field`.
+    // ---------------------------------------------------------------
+    harness.addTest("generate accessors: static field gets static accessors", []() {
+        const std::string uri = "file:///test/static.mt";
+        auto docMgr = makeDocManager(uri,
+            "class Counter {\n"
+            "    public static int count = 0;\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{1, 4}, {1, 4}};
+        auto actions = handler.handleCodeAction(uri, range, {});
+        const std::string edits = editsForTitle(actions, "getters and setters");
+
+        require(hasActionTitled(actions, "Generate getters and setters for all fields"),
+            "static-only class should still offer the accessor refactor");
+        require(edits.find("public static function getCount(): int {") != std::string::npos,
+            "static field should get a static getter. Edits:\n" + edits);
+        require(edits.find("return Counter::count;") != std::string::npos,
+            "static getter should reference the field as ClassName::field. Edits:\n" + edits);
+        require(edits.find("public static function setCount(int count): void {") != std::string::npos,
+            "static field should get a static setter. Edits:\n" + edits);
+        require(edits.find("Counter::count = count;") != std::string::npos,
+            "static setter should assign ClassName::field. Edits:\n" + edits);
+    });
+
+    // ---------------------------------------------------------------
+    // Generate getters/setters — static final field gets a static
+    // getter but no setter (final cannot be reassigned).
+    // ---------------------------------------------------------------
+    harness.addTest("generate accessors: static final field gets static getter only", []() {
+        const std::string uri = "file:///test/staticfinal.mt";
+        auto docMgr = makeDocManager(uri,
+            "class Names {\n"
+            "    public static final string CLASS_NAME = \"Names\";\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{1, 4}, {1, 4}};
+        auto actions = handler.handleCodeAction(uri, range, {});
+        const std::string edits = editsForTitle(actions, "getters and setters");
+
+        require(edits.find("public static function getCLASS_NAME(): string {") != std::string::npos,
+            "static final field should get a static getter. Edits:\n" + edits);
+        require(edits.find("setCLASS_NAME(") == std::string::npos,
+            "static final field must not get a setter. Edits:\n" + edits);
+    });
+
+    // ---------------------------------------------------------------
+    // Generate getters/setters — object, generic and array field types
+    // render by name (not the literal "object").
+    // ---------------------------------------------------------------
+    harness.addTest("generate accessors: object/generic/array field types", []() {
+        const std::string uri = "file:///test/types.mt";
+        auto docMgr = makeDocManager(uri,
+            "class Holder {\n"
+            "    private Person owner;\n"
+            "    private List<String> items;\n"
+            "    private String[] tags;\n"
+            "    private int[][] grid;\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{1, 4}, {1, 4}};
+        auto actions = handler.handleCodeAction(uri, range, {});
+        const std::string edits = editsForTitle(actions, "getters and setters");
+
+        require(edits.find("public function getOwner(): Person {") != std::string::npos,
+            "object field type should render as the class name. Edits:\n" + edits);
+        require(edits.find("public function setOwner(Person owner): void {") != std::string::npos,
+            "object setter param should render as the class name. Edits:\n" + edits);
+        require(edits.find("public function getItems(): List<String> {") != std::string::npos,
+            "generic field type should render with type arguments. Edits:\n" + edits);
+        require(edits.find("public function getTags(): String[] {") != std::string::npos,
+            "array field type should render with []. Edits:\n" + edits);
+        require(edits.find("public function getGrid(): int[][] {") != std::string::npos,
+            "multi-dimensional array type should render. Edits:\n" + edits);
+    });
+
+    // ---------------------------------------------------------------
+    // Generate getters/setters — value class is treated like a normal
+    // class (getters AND setters), mirroring the stdlib `String` value
+    // class which exposes both getValue and setValue.
+    // ---------------------------------------------------------------
+    harness.addTest("generate accessors: value class gets getters and setters", []() {
+        const std::string uri = "file:///test/money.mt";
+        auto docMgr = makeDocManager(uri,
+            "value class Money {\n"
+            "    private int amount;\n"
+            "    private String currency;\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{1, 4}, {1, 4}};
+        auto actions = handler.handleCodeAction(uri, range, {});
+        const std::string edits = editsForTitle(actions, "getters and setters");
+
+        require(hasActionTitled(actions, "Generate getters and setters for all fields"),
+            "value class should still offer the accessor refactor");
+        require(edits.find("public function getAmount(): int {") != std::string::npos,
+            "value class field should get a getter. Edits:\n" + edits);
+        require(edits.find("public function setAmount(int amount): void {") != std::string::npos,
+            "value class field should get a setter (treated like a normal class). Edits:\n" + edits);
+        require(edits.find("public function getCurrency(): String {") != std::string::npos,
+            "value class object field should get a getter. Edits:\n" + edits);
+        require(edits.find("public function setCurrency(String currency): void {") != std::string::npos,
+            "value class object field should get a setter. Edits:\n" + edits);
+    });
+
+    // ---------------------------------------------------------------
+    // Generate default constructor — value class is treated normally
+    // ---------------------------------------------------------------
+    harness.addTest("generate constructor: value class offers default constructor", []() {
+        const std::string uri = "file:///test/valctor.mt";
+        auto docMgr = makeDocManager(uri,
+            "value class Point {\n"
+            "    private int x;\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{1, 4}, {1, 4}};
+        auto actions = handler.handleCodeAction(uri, range, {});
+        const std::string edits = editsForTitle(actions, "default constructor");
+
+        require(hasActionTitled(actions, "Generate default constructor"),
+            "value class without a constructor should still offer one");
+        require(edits.find("public constructor() {") != std::string::npos,
+            "expected a no-arg constructor for the value class. Edits:\n" + edits);
+    });
+
+    // ---------------------------------------------------------------
+    // Generate default constructor — happy path
+    // ---------------------------------------------------------------
+    harness.addTest("generate constructor: default constructor when none exists", []() {
+        const std::string uri = "file:///test/ctor.mt";
+        auto docMgr = makeDocManager(uri,
+            "class Widget {\n"
+            "    private int size;\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{1, 4}, {1, 4}};
+        auto actions = handler.handleCodeAction(uri, range, {});
+        const std::string edits = editsForTitle(actions, "default constructor");
+
+        require(hasActionTitled(actions, "Generate default constructor"),
+            "expected a default-constructor refactor action");
+        require(edits.find("public constructor() {") != std::string::npos,
+            "expected a no-arg constructor. Edits:\n" + edits);
+    });
+
+    // ---------------------------------------------------------------
+    // Generate default constructor — none offered when one is present
+    // ---------------------------------------------------------------
+    harness.addTest("generate constructor: skipped when one already exists", []() {
+        const std::string uri = "file:///test/hasctor.mt";
+        auto docMgr = makeDocManager(uri,
+            "class Widget {\n"
+            "    private int size;\n"
+            "    public constructor() {\n"
+            "    }\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{1, 4}, {1, 4}};
+        auto actions = handler.handleCodeAction(uri, range, {});
+
+        require(!hasActionTitled(actions, "default constructor"),
+            "should not offer a default constructor when the class already has one");
+    });
+
+    // ---------------------------------------------------------------
+    // No accessor/constructor actions when the cursor is outside any class
+    // ---------------------------------------------------------------
+    harness.addTest("generate accessors: no actions outside a class", []() {
+        const std::string uri = "file:///test/free.mt";
+        auto docMgr = makeDocManager(uri,
+            "// a comment above the class\n"
+            "class Thing {\n"
+            "    private int a;\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{0, 0}, {0, 0}};  // comment line, not inside a class
+        auto actions = handler.handleCodeAction(uri, range, {});
+
+        require(!hasActionTitled(actions, "getters and setters"),
+            "no accessor action expected outside a class body");
+        require(!hasActionTitled(actions, "default constructor"),
+            "no constructor action expected outside a class body");
+    });
+
+    // ---------------------------------------------------------------
+    // Empty class — no accessors, but a default constructor is still offered
+    // ---------------------------------------------------------------
+    harness.addTest("generate accessors: empty class offers only constructor", []() {
+        const std::string uri = "file:///test/empty.mt";
+        auto docMgr = makeDocManager(uri, "class Empty {\n}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{0, 0}, {0, 13}};
+        auto actions = handler.handleCodeAction(uri, range, {});
+
+        require(!hasActionTitled(actions, "getters and setters"),
+            "empty class has no fields, so no accessor action");
+        require(hasActionTitled(actions, "Generate default constructor"),
+            "empty class with no constructor should still offer a default constructor");
     });
 }
 

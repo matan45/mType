@@ -531,6 +531,146 @@ function topLevelFn(): void {}
                 ":: access should not show keywords");
         }
     });
+
+    // ---------------------------------------------------------------
+    // Test 14: Lombok synthesis — DocumentManager runs LombokSynthesisPass
+    // on the parsed AST, so @Getter/@Setter accessors are visible to
+    // member completion even though the LSP doesn't run the full optimizer.
+    // ---------------------------------------------------------------
+    harness.addTest("lombok: @Getter/@Setter accessors appear on this.", []() {
+        auto docMgr = makeDocManager("file:///test/lombok_getter.mt",
+            "@Getter\n"
+            "@Setter\n"
+            "class Person {\n"
+            "    private string name;\n"
+            "    private int age;\n"
+            "    function probe(): void {\n"
+            "        this.toString();\n"
+            "    }\n"
+            "}\n");
+        CompletionHandler handler(docMgr.get());
+        // Line 6: "        this.toString();" — col 13 is right after "this."
+        auto items = handler.handleCompletion("file:///test/lombok_getter.mt", {6, 13});
+
+        require(hasItemWithLabel(items, "getName"),
+            "expected synthesized getName() from @Getter");
+        require(hasItemWithLabel(items, "getAge"),
+            "expected synthesized getAge() from @Getter");
+        require(hasItemWithLabel(items, "setName"),
+            "expected synthesized setName() from @Setter");
+        require(hasItemWithLabel(items, "setAge"),
+            "expected synthesized setAge() from @Setter");
+    });
+
+    // ---------------------------------------------------------------
+    // Test 15: Lombok @Data — getters, setters, and toString all appear.
+    // ---------------------------------------------------------------
+    harness.addTest("lombok: @Data exposes getters/setters/toString", []() {
+        auto docMgr = makeDocManager("file:///test/lombok_data.mt",
+            "@Data\n"
+            "class Account {\n"
+            "    private string owner;\n"
+            "    function probe(): void {\n"
+            "        this.toString();\n"
+            "    }\n"
+            "}\n");
+        CompletionHandler handler(docMgr.get());
+        // Line 4: "        this.toString();" — col 13 after "this."
+        auto items = handler.handleCompletion("file:///test/lombok_data.mt", {4, 13});
+
+        require(hasItemWithLabel(items, "getOwner"),
+            "expected @Data to expose getOwner()");
+        require(hasItemWithLabel(items, "setOwner"),
+            "expected @Data to expose setOwner()");
+        require(hasItemWithLabel(items, "toString"),
+            "expected @Data to expose toString()");
+    });
+
+    // ---------------------------------------------------------------
+    // Test 16: Lombok @Builder — static builder() factory appears on ::
+    // ---------------------------------------------------------------
+    harness.addTest("lombok: @Builder static builder() appears on ::", []() {
+        auto docMgr = makeDocManager("file:///test/lombok_builder.mt",
+            "@Builder\n"
+            "class Config {\n"
+            "    private int port;\n"
+            "    private string host;\n"
+            "}\n"
+            "Config::builder();\n");
+        CompletionHandler handler(docMgr.get());
+        // Line 5: "Config::builder();" — col 8 is right after "Config::"
+        auto items = handler.handleCompletion("file:///test/lombok_builder.mt", {5, 8});
+
+        require(hasItemWithLabel(items, "builder"),
+            "expected synthesized static builder() factory from @Builder");
+    });
+
+    // ---------------------------------------------------------------
+    // Test 16b: @Builder companion class is a registered, completable symbol.
+    // ---------------------------------------------------------------
+    harness.addTest("lombok: @Builder companion class surfaces as a symbol", []() {
+        // Trailing blank line keeps the document fully parseable (a bare
+        // partial identifier would be a parse error, dropping the document
+        // environment that holds the synthesized class). Empty-prefix
+        // completion on the blank line lists all visible classes.
+        auto docMgr = makeDocManager("file:///test/lombok_builder_sym.mt",
+            "@Builder\n"
+            "class Config {\n"
+            "    private int port;\n"
+            "}\n"
+            "\n");
+        CompletionHandler handler(docMgr.get());
+        // Line 4: blank line — general completion includes visible classes.
+        auto items = handler.handleCompletion("file:///test/lombok_builder_sym.mt", {4, 0});
+
+        require(hasItemWithLabel(items, "ConfigBuilder"),
+            "expected synthesized companion 'ConfigBuilder' class to be a known symbol");
+    });
+
+    // ---------------------------------------------------------------
+    // Test 16c: fluent setters + build() appear on the companion builder type.
+    // ---------------------------------------------------------------
+    harness.addTest("lombok: builder companion exposes fluent setters + build()", []() {
+        auto docMgr = makeDocManager("file:///test/lombok_builder_members.mt",
+            "@Builder\n"
+            "class Config {\n"
+            "    private int port;\n"
+            "    private string host;\n"
+            "}\n"
+            "ConfigBuilder bldr = Config::builder();\n"
+            "bldr.build();\n");
+        CompletionHandler handler(docMgr.get());
+        // Line 6: "bldr.build();" — col 5 is right after "bldr."
+        auto items = handler.handleCompletion("file:///test/lombok_builder_members.mt", {6, 5});
+
+        require(hasItemWithLabel(items, "build"),
+            "expected build() on the synthesized builder");
+        require(hasItemWithLabel(items, "port"),
+            "expected fluent setter 'port' on the synthesized builder");
+        require(hasItemWithLabel(items, "host"),
+            "expected fluent setter 'host' on the synthesized builder");
+    });
+
+    // ---------------------------------------------------------------
+    // Test 17: Lombok skip — generic classes are not synthesized, so no
+    // getValue() is offered (consistent with the compiler-side skip).
+    // ---------------------------------------------------------------
+    harness.addTest("lombok: generic class is skipped (no synthesized getter)", []() {
+        auto docMgr = makeDocManager("file:///test/lombok_generic.mt",
+            "@Getter\n"
+            "class Box<T> {\n"
+            "    private T value;\n"
+            "    function probe(): void {\n"
+            "        this.toString();\n"
+            "    }\n"
+            "}\n");
+        CompletionHandler handler(docMgr.get());
+        // Line 4: "        this.toString();" — col 13 after "this."
+        auto items = handler.handleCompletion("file:///test/lombok_generic.mt", {4, 13});
+
+        require(!hasItemWithLabel(items, "getValue"),
+            "generic class should be skipped — no synthesized getValue()");
+    });
 }
 
 } // namespace mtype::lsp::test

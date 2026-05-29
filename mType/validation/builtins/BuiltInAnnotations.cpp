@@ -113,5 +113,39 @@ namespace validation::builtins
             auto def = std::make_shared<AnnotationDefinition>("Inherited", true);
             registry->registerAnnotation("Inherited", def);
         }
+
+        // ---- Lombok-style synthesis markers --------------------------------
+        // Zero-parameter compile-time markers consumed by the optimizer's
+        // LombokSynthesisPass (which injects the generated members before
+        // bytecode compilation). They carry no @Retention, so they are dropped
+        // before class registration like other compile-time directives. The
+        // synthesis itself is C++ (mType has no runtime metaprogramming); these
+        // declarations only restrict where the markers may be applied.
+        registerMarker(registry, "Getter", {"CLASS", "FIELD"});
+        registerMarker(registry, "Setter", {"CLASS", "FIELD"});
+        registerMarker(registry, "ToString", {"CLASS"});
+        registerMarker(registry, "NoArgsConstructor", {"CLASS"});
+        registerMarker(registry, "AllArgsConstructor", {"CLASS"});
+        registerMarker(registry, "EqualsAndHashCode", {"CLASS"});
+        registerMarker(registry, "Data", {"CLASS"});
+        registerMarker(registry, "Builder", {"CLASS"});
+    }
+
+    void BuiltInAnnotations::registerMarker(
+        std::shared_ptr<environment::registry::AnnotationRegistry> registry,
+        const std::string& name,
+        const std::vector<std::string>& targets)
+    {
+        if (registry->hasAnnotation(name)) return;
+
+        auto def = std::make_shared<AnnotationDefinition>(name, true);
+
+        auto targetMeta = std::make_shared<ast::nodes::annotations::AnnotationNode>("Target");
+        targetMeta->setTypedParameter(
+            "targets",
+            ast::nodes::annotations::TypedAnnotationValue::makeClassArray(targets));
+        def->addMetaAnnotation(targetMeta);
+
+        registry->registerAnnotation(name, def);
     }
 }

@@ -82,6 +82,23 @@ private:
         int line
     );
 
+    // Refactor: generate getters and setters for the class's fields.
+    // Offered whenever the cursor is inside a class with at least one
+    // eligible field that lacks an accessor. Emits explicit source text
+    // (the IDE-style alternative to the compile-time @Getter/@Setter
+    // Lombok pass).
+    std::vector<CodeAction> generateGetterSetterActions(
+        const std::string& uri,
+        int line
+    );
+
+    // Refactor: generate a default (no-arg) constructor. Offered when
+    // the cursor is inside a class that does not already declare one.
+    std::vector<CodeAction> generateDefaultConstructorAction(
+        const std::string& uri,
+        int line
+    );
+
     DocumentManager* documentManager_;
     std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex_;
     std::shared_ptr<ProjectConfigProvider> projectConfig_;

@@ -657,6 +657,20 @@ project "mtype-language-server-lib"
       "mType/validation/builtins/BuiltInAnnotations.cpp",
       "mType/project/mtclib/MtcPathResolver.cpp",
 
+      -- Lombok synthesis pass + its minimal optimizer scaffolding. The LSP
+      -- runs this single pass on the parsed AST (DocumentManager) so the
+      -- members it generates surface in completion/hover/definition. These
+      -- files depend only on AST nodes + Environment (already linked here) —
+      -- NOT on the VM or the rest of the optimizer pipeline.
+      "mType/optimizer/OptimizationConfig.cpp",
+      "mType/optimizer/OptimizationResult.cpp",
+      "mType/optimizer/base/OptimizationPass.cpp",
+      "mType/optimizer/base/OptimizationContext.cpp",
+      "mType/optimizer/passes/LombokSynthesisPass.cpp",
+      "mType/optimizer/passes/lombok/LombokPolicy.cpp",
+      "mType/optimizer/passes/lombok/LombokCodegen.cpp",
+      "mType/optimizer/passes/lombok/LombokBuilderCodegen.cpp",
+
       "mType/circularDependency/CircularDependencyDetector.cpp",
       "mType/circularDependency/DependencyPatternAnalyzer.cpp",
       "mType/circularDependency/DependencyTypeUtils.cpp",
