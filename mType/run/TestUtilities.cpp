@@ -245,6 +245,7 @@ void printAvailableTestSuites()
     std::cout << "  modifiers    - Access Modifiers Test Suite\n";
     std::cout << "  await        - Async/Await Test Suite\n";
     std::cout << "  annotation   - Annotation Test Suite\n";
+    std::cout << "  lombok       - Lombok Synthesis Test Suite\n";
     std::cout << "  overloading  - Method/Function Overloading Test Suite\n";
     std::cout << "  iterator     - Iterator Protocol Test Suite\n";
     std::cout << "  foreach      - Enhanced For-Loop Test Suite\n";
