@@ -6,13 +6,17 @@
 // translation units (getters/setters/toString, constructors, builder) can share
 // them without ODR violations.
 
+#include "../../../ast/AccessModifier.hpp"
 #include "../../../ast/GenericType.hpp"
+#include "../../../ast/nodes/annotations/AnnotationNode.hpp"
 #include "../../../ast/nodes/classes/ClassNode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../../ast/nodes/classes/MethodCallNode.hpp"
 #include "../../../ast/nodes/expressions/StringNode.hpp"
 #include "../../../ast/nodes/expressions/VariableNode.hpp"
+#include "../../../ast/nodes/expressions/NullNode.hpp"
+#include "../../../ast/nodes/expressions/TernaryExpNode.hpp"
 #include "../../../ast/nodes/functions/ReturnNode.hpp"
 #include "../../../ast/nodes/expressions/BinaryExpNode.hpp"
 #include "../../../ast/nodes/statements/BlockNode.hpp"
@@ -20,8 +24,8 @@
 #include "../../../token/TokenType.hpp"
 #include "../../../value/ParameterType.hpp"
 #include "../../../value/ValueType.hpp"
+#include "../shared/AccessorNaming.hpp"
 
-#include <cctype>
 #include <memory>
 #include <string>
 #include <vector>
@@ -37,18 +41,33 @@ namespace optimizer::passes::lombok::detail
     using value::ValueType;
 
     // ---- name helpers -----------------------------------------------------
+    // Re-export the shared accessor naming (optimizer::passes::shared) so the
+    // compiler-side codegen and the LSP code action stay byte-compatible.
+    using shared::capitalize;
+    using shared::getterName;
+    using shared::setterName;
 
-    // "name" -> "Name"; empty string stays empty.
-    inline std::string capitalize(const std::string& s)
+    // ---- annotation / accessibility helpers -------------------------------
+
+    // True iff the field carries a `@<name>` annotation (MYT-108 per-field
+    // annotations), e.g. `@Getter private int x;`.
+    inline bool fieldHasAnnotation(const FieldNode* field, const std::string& name)
     {
-        if (s.empty()) return s;
-        std::string out = s;
-        out[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(out[0])));
-        return out;
+        for (const auto& ann : field->getAnnotations())
+        {
+            if (ann && ann->getName() == name) return true;
+        }
+        return false;
     }
 
-    inline std::string getterName(const std::string& field) { return "get" + capitalize(field); }
-    inline std::string setterName(const std::string& field) { return "set" + capitalize(field); }
+    // True iff an INHERITED field can be read via `this.<field>` from a
+    // subclass body. Private parent fields cannot (runtime access violation),
+    // so they must be excluded from a subclass's synthesized toString. Own
+    // fields are always readable and are not gated by this.
+    inline bool isInheritedFieldAccessible(const FieldNode* field)
+    {
+        return field->getAccessModifier() != AccessModifier::PRIVATE;
+    }
 
     // ---- expression builders ---------------------------------------------
 
@@ -89,6 +108,26 @@ namespace optimizer::passes::lombok::detail
     inline std::unique_ptr<ASTNode> makeReturn(std::unique_ptr<ASTNode> expr)
     {
         return std::make_unique<ReturnNode>(std::move(expr));
+    }
+
+    inline std::unique_ptr<ASTNode> makeNull()
+    {
+        return std::make_unique<NullNode>();
+    }
+
+    // `<expr> == null`
+    inline std::unique_ptr<ASTNode> makeIsNull(std::unique_ptr<ASTNode> expr)
+    {
+        return std::make_unique<BinaryExpNode>(std::move(expr), TokenType::EQUALS, makeNull());
+    }
+
+    // `<cond> ? <whenTrue> : <whenFalse>`
+    inline std::unique_ptr<ASTNode> makeTernary(std::unique_ptr<ASTNode> cond,
+                                                std::unique_ptr<ASTNode> whenTrue,
+                                                std::unique_ptr<ASTNode> whenFalse)
+    {
+        return std::make_unique<TernaryExpNode>(
+            std::move(cond), std::move(whenTrue), std::move(whenFalse));
     }
 
     // `this.<field> = <value>;`

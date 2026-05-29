@@ -54,16 +54,24 @@ namespace optimizer::passes::structural_equality
         static std::vector<const ast::FieldNode*> collectOwnInstanceFields(
             const ast::ClassNode* node);
 
-        // True iff every own field has a type that the synthesizer can
-        // safely emit `.hashCode()` / `.equals()` calls or direct primitive
-        // arithmetic for. False for classes with array fields, parameterized
-        // generic fields, or non-int primitive fields (FLOAT/BOOL/STRING
-        // primitives may not expose .hashCode in user-visible scope, and
-        // generic parameters resolve at runtime). Classes with unsupported
-        // fields fall back to the slow Object native — correct, just not
-        // accelerated. Phase 1 conservative gate.
+        // True iff every own field has a type the synthesizer can safely emit
+        // `.hashCode()` / `.equals()` calls or direct primitive arithmetic for.
+        //
+        // Two tiers, keyed on whether the class explicitly opted in via
+        // @Data / @EqualsAndHashCode (`annotationRequested`):
+        //   * NOT requested (automatic MYT-274 synthesis applied to every
+        //     eligible class): int-primitive fields only. Anything else falls
+        //     back to the slow Object native so value-equality semantics never
+        //     change under a user who did not ask for them.
+        //   * requested: the broadened set the pre-staged codegen handles —
+        //     Int/Float/Bool/String primitives (all define equals/hashCode in
+        //     lib/primitives) plus class/interface references (dispatch through
+        //     Object, null-guarded). Parameterized generics (Array<T>,
+        //     collection types) stay unsupported — no guaranteed value-equality
+        //     contract — as do nullable non-object primitives.
         static bool allFieldsSafeForSynthesis(
-            const std::vector<const ast::FieldNode*>& ownFields);
+            const std::vector<const ast::FieldNode*>& ownFields,
+            bool annotationRequested);
 
         // True iff the immediate parent (if any) directly defines hashCode
         // (user-declared OR previously-synthesized). mType's `super.X()`

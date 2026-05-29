@@ -108,6 +108,16 @@ print(p.getName());        // Bob
 
 `@Setter` skips `final` fields.
 
+`@Getter` and `@Setter` may also be placed on an **individual field** instead of
+the class, generating an accessor for just that field:
+
+```mtype
+class Box {
+    @Getter private int width;   // getWidth() generated
+    private int secret;          // no accessor
+}
+```
+
 ### `@NoArgsConstructor` / `@AllArgsConstructor`
 
 ```mtype
@@ -141,7 +151,9 @@ class Point {
 print(new Point(3, 4).toString());   // Point(x=3, y=4)
 ```
 
-Object-typed fields are rendered through their own `toString()`.
+Object-typed fields are rendered through their own `toString()`; a `null`
+object field renders as the literal `null`. Inherited fields are folded in too,
+except `private` parent fields (unreadable from a subclass).
 
 ### `@Data`
 
@@ -163,7 +175,11 @@ print(p1.toString());   // Pair(a=1, b=2)
 
 `equals`/`hashCode` are produced by the structural-equality optimizer pass, so
 two instances with equal fields compare equal and hash alike (suitable for
-`HashMap`/`HashSet` keys).
+`HashMap`/`HashSet` keys). Opting in with `@Data` / `@EqualsAndHashCode` covers
+primitive (`int`/`float`/`bool`/`string`) and object/class-typed fields —
+object fields compare via their own `equals`/`hashCode`. Parameterized-generic
+fields (e.g. `List<T>`, arrays) are not covered and fall back to reference
+equality.
 
 ### `@Builder`
 

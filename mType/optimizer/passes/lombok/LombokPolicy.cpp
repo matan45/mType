@@ -5,6 +5,7 @@
 #include "../../../ast/nodes/classes/ConstructorNode.hpp"
 #include "../../../ast/nodes/classes/FieldNode.hpp"
 #include "../../../ast/nodes/classes/MethodNode.hpp"
+#include "../shared/ClassShapePolicy.hpp"
 
 #include <cstddef>
 
@@ -16,23 +17,12 @@ namespace optimizer::passes::lombok
 
     bool LombokPolicy::isShapeSkippable(const ast::ClassNode* node)
     {
-        if (node->isAbstract()) return true;
-        if (node->isValueClass()) return true;
-        if (node->isGeneric()) return true;
-        return false;
+        return shared::isSkippableShape(node);
     }
 
     bool LombokPolicy::hasMethod(const ast::ClassNode* node, const std::string& name, size_t arity)
     {
-        for (const auto& methodAst : node->getMethods())
-        {
-            auto* method = dynamic_cast<const MethodNode*>(methodAst.get());
-            if (!method) continue;
-            if (method->getName() != name) continue;
-            if (method->getParameterCount() != arity) continue;
-            return true;
-        }
-        return false;
+        return shared::hasMethod(node, name, arity);
     }
 
     bool LombokPolicy::hasConstructorWithSignature(
@@ -74,15 +64,7 @@ namespace optimizer::passes::lombok
     std::vector<const ast::FieldNode*>
     LombokPolicy::collectOwnInstanceFields(const ast::ClassNode* node)
     {
-        std::vector<const ast::FieldNode*> result;
-        for (const auto& fieldAst : node->getFields())
-        {
-            auto* field = dynamic_cast<const FieldNode*>(fieldAst.get());
-            if (!field) continue;
-            if (field->getIsStatic()) continue;
-            result.push_back(field);
-        }
-        return result;
+        return shared::collectOwnInstanceFields(node);
     }
 
     std::vector<const ast::FieldNode*>

@@ -19,6 +19,9 @@
     <Filter Include="optimizer\passes\lombok">
       <UniqueIdentifier>{992E2B35-0566-73CC-0E70-D7EF7A269AC5}</UniqueIdentifier>
     </Filter>
+    <Filter Include="optimizer\passes\shared">
+      <UniqueIdentifier>{AC4DFA44-1885-42DC-218F-A6FF8D4569D5}</UniqueIdentifier>
+    </Filter>
     <Filter Include="optimizer\passes\structural_equality">
       <UniqueIdentifier>{7B645079-674B-1271-109C-788EFC618BD7}</UniqueIdentifier>
     </Filter>
@@ -104,6 +107,12 @@
     </ClInclude>
     <ClInclude Include="optimizer\passes\lombok\LombokPolicy.hpp">
       <Filter>optimizer\passes\lombok</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\shared\AccessorNaming.hpp">
+      <Filter>optimizer\passes\shared</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\shared\ClassShapePolicy.hpp">
+      <Filter>optimizer\passes\shared</Filter>
     </ClInclude>
     <ClInclude Include="optimizer\passes\structural_equality\StructuralEqualityCodegen.hpp">
       <Filter>optimizer\passes\structural_equality</Filter>

@@ -53,8 +53,14 @@ namespace optimizer::passes::lombok
             {
                 return makeThisField(field->getName());
             }
-            // Object / array / parameterized: render via .toString().
-            return makeMethodCall0(makeThisField(field->getName()), "toString");
+            // Object / array / parameterized: render via .toString(), but guard
+            // against null — `null.toString()` dereferences null and crashes at
+            // runtime. Match Lombok and render the literal "null" instead:
+            //   this.<f> == null ? "null" : this.<f>.toString()
+            return makeTernary(
+                makeIsNull(makeThisField(field->getName())),
+                makeStringLit("null"),
+                makeMethodCall0(makeThisField(field->getName()), "toString"));
         }
     }
 

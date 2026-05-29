@@ -71,21 +71,35 @@ namespace optimizer::passes
         const bool wantAllArgs = classNode->hasAnnotation("AllArgsConstructor");
         const bool wantBuilder = classNode->hasAnnotation("Builder");
 
-        if (!(data || wantGetter || wantSetter || wantToString ||
-              wantNoArgs || wantAllArgs || wantBuilder))
-        {
-            return;
-        }
-
         const auto own = LombokPolicy::collectOwnInstanceFields(classNode);
         const auto inherited = LombokPolicy::collectInheritedInstanceFields(classNode, registry);
         const auto allFields = concatFields(inherited, own);
 
-        // --- @Getter ---
-        if (wantGetter)
+        // Field-level @Getter/@Setter: the @Target permits FIELD, so a single
+        // field can opt in independently of any class-level annotation
+        // (e.g. `@Getter private int x;` on an otherwise-unannotated class).
+        bool anyFieldGetter = false;
+        bool anyFieldSetter = false;
+        for (const auto* f : own)
+        {
+            if (lombok::detail::fieldHasAnnotation(f, "Getter")) anyFieldGetter = true;
+            if (lombok::detail::fieldHasAnnotation(f, "Setter")) anyFieldSetter = true;
+        }
+
+        if (!(data || wantGetter || wantSetter || wantToString ||
+              wantNoArgs || wantAllArgs || wantBuilder ||
+              anyFieldGetter || anyFieldSetter))
+        {
+            return;
+        }
+
+        // --- @Getter (class-level, or per-field @Getter) ---
+        if (wantGetter || anyFieldGetter)
         {
             for (const auto* f : own)
             {
+                if (!(wantGetter || lombok::detail::fieldHasAnnotation(f, "Getter")))
+                    continue;
                 if (LombokPolicy::hasMethod(classNode, lombok::detail::getterName(f->getName()), 0))
                     continue;
                 classNode->addMethod(LombokCodegen::buildGetter(f));
@@ -93,11 +107,13 @@ namespace optimizer::passes
             }
         }
 
-        // --- @Setter (skips final fields) ---
-        if (wantSetter)
+        // --- @Setter (skips final fields; class-level or per-field) ---
+        if (wantSetter || anyFieldSetter)
         {
             for (const auto* f : own)
             {
+                if (!(wantSetter || lombok::detail::fieldHasAnnotation(f, "Setter")))
+                    continue;
                 if (f->getIsFinal()) continue;
                 if (LombokPolicy::hasMethod(classNode, lombok::detail::setterName(f->getName()), 1))
                     continue;
@@ -109,7 +125,19 @@ namespace optimizer::passes
         // --- @ToString ---
         if (wantToString && !LombokPolicy::hasMethod(classNode, "toString", 0))
         {
-            classNode->addMethod(LombokCodegen::buildToString(classNode, allFields));
+            // Fold inherited + own fields, but drop inherited PRIVATE fields:
+            // a subclass body cannot read them via `this.<field>` (runtime
+            // access violation). Own fields are always readable from the
+            // declaring class regardless of access.
+            std::vector<const FieldNode*> toStringFields;
+            toStringFields.reserve(allFields.size());
+            for (const auto* f : inherited)
+                if (lombok::detail::isInheritedFieldAccessible(f))
+                    toStringFields.push_back(f);
+            for (const auto* f : own)
+                toStringFields.push_back(f);
+
+            classNode->addMethod(LombokCodegen::buildToString(classNode, toStringFields));
             ++methodsSynthesized;
         }
 

@@ -4,22 +4,23 @@
 #include "../../../mType/ast/nodes/classes/FieldNode.hpp"
 #include "../../../mType/ast/nodes/classes/MethodNode.hpp"
 #include "../../../mType/ast/nodes/classes/ConstructorNode.hpp"
+#include "../../../mType/optimizer/passes/shared/AccessorNaming.hpp"
 
-#include <cctype>
 #include <sstream>
 
 namespace mtype::lsp::accessorgen {
+
+namespace shared = optimizer::passes::shared;
 
 using ast::nodes::classes::ClassNode;
 using ast::nodes::classes::ConstructorNode;
 using ast::nodes::classes::FieldNode;
 using ast::nodes::classes::MethodNode;
 
+// Delegates to the single shared definition so the LSP code action and the
+// compiler-side @Getter/@Setter synthesis derive identical method names.
 std::string capitalize(const std::string& s) {
-    if (s.empty()) return s;
-    std::string result = s;
-    result[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(result[0])));
-    return result;
+    return shared::capitalize(s);
 }
 
 std::string fieldTypeToString(const FieldNode& field) {
@@ -38,7 +39,7 @@ std::vector<const FieldNode*> eligibleFields(const ClassNode& cls) {
 }
 
 bool hasGetter(const ClassNode& cls, const std::string& field) {
-    const std::string target = "get" + capitalize(field);
+    const std::string target = shared::getterName(field);
     for (const auto& node : cls.getMethods()) {
         const auto* method = dynamic_cast<const MethodNode*>(node.get());
         if (method && method->getName() == target && method->getParameterCount() == 0) {
@@ -49,7 +50,7 @@ bool hasGetter(const ClassNode& cls, const std::string& field) {
 }
 
 bool hasSetter(const ClassNode& cls, const std::string& field) {
-    const std::string target = "set" + capitalize(field);
+    const std::string target = shared::setterName(field);
     for (const auto& node : cls.getMethods()) {
         const auto* method = dynamic_cast<const MethodNode*>(node.get());
         if (method && method->getName() == target && method->getParameterCount() == 1) {
@@ -76,7 +77,7 @@ std::string buildGetterText(const FieldNode& field, const std::string& className
     // fields via `this.field`.
     const std::string access = isStatic ? className + "::" + name : "this." + name;
     std::ostringstream out;
-    out << "    public " << (isStatic ? "static " : "") << "function get" << capitalize(name)
+    out << "    public " << (isStatic ? "static " : "") << "function " << shared::getterName(name)
         << "(): " << fieldTypeToString(field) << " {\n";
     out << "        return " << access << ";\n";
     out << "    }\n";
@@ -88,7 +89,7 @@ std::string buildSetterText(const FieldNode& field, const std::string& className
     const bool isStatic = field.getIsStatic();
     const std::string access = isStatic ? className + "::" + name : "this." + name;
     std::ostringstream out;
-    out << "    public " << (isStatic ? "static " : "") << "function set" << capitalize(name)
+    out << "    public " << (isStatic ? "static " : "") << "function " << shared::setterName(name)
         << "(" << fieldTypeToString(field) << " " << name << "): void {\n";
     out << "        " << access << " = " << name << ";\n";
     out << "    }\n";

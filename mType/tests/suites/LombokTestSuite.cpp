@@ -53,6 +53,18 @@ namespace tests::testSuite
         addOutputVerificationTest("Object-typed getters + nested toString",
                                   passPath + "object_fields_pass.mt");
 
+        addOutputVerificationTest("ToString renders a null object field as \"null\"",
+                                  passPath + "tostring_null_object_pass.mt");
+
+        addOutputVerificationTest("Data with a string field — structural equals/hashCode",
+                                  passPath + "data_string_equals_pass.mt");
+
+        addOutputVerificationTest("EqualsAndHashCode over object fields (recursive equals)",
+                                  passPath + "equals_hashcode_object_pass.mt");
+
+        addOutputVerificationTest("Field-level @Getter — only annotated fields get accessors",
+                                  passPath + "field_level_getter_pass.mt");
+
         addOutputVerificationTest("Data with only non-final fields (no-arg ctor)",
                                   passPath + "noargs_data_combo_pass.mt");
 
@@ -91,21 +103,29 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED,
                         "cannot be applied to");
 
+        // Skip-error canaries assert the SPECIFIC unresolved accessor (the
+        // method-not-found message embeds the method name) rather than passing
+        // on any error — so an unrelated parse/typecheck failure can't mask a
+        // regression where synthesis wrongly fires for a skipped class shape.
         addTestFromFile("Generic class skipped — getter not generated",
                         errorPath + "generic_class_skip_error.mt",
-                        TestType::ERROR_EXPECTED);
+                        TestType::ERROR_EXPECTED,
+                        "getValue");
 
         addTestFromFile("Value class skipped — getter not generated",
                         errorPath + "value_class_skip_error.mt",
-                        TestType::ERROR_EXPECTED);
+                        TestType::ERROR_EXPECTED,
+                        "getCents");
 
         addTestFromFile("Abstract class skipped — getter not generated",
                         errorPath + "abstract_class_skip_error.mt",
-                        TestType::ERROR_EXPECTED);
+                        TestType::ERROR_EXPECTED,
+                        "getSides");
 
         addTestFromFile("Setter skips final field — no setter generated",
                         errorPath + "setter_final_skip_error.mt",
-                        TestType::ERROR_EXPECTED);
+                        TestType::ERROR_EXPECTED,
+                        "setX");
 
         addTestFromFile("@Builder on function rejected (@Target)",
                         errorPath + "builder_on_function_error.mt",
