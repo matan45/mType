@@ -1,4 +1,5 @@
 #include "CodeActionHandler.hpp"
+#include "AccessorCodegen.hpp"
 #include "../analysis/WorkspaceSymbolIndex.hpp"
 #include "../utils/ImportUtils.hpp"
 #include "../utils/ProjectConfigProvider.hpp"
@@ -445,6 +446,14 @@ std::vector<CodeAction> CodeActionHandler::handleCodeAction(
         auto implementActions = getImplementInterfaceActions(uri, range.start.line);
         actions.insert(actions.end(), implementActions.begin(), implementActions.end());
     }
+
+    // Diagnostic-agnostic refactors: scaffold field accessors and a
+    // default constructor when the cursor is inside a class.
+    auto getterSetterActions = generateGetterSetterActions(uri, range.start.line);
+    actions.insert(actions.end(), getterSetterActions.begin(), getterSetterActions.end());
+
+    auto constructorActions = generateDefaultConstructorAction(uri, range.start.line);
+    actions.insert(actions.end(), constructorActions.begin(), constructorActions.end());
 
     return actions;
 }
@@ -974,6 +983,84 @@ std::vector<CodeAction> CodeActionHandler::getImplementInterfaceActions(
 
     actions.push_back(action);
 
+    return actions;
+}
+
+std::vector<CodeAction> CodeActionHandler::generateGetterSetterActions(
+    const std::string& uri,
+    int line
+) {
+    std::vector<CodeAction> actions;
+
+    auto doc = documentManager_->getDocument(uri);
+    if (!doc) {
+        return actions;
+    }
+
+    auto target = findClassTarget(doc, line, /*declarationLineOnly=*/false);
+    if (!target || !target->node) {
+        return actions;
+    }
+
+    const std::string body = accessorgen::buildAccessorsBody(*target->node);
+    if (body.empty()) {
+        return actions;  // every eligible field already has its accessors
+    }
+
+    CodeAction action;
+    action.title = "Generate getters and setters for all fields";
+    action.kind = "refactor";
+
+    WorkspaceEdit edit;
+    TextEdit textEdit;
+    textEdit.range.start = target->insertionPoint;
+    textEdit.range.end = textEdit.range.start;
+    textEdit.newText = target->insertionPoint.character == 0
+        ? body
+        : "\n" + body;
+    edit.changes[uri].push_back(textEdit);
+    action.edit = edit;
+
+    actions.push_back(std::move(action));
+    return actions;
+}
+
+std::vector<CodeAction> CodeActionHandler::generateDefaultConstructorAction(
+    const std::string& uri,
+    int line
+) {
+    std::vector<CodeAction> actions;
+
+    auto doc = documentManager_->getDocument(uri);
+    if (!doc) {
+        return actions;
+    }
+
+    auto target = findClassTarget(doc, line, /*declarationLineOnly=*/false);
+    if (!target || !target->node) {
+        return actions;
+    }
+
+    const std::string body = accessorgen::buildDefaultConstructorBody(*target->node);
+    if (body.empty()) {
+        return actions;  // a zero-arg constructor already exists
+    }
+
+    CodeAction action;
+    action.title = "Generate default constructor";
+    action.kind = "refactor";
+
+    WorkspaceEdit edit;
+    TextEdit textEdit;
+    textEdit.range.start = target->insertionPoint;
+    textEdit.range.end = textEdit.range.start;
+    textEdit.newText = target->insertionPoint.character == 0
+        ? body
+        : "\n" + body;
+    edit.changes[uri].push_back(textEdit);
+    action.edit = edit;
+
+    actions.push_back(std::move(action));
     return actions;
 }
 
