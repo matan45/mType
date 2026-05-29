@@ -609,15 +609,19 @@ function topLevelFn(): void {}
     // Test 16b: @Builder companion class is a registered, completable symbol.
     // ---------------------------------------------------------------
     harness.addTest("lombok: @Builder companion class surfaces as a symbol", []() {
+        // Trailing blank line keeps the document fully parseable (a bare
+        // partial identifier would be a parse error, dropping the document
+        // environment that holds the synthesized class). Empty-prefix
+        // completion on the blank line lists all visible classes.
         auto docMgr = makeDocManager("file:///test/lombok_builder_sym.mt",
             "@Builder\n"
             "class Config {\n"
             "    private int port;\n"
             "}\n"
-            "ConfigB\n");
+            "\n");
         CompletionHandler handler(docMgr.get());
-        // Line 4: "ConfigB" — complete the partial type name.
-        auto items = handler.handleCompletion("file:///test/lombok_builder_sym.mt", {4, 7});
+        // Line 4: blank line — general completion includes visible classes.
+        auto items = handler.handleCompletion("file:///test/lombok_builder_sym.mt", {4, 0});
 
         require(hasItemWithLabel(items, "ConfigBuilder"),
             "expected synthesized companion 'ConfigBuilder' class to be a known symbol");

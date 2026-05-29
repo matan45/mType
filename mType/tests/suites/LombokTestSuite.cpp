@@ -38,6 +38,9 @@ namespace tests::testSuite
         addOutputVerificationTest("Builder reuses a user-defined constructor (no duplicate)",
                                   passPath + "builder_explicit_ctor_pass.mt");
 
+        addOutputVerificationTest("Builder with a nested @Builder object field",
+                                  passPath + "builder_nested_pass.mt");
+
         addOutputVerificationTest("EqualsAndHashCode (structural equals + hash consistency)",
                                   passPath + "equals_hashcode_pass.mt");
 
