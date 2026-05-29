@@ -30,13 +30,13 @@ namespace optimizer::passes::lombok
             std::shared_ptr<ASTNode> body,
             bool isStatic)
         {
-            auto method = std::make_unique<MethodNode>(
+            // Not marked synthetic — see LombokCodegen.cpp: synthetic methods
+            // land in a separate map the method-existence validator ignores.
+            return std::make_unique<MethodNode>(
                 name, std::move(retType), params, std::move(body),
                 isStatic,
                 std::vector<GenericTypeParameter>{},
                 AccessModifier::PUBLIC, /*async*/ false);
-            method->setSynthetic(true);
-            return method;
         }
 
         std::unique_ptr<ASTNode> makeNew(const std::string& className,

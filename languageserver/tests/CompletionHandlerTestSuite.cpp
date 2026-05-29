@@ -606,6 +606,48 @@ function topLevelFn(): void {}
     });
 
     // ---------------------------------------------------------------
+    // Test 16b: @Builder companion class is a registered, completable symbol.
+    // ---------------------------------------------------------------
+    harness.addTest("lombok: @Builder companion class surfaces as a symbol", []() {
+        auto docMgr = makeDocManager("file:///test/lombok_builder_sym.mt",
+            "@Builder\n"
+            "class Config {\n"
+            "    private int port;\n"
+            "}\n"
+            "ConfigB\n");
+        CompletionHandler handler(docMgr.get());
+        // Line 4: "ConfigB" — complete the partial type name.
+        auto items = handler.handleCompletion("file:///test/lombok_builder_sym.mt", {4, 7});
+
+        require(hasItemWithLabel(items, "ConfigBuilder"),
+            "expected synthesized companion 'ConfigBuilder' class to be a known symbol");
+    });
+
+    // ---------------------------------------------------------------
+    // Test 16c: fluent setters + build() appear on the companion builder type.
+    // ---------------------------------------------------------------
+    harness.addTest("lombok: builder companion exposes fluent setters + build()", []() {
+        auto docMgr = makeDocManager("file:///test/lombok_builder_members.mt",
+            "@Builder\n"
+            "class Config {\n"
+            "    private int port;\n"
+            "    private string host;\n"
+            "}\n"
+            "ConfigBuilder bldr = Config::builder();\n"
+            "bldr.build();\n");
+        CompletionHandler handler(docMgr.get());
+        // Line 6: "bldr.build();" — col 5 is right after "bldr."
+        auto items = handler.handleCompletion("file:///test/lombok_builder_members.mt", {6, 5});
+
+        require(hasItemWithLabel(items, "build"),
+            "expected build() on the synthesized builder");
+        require(hasItemWithLabel(items, "port"),
+            "expected fluent setter 'port' on the synthesized builder");
+        require(hasItemWithLabel(items, "host"),
+            "expected fluent setter 'host' on the synthesized builder");
+    });
+
+    // ---------------------------------------------------------------
     // Test 17: Lombok skip — generic classes are not synthesized, so no
     // getValue() is offered (consistent with the compiler-side skip).
     // ---------------------------------------------------------------

@@ -31,13 +31,19 @@ namespace optimizer::passes::lombok
             const std::vector<GenericParam>& params,
             std::shared_ptr<ASTNode> body)
         {
-            auto method = std::make_unique<MethodNode>(
+            // NOTE: intentionally NOT marked synthetic. Lombok-generated
+            // members are real public API (reflection-visible, like Java
+            // Lombok). The synthetic flag would route them into
+            // ClassDefinition::syntheticInstanceMethods, which the
+            // compile-time method-existence validator does not consult — so
+            // calls to them would fail type-checking. (MYT-274's
+            // equals/hashCode avoid that only because they resolve via Object
+            // inheritance.)
+            return std::make_unique<MethodNode>(
                 name, std::move(retType), params, std::move(body),
                 /*isStatic*/ false,
                 std::vector<GenericTypeParameter>{},
                 AccessModifier::PUBLIC, /*async*/ false);
-            method->setSynthetic(true);
-            return method;
         }
 
         // Builds the `name=<value>` expression piece for one field in toString.

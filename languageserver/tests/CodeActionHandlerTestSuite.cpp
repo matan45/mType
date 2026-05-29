@@ -942,6 +942,57 @@ void CodeActionHandlerTestSuite::registerTests(LspTestHarness& harness) {
     });
 
     // ---------------------------------------------------------------
+    // Generate getters/setters — value class is treated like a normal
+    // class (getters AND setters), mirroring the stdlib `String` value
+    // class which exposes both getValue and setValue.
+    // ---------------------------------------------------------------
+    harness.addTest("generate accessors: value class gets getters and setters", []() {
+        const std::string uri = "file:///test/money.mt";
+        auto docMgr = makeDocManager(uri,
+            "value class Money {\n"
+            "    private int amount;\n"
+            "    private String currency;\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{1, 4}, {1, 4}};
+        auto actions = handler.handleCodeAction(uri, range, {});
+        const std::string edits = editsForTitle(actions, "getters and setters");
+
+        require(hasActionTitled(actions, "Generate getters and setters for all fields"),
+            "value class should still offer the accessor refactor");
+        require(edits.find("public function getAmount(): int {") != std::string::npos,
+            "value class field should get a getter. Edits:\n" + edits);
+        require(edits.find("public function setAmount(int amount): void {") != std::string::npos,
+            "value class field should get a setter (treated like a normal class). Edits:\n" + edits);
+        require(edits.find("public function getCurrency(): String {") != std::string::npos,
+            "value class object field should get a getter. Edits:\n" + edits);
+        require(edits.find("public function setCurrency(String currency): void {") != std::string::npos,
+            "value class object field should get a setter. Edits:\n" + edits);
+    });
+
+    // ---------------------------------------------------------------
+    // Generate default constructor — value class is treated normally
+    // ---------------------------------------------------------------
+    harness.addTest("generate constructor: value class offers default constructor", []() {
+        const std::string uri = "file:///test/valctor.mt";
+        auto docMgr = makeDocManager(uri,
+            "value class Point {\n"
+            "    private int x;\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{1, 4}, {1, 4}};
+        auto actions = handler.handleCodeAction(uri, range, {});
+        const std::string edits = editsForTitle(actions, "default constructor");
+
+        require(hasActionTitled(actions, "Generate default constructor"),
+            "value class without a constructor should still offer one");
+        require(edits.find("public constructor() {") != std::string::npos,
+            "expected a no-arg constructor for the value class. Edits:\n" + edits);
+    });
+
+    // ---------------------------------------------------------------
     // Generate default constructor — happy path
     // ---------------------------------------------------------------
     harness.addTest("generate constructor: default constructor when none exists", []() {
@@ -988,13 +1039,13 @@ void CodeActionHandlerTestSuite::registerTests(LspTestHarness& harness) {
     harness.addTest("generate accessors: no actions outside a class", []() {
         const std::string uri = "file:///test/free.mt";
         auto docMgr = makeDocManager(uri,
-            "let x = 1;\n"
+            "// a comment above the class\n"
             "class Thing {\n"
             "    private int a;\n"
             "}\n");
         CodeActionHandler handler(docMgr.get());
 
-        Range range{{0, 0}, {0, 0}};  // top-level statement, not inside a class
+        Range range{{0, 0}, {0, 0}};  // comment line, not inside a class
         auto actions = handler.handleCodeAction(uri, range, {});
 
         require(!hasActionTitled(actions, "getters and setters"),

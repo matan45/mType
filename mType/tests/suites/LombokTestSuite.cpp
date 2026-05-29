@@ -14,6 +14,9 @@ namespace tests::testSuite
         addOutputVerificationTest("Setter + NoArgsConstructor",
                                   passPath + "setter_pass.mt");
 
+        addOutputVerificationTest("Getter + Setter only (default ctor still auto-generated)",
+                                  passPath + "getter_setter_only_pass.mt");
+
         addOutputVerificationTest("ToString",
                                   passPath + "tostring_pass.mt");
 
@@ -22,6 +25,24 @@ namespace tests::testSuite
 
         addOutputVerificationTest("Builder fluent chain",
                                   passPath + "builder_pass.mt");
+
+        addOutputVerificationTest("Builder setters are order-independent (int/string/bool)",
+                                  passPath + "builder_reorder_pass.mt");
+
+        addOutputVerificationTest("Builder over inheritance (mirrors inherited + own fields)",
+                                  passPath + "builder_inheritance_pass.mt");
+
+        addOutputVerificationTest("Builder reuse — independent instances",
+                                  passPath + "builder_reuse_pass.mt");
+
+        addOutputVerificationTest("Builder reuses a user-defined constructor (no duplicate)",
+                                  passPath + "builder_explicit_ctor_pass.mt");
+
+        addOutputVerificationTest("EqualsAndHashCode (structural equals + hash consistency)",
+                                  passPath + "equals_hashcode_pass.mt");
+
+        addOutputVerificationTest("Getter on final field",
+                                  passPath + "getter_final_pass.mt");
 
         addOutputVerificationTest("AllArgsConstructor inheritance (super forwarding)",
                                   passPath + "allargs_inheritance_pass.mt");
