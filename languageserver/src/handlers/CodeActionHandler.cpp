@@ -5,6 +5,7 @@
 #include "../utils/ProjectConfigProvider.hpp"
 #include "../utils/UriUtils.hpp"
 #include "../../../mType/ast/nodes/classes/ClassNode.hpp"
+#include "../../../mType/ast/nodes/classes/FieldNode.hpp"
 #include "../../../mType/ast/nodes/classes/MethodNode.hpp"
 #include "../../../mType/ast/nodes/statements/ProgramNode.hpp"
 #include "../../../mType/environment/registry/InterfaceDefinition.hpp"
@@ -305,6 +306,19 @@ std::optional<ClassTarget> findClassTarget(
         };
     }
     return std::nullopt;
+}
+
+bool classHasFieldOnLine(const ast::nodes::classes::ClassNode* cls, int line)
+{
+    if (!cls) return false;
+    for (const auto& node : cls->getFields()) {
+        const auto* field = dynamic_cast<const ast::nodes::classes::FieldNode*>(node.get());
+        if (!field) continue;
+        if (field->getLocation().getLine() - 1 == line) {
+            return true;
+        }
+    }
+    return false;
 }
 
 std::unordered_set<std::string> collectClassGenericParams(
@@ -999,6 +1013,9 @@ std::vector<CodeAction> CodeActionHandler::generateGetterSetterActions(
 
     auto target = findClassTarget(doc, line, /*declarationLineOnly=*/false);
     if (!target || !target->node) {
+        return actions;
+    }
+    if (!classHasFieldOnLine(target->node, line)) {
         return actions;
     }
 

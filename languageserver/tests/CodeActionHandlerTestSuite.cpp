@@ -1004,6 +1004,33 @@ void CodeActionHandlerTestSuite::registerTests(LspTestHarness& harness) {
     });
 
     // ---------------------------------------------------------------
+    // Generate getters/setters — not offered inside method bodies
+    // ---------------------------------------------------------------
+    harness.addTest("generate accessors: no action on local variable inside method", []() {
+        const std::string uri = "file:///test/local.mt";
+        auto docMgr = makeDocManager(uri,
+            "class Person {\n"
+            "    private string name;\n"
+            "\n"
+            "    public function update(): void {\n"
+            "        int localCount = 0;\n"
+            "        localCount = localCount + 1;\n"
+            "    }\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range localVarRange{{4, 12}, {4, 12}};
+        auto localVarActions = handler.handleCodeAction(uri, localVarRange, {});
+        require(!hasActionTitled(localVarActions, "getters and setters"),
+            "getter/setter action must not be offered for a local variable");
+
+        Range bodyRange{{5, 8}, {5, 8}};
+        auto bodyActions = handler.handleCodeAction(uri, bodyRange, {});
+        require(!hasActionTitled(bodyActions, "getters and setters"),
+            "getter/setter action must not be offered inside a method body");
+    });
+
+    // ---------------------------------------------------------------
     // Generate default constructor — value class is treated normally
     // ---------------------------------------------------------------
     harness.addTest("generate constructor: value class offers default constructor", []() {
