@@ -74,6 +74,8 @@ namespace services
         std::unordered_map<std::string, std::string> pendingAliases_;
         std::string pendingProjectRoot_;
 
+        void runCachedStaticInitializers();
+
     public:
         ScriptInterpreter();
         explicit ScriptInterpreter(constants::ExecutionMode mode);

@@ -139,11 +139,13 @@ namespace services
     void ScriptInterpreter::loadCompiledBytecode(const std::string& bytecodeFile)
     {
         cachedBytecodeProgram = bytecodeService->loadCompiledBytecodeWithoutExecuting(bytecodeFile);
+        runCachedStaticInitializers();
     }
 
     void ScriptInterpreter::loadFromProgram(vm::bytecode::BytecodeProgram program)
     {
         cachedBytecodeProgram = bytecodeService->loadFromProgram(std::move(program));
+        runCachedStaticInitializers();
     }
 
     void ScriptInterpreter::runFromProgram(vm::bytecode::BytecodeProgram program)
@@ -189,6 +191,14 @@ namespace services
         if (vm)
         {
             vm->runStaticInitializersForLoadedPrograms();
+        }
+    }
+
+    void ScriptInterpreter::runCachedStaticInitializers()
+    {
+        if (vm && cachedBytecodeProgram)
+        {
+            vm->runStaticInitializers(*cachedBytecodeProgram);
         }
     }
 }

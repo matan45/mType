@@ -316,6 +316,7 @@ namespace services
                 {
                     scriptAPI->setBytecodeProgram(cachedBytecodeProgram.get());
                 }
+                runCachedStaticInitializers();
             }
         }
         catch (const ParseException&)
