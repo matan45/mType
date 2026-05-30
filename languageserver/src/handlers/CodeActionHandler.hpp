@@ -99,6 +99,15 @@ private:
         int line
     );
 
+    // Refactor: scaffold the @Script lifecycle contract. Offered when the
+    // cursor is inside a class annotated with @Script that is missing any of
+    // its no-arg constructor / onStart / onUpdate / onDestroy members; only
+    // the missing ones are generated.
+    std::vector<CodeAction> generateLifecycleMethodsAction(
+        const std::string& uri,
+        int line
+    );
+
     DocumentManager* documentManager_;
     std::shared_ptr<analysis::WorkspaceSymbolIndex> workspaceIndex_;
     std::shared_ptr<ProjectConfigProvider> projectConfig_;

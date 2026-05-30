@@ -1129,6 +1129,110 @@ void CodeActionHandlerTestSuite::registerTests(LspTestHarness& harness) {
         require(hasActionTitled(actions, "Generate default constructor"),
             "empty class with no constructor should still offer a default constructor");
     });
+
+    // ---------------------------------------------------------------
+    // @Script lifecycle — bare class generates constructor + all three
+    // lifecycle methods with the canonical signatures.
+    // ---------------------------------------------------------------
+    harness.addTest("lifecycle: bare @Script class generates ctor + onStart/onUpdate/onDestroy", []() {
+        const std::string uri = "file:///test/script.mt";
+        auto docMgr = makeDocManager(uri,
+            "@Script\n"
+            "class Player {\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{1, 4}, {1, 4}};  // cursor inside the class body
+        auto actions = handler.handleCodeAction(uri, range, {});
+        const std::string edits = editsForTitle(actions, "lifecycle methods");
+
+        require(hasActionTitled(actions, "Generate lifecycle methods (onStart/onUpdate/onDestroy)"),
+            "expected a lifecycle refactor action on a @Script class");
+        require(countOccurrences(edits, "public function on") == 3,
+            "expected exactly three lifecycle methods. Edits:\n" + edits);
+        require(edits.find("public function onStart(): void {") != std::string::npos,
+            "expected onStart. Edits:\n" + edits);
+        require(edits.find("public function onUpdate(float deltaTime): void {") != std::string::npos,
+            "expected onUpdate(float deltaTime). Edits:\n" + edits);
+        require(edits.find("public function onDestroy(): void {") != std::string::npos,
+            "expected onDestroy. Edits:\n" + edits);
+        require(edits.find("public constructor() {") != std::string::npos,
+            "expected a no-arg constructor. Edits:\n" + edits);
+    });
+
+    // ---------------------------------------------------------------
+    // @Script lifecycle — only the missing members are generated.
+    // ---------------------------------------------------------------
+    harness.addTest("lifecycle: @Script class generates only missing members", []() {
+        const std::string uri = "file:///test/partial.mt";
+        auto docMgr = makeDocManager(uri,
+            "@Script\n"
+            "class Player {\n"
+            "    constructor() {\n"
+            "    }\n"
+            "    public function onStart(): void {\n"
+            "    }\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{1, 4}, {1, 4}};
+        auto actions = handler.handleCodeAction(uri, range, {});
+        const std::string edits = editsForTitle(actions, "lifecycle methods");
+
+        require(hasActionTitled(actions, "Generate lifecycle methods (onStart/onUpdate/onDestroy)"),
+            "expected lifecycle action when members are still missing");
+        require(edits.find("public function onStart(") == std::string::npos,
+            "should not regenerate the existing onStart. Edits:\n" + edits);
+        require(edits.find("public constructor(") == std::string::npos,
+            "should not regenerate the existing constructor. Edits:\n" + edits);
+        require(edits.find("public function onUpdate(float deltaTime): void {") != std::string::npos,
+            "should generate the missing onUpdate. Edits:\n" + edits);
+        require(edits.find("public function onDestroy(): void {") != std::string::npos,
+            "should generate the missing onDestroy. Edits:\n" + edits);
+    });
+
+    // ---------------------------------------------------------------
+    // @Script lifecycle — no action when the contract is fully satisfied.
+    // ---------------------------------------------------------------
+    harness.addTest("lifecycle: no action when @Script contract complete", []() {
+        const std::string uri = "file:///test/complete.mt";
+        auto docMgr = makeDocManager(uri,
+            "@Script\n"
+            "class Player {\n"
+            "    constructor() {\n"
+            "    }\n"
+            "    public function onStart(): void {\n"
+            "    }\n"
+            "    public function onUpdate(float deltaTime): void {\n"
+            "    }\n"
+            "    public function onDestroy(): void {\n"
+            "    }\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{1, 4}, {1, 4}};
+        auto actions = handler.handleCodeAction(uri, range, {});
+
+        require(!hasActionTitled(actions, "lifecycle methods"),
+            "a @Script class with ctor + all three methods needs no lifecycle action");
+    });
+
+    // ---------------------------------------------------------------
+    // @Script lifecycle — never offered on a class without @Script.
+    // ---------------------------------------------------------------
+    harness.addTest("lifecycle: no action on class without @Script", []() {
+        const std::string uri = "file:///test/plain.mt";
+        auto docMgr = makeDocManager(uri,
+            "class Player {\n"
+            "}\n");
+        CodeActionHandler handler(docMgr.get());
+
+        Range range{{0, 4}, {0, 4}};
+        auto actions = handler.handleCodeAction(uri, range, {});
+
+        require(!hasActionTitled(actions, "lifecycle methods"),
+            "lifecycle action must not appear on a non-@Script class");
+    });
 }
 
 } // namespace mtype::lsp::test

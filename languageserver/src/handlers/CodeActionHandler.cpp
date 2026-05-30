@@ -1,5 +1,6 @@
 #include "CodeActionHandler.hpp"
 #include "AccessorCodegen.hpp"
+#include "LifecycleCodegen.hpp"
 #include "../analysis/WorkspaceSymbolIndex.hpp"
 #include "../utils/ImportUtils.hpp"
 #include "../utils/ProjectConfigProvider.hpp"
@@ -468,6 +469,9 @@ std::vector<CodeAction> CodeActionHandler::handleCodeAction(
 
     auto constructorActions = generateDefaultConstructorAction(uri, range.start.line);
     actions.insert(actions.end(), constructorActions.begin(), constructorActions.end());
+
+    auto lifecycleActions = generateLifecycleMethodsAction(uri, range.start.line);
+    actions.insert(actions.end(), lifecycleActions.begin(), lifecycleActions.end());
 
     return actions;
 }
@@ -1065,6 +1069,50 @@ std::vector<CodeAction> CodeActionHandler::generateDefaultConstructorAction(
 
     CodeAction action;
     action.title = "Generate default constructor";
+    action.kind = "refactor";
+
+    WorkspaceEdit edit;
+    TextEdit textEdit;
+    textEdit.range.start = target->insertionPoint;
+    textEdit.range.end = textEdit.range.start;
+    textEdit.newText = target->insertionPoint.character == 0
+        ? body
+        : "\n" + body;
+    edit.changes[uri].push_back(textEdit);
+    action.edit = edit;
+
+    actions.push_back(std::move(action));
+    return actions;
+}
+
+std::vector<CodeAction> CodeActionHandler::generateLifecycleMethodsAction(
+    const std::string& uri,
+    int line
+) {
+    std::vector<CodeAction> actions;
+
+    auto doc = documentManager_->getDocument(uri);
+    if (!doc) {
+        return actions;
+    }
+
+    auto target = findClassTarget(doc, line, /*declarationLineOnly=*/false);
+    if (!target || !target->node) {
+        return actions;
+    }
+    // Only @Script classes carry the lifecycle contract; stay invisible
+    // on ordinary classes.
+    if (!target->node->hasAnnotation("Script")) {
+        return actions;
+    }
+
+    const std::string body = lifecyclegen::buildLifecycleBody(*target->node);
+    if (body.empty()) {
+        return actions;  // constructor + all three lifecycle methods present
+    }
+
+    CodeAction action;
+    action.title = "Generate lifecycle methods (onStart/onUpdate/onDestroy)";
     action.kind = "refactor";
 
     WorkspaceEdit edit;

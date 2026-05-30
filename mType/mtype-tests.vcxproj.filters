@@ -4867,6 +4867,12 @@
     <None Include="tests\testFiles\class\pass\staticFieldInAbstractClass.mt.expected">
       <Filter>testFiles\class\pass</Filter>
     </None>
+    <None Include="tests\testFiles\class\pass\staticFinalInterop.expected">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\class\pass\staticFinalInterop.mt">
+      <Filter>testFiles\class\pass</Filter>
+    </None>
     <None Include="tests\testFiles\class\pass\staticFinalMembers.expected">
       <Filter>testFiles\class\pass</Filter>
     </None>
@@ -13229,6 +13235,9 @@
       <Filter>testFiles\reflection\pass</Filter>
     </None>
     <None Include="tests\testFiles\scriptapi\bootstrap.mt">
+      <Filter>testFiles\scriptapi</Filter>
+    </None>
+    <None Include="tests\testFiles\scriptapi\staticFinalInterop.mt">
       <Filter>testFiles\scriptapi</Filter>
     </None>
     <None Include="tests\testFiles\stream\error\streamAllMatchNullPredicate.mt">
