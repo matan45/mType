@@ -74,6 +74,8 @@ namespace services
         std::unordered_map<std::string, std::string> pendingAliases_;
         std::string pendingProjectRoot_;
 
+        void runCachedStaticInitializers();
+
     public:
         ScriptInterpreter();
         explicit ScriptInterpreter(constants::ExecutionMode mode);
@@ -103,7 +105,8 @@ namespace services
                           const std::unordered_map<std::string, std::string>& aliases);
         void runCompiledBytecode(const std::string& bytecodeFile);
         void loadCompiledBytecode(const std::string& bytecodeFile);  // Load without executing
-        void loadFromProgram(vm::bytecode::BytecodeProgram program);  // Load from in-memory program
+        void loadFromProgram(vm::bytecode::BytecodeProgram program,
+                             bool runStaticInitializers = true);  // Load from in-memory program
         void runFromProgram(vm::bytecode::BytecodeProgram program);   // Load and execute in-memory program
         void loadLibrary(const std::string& mtcLibPath);             // Load a .mtcLib library
         void loadLibraryWithDependencies(const std::string& mtcLibPath);  // Load with transitive deps

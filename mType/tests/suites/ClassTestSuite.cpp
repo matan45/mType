@@ -27,6 +27,8 @@ namespace tests::testSuite
                         passPath + "staticMethods.mt");
         addOutputVerificationTest("Static Final Members",
                         passPath + "staticFinalMembers.mt");
+        addOutputVerificationTest("Static Final Interop Regression (MYT-370)",
+                        passPath + "staticFinalInterop.mt");
         addOutputVerificationTest("Mixed Static and Instance",
                         passPath + "mixedStaticAndInstance.mt");
 

@@ -7,6 +7,7 @@
 #include "../../errors/ClassNotFoundException.hpp"
 #include "../../errors/RuntimeException.hpp"
 
+#include <cmath>
 #include <stdexcept>
 #include <string>
 
@@ -36,6 +37,9 @@ namespace tests::testSuite
         const std::string kBootstrap =
             "mType/tests/testFiles/scriptapi/bootstrap.mt";
 
+        const std::string kStaticFinalInterop =
+            "mType/tests/testFiles/scriptapi/staticFinalInterop.mt";
+
         // Extract an int64 from a Class value's _nativeHandle field.
         // Proves identity checks without leaking internals to the test.
         int64_t handleOf(ScriptAPI& api, const Class& cls)
@@ -61,10 +65,81 @@ namespace tests::testSuite
             }
             throw std::runtime_error("Class.getName() did not return a string");
         }
+
+        void requireIntValue(const value::Value& value, int64_t expected, const std::string& label)
+        {
+            require(value::isInt(value), label + " must return an int");
+            require(value::asInt(value) == expected,
+                label + " expected " + std::to_string(expected) +
+                ", got " + std::to_string(value::asInt(value)));
+        }
+
+        void requireFloatValue(const value::Value& value, double expected, const std::string& label)
+        {
+            require(value::isFloat(value), label + " must return a float");
+            require(std::fabs(value::asFloat(value) - expected) < 0.000001,
+                label + " returned unexpected float value");
+        }
+
+        void requireBoolValue(const value::Value& value, bool expected, const std::string& label)
+        {
+            require(value::isBool(value), label + " must return a bool");
+            require(value::asBool(value) == expected, label + " returned unexpected bool value");
+        }
     }
 
     void ScriptApiNativeTestSuite::setupTests()
     {
+        // ---- MYT-370: static final initializers before ScriptAPI calls ----
+
+        addCallbackTest("MYT-370 getStaticField returns initialized static finals",
+            kStaticFinalInterop,
+            [](ScriptAPI& api) {
+                requireIntValue(api.getStaticField("Myt370Constants", "LEFT"), 0, "LEFT");
+                requireIntValue(api.getStaticField("Myt370Constants", "RIGHT"), 1, "RIGHT");
+                requireIntValue(api.getStaticField("Myt370Constants", "MIDDLE"), 2, "MIDDLE");
+                requireFloatValue(api.getStaticField("Myt370Constants", "SCALE"), 1.5, "SCALE");
+                requireBoolValue(api.getStaticField("Myt370Constants", "ENABLED"), true, "ENABLED");
+
+                value::Value point = api.getStaticField("Myt370Constants", "POINT");
+                require(value::isObject(point), "POINT must be an object");
+                requireIntValue(api.callMethod(point, "sum", {}), 7, "POINT.sum()");
+
+                value::Value values = api.getStaticField("Myt370Constants", "VALUES");
+                require(value::isNativeArray(values), "VALUES must be a native array");
+                const auto& array = value::asNativeArray(values);
+                require(array->size() == 3, "VALUES length must be 3");
+                requireIntValue(array->get(0), 8, "VALUES[0]");
+                requireIntValue(array->get(1), 13, "VALUES[1]");
+                requireIntValue(array->get(2), 21, "VALUES[2]");
+            });
+
+        addCallbackTest("MYT-370 Class::FIELD works in static methods after interop load",
+            kStaticFinalInterop,
+            [](ScriptAPI& api) {
+                requireIntValue(api.callStaticMethod("Myt370Constants", "staticRightViaClassAccess", {}),
+                    1, "staticRightViaClassAccess()");
+                requireFloatValue(api.callStaticMethod("Myt370Constants", "staticScaleViaClassAccess", {}),
+                    1.5, "staticScaleViaClassAccess()");
+                requireBoolValue(api.callStaticMethod("Myt370Constants", "staticEnabledViaClassAccess", {}),
+                    true, "staticEnabledViaClassAccess()");
+                requireIntValue(api.callStaticMethod("Myt370Constants", "staticPointSumViaClassAccess", {}),
+                    7, "staticPointSumViaClassAccess()");
+                requireIntValue(api.callStaticMethod("Myt370Constants", "staticArrayMiddleViaClassAccess", {}),
+                    13, "staticArrayMiddleViaClassAccess()");
+            });
+
+        addCallbackTest("MYT-370 Class::FIELD works in object methods after interop load",
+            kStaticFinalInterop,
+            [](ScriptAPI& api) {
+                value::Value reader = api.createObject("Myt370Reader", {});
+                requireIntValue(api.callMethod(reader, "readRight", {}), 1, "readRight()");
+                requireFloatValue(api.callMethod(reader, "readScale", {}), 1.5, "readScale()");
+                requireBoolValue(api.callMethod(reader, "readEnabled", {}), true, "readEnabled()");
+                requireIntValue(api.callMethod(reader, "readPointSum", {}), 7, "readPointSum()");
+                requireIntValue(api.callMethod(reader, "readArrayLast", {}), 21, "readArrayLast()");
+            });
+
         // ---- getGenericArguments ----
 
         addCallbackTest("getGenericArguments returns [Int] for Box<Int>",

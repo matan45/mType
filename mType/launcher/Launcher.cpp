@@ -208,9 +208,9 @@ int main(int argc, char* argv[])
         std::istream stream(&buf);
         auto program = vm::bytecode::BytecodeProgram::deserialize(stream);
 
-        // Boot interpreter: load main program (registers classes, does NOT execute yet)
+        // Boot interpreter: load main program; defer static init until sidecars are loaded.
         services::ScriptInterpreter interpreter;
-        interpreter.loadFromProgram(std::move(program));
+        interpreter.loadFromProgram(std::move(program), false);
 
         // Load .mtcLib files from libs/ directory next to the exe
         // (must happen after main program is set so loadedPrograms[0] = main)
