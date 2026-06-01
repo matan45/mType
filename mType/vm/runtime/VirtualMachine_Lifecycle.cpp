@@ -283,6 +283,18 @@ namespace vm::runtime
         if (jitCodeCache) jitCodeCache->clear();
         if (jitProfiler)  jitProfiler->reset();
         if (inlineCacheTable) inlineCacheTable->clear();
+
+        // MYT-370 (rebuild regression): these sets dedup static initializers
+        // within a single build (MYT-325: same class in main bytecode + a
+        // sidecar .mtcLib). They hold stale BytecodeProgram* and synthetic
+        // "<Class>::<static_init>$static" names from the program being torn
+        // down. resetForRebuild — the sole caller — frees that program and its
+        // ClassDefinitions, then recompiles fresh ones whose static int fields
+        // default to 0. Without clearing here, runStaticInitializers() skips
+        // the re-run (name already seen) and constants like Mouse::RIGHT
+        // silently read 0.
+        staticInitializedPrograms.clear();
+        executedStaticInitializers.clear();
     }
 
     std::vector<void*> VirtualMachine::collectGCRoots() const

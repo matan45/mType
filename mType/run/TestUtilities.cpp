@@ -256,8 +256,8 @@ void printAvailableTestSuites()
     std::cout << "  null-safety  - Null Safety Test Suite\n";
     std::cout << "  json         - JSON Serialization/Deserialization Test Suite\n";
     std::cout << "  interpolation - String Interpolation Test Suite\n";
-    std::cout << "  native       - Native C++ Integration Test Suite\n";
-    std::cout << "  scriptapi    - ScriptAPI Native FFI Test Suite\n";
+    std::cout << "  scriptapi    - ScriptAPI Native FFI / C++ Integration Test Suite\n";
+    std::cout << "                 (aliases: scriptapi-native, native-api, ffi)\n";
     std::cout << "  diagnostics  - Diagnostics Foundation Test Suite\n";
     std::cout << "  debugger     - Debugger Protocol/State Test Suite\n";
     std::cout << "  completion   - Completion Logic Test Suite\n";

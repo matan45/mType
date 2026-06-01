@@ -119,6 +119,13 @@ namespace tests::testFramework
         testCases.emplace_back(name, bootstrapFilePath, std::move(callback));
     }
 
+    void TestSuite::addInterpreterCallbackTest(const std::string& name,
+                                               const std::string& bootstrapFilePath,
+                                               InterpreterCallback callback)
+    {
+        testCases.emplace_back(name, bootstrapFilePath, std::move(callback));
+    }
+
     void TestSuite::generateHtmlReport()
     {
         // Create reports directory if it doesn't exist

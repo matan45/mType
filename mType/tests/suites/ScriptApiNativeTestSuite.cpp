@@ -2,6 +2,8 @@
 #include <cstdint>
 
 #include "../../services/ScriptAPI.hpp"
+#include "../../services/ScriptInterpreter.hpp"
+#include "../../vm/runtime/VirtualMachine.hpp"
 #include "../../value/ValueShim.hpp"
 #include "../../errors/ObjectException.hpp"
 #include "../../errors/ClassNotFoundException.hpp"
@@ -91,6 +93,34 @@ namespace tests::testSuite
     void ScriptApiNativeTestSuite::setupTests()
     {
         // ---- MYT-370: static final initializers before ScriptAPI calls ----
+
+        // MYT-370 (rebuild regression): re-running a build must re-initialize
+        // static finals. The original MYT-370 fix made them resolve on the first
+        // build; this guards the editor's Stop -> Build Scripts -> Play cycle.
+        // The teardown (resetForRebuild) clears the class registry and calls
+        // VirtualMachine::reset(); reloading re-registers fresh FieldDefinitions
+        // (static ints back at their 0 default) under a NEW BytecodeProgram and
+        // re-runs the static initializers. Before the fix, reset() left
+        // executedStaticInitializers populated, so the new program's identically
+        // named "<static_init>$static" was treated as already-run and skipped,
+        // leaving the fresh RIGHT at 0 — the VK-1311 symptom where
+        // Input::isMouseButtonDown(Mouse::RIGHT) read button 0. Not JIT-specific:
+        // the dedup lives in the bytecode VM lifecycle and reproduces with JIT
+        // on or off.
+        addInterpreterCallbackTest("MYT-370 static finals re-initialize after rebuild",
+            "",
+            [](services::ScriptInterpreter& interp) {
+                interp.parseAndRegisterClasses(kStaticFinalInterop);
+                requireIntValue(interp.getStaticField("Myt370Constants", "RIGHT"), 1, "RIGHT (first build)");
+
+                vm::bytecode::BytecodeProgram rebuilt = *interp.getVM()->getProgram();
+                interp.resetForRebuild();
+                interp.loadFromProgram(std::move(rebuilt), /*runStaticInitializers=*/true);
+
+                requireIntValue(interp.getStaticField("Myt370Constants", "LEFT"), 0, "LEFT (after rebuild)");
+                requireIntValue(interp.getStaticField("Myt370Constants", "RIGHT"), 1, "RIGHT (after rebuild)");
+                requireIntValue(interp.getStaticField("Myt370Constants", "MIDDLE"), 2, "MIDDLE (after rebuild)");
+            });
 
         addCallbackTest("MYT-370 getStaticField returns initialized static finals",
             kStaticFinalInterop,

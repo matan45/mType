@@ -68,6 +68,14 @@ namespace tests::testFramework
                              const std::string& bootstrapFilePath,
                              NativeCallback callback);
 
+        // Like addCallbackTest, but the callback drives the ScriptInterpreter
+        // directly (parse, resetForRebuild, getStaticField, ...) instead of a
+        // ScriptAPI — for exercising rebuild/lifecycle paths the API surface
+        // doesn't expose.
+        void addInterpreterCallbackTest(const std::string& name,
+                                        const std::string& bootstrapFilePath,
+                                        InterpreterCallback callback);
+
         // Register a test as SKIPPED with an explicit reason. Used when a
         // suite can't run in the current build (e.g. a feature is gated or
         // walled off) so the report shows an explicit skip instead of

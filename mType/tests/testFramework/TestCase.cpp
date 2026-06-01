@@ -51,6 +51,16 @@ namespace tests::testFramework
     {
     }
 
+    TestCase::TestCase(const std::string& testName,
+                       const std::string& bootstrapFilePath,
+                       InterpreterCallback callback)
+        : name(testName), filePath(bootstrapFilePath), type(TestType::NATIVE_CALLBACK),
+          status(TestStatus::NOT_RUN), executionTime(0),
+          executionMode(constants::ExecutionMode::BYTECODE_VM),
+          interpreterCallback(std::move(callback))
+    {
+    }
+
     TestCase TestCase::skipped(const std::string& testName, const std::string& reason)
     {
         TestCase tc(testName, "", TestType::NORMAL);
@@ -344,7 +354,7 @@ namespace tests::testFramework
 
     void TestCase::executeNativeCallback()
     {
-        if (!nativeCallback)
+        if (!nativeCallback && !interpreterCallback)
         {
             status = TestStatus::ERROR;
             errorMessage = "NATIVE_CALLBACK test has no callback set";
@@ -380,15 +390,26 @@ namespace tests::testFramework
                 testInterpreter.parseAndRegisterClasses(filePath);
             }
 
-            // Build a ScriptAPI bound to the interpreter's VM + bytecode
-            // program and hand it to the callback. Any exception thrown
-            // from the callback fails the test via the catch below.
-            auto vmShared = testInterpreter.getVM();
-            vm::runtime::VirtualMachine* vmPtr = vmShared.get();
-            const vm::bytecode::BytecodeProgram* program = vmPtr ? vmPtr->getProgram() : nullptr;
-            services::ScriptAPI api(testInterpreter.getEnvironment(), vmPtr, program);
+            // Interpreter-level variant: hand the callback the interpreter
+            // itself so it can drive paths the ScriptAPI doesn't expose
+            // (e.g. resetForRebuild + re-parse). Same single interpreter,
+            // so no global-singleton contention.
+            if (interpreterCallback)
+            {
+                interpreterCallback(testInterpreter);
+            }
+            else
+            {
+                // Build a ScriptAPI bound to the interpreter's VM + bytecode
+                // program and hand it to the callback. Any exception thrown
+                // from the callback fails the test via the catch below.
+                auto vmShared = testInterpreter.getVM();
+                vm::runtime::VirtualMachine* vmPtr = vmShared.get();
+                const vm::bytecode::BytecodeProgram* program = vmPtr ? vmPtr->getProgram() : nullptr;
+                services::ScriptAPI api(testInterpreter.getEnvironment(), vmPtr, program);
 
-            nativeCallback(api);
+                nativeCallback(api);
+            }
 
             std::cout.rdbuf(oldCout);
             output = outputBuffer.str();
