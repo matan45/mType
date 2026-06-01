@@ -5,7 +5,7 @@
 #include "TestTypeEnum.hpp"
 #include "../../constants/ExecutionMode.hpp"
 
-namespace services { class ScriptAPI; }
+namespace services { class ScriptAPI; class ScriptInterpreter; }
 
 namespace tests::testFramework
 {
@@ -28,6 +28,16 @@ namespace tests::testFramework
      * exception fails the test.
      */
     using NativeCallback = std::function<void(services::ScriptAPI&)>;
+
+    /**
+     * Interpreter-level callback variant. The callback receives the
+     * test's single ScriptInterpreter directly, so it can drive paths
+     * the ScriptAPI surface doesn't expose — e.g. resetForRebuild() +
+     * re-parse to simulate the editor's Build Scripts cycle. Using the
+     * one harness interpreter avoids the global-singleton contention a
+     * second coexisting interpreter would cause.
+     */
+    using InterpreterCallback = std::function<void(services::ScriptInterpreter&)>;
 
     class TestCase
     {
@@ -59,6 +69,11 @@ namespace tests::testFramework
         // test tree), so relative imports resolve the same way they do
         // for normal tests.
         NativeCallback nativeCallback;
+
+        // Interpreter-level callback (see InterpreterCallback). When set,
+        // executeNativeCallback hands the callback the bootstrap interpreter
+        // instead of building a ScriptAPI around it.
+        InterpreterCallback interpreterCallback;
 
         // Helper methods
         bool verifyOutputAgainstExpected() const;
@@ -98,6 +113,13 @@ namespace tests::testFramework
         TestCase(const std::string& testName,
                  const std::string& bootstrapFilePath,
                  NativeCallback callback);
+
+        // Interpreter-level NATIVE_CALLBACK constructor — like the
+        // ScriptAPI variant, but the callback drives the bootstrap
+        // ScriptInterpreter directly.
+        TestCase(const std::string& testName,
+                 const std::string& bootstrapFilePath,
+                 InterpreterCallback callback);
 
         void execute();
 
