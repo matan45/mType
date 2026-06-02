@@ -1,13 +1,12 @@
-// Test: compound `&&` conditions do NOT propagate narrowing.
-// The tracker only inspects a top-level EQUALS / NOT_EQUALS against
-// NullNode; once the condition is `&&`, the analyzer short-circuits and
-// `b` stays nullable in the then-branch.
+// MYT-373: compound `&&` condition facts narrow into the then branch.
 
 class Box {
     public int value;
+
     constructor(int v) {
         this.value = v;
     }
+
     public function getValue(): int {
         return this.value;
     }
@@ -21,4 +20,10 @@ function process(Box? b, int x): int {
 }
 
 print(process(new Box(5), 1));
-print("Should not reach here");
+print(process(new Box(5), 0));
+print(process(null, 1));
+
+// Expected output:
+// 5
+// 0
+// 0

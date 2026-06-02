@@ -3031,6 +3031,24 @@
     <None Include="tests\testFiles\benchmarks\method_dispatch.mt">
       <Filter>testFiles\benchmarks</Filter>
     </None>
+    <None Include="tests\testFiles\benchmarks\null_guard_clause_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\null_guard_clause_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\null_narrowing_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\null_narrowing_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\null_narrowing_while_hot.expected">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
+    <None Include="tests\testFiles\benchmarks\null_narrowing_while_hot.mt">
+      <Filter>testFiles\benchmarks</Filter>
+    </None>
     <None Include="tests\testFiles\benchmarks\object_alloc.expected">
       <Filter>testFiles\benchmarks</Filter>
     </None>
@@ -12475,9 +12493,6 @@
     <None Include="tests\testFiles\nullSafety\error\chainedAccessThroughNullable_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
-    <None Include="tests\testFiles\nullSafety\error\compoundAndNoNarrowing_error.mt">
-      <Filter>testFiles\nullSafety\error</Filter>
-    </None>
     <None Include="tests\testFiles\nullSafety\error\guardClauseNoExit_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
@@ -12530,6 +12545,18 @@
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\arrayIterateWithNullCheck.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\compoundGuardClauseNarrowing.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\compoundGuardClauseNarrowing.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\compoundIfConditionNarrowing.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\compoundIfConditionNarrowing.mt">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\elseBranchMethodDispatch.expected">
@@ -12626,6 +12653,18 @@
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\objectArrayDefaultsNull.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\shortCircuitAndNullGuard.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\shortCircuitAndNullGuard.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\shortCircuitOrNullGuard.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\shortCircuitOrNullGuard.mt">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\smartCastBasic.expected">

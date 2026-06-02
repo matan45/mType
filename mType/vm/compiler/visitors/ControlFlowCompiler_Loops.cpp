@@ -7,6 +7,7 @@
 #include "../../../ast/nodes/expressions/NullNode.hpp"
 #include "../../../ast/nodes/expressions/VariableNode.hpp"
 #include "../../../token/TokenType.hpp"
+#include "../types/NullConditionFacts.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -40,39 +41,18 @@ namespace vm::compiler::visitors
 
         ctx.loopManager.enterLoop(loopStart);
 
-        // Analyze condition for null narrowing in while body:
-        // `while (x != null) { ... }` narrows x to non-null inside the body.
-        std::string whileNarrowVar;
-        if (auto* binExpr = dynamic_cast<ast::nodes::expressions::BinaryExpNode*>(node->getCondition()))
-        {
-            auto* left = binExpr->getLeft();
-            auto* right = binExpr->getRight();
-            token::TokenType op = binExpr->getOperator();
-            auto* leftVar = dynamic_cast<ast::nodes::expressions::VariableNode*>(left);
-            auto* rightVar = dynamic_cast<ast::nodes::expressions::VariableNode*>(right);
-            bool leftIsNull = dynamic_cast<ast::NullNode*>(left) != nullptr;
-            bool rightIsNull = dynamic_cast<ast::NullNode*>(right) != nullptr;
-            if (op == token::TokenType::NOT_EQUALS)
-            {
-                if (rightIsNull && leftVar) { whileNarrowVar = leftVar->getName(); }
-                else if (leftIsNull && rightVar) { whileNarrowVar = rightVar->getName(); }
-            }
-        }
+        types::NullConditionFacts conditionFacts =
+            types::analyzeNullCondition(node->getCondition());
 
         // Compile body with its own scope
         ctx.variableTracker.beginScope();
-        if (!whileNarrowVar.empty())
         {
-            ctx.nullNarrowing.enterScope();
-            ctx.nullNarrowing.narrowToNonNull(whileNarrowVar);
-        }
-        // MYT-271: braceless while-bodies need the same cleanup as braced.
-        size_t whileBodyOffsetBefore = ctx.program.getCurrentOffset();
-        node->getBody()->accept(ctx.visitor);
-        statementCleanup::emitStatementCleanup(ctx, node->getBody(), whileBodyOffsetBefore);
-        if (!whileNarrowVar.empty())
-        {
-            ctx.nullNarrowing.exitScope();
+            types::ScopedNullNarrowing narrowing(ctx.nullNarrowing,
+                                                 conditionFacts.whenTrueNonNull);
+            // MYT-271: braceless while-bodies need the same cleanup as braced.
+            size_t whileBodyOffsetBefore = ctx.program.getCurrentOffset();
+            node->getBody()->accept(ctx.visitor);
+            statementCleanup::emitStatementCleanup(ctx, node->getBody(), whileBodyOffsetBefore);
         }
         ctx.variableTracker.endScope();
         ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
@@ -168,7 +148,9 @@ namespace vm::compiler::visitors
         size_t loopStart = ctx.program.getCurrentOffset();
 
         // Compile condition
+        types::NullConditionFacts forConditionFacts;
         if (node->getCondition()) {
+            forConditionFacts = types::analyzeNullCondition(node->getCondition());
             node->getCondition()->accept(ctx.visitor);
         } else {
             // No condition means infinite loop
@@ -198,6 +180,8 @@ namespace vm::compiler::visitors
         // Compile body
         // MYT-271: braceless for-bodies need the same cleanup as braced.
         if (node->getBody()) {
+            types::ScopedNullNarrowing narrowing(ctx.nullNarrowing,
+                                                 forConditionFacts.whenTrueNonNull);
             size_t forBodyOffsetBefore = ctx.program.getCurrentOffset();
             node->getBody()->accept(ctx.visitor);
             statementCleanup::emitStatementCleanup(ctx, node->getBody(), forBodyOffsetBefore);

@@ -33,6 +33,14 @@ namespace tests::testSuite
         // === GUARD CLAUSE NARROWING ===
         addOutputVerificationTest("Guard Clause Narrowing",
                         passPath + "guardClauseNarrowing.mt");
+        addOutputVerificationTest("Short-Circuit && Null Guard",
+                        passPath + "shortCircuitAndNullGuard.mt");
+        addOutputVerificationTest("Short-Circuit || Null Guard",
+                        passPath + "shortCircuitOrNullGuard.mt");
+        addOutputVerificationTest("Compound If Condition Narrowing",
+                        passPath + "compoundIfConditionNarrowing.mt");
+        addOutputVerificationTest("Compound Guard Clause Narrowing",
+                        passPath + "compoundGuardClauseNarrowing.mt");
 
         // === ERROR TESTS ===
         addTestFromFile("Null to Non-Nullable Assignment",
@@ -83,9 +91,6 @@ namespace tests::testSuite
                         passPath + "whileLoopNarrowing.mt");
         addOutputVerificationTest("Nested Narrowing",
                         passPath + "nestedNarrowing.mt");
-        addTestFromFile("Compound && Does Not Narrow",
-                        errorPath + "compoundAndNoNarrowing_error.mt",
-                        TestType::ERROR_EXPECTED);
         addTestFromFile("Narrowing Scoped to If Block",
                         errorPath + "narrowingScopedToIfBlock_error.mt",
                         TestType::ERROR_EXPECTED);
