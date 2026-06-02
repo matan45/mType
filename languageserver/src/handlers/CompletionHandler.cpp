@@ -93,13 +93,19 @@ namespace mtype::lsp
         std::string identifierBeforeOperator(
             const std::string& trimmed, std::size_t operatorPos)
         {
-            std::size_t start = operatorPos;
+            std::size_t end = operatorPos;
+            // Safe navigation (`foo?.bar`): the member operator is `?.`, so the
+            // receiver identifier ends before the `?`, not the `.`.
+            if (end > 0 && trimmed[end - 1] == '?') {
+                --end;
+            }
+            std::size_t start = end;
             while (start > 0
                    && (std::isalnum(static_cast<unsigned char>(trimmed[start - 1]))
                        || trimmed[start - 1] == '_')) {
                 --start;
             }
-            return trimmed.substr(start, operatorPos - start);
+            return trimmed.substr(start, end - start);
         }
     }
 

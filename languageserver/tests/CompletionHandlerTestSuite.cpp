@@ -517,6 +517,43 @@ function topLevelFn(): void {}
     });
 
     // ---------------------------------------------------------------
+    // Test 12b: Safe navigation (`?.`) triggers member completions exactly
+    // like `.` — for both non-nullable and nullable receivers (MYT-374).
+    // The receiver extractor must step over the `?` of `?.`.
+    // ---------------------------------------------------------------
+    harness.addTest("safe navigation: ?. on non-nullable receiver shows members", []() {
+        auto docMgr = makeDocManager("file:///test/safenav_nonnull.mt",
+            "class Dog {\n"
+            "    public function bark(): void {}\n"
+            "}\n"
+            "Dog d = new Dog();\n"
+            "d?.bark();\n");
+        CompletionHandler handler(docMgr.get());
+        // Line 4: "d?.bark();" — col 3 is right after "d?."
+        auto items = handler.handleCompletion("file:///test/safenav_nonnull.mt", {4, 3});
+
+        require(hasItemWithLabel(items, "bark"),
+            "safe navigation 'd?.' should offer members of Dog");
+        require(!hasItemWithLabel(items, "class"),
+            "safe navigation member access should not show keywords");
+    });
+
+    harness.addTest("safe navigation: ?. on nullable receiver shows members", []() {
+        auto docMgr = makeDocManager("file:///test/safenav_nullable.mt",
+            "class Dog {\n"
+            "    public function bark(): void {}\n"
+            "}\n"
+            "Dog? d = new Dog();\n"
+            "d?.bark();\n");
+        CompletionHandler handler(docMgr.get());
+        // Line 4: "d?.bark();" — col 3 is right after "d?."
+        auto items = handler.handleCompletion("file:///test/safenav_nullable.mt", {4, 3});
+
+        require(hasItemWithLabel(items, "bark"),
+            "safe navigation 'd?.' on a nullable receiver should offer members of Dog");
+    });
+
+    // ---------------------------------------------------------------
     // Test 13: Static access via ::
     // ---------------------------------------------------------------
     harness.addTest("static access via :: returns class members", []() {
