@@ -84,6 +84,18 @@ namespace tests::testSuite
         addOutputVerificationTest("Ternary Operator Nesting Limits",
                         passPath + "ternaryOperatorNestingLimits.mt");
 
+        // MYT-374: safe-navigation operator (?.) tests
+        addOutputVerificationTest("Safe Navigation Field Access",
+                        passPath + "safeNavField_pass.mt");
+        addOutputVerificationTest("Safe Navigation Method Call",
+                        passPath + "safeNavMethod_pass.mt");
+        addOutputVerificationTest("Safe Navigation Null Short Circuit",
+                        passPath + "safeNavNullShortCircuit_pass.mt");
+        addOutputVerificationTest("Safe Navigation Chain Short Circuit",
+                        passPath + "safeNavChain_pass.mt");
+        addOutputVerificationTest("Safe Navigation On Non-Nullable",
+                        passPath + "safeNavOnNonNullable_pass.mt");
+
         // Boolean expression tests
         addOutputVerificationTest("Complex Boolean Expressions",
                         passPath + "complexBooleanExpressions.mt");

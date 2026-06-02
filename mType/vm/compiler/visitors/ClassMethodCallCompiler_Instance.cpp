@@ -271,8 +271,12 @@ namespace vm::compiler::visitors
 
             // First, compile the object expression
             bool nonNullReceiver = isReceiverNonNullable(node->getObject());
+            bool safe = node->getIsSafe();
 
-            if (!nonNullReceiver)
+            // Safe navigation (obj?.method()) permits a nullable receiver and
+            // short-circuits to null; only a plain '.' on a nullable receiver
+            // is a hard error.
+            if (!nonNullReceiver && !safe)
             {
                 throw errors::TypeException(
                     "Cannot call method '" + methodName + "' on nullable receiver. "
@@ -282,6 +286,16 @@ namespace vm::compiler::visitors
             }
 
             node->getObject()->accept(ctx.visitor);
+
+            // MYT-374: desugar obj?.method() to a DUP + JUMP_IF_NULL short-circuit.
+            // On a null receiver: pop it and push null; otherwise compile args and
+            // CALL_METHOD as normal with a provably non-null receiver.
+            size_t safeJumpNull = 0;
+            if (safe)
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::DUP, node);
+                safeJumpNull = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_NULL, node);
+            }
 
             // If no methodMetadata, try looking up interface definition
             std::vector<std::string> interfaceParameterTypes;
@@ -458,6 +472,16 @@ namespace vm::compiler::visitors
                                  static_cast<uint64_t>(methodNameIndex),
                                  static_cast<uint64_t>(arguments.size()), node);
                 ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
+            }
+
+            // MYT-374: close the safe-navigation short-circuit.
+            if (safe)
+            {
+                size_t safeEndJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP, node);
+                ctx.emitter.patchJump(safeJumpNull);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
+                ctx.emitter.patchJump(safeEndJump);
             }
         }
     }

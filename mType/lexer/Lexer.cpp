@@ -7,8 +7,9 @@
 
 namespace lexer
 {
-    const std::array<Lexer::OperatorInfo, 17> Lexer::TWO_CHAR_OPERATORS = {
+    const std::array<Lexer::OperatorInfo, 18> Lexer::TWO_CHAR_OPERATORS = {
         {
+            {"?.", TokenType::QUESTION_DOT, 2},
             {"++", TokenType::INCREMENT, 2},
             {"--", TokenType::DECREMENT, 2},
             {"==", TokenType::EQUALS, 2},

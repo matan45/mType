@@ -3,14 +3,14 @@
 namespace ast::nodes::classes
 {
     MemberAccessNode::MemberAccessNode(std::shared_ptr<ASTNode> obj, const std::string& member, bool isStatic,
-                                       const SourceLocation& loc)
-        : ASTNode(loc), object(std::move(obj)), memberName(member), isStaticAccess(isStatic)
+                                       const SourceLocation& loc, bool safe)
+        : ASTNode(loc), object(std::move(obj)), memberName(member), isStaticAccess(isStatic), isSafe(safe)
     {
     }
 
     MemberAccessNode::MemberAccessNode(std::unique_ptr<ASTNode> obj, const std::string& member, bool isStatic,
-                                       const SourceLocation& loc)
-        : ASTNode(loc), object(std::move(obj)), memberName(member), isStaticAccess(isStatic)
+                                       const SourceLocation& loc, bool safe)
+        : ASTNode(loc), object(std::move(obj)), memberName(member), isStaticAccess(isStatic), isSafe(safe)
     {
     }
 
@@ -27,6 +27,11 @@ namespace ast::nodes::classes
     bool MemberAccessNode::getIsStaticAccess() const
     {
         return isStaticAccess;
+    }
+
+    bool MemberAccessNode::getIsSafe() const
+    {
+        return isSafe;
     }
 
     std::shared_ptr<ASTNode> MemberAccessNode::getObjectShared() const
@@ -63,7 +68,8 @@ namespace ast::nodes::classes
             clonedObject,
             memberName,
             isStaticAccess,
-            location
+            location,
+            isSafe
         );
     }
 }

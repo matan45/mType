@@ -15,17 +15,20 @@ namespace ast::nodes::classes
         std::vector<std::unique_ptr<ASTNode>> arguments;
         bool isStaticCall; // For Class::method() vs obj.method()
         std::vector<std::string> genericTypeArguments; // For Class::method<Type>()
+        bool isSafe; // For obj?.method() safe-navigation call
 
     public:
         explicit MethodCallNode(std::unique_ptr<ASTNode> obj, const std::string& method,
                                 std::vector<std::unique_ptr<ASTNode>> args, bool isStatic = false,
                                 const std::vector<std::string>& genericArgs = {},
-                                const SourceLocation& loc = SourceLocation());
+                                const SourceLocation& loc = SourceLocation(),
+                                bool safe = false);
 
         ASTNode* getObject() const;
         const std::string& getMethodName() const;
         const std::vector<std::unique_ptr<ASTNode>>& getArguments() const;
         bool getIsStaticCall() const;
+        bool getIsSafe() const;
         const std::vector<std::string>& getGenericTypeArguments() const;
         bool hasGenericTypeArguments() const;
 

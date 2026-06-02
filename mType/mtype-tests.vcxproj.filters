@@ -5878,6 +5878,36 @@
     <None Include="tests\testFiles\controlFlow\pass\returnMultiplePaths_pass.mt">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
+    <None Include="tests\testFiles\controlFlow\pass\safeNavChain_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\safeNavChain_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\safeNavField_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\safeNavField_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\safeNavMethod_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\safeNavMethod_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\safeNavNullShortCircuit_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\safeNavNullShortCircuit_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\safeNavOnNonNullable_pass.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\safeNavOnNonNullable_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\pass\spacedOperators.expected">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>

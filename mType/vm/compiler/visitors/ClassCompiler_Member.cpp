@@ -54,8 +54,12 @@ namespace vm::compiler::visitors
                 // Regular instance field access: object.fieldName
                 ast::ASTNode* receiverNode = node->getObject();
                 bool nonNullReceiver = isReceiverNonNullable(receiverNode);
+                bool safe = node->getIsSafe();
 
-                if (!nonNullReceiver)
+                // Safe navigation (obj?.field) permits a nullable receiver and
+                // short-circuits to null; only a plain '.' on a nullable
+                // receiver is a hard error.
+                if (!nonNullReceiver && !safe)
                 {
                     throw errors::TypeException(
                         "Cannot access field '" + memberName + "' on nullable receiver. "
@@ -65,6 +69,16 @@ namespace vm::compiler::visitors
                 }
 
                 receiverNode->accept(ctx.visitor);
+
+                // MYT-374: desugar obj?.field to a DUP + JUMP_IF_NULL short-circuit.
+                // On a null receiver: pop it and push null; otherwise fall through
+                // to the normal GET_FIELD with a provably non-null receiver.
+                size_t safeJumpNull = 0;
+                if (safe)
+                {
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::DUP, node);
+                    safeJumpNull = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_NULL, node);
+                }
 
                 // MYT-212: when the receiver is a variable with a declared
                 // class type and that class declares (or inherits) the field,
@@ -120,6 +134,16 @@ namespace vm::compiler::visitors
                     size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
                     ctx.emitter.emitWithLocation(bytecode::OpCode::GET_FIELD, static_cast<uint64_t>(fieldNameIndex), node);
                     ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
+                }
+
+                // MYT-374: close the safe-navigation short-circuit.
+                if (safe)
+                {
+                    size_t safeEndJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP, node);
+                    ctx.emitter.patchJump(safeJumpNull);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
+                    ctx.emitter.patchJump(safeEndJump);
                 }
             }
         }

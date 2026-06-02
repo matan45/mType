@@ -51,6 +51,14 @@ namespace vm::compiler::types
 
     bool TypeInferenceEngine::inferMethodCallNullable(ast::MethodCallNode* methodCall) const
     {
+        // MYT-374: a safe-navigation call (obj?.method()) can short-circuit to
+        // null, so its result is always nullable regardless of the method's
+        // declared return type.
+        if (methodCall->getIsSafe())
+        {
+            return true;
+        }
+
         std::string className = inferExpressionClassName(methodCall->getObject());
         if (!className.empty())
         {
@@ -104,6 +112,14 @@ namespace vm::compiler::types
 
     bool TypeInferenceEngine::inferMemberAccessNullable(ast::MemberAccessNode* memberAccess) const
     {
+        // MYT-374: a safe-navigation access (obj?.field) can short-circuit to
+        // null, so its result is always nullable regardless of the field's
+        // declared type.
+        if (memberAccess->getIsSafe())
+        {
+            return true;
+        }
+
         std::string className = inferExpressionClassName(memberAccess->getObject());
         if (!className.empty())
         {

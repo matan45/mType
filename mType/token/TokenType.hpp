@@ -43,6 +43,7 @@ namespace token
         CLASS, // class keyword
         NEW, // new keyword
         DOT, // . operator
+        QUESTION_DOT, // ?. safe-navigation operator
         STATIC, // static keyword
         PRIVATE, // private keyword
         PUBLIC, // public keyword

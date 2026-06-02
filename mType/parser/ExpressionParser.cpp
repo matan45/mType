@@ -524,6 +524,10 @@ namespace parser
             {
                 expr = parseMemberAccess(std::move(expr));
             }
+            else if (tokenStream.check(TokenType::QUESTION_DOT))
+            {
+                expr = parseMemberAccess(std::move(expr), /*isSafe*/ true);
+            }
             else if (tokenStream.check(TokenType::LBRACKET))
             {
                 expr = parseIndexAccess(std::move(expr));
@@ -578,13 +582,14 @@ namespace parser
         throw ParseException("Invalid function call target", tokenStream.current().location);
     }
 
-    std::unique_ptr<ASTNode> ExpressionParser::parseMemberAccess(std::unique_ptr<ASTNode> object)
+    std::unique_ptr<ASTNode> ExpressionParser::parseMemberAccess(std::unique_ptr<ASTNode> object, bool isSafe)
     {
-        expectToken(TokenType::DOT);
+        expectToken(isSafe ? TokenType::QUESTION_DOT : TokenType::DOT);
 
         if (!tokenStream.check(TokenType::IDENTIFIER))
         {
-            throw ParseException("Expected member name after '.'", tokenStream.current().location);
+            throw ParseException(isSafe ? "Expected member name after '?.'" : "Expected member name after '.'",
+                                 tokenStream.current().location);
         }
 
         std::string memberName = std::string(tokenStream.current().stringValue);
@@ -617,10 +622,10 @@ namespace parser
 
             expectToken(TokenType::RPAREN);
             return std::make_unique<MethodCallNode>(std::move(object), memberName, std::move(arguments),
-                                                    false, genericTypeArguments, location);
+                                                    false, genericTypeArguments, location, isSafe);
         }
 
-        return std::make_unique<MemberAccessNode>(std::move(object), memberName, false, location);
+        return std::make_unique<MemberAccessNode>(std::move(object), memberName, false, location, isSafe);
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseIndexAccess(std::unique_ptr<ASTNode> collection)
