@@ -381,6 +381,10 @@
           "match": "(\\+\\+|--|\\+|-|\\*|/|%)"
         },
         {
+          "name": "keyword.operator.safe-navigation.mtype",
+          "match": "\\?\\."
+        },
+        {
           "name": "keyword.operator.ternary.mtype",
           "match": "(\\?|:)"
         },
