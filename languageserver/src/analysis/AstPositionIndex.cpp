@@ -258,6 +258,11 @@ bool cursorOnIdentifier(const ast::ASTNode& node,
     return astCol >= startCol && astCol < endCol;
 }
 
+bool cursorAfterNodeAnchorOnSameLine(const ast::ASTNode& node, int astLine, int astCol) {
+    const auto& loc = node.getLocation();
+    return loc.getLine() == astLine && astCol >= loc.getColumn();
+}
+
 }  // namespace
 
 bool walkAst(const ast::ASTNode* node,
@@ -284,6 +289,27 @@ const ast::nodes::classes::MethodCallNode* findMethodCallAt(
         if (!call) return false;
         if (call->getMethodName() != methodName) return false;
         if (!cursorOnIdentifier(*call, astLine, astCol, methodName)) return false;
+        match = call;
+        return true;
+    });
+
+    return match;
+}
+
+const ast::nodes::classes::SuperMethodCallNode* findSuperMethodCallAt(
+    const std::vector<std::unique_ptr<ast::ASTNode>>& roots,
+    int line, int col,
+    const std::string& methodName) {
+
+    const int astLine = line + 1;
+    const int astCol = col + 1;
+    const ast::nodes::classes::SuperMethodCallNode* match = nullptr;
+
+    walkAst(roots, [&](const ast::ASTNode* n) -> bool {
+        auto* call = dynamic_cast<const ast::nodes::classes::SuperMethodCallNode*>(n);
+        if (!call) return false;
+        if (call->getMethodName() != methodName) return false;
+        if (!cursorAfterNodeAnchorOnSameLine(*call, astLine, astCol)) return false;
         match = call;
         return true;
     });
@@ -344,6 +370,29 @@ const ast::ASTNode* findEnclosingCallable(
     });
 
     (void)col;  // unused — we match by line only
+    return enclosing;
+}
+
+const ast::nodes::classes::ClassNode* findEnclosingClass(
+    const std::vector<std::unique_ptr<ast::ASTNode>>& roots,
+    int line, int col) {
+
+    const int astLine = line + 1;
+    const ast::nodes::classes::ClassNode* enclosing = nullptr;
+
+    walkAst(roots, [&](const ast::ASTNode* n) -> bool {
+        auto* cls = dynamic_cast<const ast::nodes::classes::ClassNode*>(n);
+        if (!cls) return false;
+        int loc = cls->getLocation().getLine();
+        if (loc <= astLine) {
+            if (!enclosing || loc > enclosing->getLocation().getLine()) {
+                enclosing = cls;
+            }
+        }
+        return false;
+    });
+
+    (void)col;  // unused, class matching is line-based for now.
     return enclosing;
 }
 

@@ -6,7 +6,11 @@
 #include <vector>
 
 namespace ast { class ASTNode; }
-namespace ast::nodes::classes { class MethodCallNode; }
+namespace ast::nodes::classes {
+    class ClassNode;
+    class MethodCallNode;
+    class SuperMethodCallNode;
+}
 namespace ast::nodes::functions { class FunctionCallNode; class FunctionNode; }
 
 // Namespace stays `mtype::lsp` (not `mtype::lsp::analysis`) so that the
@@ -42,6 +46,12 @@ const ast::nodes::classes::MethodCallNode* findMethodCallAt(
     int line, int col,
     const std::string& methodName);
 
+// Same shape as findMethodCallAt for `super.method(...)` calls.
+const ast::nodes::classes::SuperMethodCallNode* findSuperMethodCallAt(
+    const std::vector<std::unique_ptr<ast::ASTNode>>& roots,
+    int line, int col,
+    const std::string& methodName);
+
 // Same shape as findMethodCallAt for free function calls.
 const ast::nodes::functions::FunctionCallNode* findFunctionCallAt(
     const std::vector<std::unique_ptr<ast::ASTNode>>& roots,
@@ -54,6 +64,12 @@ const ast::nodes::functions::FunctionCallNode* findFunctionCallAt(
 // enclosing AST node as a base ASTNode* — callers dispatch via dynamic_cast.
 // Returns null if the cursor is at top-level (outside any function body).
 const ast::ASTNode* findEnclosingCallable(
+    const std::vector<std::unique_ptr<ast::ASTNode>>& roots,
+    int line, int col);
+
+// Finds the enclosing ClassNode at the cursor. Best-effort, using source-anchor
+// lines only because AST nodes do not currently carry body end ranges.
+const ast::nodes::classes::ClassNode* findEnclosingClass(
     const std::vector<std::unique_ptr<ast::ASTNode>>& roots,
     int line, int col);
 
