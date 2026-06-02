@@ -444,6 +444,25 @@ namespace tests::testSuite
                         errorPath + "finalForLoopVariable.mt",
                         TestType::ERROR_EXPECTED);
 
+        // === PREVIOUSLY-UNREGISTERED ERROR FIXTURES (switch / recursion / ctor) ===
+        addTestFromFile("Switch On Unsupported Object Type",
+                        errorPath + "errorInvalidSwitchType_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Switch With Duplicate Case Values",
+                        errorPath + "switchDuplicateCases_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Switch With Float Case Values",
+                        errorPath + "switchFloatValues_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Return Value From Constructor",
+                        errorPath + "returnInConstructor_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Deep Recursion Stack Overflow",
+                        errorPath + "recursionDeepStack_error.mt",
+                        TestType::ERROR_EXPECTED);
+        // Removed - loopInfiniteDetection_error.mt (not a genuine error: it has a
+        // break and completes normally; an infinite loop would hang, not throw).
+
         // === EDGE CASE TESTS - finally semantics / nesting / masking ===
         addOutputVerificationTest("Final Return Overrides Try Return",
                         passPath + "finalReturnOverridesTryReturn.mt");

@@ -125,5 +125,26 @@ namespace tests::testSuite
         addTestFromFile("Nullable Super Unchecked",
                         errorPath + "nullableSuperUnchecked_error.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === SAFE NAVIGATION OPERATOR (?.) — MYT-374 ===
+        addOutputVerificationTest("Safe Nav Field Access",
+                        passPath + "safeNavFieldAccess.mt");
+        addOutputVerificationTest("Safe Nav Method With Args",
+                        passPath + "safeNavMethodWithArgs.mt");
+        addOutputVerificationTest("Safe Nav Generic Receiver",
+                        passPath + "safeNavGenericReceiver.mt");
+        addOutputVerificationTest("Safe Nav Polymorphic Dispatch",
+                        passPath + "safeNavPolymorphicDispatch.mt");
+        addOutputVerificationTest("Safe Nav Inherited / Super Delegation",
+                        passPath + "safeNavInheritedSuper.mt");
+        // Safe-nav result is nullable: feeding it to a non-null parameter, or
+        // continuing the chain with a plain '.', must be rejected.
+        addTestFromFile("Safe Nav Result To Non-Null Param",
+                        errorPath + "safeNavResultToNonNullParam_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Safe Nav Unsafe Continuation",
+                        errorPath + "safeNavUnsafeContinuation_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "nullable receiver");
     }
 }

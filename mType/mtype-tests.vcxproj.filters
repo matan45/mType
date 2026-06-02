@@ -12565,6 +12565,12 @@
     <None Include="tests\testFiles\nullSafety\error\returnNullFromNonNull_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
+    <None Include="tests\testFiles\nullSafety\error\safeNavResultToNonNullParam_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\error\safeNavUnsafeContinuation_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
     <None Include="tests\testFiles\nullSafety\pass\arrayElementNullThenReassign.expected">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
@@ -12683,6 +12689,36 @@
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\objectArrayDefaultsNull.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavFieldAccess.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavFieldAccess.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavGenericReceiver.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavGenericReceiver.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavInheritedSuper.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavInheritedSuper.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavMethodWithArgs.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavMethodWithArgs.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavPolymorphicDispatch.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavPolymorphicDispatch.mt">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\shortCircuitAndNullGuard.expected">
