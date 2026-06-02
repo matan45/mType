@@ -12730,6 +12730,12 @@
     <None Include="tests\testFiles\nullSafety\pass\safeNavPolymorphicDispatch.mt">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavReturn.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavReturn.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
     <None Include="tests\testFiles\nullSafety\pass\shortCircuitAndNullGuard.expected">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>

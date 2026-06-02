@@ -140,6 +140,8 @@ namespace tests::testSuite
         // MYT-374 review finding 1: ?. must short-circuit on array element access.
         addOutputVerificationTest("Safe Nav Array Element Field",
                         passPath + "safeNavArrayElementField.mt");
+        addOutputVerificationTest("Safe Nav In Return Position",
+                        passPath + "safeNavReturn.mt");
         // MYT-374 review finding 2: safe-navigation assignment target.
         addOutputVerificationTest("Safe Nav Assignment",
                         passPath + "safeNavAssign.mt");
