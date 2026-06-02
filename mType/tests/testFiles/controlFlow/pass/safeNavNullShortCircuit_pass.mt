@@ -8,7 +8,7 @@ class Address {
 }
 
 class Person {
-    Address address;
+    public Address address;
     constructor(Address a) { address = a; }
     public function getAddress(): Address { return address; }
 }

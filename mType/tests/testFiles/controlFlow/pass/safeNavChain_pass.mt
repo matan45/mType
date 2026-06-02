@@ -8,12 +8,12 @@ class Country {
 }
 
 class Address {
-    Country country;
+    public Country country;
     constructor(Country c) { country = c; }
 }
 
 class Person {
-    Address? address;
+    public Address? address;
     constructor() { address = null; }
     public function setAddress(Address a): void { address = a; }
 }

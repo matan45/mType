@@ -8,7 +8,7 @@ class Address {
 }
 
 class Box<T> {
-    T value;
+    public T value;
     constructor(T v) { value = v; }
     public function get(): T { return value; }
 }
