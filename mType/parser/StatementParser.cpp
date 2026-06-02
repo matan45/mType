@@ -835,7 +835,8 @@ namespace parser
                 auto object = memberAccess->getObjectShared();
                 std::string memberName = memberAccess->getMemberName();
 
-                return std::make_unique<MemberAssignmentNode>(object, memberName, std::move(value));
+                return std::make_unique<MemberAssignmentNode>(object, memberName, std::move(value),
+                                                              opLocation, memberAccess->getIsSafe());
             }
         }
 

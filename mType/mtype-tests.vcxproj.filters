@@ -5326,9 +5326,6 @@
     <None Include="tests\testFiles\controlFlow\error\errorContinueOutsideLoop_error.mt">
       <Filter>testFiles\controlFlow\error</Filter>
     </None>
-    <None Include="tests\testFiles\controlFlow\error\errorInvalidSwitchType_error.mt">
-      <Filter>testFiles\controlFlow\error</Filter>
-    </None>
     <None Include="tests\testFiles\controlFlow\error\errorReturnOutsideFunction_error.mt">
       <Filter>testFiles\controlFlow\error</Filter>
     </None>
@@ -5341,9 +5338,6 @@
     <None Include="tests\testFiles\controlFlow\error\finalVariableReassignment.mt">
       <Filter>testFiles\controlFlow\error</Filter>
     </None>
-    <None Include="tests\testFiles\controlFlow\error\loopInfiniteDetection_error.mt">
-      <Filter>testFiles\controlFlow\error</Filter>
-    </None>
     <None Include="tests\testFiles\controlFlow\error\recursionDeepStack_error.mt">
       <Filter>testFiles\controlFlow\error</Filter>
     </None>
@@ -5354,12 +5348,6 @@
       <Filter>testFiles\controlFlow\error</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\error\staticFunctionParameters.mt">
-      <Filter>testFiles\controlFlow\error</Filter>
-    </None>
-    <None Include="tests\testFiles\controlFlow\error\switchDuplicateCases_error.mt">
-      <Filter>testFiles\controlFlow\error</Filter>
-    </None>
-    <None Include="tests\testFiles\controlFlow\error\switchFloatValues_error.mt">
       <Filter>testFiles\controlFlow\error</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\pass\asyncBasicAwait_pass.expected">
@@ -12565,6 +12553,9 @@
     <None Include="tests\testFiles\nullSafety\error\returnNullFromNonNull_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
+    <None Include="tests\testFiles\nullSafety\error\safeNavCompoundAssign_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
     <None Include="tests\testFiles\nullSafety\error\safeNavResultToNonNullParam_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
@@ -12691,6 +12682,18 @@
     <None Include="tests\testFiles\nullSafety\pass\objectArrayDefaultsNull.mt">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavArrayElementField.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavArrayElementField.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavAssign.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavAssign.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
     <None Include="tests\testFiles\nullSafety\pass\safeNavFieldAccess.expected">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
@@ -12701,6 +12704,12 @@
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\safeNavGenericReceiver.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavIndexAssign.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\safeNavIndexAssign.mt">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\safeNavInheritedSuper.expected">

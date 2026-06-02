@@ -37,11 +37,30 @@ namespace vm::compiler::visitors
             if (memberName == "length")
             {
                 node->getObject()->accept(ctx.visitor);
-                ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_LENGTH, node);
+                // MYT-374: arr?.length short-circuits to null on a null array
+                // instead of dereferencing it in ARRAY_LENGTH.
+                if (node->getIsSafe())
+                {
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::DUP, node);
+                    size_t safeJumpNull = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_NULL, node);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_LENGTH, node);
+                    size_t safeEndJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP, node);
+                    ctx.emitter.patchJump(safeJumpNull);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
+                    ctx.emitter.patchJump(safeEndJump);
+                }
+                else
+                {
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::ARRAY_LENGTH, node);
+                }
             }
             // array[index].field pattern — SoA optimization via ARRAY_GET_FIELD.
-            else if (auto* indexAccessNode = dynamic_cast<ast::IndexAccessNode*>(node->getObject()))
+            // Safe-nav (arr[i]?.field) is excluded so it falls through to the
+            // regular path, which materialises arr[i] and null-checks the element.
+            else if (!node->getIsSafe() && dynamic_cast<ast::IndexAccessNode*>(node->getObject()))
             {
+                auto* indexAccessNode = dynamic_cast<ast::IndexAccessNode*>(node->getObject());
                 indexAccessNode->getCollection()->accept(ctx.visitor);
                 indexAccessNode->getIndex()->accept(ctx.visitor);
 
@@ -155,10 +174,15 @@ namespace vm::compiler::visitors
     {
         std::string memberName = node->getMemberName();
 
+        bool safe = node->getIsSafe();
+
         // array[index].field = value — SoA optimization via ARRAY_SET_FIELD.
+        // Safe-nav targets (arr[i]?.field = value) fall through to the regular
+        // path so the element is materialised and null-checked first.
         auto* objectNode = node->getObject();
-        if (auto* indexAccessNode = dynamic_cast<ast::IndexAccessNode*>(objectNode))
+        if (!safe && dynamic_cast<ast::IndexAccessNode*>(objectNode))
         {
+            auto* indexAccessNode = dynamic_cast<ast::IndexAccessNode*>(objectNode);
             indexAccessNode->getCollection()->accept(ctx.visitor);
             indexAccessNode->getIndex()->accept(ctx.visitor);
             node->getValue()->accept(ctx.visitor);
@@ -172,7 +196,9 @@ namespace vm::compiler::visitors
             ast::ASTNode* receiverNode = node->getObject();
             bool nonNullReceiver = isReceiverNonNullable(receiverNode);
 
-            if (!nonNullReceiver)
+            // Safe navigation (obj?.field = value) permits a nullable receiver
+            // and skips the write (yielding null) when it is null.
+            if (!nonNullReceiver && !safe)
             {
                 throw errors::TypeException(
                     "Cannot assign field '" + memberName + "' on nullable receiver. "
@@ -182,11 +208,31 @@ namespace vm::compiler::visitors
             }
 
             receiverNode->accept(ctx.visitor);
+
+            // MYT-374: desugar obj?.field = value to a DUP + JUMP_IF_NULL short-circuit.
+            size_t safeJumpNull = 0;
+            if (safe)
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::DUP, node);
+                safeJumpNull = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_NULL, node);
+            }
+
             node->getValue()->accept(ctx.visitor);
 
             size_t fieldNameIndex = ctx.program.getConstantPool().addString(memberName);
             ctx.emitter.emitWithLocation(bytecode::OpCode::SET_FIELD, static_cast<uint64_t>(fieldNameIndex), node);
             ctx.program.setLastInstructionFlags(bytecode::BytecodeProgram::INSTR_FLAG_NONNULL_RECEIVER);
+
+            // MYT-374: close the safe-navigation short-circuit. On a null receiver
+            // drop it and yield null instead of performing the write.
+            if (safe)
+            {
+                size_t safeEndJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP, node);
+                ctx.emitter.patchJump(safeJumpNull);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::PUSH_NULL, node);
+                ctx.emitter.patchJump(safeEndJump);
+            }
         }
 
         return std::monostate{};

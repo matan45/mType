@@ -1198,16 +1198,32 @@ namespace parser
         std::unique_ptr<ASTNode> rightExpr,
         const SourceLocation& location)
     {
+        bool isSafe = memberAccessNode->getIsSafe();
+
         if (opType == TokenType::ASSIGN)
         {
             return std::make_unique<MemberAssignmentNode>(
                 memberAccessNode->getObjectShared(),
                 memberAccessNode->getMemberName(),
                 std::move(rightExpr),
-                location);
+                location,
+                isSafe);
         }
         else
         {
+            // MYT-374: compound assignment expands to `obj?.field = obj?.field op x`.
+            // The read half would be a nullable value (the safe access can yield
+            // null), and null-safety forbids it in arithmetic — so a safe receiver
+            // is not supported with compound assignment. Reject it clearly instead
+            // of emitting a confusing nullable-operand error.
+            if (isSafe)
+            {
+                throw ParseException(
+                    "Safe navigation '?.' is not supported as a compound-assignment target. "
+                    "Narrow the receiver with an if-check, or use a plain '?.field = ...' assignment.",
+                    location);
+            }
+
             TokenType binaryOp = ParserUtils::compoundToBinaryOperator(opType);
 
             auto readNode = std::make_unique<MemberAccessNode>(

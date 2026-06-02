@@ -2,6 +2,7 @@
 #include "../../bytecode/OpCode.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
 #include "../../../ast/nodes/classes/MethodCallNode.hpp"
+#include "../../../ast/nodes/statements/MemberAssignmentNode.hpp"
 
 namespace vm::compiler::visitors::statementCleanup
 {
@@ -30,6 +31,20 @@ namespace vm::compiler::visitors::statementCleanup
         {
             ctx.emitter.emitWithLocation(bytecode::OpCode::POP, stmt);
             return;
+        }
+
+        // MYT-374: a safe member assignment (`obj?.field = value`) ends in
+        // PUSH_NULL on the short-circuit branch rather than SET_FIELD, so the
+        // opcode-based Path B below misses it. Both branches leave exactly one
+        // value (the assigned value or null), so discard it at statement
+        // position to keep the operand stack balanced.
+        if (auto* memberAssign = dynamic_cast<ast::nodes::statements::MemberAssignmentNode*>(stmt))
+        {
+            if (memberAssign->getIsSafe())
+            {
+                ctx.emitter.emitWithLocation(bytecode::OpCode::POP, stmt);
+                return;
+            }
         }
 
         // Path B: stores that re-push the stored value at runtime

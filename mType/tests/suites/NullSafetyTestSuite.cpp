@@ -137,6 +137,18 @@ namespace tests::testSuite
                         passPath + "safeNavPolymorphicDispatch.mt");
         addOutputVerificationTest("Safe Nav Inherited / Super Delegation",
                         passPath + "safeNavInheritedSuper.mt");
+        // MYT-374 review finding 1: ?. must short-circuit on array element access.
+        addOutputVerificationTest("Safe Nav Array Element Field",
+                        passPath + "safeNavArrayElementField.mt");
+        // MYT-374 review finding 2: safe-navigation assignment target.
+        addOutputVerificationTest("Safe Nav Assignment",
+                        passPath + "safeNavAssign.mt");
+        addOutputVerificationTest("Safe Nav Index-Target Assignment",
+                        passPath + "safeNavIndexAssign.mt");
+        addTestFromFile("Safe Nav Compound Assignment Rejected",
+                        errorPath + "safeNavCompoundAssign_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "compound-assignment");
         // Safe-nav result is nullable: feeding it to a non-null parameter, or
         // continuing the chain with a plain '.', must be rejected.
         addTestFromFile("Safe Nav Result To Non-Null Param",
