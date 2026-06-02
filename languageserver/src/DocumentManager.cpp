@@ -630,6 +630,31 @@ std::optional<DocumentManager::SymbolLocation> DocumentManager::findDefinition(
         }
     }
 
+    if (findSuperMethodCallAt(doc->ast, line, character, symbolName)) {
+        if (auto* cls = findEnclosingClass(doc->ast, line, character)) {
+            if (auto classReg = doc->environment->getClassRegistry()) {
+                auto current = classReg->findClass(cls->getClassName());
+                constexpr int kMaxInheritanceWalk = 32;
+                int depth = 0;
+                while (current && current->hasParentClass() && depth++ < kMaxInheritanceWalk) {
+                    current = classReg->findClass(current->getParentClassName());
+                    if (!current) break;
+                    std::string methodKey = current->getName() + "." + symbolName;
+                    auto it = doc->symbolLocations.find(methodKey);
+                    if (it != doc->symbolLocations.end()) {
+                        const auto& symbolLoc = it->second;
+                        SymbolLocation result;
+                        result.uri = symbolLoc.uri;
+                        result.line = symbolLoc.line;
+                        result.column = symbolLoc.column;
+                        return result;
+                    }
+                }
+            }
+        }
+        return std::nullopt;
+    }
+
     // Fall back to looking up the symbol directly (for classes, interfaces, functions)
     auto it = doc->symbolLocations.find(symbolName);
     if (it != doc->symbolLocations.end()) {

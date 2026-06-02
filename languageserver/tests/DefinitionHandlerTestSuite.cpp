@@ -196,6 +196,105 @@ void DefinitionHandlerTestSuite::registerTests(LspTestHarness& harness) {
         require(result->range.start.line == 1, "play() should resolve to line 1");
     });
 
+    harness.addTest("MYT-372 go-to-def resolves this.method() to enclosing class method", []() {
+        const std::string src =
+            "class Widget {\n"                                   // 0
+            "    private bool addCollider;\n"                    // 1
+            "    private function resolvedSlot(): int {\n"       // 2
+            "        return 1;\n"                                // 3
+            "    }\n"                                            // 4
+            "    public function update(): void {\n"             // 5
+            "        if (this.addCollider) {\n"                  // 6
+            "            int slot = this.resolvedSlot();\n"      // 7
+            "        }\n"                                        // 8
+            "    }\n"                                            // 9
+            "}\n";                                               // 10
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        DefinitionHandler handler(docMgr.get());
+
+        auto result = handler.handleDefinition("file:///t.mt", {7, 29});
+        require(result.has_value(), "expected definition for this.resolvedSlot()");
+        require(result->range.start.line == 2,
+            "resolvedSlot() should resolve to Widget.resolvedSlot at line 2");
+    });
+
+    harness.addTest("MYT-372 go-to-def resolves this.method() from constructor", []() {
+        const std::string src =
+            "class Widget {\n"                                   // 0
+            "    public function init(): void {}\n"              // 1
+            "    public constructor() {\n"                       // 2
+            "        this.init();\n"                             // 3
+            "    }\n"                                            // 4
+            "}\n";                                               // 5
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        DefinitionHandler handler(docMgr.get());
+
+        auto result = handler.handleDefinition("file:///t.mt", {3, 13});
+        require(result.has_value(), "expected definition for this.init() in constructor");
+        require(result->range.start.line == 1,
+            "init() should resolve to Widget.init at line 1");
+    });
+
+    harness.addTest("MYT-372 go-to-def resolves super.method() to parent method", []() {
+        const std::string src =
+            "class Parent {\n"                                   // 0
+            "    public function speak(): void {}\n"             // 1
+            "}\n"                                                // 2
+            "class Child extends Parent {\n"                     // 3
+            "    public function shout(): void {\n"              // 4
+            "        super.speak();\n"                           // 5
+            "    }\n"                                            // 6
+            "}\n";                                               // 7
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        DefinitionHandler handler(docMgr.get());
+
+        auto result = handler.handleDefinition("file:///t.mt", {5, 15});
+        require(result.has_value(), "expected definition for super.speak()");
+        require(result->range.start.line == 1,
+            "super.speak() should resolve to Parent.speak at line 1");
+    });
+
+    harness.addTest("MYT-372 go-to-def resolves super.method() to nearest ancestor", []() {
+        const std::string src =
+            "class GrandParent {\n"                              // 0
+            "    public function speak(): void {}\n"             // 1
+            "}\n"                                                // 2
+            "class Parent extends GrandParent {\n"               // 3
+            "    public function speak(): void {}\n"             // 4
+            "}\n"                                                // 5
+            "class Child extends Parent {\n"                     // 6
+            "    public function shout(): void {\n"              // 7
+            "        super.speak();\n"                           // 8
+            "    }\n"                                            // 9
+            "}\n";                                               // 10
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        DefinitionHandler handler(docMgr.get());
+
+        auto result = handler.handleDefinition("file:///t.mt", {8, 15});
+        require(result.has_value(), "expected definition for super.speak()");
+        require(result->range.start.line == 4,
+            "super.speak() should resolve to nearest Parent.speak at line 4");
+    });
+
+    harness.addTest("MYT-372 go-to-def unresolved super.method() returns nullopt", []() {
+        const std::string src =
+            "function missing(): void {}\n"                      // 0
+            "class Parent {\n"                                   // 1
+            "    public function other(): void {}\n"             // 2
+            "}\n"                                                // 3
+            "class Child extends Parent {\n"                     // 4
+            "    public function go(): void {\n"                 // 5
+            "        super.missing();\n"                         // 6
+            "    }\n"                                            // 7
+            "}\n";                                               // 8
+        auto docMgr = makeDocManager("file:///t.mt", src);
+        DefinitionHandler handler(docMgr.get());
+
+        auto result = handler.handleDefinition("file:///t.mt", {6, 15});
+        require(!result.has_value(),
+            "unresolved super.missing() must not fall back to a wrong symbol");
+    });
+
     // MYT-362 — chained method calls on an interface receiver. Self-returning
     // interface mirrors the Stream API repro (filter().map().limit().toArray()).
     // Before the fix, every call after the first interface-typed step returned

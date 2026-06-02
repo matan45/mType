@@ -9,6 +9,7 @@
 #include "../../../mType/ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../../mType/ast/nodes/classes/MethodCallNode.hpp"
 #include "../../../mType/ast/nodes/classes/NewNode.hpp"
+#include "../../../mType/ast/nodes/classes/ClassNode.hpp"
 #include "../../../mType/ast/nodes/classes/MethodNode.hpp"
 #include "../../../mType/ast/nodes/classes/ConstructorNode.hpp"
 #include "../../../mType/ast/nodes/functions/FunctionCallNode.hpp"
@@ -273,6 +274,17 @@ types::UnifiedTypePtr ReceiverTypeResolver::resolveNew(
 types::UnifiedTypePtr ReceiverTypeResolver::lookupVariableType(
     const std::string& name) const {
     if (name.empty()) return nullptr;
+
+    if ((name == "this" || name == "super") && documentAst_) {
+        if (auto* cls = findEnclosingClass(*documentAst_, cursorLine_, cursorCol_)) {
+            if (name == "this") {
+                return types::UnifiedType::classType(cls->getClassName());
+            }
+            if (cls->hasParentClass()) {
+                return types::UnifiedType::classType(cls->getParentClassName());
+            }
+        }
+    }
 
     // Class-name shortcut: `Audio` in `Audio::sndChord.play()` parses as a
     // VariableNode whose name happens to be a registered class — return the
