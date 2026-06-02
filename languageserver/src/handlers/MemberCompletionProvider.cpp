@@ -45,6 +45,11 @@ namespace mtype::lsp
                 varType = documentManager->getVariableType(uri, objectName, line);
             }
 
+            // Safe navigation surfaces nullable receivers (`foo?.bar` where foo
+            // is `T?`); strip the nullable suffix so the class lookup matches.
+            if (!varType.empty() && varType.back() == '?') {
+                varType.pop_back();
+            }
             if (auto angle = varType.find('<'); angle != std::string::npos) {
                 varType = varType.substr(0, angle);
             }

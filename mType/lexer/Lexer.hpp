@@ -70,7 +70,7 @@ namespace lexer
         };
 
         // Operator lookup table declarations
-        static const std::array<OperatorInfo, 17> TWO_CHAR_OPERATORS;
+        static const std::array<OperatorInfo, 18> TWO_CHAR_OPERATORS;
         static const std::array<OperatorInfo, 25> SINGLE_CHAR_OPERATORS;
 
         // Static keyword lookup table

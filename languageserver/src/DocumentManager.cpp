@@ -736,6 +736,12 @@ DocumentManager::CallContext DocumentManager::classifyCallContext(
     if (currentLine[i] == '.') {
         int idEnd = i - 1;
         while (idEnd >= 0 && std::isspace(static_cast<unsigned char>(currentLine[idEnd]))) idEnd--;
+        // Safe navigation (`obj?.method(`): the operator is `?.`, so step over
+        // the `?` to reach the receiver identifier.
+        if (idEnd >= 0 && currentLine[idEnd] == '?') {
+            idEnd--;
+            while (idEnd >= 0 && std::isspace(static_cast<unsigned char>(currentLine[idEnd]))) idEnd--;
+        }
         int idStart = idEnd;
         while (idStart >= 0
                && (std::isalnum(static_cast<unsigned char>(currentLine[idStart]))

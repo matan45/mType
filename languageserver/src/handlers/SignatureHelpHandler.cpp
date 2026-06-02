@@ -162,8 +162,8 @@ SignatureHelpHandler::findFunctionCall(const std::string& textBeforeCursor) cons
     }
     if (beforeParen.empty()) return std::nullopt;
 
-    // Match method call: object.method
-    std::regex methodRegex(R"((\w+)\.(\w+)$)");
+    // Match method call: object.method  or safe navigation object?.method (MYT-374)
+    std::regex methodRegex(R"((\w+)\??\.(\w+)$)");
     std::smatch methodMatch;
     if (std::regex_search(beforeParen, methodMatch, methodRegex)) {
         return FunctionCallContext{methodMatch[2].str(), true, methodMatch[1].str()};

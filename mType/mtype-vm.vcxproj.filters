@@ -159,6 +159,9 @@
     <ClInclude Include="vm\compiler\types\GenericPatternAnalyzer.hpp">
       <Filter>vm\compiler\types</Filter>
     </ClInclude>
+    <ClInclude Include="vm\compiler\types\NullConditionFacts.hpp">
+      <Filter>vm\compiler\types</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\types\NullNarrowingTracker.hpp">
       <Filter>vm\compiler\types</Filter>
     </ClInclude>

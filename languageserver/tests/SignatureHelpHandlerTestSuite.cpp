@@ -100,6 +100,30 @@ void SignatureHelpHandlerTestSuite::registerTests(LspTestHarness& harness) {
             "constructor should have 2 parameters");
     });
 
+    harness.addTest("finds method signature through safe-navigation call", []() {
+        // MYT-374: `p?.move(` must resolve the method signature just like
+        // `p.move(` — the receiver extractor steps over the `?` of `?.`.
+        const std::string source =
+            "class Point {\n"
+            "    public function move(int dx, int dy): void {\n"
+            "    }\n"
+            "}\n"
+            "Point p = new Point();\n"
+            "p?.move(1, 2);\n"; // public method, resolvable from global scope
+
+        auto docMgr = makeDocManager("file:///test.mt", source);
+        SignatureHelpHandler handler(docMgr.get());
+
+        // Line 5: "p?.move(1, 2);" — col 8 is right after "p?.move("
+        auto result = handler.handleSignatureHelp("file:///test.mt", {5, 8});
+        require(result.has_value(), "expected signature help for p?.move()");
+        require(!result->signatures.empty(), "expected method signature");
+        require(result->signatures[0].name == "move",
+            "expected signature name 'move', got '" + result->signatures[0].name + "'");
+        require(result->signatures[0].parameters.size() == 2,
+            "move should have 2 parameters");
+    });
+
     harness.addTest("signature help toJson produces valid LSP format", []() {
         SignatureHelp help;
         SignatureInfo sig;

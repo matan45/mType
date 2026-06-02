@@ -524,6 +524,10 @@ namespace parser
             {
                 expr = parseMemberAccess(std::move(expr));
             }
+            else if (tokenStream.check(TokenType::QUESTION_DOT))
+            {
+                expr = parseMemberAccess(std::move(expr), /*isSafe*/ true);
+            }
             else if (tokenStream.check(TokenType::LBRACKET))
             {
                 expr = parseIndexAccess(std::move(expr));
@@ -578,13 +582,14 @@ namespace parser
         throw ParseException("Invalid function call target", tokenStream.current().location);
     }
 
-    std::unique_ptr<ASTNode> ExpressionParser::parseMemberAccess(std::unique_ptr<ASTNode> object)
+    std::unique_ptr<ASTNode> ExpressionParser::parseMemberAccess(std::unique_ptr<ASTNode> object, bool isSafe)
     {
-        expectToken(TokenType::DOT);
+        expectToken(isSafe ? TokenType::QUESTION_DOT : TokenType::DOT);
 
         if (!tokenStream.check(TokenType::IDENTIFIER))
         {
-            throw ParseException("Expected member name after '.'", tokenStream.current().location);
+            throw ParseException(isSafe ? "Expected member name after '?.'" : "Expected member name after '.'",
+                                 tokenStream.current().location);
         }
 
         std::string memberName = std::string(tokenStream.current().stringValue);
@@ -617,10 +622,10 @@ namespace parser
 
             expectToken(TokenType::RPAREN);
             return std::make_unique<MethodCallNode>(std::move(object), memberName, std::move(arguments),
-                                                    false, genericTypeArguments, location);
+                                                    false, genericTypeArguments, location, isSafe);
         }
 
-        return std::make_unique<MemberAccessNode>(std::move(object), memberName, false, location);
+        return std::make_unique<MemberAccessNode>(std::move(object), memberName, false, location, isSafe);
     }
 
     std::unique_ptr<ASTNode> ExpressionParser::parseIndexAccess(std::unique_ptr<ASTNode> collection)
@@ -1193,16 +1198,32 @@ namespace parser
         std::unique_ptr<ASTNode> rightExpr,
         const SourceLocation& location)
     {
+        bool isSafe = memberAccessNode->getIsSafe();
+
         if (opType == TokenType::ASSIGN)
         {
             return std::make_unique<MemberAssignmentNode>(
                 memberAccessNode->getObjectShared(),
                 memberAccessNode->getMemberName(),
                 std::move(rightExpr),
-                location);
+                location,
+                isSafe);
         }
         else
         {
+            // MYT-374: compound assignment expands to `obj?.field = obj?.field op x`.
+            // The read half would be a nullable value (the safe access can yield
+            // null), and null-safety forbids it in arithmetic — so a safe receiver
+            // is not supported with compound assignment. Reject it clearly instead
+            // of emitting a confusing nullable-operand error.
+            if (isSafe)
+            {
+                throw ParseException(
+                    "Safe navigation '?.' is not supported as a compound-assignment target. "
+                    "Narrow the receiver with an if-check, or use a plain '?.field = ...' assignment.",
+                    location);
+            }
+
             TokenType binaryOp = ParserUtils::compoundToBinaryOperator(opType);
 
             auto readNode = std::make_unique<MemberAccessNode>(

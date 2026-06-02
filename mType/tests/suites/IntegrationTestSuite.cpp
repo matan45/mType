@@ -619,6 +619,12 @@ namespace tests::testSuite
                                   benchmarkPath + "method_chain_hot.mt");
         addOutputVerificationTest("Benchmark: method_dispatch",
                                   benchmarkPath + "method_dispatch.mt");
+        addOutputVerificationTest("Benchmark: null_guard_clause_hot",
+                                  benchmarkPath + "null_guard_clause_hot.mt");
+        addOutputVerificationTest("Benchmark: null_narrowing_hot",
+                                  benchmarkPath + "null_narrowing_hot.mt");
+        addOutputVerificationTest("Benchmark: null_narrowing_while_hot",
+                                  benchmarkPath + "null_narrowing_while_hot.mt");
         addOutputVerificationTest("Benchmark: object_alloc",
                                   benchmarkPath + "object_alloc.mt");
         addOutputVerificationTest("Benchmark: object_alloc_nested",

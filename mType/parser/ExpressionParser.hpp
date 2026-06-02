@@ -67,7 +67,7 @@ namespace parser
         // Postfix (absorbed from PostfixOperatorParser)
         std::unique_ptr<ASTNode> parsePostfixOperations(std::unique_ptr<ASTNode> expr);
         std::unique_ptr<ASTNode> parseFunctionCall(std::unique_ptr<ASTNode> expr);
-        std::unique_ptr<ASTNode> parseMemberAccess(std::unique_ptr<ASTNode> object);
+        std::unique_ptr<ASTNode> parseMemberAccess(std::unique_ptr<ASTNode> object, bool isSafe = false);
         std::unique_ptr<ASTNode> parseIndexAccess(std::unique_ptr<ASTNode> collection);
         std::unique_ptr<ASTNode> parseScopeResolution(std::unique_ptr<ASTNode> expr);
         std::unique_ptr<ASTNode> parseGenericMethodCall(const std::string& className,

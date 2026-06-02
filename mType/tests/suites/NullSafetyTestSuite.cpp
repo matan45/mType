@@ -33,6 +33,14 @@ namespace tests::testSuite
         // === GUARD CLAUSE NARROWING ===
         addOutputVerificationTest("Guard Clause Narrowing",
                         passPath + "guardClauseNarrowing.mt");
+        addOutputVerificationTest("Short-Circuit && Null Guard",
+                        passPath + "shortCircuitAndNullGuard.mt");
+        addOutputVerificationTest("Short-Circuit || Null Guard",
+                        passPath + "shortCircuitOrNullGuard.mt");
+        addOutputVerificationTest("Compound If Condition Narrowing",
+                        passPath + "compoundIfConditionNarrowing.mt");
+        addOutputVerificationTest("Compound Guard Clause Narrowing",
+                        passPath + "compoundGuardClauseNarrowing.mt");
 
         // === ERROR TESTS ===
         addTestFromFile("Null to Non-Nullable Assignment",
@@ -83,9 +91,6 @@ namespace tests::testSuite
                         passPath + "whileLoopNarrowing.mt");
         addOutputVerificationTest("Nested Narrowing",
                         passPath + "nestedNarrowing.mt");
-        addTestFromFile("Compound && Does Not Narrow",
-                        errorPath + "compoundAndNoNarrowing_error.mt",
-                        TestType::ERROR_EXPECTED);
         addTestFromFile("Narrowing Scoped to If Block",
                         errorPath + "narrowingScopedToIfBlock_error.mt",
                         TestType::ERROR_EXPECTED);
@@ -120,5 +125,40 @@ namespace tests::testSuite
         addTestFromFile("Nullable Super Unchecked",
                         errorPath + "nullableSuperUnchecked_error.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === SAFE NAVIGATION OPERATOR (?.) — MYT-374 ===
+        addOutputVerificationTest("Safe Nav Field Access",
+                        passPath + "safeNavFieldAccess.mt");
+        addOutputVerificationTest("Safe Nav Method With Args",
+                        passPath + "safeNavMethodWithArgs.mt");
+        addOutputVerificationTest("Safe Nav Generic Receiver",
+                        passPath + "safeNavGenericReceiver.mt");
+        addOutputVerificationTest("Safe Nav Polymorphic Dispatch",
+                        passPath + "safeNavPolymorphicDispatch.mt");
+        addOutputVerificationTest("Safe Nav Inherited / Super Delegation",
+                        passPath + "safeNavInheritedSuper.mt");
+        // MYT-374 review finding 1: ?. must short-circuit on array element access.
+        addOutputVerificationTest("Safe Nav Array Element Field",
+                        passPath + "safeNavArrayElementField.mt");
+        addOutputVerificationTest("Safe Nav In Return Position",
+                        passPath + "safeNavReturn.mt");
+        // MYT-374 review finding 2: safe-navigation assignment target.
+        addOutputVerificationTest("Safe Nav Assignment",
+                        passPath + "safeNavAssign.mt");
+        addOutputVerificationTest("Safe Nav Index-Target Assignment",
+                        passPath + "safeNavIndexAssign.mt");
+        addTestFromFile("Safe Nav Compound Assignment Rejected",
+                        errorPath + "safeNavCompoundAssign_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "compound-assignment");
+        // Safe-nav result is nullable: feeding it to a non-null parameter, or
+        // continuing the chain with a plain '.', must be rejected.
+        addTestFromFile("Safe Nav Result To Non-Null Param",
+                        errorPath + "safeNavResultToNonNullParam_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Safe Nav Unsafe Continuation",
+                        errorPath + "safeNavUnsafeContinuation_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "nullable receiver");
     }
 }

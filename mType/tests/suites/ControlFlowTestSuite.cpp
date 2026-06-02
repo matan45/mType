@@ -84,6 +84,18 @@ namespace tests::testSuite
         addOutputVerificationTest("Ternary Operator Nesting Limits",
                         passPath + "ternaryOperatorNestingLimits.mt");
 
+        // MYT-374: safe-navigation operator (?.) tests
+        addOutputVerificationTest("Safe Navigation Field Access",
+                        passPath + "safeNavField_pass.mt");
+        addOutputVerificationTest("Safe Navigation Method Call",
+                        passPath + "safeNavMethod_pass.mt");
+        addOutputVerificationTest("Safe Navigation Null Short Circuit",
+                        passPath + "safeNavNullShortCircuit_pass.mt");
+        addOutputVerificationTest("Safe Navigation Chain Short Circuit",
+                        passPath + "safeNavChain_pass.mt");
+        addOutputVerificationTest("Safe Navigation On Non-Nullable",
+                        passPath + "safeNavOnNonNullable_pass.mt");
+
         // Boolean expression tests
         addOutputVerificationTest("Complex Boolean Expressions",
                         passPath + "complexBooleanExpressions.mt");
@@ -431,6 +443,18 @@ namespace tests::testSuite
         addTestFromFile("Final For Loop Variable Error",
                         errorPath + "finalForLoopVariable.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === PREVIOUSLY-UNREGISTERED ERROR FIXTURES (recursion / ctor) ===
+        addTestFromFile("Return Value From Constructor",
+                        errorPath + "returnInConstructor_error.mt",
+                        TestType::ERROR_EXPECTED);
+        addTestFromFile("Deep Recursion Stack Overflow",
+                        errorPath + "recursionDeepStack_error.mt",
+                        TestType::ERROR_EXPECTED);
+        // Removed - loopInfiniteDetection_error.mt (has a break, completes normally).
+        // Removed - errorInvalidSwitchType / switchDuplicateCases / switchFloatValues
+        // (mType currently accepts object-switch, duplicate cases, and float cases —
+        // they compile and run, so they are not ERROR_EXPECTED cases).
 
         // === EDGE CASE TESTS - finally semantics / nesting / masking ===
         addOutputVerificationTest("Final Return Overrides Try Return",

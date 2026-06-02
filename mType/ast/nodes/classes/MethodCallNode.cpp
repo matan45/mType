@@ -5,9 +5,10 @@ namespace ast::nodes::classes
 {
     MethodCallNode::MethodCallNode(std::unique_ptr<ASTNode> obj, const std::string& method,
                                    std::vector<std::unique_ptr<ASTNode>> args, bool isStatic,
-                                   const std::vector<std::string>& genericArgs, const SourceLocation& loc)
+                                   const std::vector<std::string>& genericArgs, const SourceLocation& loc,
+                                   bool safe)
         : ASTNode(loc), object(std::move(obj)), methodName(method),
-          arguments(std::move(args)), isStaticCall(isStatic), genericTypeArguments(genericArgs)
+          arguments(std::move(args)), isStaticCall(isStatic), genericTypeArguments(genericArgs), isSafe(safe)
     {
     }
 
@@ -29,6 +30,11 @@ namespace ast::nodes::classes
     bool MethodCallNode::getIsStaticCall() const
     {
         return isStaticCall;
+    }
+
+    bool MethodCallNode::getIsSafe() const
+    {
+        return isSafe;
     }
 
     const std::vector<std::string>& MethodCallNode::getGenericTypeArguments() const
@@ -99,7 +105,8 @@ namespace ast::nodes::classes
             std::move(clonedArgs),
             isStaticCall,
             genericTypeArguments,
-            location
+            location,
+            isSafe
         );
     }
 }

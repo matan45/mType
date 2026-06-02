@@ -10,6 +10,7 @@
 #include "../../../ast/nodes/expressions/IndexAccessNode.hpp"
 #include "../../../ast/nodes/classes/MemberAccessNode.hpp"
 #include "../../../ast/nodes/classes/NewNode.hpp"
+#include "../types/NullConditionFacts.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -21,11 +22,100 @@ namespace vm::compiler::visitors
             return std::monostate{};
         }
 
-        auto leftType = ctx.typeInference.inferExpressionType(node->getLeft());
-        auto rightType = ctx.typeInference.inferExpressionType(node->getRight());
-        auto leftClassName = ctx.typeInference.inferExpressionClassName(node->getLeft());
-        auto rightClassName = ctx.typeInference.inferExpressionClassName(node->getRight());
         auto op = node->getOperator();
+
+        auto leftType = ctx.typeInference.inferExpressionType(node->getLeft());
+        auto leftClassName = ctx.typeInference.inferExpressionClassName(node->getLeft());
+
+        // Handle short-circuit logical operators before normal right-side
+        // inference so null guards on the left narrow nullable receivers on
+        // the right operand.
+        if (op == token::TokenType::AND || op == token::TokenType::OR)
+        {
+            auto leftFacts = types::analyzeNullCondition(node->getLeft());
+            const auto& rightNarrowingFacts =
+                op == token::TokenType::AND
+                    ? leftFacts.whenTrueNonNull
+                    : leftFacts.whenFalseNonNull;
+
+            value::ValueType rightType;
+            std::string rightClassName;
+            {
+                types::ScopedNullNarrowing narrowing(ctx.nullNarrowing,
+                                                     rightNarrowingFacts);
+                rightType = ctx.typeInference.inferExpressionType(node->getRight());
+                rightClassName =
+                    ctx.typeInference.inferExpressionClassName(node->getRight());
+            }
+
+            bool leftIsNull = dynamic_cast<ast::NullNode*>(node->getLeft()) != nullptr;
+            bool rightIsNull = dynamic_cast<ast::NullNode*>(node->getRight()) != nullptr;
+            ctx.typeValidator.validateBinaryOperation(leftType,
+                                                      leftClassName,
+                                                      rightType,
+                                                      rightClassName,
+                                                      op,
+                                                      leftIsNull,
+                                                      rightIsNull,
+                                                      node->getLocation());
+
+            if (op == token::TokenType::AND) {
+                // For &&: if left is false, skip right and return false
+                node->getLeft()->accept(ctx.visitor);
+                if (leftType == value::ValueType::OBJECT && leftClassName == "Bool") {
+                    size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                                 static_cast<uint64_t>(getValueIndex),
+                                                 0u, node->getLeft());
+                }
+
+                size_t jumpOffset = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE_OR_POP, node);
+
+                {
+                    types::ScopedNullNarrowing narrowing(ctx.nullNarrowing,
+                                                         rightNarrowingFacts);
+                    node->getRight()->accept(ctx.visitor);
+                    if (rightType == value::ValueType::OBJECT && rightClassName == "Bool") {
+                        size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
+                        ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                                     static_cast<uint64_t>(getValueIndex),
+                                                     0u, node->getRight());
+                    }
+                }
+
+                ctx.emitter.patchJump(jumpOffset);
+                return std::monostate{};
+            }
+
+            // For ||: if left is true, skip right and return true
+            node->getLeft()->accept(ctx.visitor);
+            if (leftType == value::ValueType::OBJECT && leftClassName == "Bool") {
+                size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
+                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                             static_cast<uint64_t>(getValueIndex),
+                                             0u, node->getLeft());
+            }
+
+            size_t jumpOffset = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE_OR_POP, node);
+
+            {
+                types::ScopedNullNarrowing narrowing(ctx.nullNarrowing,
+                                                     rightNarrowingFacts);
+                node->getRight()->accept(ctx.visitor);
+                if (rightType == value::ValueType::OBJECT && rightClassName == "Bool") {
+                    size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
+                    ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
+                                                 static_cast<uint64_t>(getValueIndex),
+                                                 0u, node->getRight());
+                }
+            }
+
+            ctx.emitter.patchJump(jumpOffset);
+            return std::monostate{};
+        }
+
+        auto rightType = ctx.typeInference.inferExpressionType(node->getRight());
+        auto rightClassName = ctx.typeInference.inferExpressionClassName(node->getRight());
 
         // Operator overloading FIRST for Box types (Int/Float/Bool/String):
         // transforms operators into method calls (e.g. a + b → a.add(b)).
@@ -39,65 +129,6 @@ namespace vm::compiler::visitors
         bool leftIsNull = dynamic_cast<ast::NullNode*>(node->getLeft()) != nullptr;
         bool rightIsNull = dynamic_cast<ast::NullNode*>(node->getRight()) != nullptr;
         ctx.typeValidator.validateBinaryOperation(leftType, leftClassName, rightType, rightClassName, op, leftIsNull, rightIsNull, node->getLocation());
-
-        // Handle short-circuit logical operators specially
-        if (op == token::TokenType::AND) {
-            // For &&: if left is false, skip right and return false
-
-            // Auto-unbox left operand if it's a Bool object
-            std::string leftClassName = ctx.typeInference.inferExpressionClassName(node->getLeft());
-            node->getLeft()->accept(ctx.visitor);
-            if (leftType == value::ValueType::OBJECT && leftClassName == "Bool") {
-                size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
-                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                             static_cast<uint64_t>(getValueIndex),
-                                             0u, node->getLeft());
-            }
-
-            size_t jumpOffset = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE_OR_POP, node);
-
-            // Auto-unbox right operand if it's a Bool object
-            std::string rightClassName = ctx.typeInference.inferExpressionClassName(node->getRight());
-            node->getRight()->accept(ctx.visitor);
-            if (rightType == value::ValueType::OBJECT && rightClassName == "Bool") {
-                size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
-                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                             static_cast<uint64_t>(getValueIndex),
-                                             0u, node->getRight());
-            }
-
-            ctx.emitter.patchJump(jumpOffset);
-            return std::monostate{};
-        }
-
-        if (op == token::TokenType::OR) {
-            // For ||: if left is true, skip right and return true
-
-            // Auto-unbox left operand if it's a Bool object
-            std::string leftClassName = ctx.typeInference.inferExpressionClassName(node->getLeft());
-            node->getLeft()->accept(ctx.visitor);
-            if (leftType == value::ValueType::OBJECT && leftClassName == "Bool") {
-                size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
-                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                             static_cast<uint64_t>(getValueIndex),
-                                             0u, node->getLeft());
-            }
-
-            size_t jumpOffset = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE_OR_POP, node);
-
-            // Auto-unbox right operand if it's a Bool object
-            std::string rightClassName = ctx.typeInference.inferExpressionClassName(node->getRight());
-            node->getRight()->accept(ctx.visitor);
-            if (rightType == value::ValueType::OBJECT && rightClassName == "Bool") {
-                size_t getValueIndex = ctx.program.getConstantPool().addString("getValue");
-                ctx.emitter.emitWithLocation(bytecode::OpCode::CALL_METHOD,
-                                             static_cast<uint64_t>(getValueIndex),
-                                             0u, node->getRight());
-            }
-
-            ctx.emitter.patchJump(jumpOffset);
-            return std::monostate{};
-        }
 
         // Compile operands for other operators
         node->getLeft()->accept(ctx.visitor);

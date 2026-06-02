@@ -3,14 +3,14 @@
 namespace ast::nodes::statements
 {
     MemberAssignmentNode::MemberAssignmentNode(std::shared_ptr<ASTNode> obj, const std::string& member,
-                                               std::shared_ptr<ASTNode> val, const SourceLocation& loc)
-        : ASTNode(loc), object(std::move(obj)), memberName(member), value(std::move(val))
+                                               std::shared_ptr<ASTNode> val, const SourceLocation& loc, bool safe)
+        : ASTNode(loc), object(std::move(obj)), memberName(member), value(std::move(val)), isSafe(safe)
     {
     }
 
     MemberAssignmentNode::MemberAssignmentNode(std::unique_ptr<ASTNode> obj, const std::string& member,
-                                               std::unique_ptr<ASTNode> val, const SourceLocation& loc)
-        : ASTNode(loc), object(std::move(obj)), memberName(member), value(std::move(val))
+                                               std::unique_ptr<ASTNode> val, const SourceLocation& loc, bool safe)
+        : ASTNode(loc), object(std::move(obj)), memberName(member), value(std::move(val)), isSafe(safe)
     {
     }
 
@@ -27,6 +27,11 @@ namespace ast::nodes::statements
     ASTNode* MemberAssignmentNode::getValue() const noexcept
     {
         return value.get();
+    }
+
+    bool MemberAssignmentNode::getIsSafe() const
+    {
+        return isSafe;
     }
 
     std::shared_ptr<ASTNode> MemberAssignmentNode::getObjectShared() const
@@ -64,6 +69,6 @@ namespace ast::nodes::statements
         std::shared_ptr<ASTNode> clonedObject = object ? std::shared_ptr<ASTNode>(object->clone()) : nullptr;
         std::shared_ptr<ASTNode> clonedValue = value ? std::shared_ptr<ASTNode>(value->clone()) : nullptr;
 
-        return std::make_unique<MemberAssignmentNode>(clonedObject, memberName, clonedValue, location);
+        return std::make_unique<MemberAssignmentNode>(clonedObject, memberName, clonedValue, location, isSafe);
     }
 }

@@ -151,6 +151,50 @@ if (maybe != null) {
 }
 ```
 
+Accessing a field or method on a not-proven-non-null receiver is a compile error,
+so you normally have to narrow with an `if (x != null)` check first.
+
+### Safe Navigation (`?.`)
+
+The `?.` operator accesses a field or calls a method on a nullable receiver
+without the manual null check. If the receiver is `null`, the whole expression
+evaluates to `null` instead of throwing:
+
+```mtype
+class Address { public String city; constructor(String c) { city = c; } }
+class Person  { public Address? address; constructor() { address = null; } }
+
+Person? p = getPersonOrNull();
+
+// Without ?. — verbose narrowing:
+Address? a1 = null;
+if (p != null) { a1 = p.address; }
+
+// With ?. — equivalent, in one expression:
+Address? a2 = p?.address;
+```
+
+Key rules:
+
+- **Result is always nullable.** `p?.address` has type `Address?` even though the
+  field is declared non-null, because the access may short-circuit to `null`.
+- **Whole-chain short-circuit.** In `a?.b?.c`, a `null` at any link makes the
+  entire expression `null` without evaluating the rest of the chain:
+
+  ```mtype
+  Country? c = person?.address?.country; // null if person OR address is null
+  ```
+
+- **Continue a chain with `?.`, not `.`.** Because a safe access yields a nullable
+  value, the next link must also use `?.` (or be narrowed first) — `a?.b.c` is
+  still a compile error on the nullable `a?.b`.
+- **Allowed on non-nullable receivers too.** `?.` is always safe to write, even
+  when the receiver can't be `null`.
+
+`?.` works for both field access (`p?.address`) and method calls
+(`p?.getAddress()`), including on generic and inherited receivers. It does not
+apply to index access (`a?[i]` is not supported).
+
 ## See Also
 
 - [Interfaces](interfaces.md)

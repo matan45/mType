@@ -10,6 +10,7 @@
 #include "../../../ast/nodes/expressions/StringNode.hpp"
 #include "../../../token/TokenType.hpp"
 #include "../validation/ReturnPathValidator.hpp"
+#include "../types/NullConditionFacts.hpp"
 
 namespace vm::compiler::visitors
 {
@@ -42,51 +43,24 @@ namespace vm::compiler::visitors
         // Jump to else/end if condition is false
         size_t elseJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_FALSE);
 
-        // Analyze condition for null narrowing (smart casts):
-        // x != null narrows in then-branch; x == null narrows in else-branch.
-        std::string narrowVarName;
-        bool narrowInThen = false;
-        bool narrowInElse = false;
-        if (auto* binExpr = dynamic_cast<ast::nodes::expressions::BinaryExpNode*>(node->getCondition()))
-        {
-            auto* left = binExpr->getLeft();
-            auto* right = binExpr->getRight();
-            token::TokenType op = binExpr->getOperator();
-
-            bool leftIsNull = dynamic_cast<ast::NullNode*>(left) != nullptr;
-            bool rightIsNull = dynamic_cast<ast::NullNode*>(right) != nullptr;
-            auto* leftVar = dynamic_cast<ast::nodes::expressions::VariableNode*>(left);
-            auto* rightVar = dynamic_cast<ast::nodes::expressions::VariableNode*>(right);
-
-            if (op == token::TokenType::NOT_EQUALS)
-            {
-                if (rightIsNull && leftVar) { narrowVarName = leftVar->getName(); narrowInThen = true; }
-                else if (leftIsNull && rightVar) { narrowVarName = rightVar->getName(); narrowInThen = true; }
-            }
-            else if (op == token::TokenType::EQUALS)
-            {
-                if (rightIsNull && leftVar) { narrowVarName = leftVar->getName(); narrowInElse = true; }
-                else if (leftIsNull && rightVar) { narrowVarName = rightVar->getName(); narrowInElse = true; }
-            }
-        }
+        // Analyze condition for null narrowing (smart casts). Compound
+        // short-circuit conditions contribute only facts guaranteed by the
+        // selected branch.
+        types::NullConditionFacts conditionFacts =
+            types::analyzeNullCondition(node->getCondition());
 
         // Compile then branch with its own scope so its variables don't leak.
         ctx.variableTracker.beginScope();
-        if (narrowInThen && !narrowVarName.empty())
         {
-            ctx.nullNarrowing.enterScope();
-            ctx.nullNarrowing.narrowToNonNull(narrowVarName);
-        }
-        // MYT-271: braceless then-bodies (`if (cond) stmt;`) need the same
-        // operand-stack cleanup that compileBlock applies after each braced
-        // statement. Without this, an assignment body leaks the STORE_LOCAL
-        // re-push and a function-call body leaks the return value.
-        size_t thenOffsetBefore = ctx.program.getCurrentOffset();
-        node->getThenStatement()->accept(ctx.visitor);
-        statementCleanup::emitStatementCleanup(ctx, node->getThenStatement(), thenOffsetBefore);
-        if (narrowInThen && !narrowVarName.empty())
-        {
-            ctx.nullNarrowing.exitScope();
+            types::ScopedNullNarrowing narrowing(ctx.nullNarrowing,
+                                                 conditionFacts.whenTrueNonNull);
+            // MYT-271: braceless then-bodies (`if (cond) stmt;`) need the same
+            // operand-stack cleanup that compileBlock applies after each braced
+            // statement. Without this, an assignment body leaks the STORE_LOCAL
+            // re-push and a function-call body leaks the return value.
+            size_t thenOffsetBefore = ctx.program.getCurrentOffset();
+            node->getThenStatement()->accept(ctx.visitor);
+            statementCleanup::emitStatementCleanup(ctx, node->getThenStatement(), thenOffsetBefore);
         }
         ctx.variableTracker.endScope();
         ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
@@ -100,18 +74,13 @@ namespace vm::compiler::visitors
 
             // Compile else branch with its own scope
             ctx.variableTracker.beginScope();
-            if (narrowInElse && !narrowVarName.empty())
             {
-                ctx.nullNarrowing.enterScope();
-                ctx.nullNarrowing.narrowToNonNull(narrowVarName);
-            }
-            // MYT-271: braceless else-bodies need the same cleanup as braced.
-            size_t elseOffsetBefore = ctx.program.getCurrentOffset();
-            node->getElseStatement()->accept(ctx.visitor);
-            statementCleanup::emitStatementCleanup(ctx, node->getElseStatement(), elseOffsetBefore);
-            if (narrowInElse && !narrowVarName.empty())
-            {
-                ctx.nullNarrowing.exitScope();
+                types::ScopedNullNarrowing narrowing(ctx.nullNarrowing,
+                                                     conditionFacts.whenFalseNonNull);
+                // MYT-271: braceless else-bodies need the same cleanup as braced.
+                size_t elseOffsetBefore = ctx.program.getCurrentOffset();
+                node->getElseStatement()->accept(ctx.visitor);
+                statementCleanup::emitStatementCleanup(ctx, node->getElseStatement(), elseOffsetBefore);
             }
             ctx.variableTracker.endScope();
             ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
@@ -125,12 +94,15 @@ namespace vm::compiler::visitors
 
         // Guard-clause narrowing: `if (x == null) { return/throw; }` narrows x
         // to non-null for all subsequent code in the enclosing scope.
-        if (!narrowVarName.empty() && narrowInElse && !node->getElseStatement())
+        if (!conditionFacts.whenFalseNonNull.empty() && !node->getElseStatement())
         {
             if (validation::ReturnPathValidator::pathAlwaysReturns(node->getThenStatement()))
             {
                 ctx.nullNarrowing.ensureScope();
-                ctx.nullNarrowing.narrowToNonNull(narrowVarName);
+                for (const auto& varName : conditionFacts.whenFalseNonNull)
+                {
+                    ctx.nullNarrowing.narrowToNonNull(varName);
+                }
             }
         }
 

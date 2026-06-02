@@ -17,7 +17,7 @@ namespace detail
 {
     constexpr const char* BENCHMARKS_REL = "mType/tests/testFiles/benchmarks";
 
-    inline constexpr std::array<const char*, 61> CANONICAL_SCRIPTS = {
+    inline constexpr std::array<const char*, 64> CANONICAL_SCRIPTS = {
         "arithmetic_tight_loop.mt",
         "method_dispatch.mt",
         "object_alloc.mt",
@@ -170,6 +170,13 @@ namespace detail
         // a regression canary.
         "value_class_mut_hot.mt",
         "int_only_arith_hot.mt",
+        // MYT-373: null-narrowing matrix. Each exercises a distinct branch of
+        // analyzeNullCondition / the ScopedNullNarrowing sites added in this
+        // ticket: && (whenTrue) dispatch, || guard-clause (whenFalse merge),
+        // and while-condition loop narrowing.
+        "null_narrowing_hot.mt",
+        "null_guard_clause_hot.mt",
+        "null_narrowing_while_hot.mt",
     };
 
     struct JitFailedLoop

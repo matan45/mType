@@ -11,20 +11,22 @@ namespace ast::nodes::statements
         std::shared_ptr<ASTNode> object;
         std::string memberName;
         std::shared_ptr<ASTNode> value;
+        bool isSafe; // For obj?.member = value safe-navigation assignment
 
     public:
         // Constructor accepting shared_ptr
         explicit MemberAssignmentNode(std::shared_ptr<ASTNode> obj, const std::string& member, std::shared_ptr<ASTNode> val,
-                             const SourceLocation& loc = SourceLocation());
-        
+                             const SourceLocation& loc = SourceLocation(), bool safe = false);
+
         // Constructor accepting unique_ptr for backward compatibility
         explicit MemberAssignmentNode(std::unique_ptr<ASTNode> obj, const std::string& member, std::unique_ptr<ASTNode> val,
-                             const SourceLocation& loc = SourceLocation());
+                             const SourceLocation& loc = SourceLocation(), bool safe = false);
 
         // For code that just needs to read
         [[nodiscard]] ASTNode* getObject() const noexcept;
         const std::string& getMemberName() const;
         [[nodiscard]] ASTNode* getValue() const noexcept;
+        bool getIsSafe() const;
 
         // Safe getters - return shared_ptr
         [[nodiscard]] std::shared_ptr<ASTNode> getObjectShared() const;
