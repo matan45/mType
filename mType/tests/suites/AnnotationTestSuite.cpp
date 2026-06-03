@@ -84,6 +84,47 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED,
                         "Primitive annotation parameters cannot be nullable");
 
+        // ===== MYT-375: FORGIVING CONVERSIONS - PASS TESTS =====
+        // Validator isAssignable/coerceValue widening + shorthand acceptance.
+
+        addOutputVerificationTest("Annotation Class-ref Wrapped Into Class[]",
+                                  passPath + "annotation_class_ref_single_wrap_pass.mt");
+
+        addOutputVerificationTest("Annotation int[] Widened To float[]",
+                                  passPath + "annotation_int_array_to_float_array_pass.mt");
+
+        addOutputVerificationTest("Annotation Empty Array Literal",
+                                  passPath + "annotation_empty_array_pass.mt");
+
+        addOutputVerificationTest("Annotation int Widened To float",
+                                  passPath + "annotation_int_to_float_widen_pass.mt");
+
+        addOutputVerificationTest("Annotation Nullable Ref With Non-null Value",
+                                  passPath + "annotation_nullable_ref_nonnull_pass.mt");
+
+        // ===== MYT-375: FORGIVING CONVERSIONS / SHORTHAND - ERROR TESTS =====
+
+        addTestFromFile("Annotation Null On Non-nullable Reference",
+                        errorPath + "null_on_nonnullable_ref_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "is not nullable but received null");
+
+        addTestFromFile("Annotation Positional Shorthand On Multi-param",
+                        errorPath + "positional_shorthand_multi_param_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Positional shorthand only allowed");
+
+        // ===== MYT-108: DECLARATION SYMMETRY (bool / float / Class) - PASS TESTS =====
+
+        addOutputVerificationTest("Annotation Declaration - Bool Param + Reflection",
+                                  passPath + "annotation_declare_bool_pass.mt");
+
+        addOutputVerificationTest("Annotation Declaration - Float Param + Reflection",
+                                  passPath + "annotation_declare_float_pass.mt");
+
+        addOutputVerificationTest("Annotation Declaration - Class Param + Reflection",
+                                  passPath + "annotation_declare_class_param_pass.mt");
+
         // ===== @Override ANNOTATION - PASS TESTS =====
         // Tests for valid @Override usage with parent classes and interfaces
 

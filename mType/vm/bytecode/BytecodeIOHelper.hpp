@@ -64,6 +64,10 @@ namespace vm::bytecode
         template<typename T>
         static std::vector<T> readPrimitiveVector(std::istream& in) {
             size_t count = readPrimitive<size_t>(in);
+            if (count > MAX_VECTOR_SIZE) {
+                throw std::runtime_error(
+                    "Bytecode primitive vector count exceeds maximum allowed size");
+            }
             std::vector<T> result;
             result.reserve(count);
             for (size_t i = 0; i < count; ++i) {

@@ -1057,6 +1057,9 @@
     <None Include="tests\testFiles\annotation\error\non_exception_class_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\error\null_on_nonnullable_ref_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\error\nullable_primitive_annotation_param_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
@@ -1076,6 +1079,9 @@
       <Filter>testFiles\annotation\error</Filter>
     </None>
     <None Include="tests\testFiles\annotation\error\parameter_target_violation_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\positional_shorthand_multi_param_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
     <None Include="tests\testFiles\annotation\error\script_annotation_abstract_error.mt">
@@ -1147,10 +1153,34 @@
     <None Include="tests\testFiles\annotation\pass\annotation_array_params_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_class_ref_single_wrap_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_class_ref_single_wrap_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_bool_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_bool_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_class_param_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_class_param_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\pass\annotation_declare_empty_pass.expected">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_declare_empty_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_float_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_float_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_declare_int_pass.expected">
@@ -1169,6 +1199,30 @@
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_defaults_partial_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_empty_array_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_empty_array_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_int_array_to_float_array_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_int_array_to_float_array_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_int_to_float_widen_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_int_to_float_widen_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_nullable_ref_nonnull_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_nullable_ref_nonnull_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_on_constructor_pass.expected">
