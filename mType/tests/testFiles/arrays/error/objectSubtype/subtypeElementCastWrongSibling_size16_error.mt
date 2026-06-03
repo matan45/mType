@@ -3,7 +3,8 @@
 // sibling Cat. The fallback must not erase the element's concrete runtime
 // class.
 //
-// Pinned message: "Cannot cast Dog to Cat".
+// The cast must throw (ERROR_EXPECTED). The uncaught cast surfaces only as
+// "User exception thrown: Exception", so the exact message is not asserted.
 print("Testing wrong-sibling cast from base-typed array");
 
 class Animal {

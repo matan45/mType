@@ -3,8 +3,10 @@
 // runtime. The heterogeneous fallback preserves the real runtime class, so the
 // cast check fires correctly.
 //
-// Pinned message: "Cannot cast Dog to Cat" — confirms the fallback did not
-// silently coerce or lose the element's runtime identity.
+// The cast must throw (ERROR_EXPECTED) — confirming the fallback did not
+// silently coerce or lose the element's runtime identity. The uncaught cast
+// surfaces only as "User exception thrown: Exception", so the exact message
+// is not asserted here.
 print("Testing wrong-sibling cast after Object widening");
 
 class Animal {
