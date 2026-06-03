@@ -13,6 +13,8 @@
 📖 **Documentation:** https://matan45.github.io/mType/
 📚 **Standard library:** https://github.com/matan45/mTypeLib
 
+**mType Java editor:** https://github.com/matan45/mtype-code-editor
+
 mType is a statically typed, class-based language with a bytecode VM, an x86-64 JIT, a project / workspace build system, a `mtpm` package manager, a standalone language server, and a VS Code extension. The repository ships the compiler, runtime, standard library, language server, package manager, extension source, and ~1,350+ test fixtures.
 
 ---
