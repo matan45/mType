@@ -6,8 +6,8 @@ run(2, 3) = 11
 --- Calculator fields ---
 Class: Calculator
 Field count: 3
-Field: doubler type=Object
-Field: adder type=Object
+Field: doubler type=IntMapper
+Field: adder type=IntCombiner
 Field: seed type=int
 --- Calculator methods ---
 Method count: 1

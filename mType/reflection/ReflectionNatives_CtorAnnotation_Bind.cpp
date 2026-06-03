@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include "ReflectionHandle.hpp"
+#include "../environment/Environment.hpp"
 #include "../errors/RuntimeException.hpp"
 #include "../value/InternedString.hpp"
 #include "../value/NativeArray.hpp"
@@ -112,7 +113,7 @@ namespace reflection
         auto annotation = classDef->getAnnotation(annotationName);
         if (!annotation)
         {
-            return std::monostate{};
+            return static_cast<int>(0);
         }
 
         int64_t handle = handleRegistry.registerAnnotation(annotation, annotationName);
@@ -306,8 +307,8 @@ namespace reflection
 
     // Annotation lookup-by-name natives. Each pair (get/has) walks the
     // annotation list on the target handle's definition (method/field/ctor)
-    // and either registers a handle for the matched annotation (get*,
-    // returns -1 on miss) or returns a bool (has*).
+    // and either registers a handle for the matched annotation (get*) or
+    // returns 0 on miss so the mType wrapper can materialize null.
 
     Value ReflectionNatives::__reflect_getMethodAnnotation(void* /*userData*/, environment::NativeContext& /*ctx*/, std::span<const value::Value> args)
     {
@@ -330,7 +331,7 @@ namespace reflection
                 return static_cast<int>(handle);
             }
         }
-        return static_cast<int>(-1);
+        return static_cast<int>(0);
     }
 
     Value ReflectionNatives::__reflect_hasMethodAnnotation(void* /*userData*/, environment::NativeContext& /*ctx*/, std::span<const value::Value> args)
@@ -374,7 +375,7 @@ namespace reflection
                 return static_cast<int>(handle);
             }
         }
-        return static_cast<int>(-1);
+        return static_cast<int>(0);
     }
 
     Value ReflectionNatives::__reflect_hasFieldAnnotation(void* /*userData*/, environment::NativeContext& /*ctx*/, std::span<const value::Value> args)
@@ -440,7 +441,7 @@ namespace reflection
                 return static_cast<int>(handle);
             }
         }
-        return static_cast<int>(-1);
+        return static_cast<int>(0);
     }
 
     Value ReflectionNatives::__reflect_hasConstructorAnnotation(void* /*userData*/, environment::NativeContext& /*ctx*/, std::span<const value::Value> args)
@@ -463,13 +464,11 @@ namespace reflection
         return false;
     }
 
-    Value ReflectionNatives::__reflect_getAnnotationMeta(void* /*userData*/, environment::NativeContext& /*ctx*/, std::span<const value::Value> args)
+    Value ReflectionNatives::__reflect_getAnnotationMeta(void* /*userData*/, environment::NativeContext& ctx, std::span<const value::Value> args)
     {
         validateArgCount(args, 2, "__reflect_getAnnotationMeta");
         int64_t annotationHandle = extractInt(args[0], "__reflect_getAnnotationMeta", "annotationHandle");
-        // metaName accepted but unused: AnnotationNode does not currently track
-        // meta-annotations, so this native always returns -1 (not found).
-        (void)extractString(args[1], "__reflect_getAnnotationMeta", "metaName");
+        std::string metaName = extractString(args[1], "__reflect_getAnnotationMeta", "metaName");
 
         auto& handleRegistry = ReflectionHandleRegistry::instance();
         auto annotationInfo = handleRegistry.getAnnotation(annotationHandle);
@@ -478,7 +477,33 @@ namespace reflection
             throw errors::RuntimeException("Invalid annotation handle");
         }
 
-        // No meta-annotation infrastructure on AnnotationNode yet.
-        return static_cast<int>(-1);
+        if (!ctx.env)
+        {
+            throw errors::RuntimeException("Reflection environment not initialized");
+        }
+
+        auto annotationRegistry = ctx.env->getAnnotationRegistry();
+        if (!annotationRegistry)
+        {
+            return static_cast<int>(0);
+        }
+
+        const std::string annotationName = annotationInfo.annotationName.empty()
+            ? annotationInfo.annotation->getName()
+            : annotationInfo.annotationName;
+        auto annotationDefinition = annotationRegistry->findAnnotation(annotationName);
+        if (!annotationDefinition)
+        {
+            return static_cast<int>(0);
+        }
+
+        auto metaAnnotation = annotationDefinition->getMetaAnnotation(metaName);
+        if (!metaAnnotation)
+        {
+            return static_cast<int>(0);
+        }
+
+        int64_t metaHandle = handleRegistry.registerAnnotation(metaAnnotation, metaAnnotation->getName());
+        return static_cast<int>(metaHandle);
     }
 }

@@ -125,8 +125,6 @@ namespace vm::runtime
                     std::to_string(constants::security::MAX_LOCAL_STACK_PER_FRAME));
             }
 
-            std::string varName = context.program->getConstantPool().getString(instr.inlineOperands[1]);
-
             // Pop value from top of stack
             value::Value val = context.stackManager->pop();
 
@@ -180,18 +178,14 @@ namespace vm::runtime
                 (*context.stackManager)[stackPos] = val;
             }
 
-            // Also update the SharedStackFrame (for closure capture reference semantics)
+            // Mirror into an existing SharedStackFrame for closure reference semantics.
+            // Do not create one for ordinary local stores: stack-promoted objects
+            // cannot safely be captured by a frame that may outlive the call frame.
             if (!lambda && !context.callStack.empty())
             {
                 if (context.callStack.back().sharedFrame)
                 {
                     context.callStack.back().sharedFrame->setLocal(slot, val);
-                }
-                else if (!varName.empty())
-                {
-                    context.callStack.back().sharedFrame = makePooledFrame();
-                    auto sharedFrame = context.callStack.back().sharedFrame;
-                    sharedFrame->setLocal(varName, slot, val);
                 }
             }
 
@@ -623,13 +617,6 @@ namespace vm::runtime
                 return;
             }
 
-            // Keep the varName resolution exactly as the generic handler.
-            std::string varName;
-            if (instr.numOperands() > 1)
-            {
-                varName = context.program->getConstantPool().getString(instr.inlineOperands[1]);
-            }
-
             value::Value val = context.stackManager->pop();
             size_t frameBase = context.callStack.empty() ? 0 : context.callStack.back().localBase;
             size_t stackPos = frameBase + slot;
@@ -647,18 +634,11 @@ namespace vm::runtime
                 (*context.stackManager)[stackPos] = val;
             }
 
-            // SharedStackFrame propagation.
-            if (!context.callStack.empty())
+            // Mirror into an existing SharedStackFrame. Creating one here would
+            // incorrectly capture ordinary stack-promoted locals.
+            if (!context.callStack.empty() && context.callStack.back().sharedFrame)
             {
-                if (context.callStack.back().sharedFrame)
-                {
-                    context.callStack.back().sharedFrame->setLocal(slot, val);
-                }
-                else if (!varName.empty())
-                {
-                    context.callStack.back().sharedFrame = makePooledFrame();
-                    context.callStack.back().sharedFrame->setLocal(varName, slot, val);
-                }
+                context.callStack.back().sharedFrame->setLocal(slot, val);
             }
 
             context.stackManager->push(val);

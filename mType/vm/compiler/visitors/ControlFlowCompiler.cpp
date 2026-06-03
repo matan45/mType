@@ -187,11 +187,15 @@ namespace vm::compiler::visitors
 
                 if (auto* defaultCase = dynamic_cast<ast::DefaultCaseNode*>(cases[i].get())) {
                     for (const auto& stmt : defaultCase->getStatements()) {
+                        size_t offsetBefore = ctx.program.getCurrentOffset();
                         stmt->accept(ctx.visitor);
+                        statementCleanup::emitStatementCleanup(ctx, stmt.get(), offsetBefore);
                     }
                 } else if (auto* regularCase = dynamic_cast<ast::CaseNode*>(cases[i].get())) {
                     for (const auto& stmt : regularCase->getStatements()) {
+                        size_t offsetBefore = ctx.program.getCurrentOffset();
                         stmt->accept(ctx.visitor);
+                        statementCleanup::emitStatementCleanup(ctx, stmt.get(), offsetBefore);
                     }
                 }
             }
@@ -215,13 +219,25 @@ namespace vm::compiler::visitors
         size_t defaultBodyStart = SIZE_MAX;
         size_t defaultCaseIndex = SIZE_MAX;
 
+        ctx.variableTracker.beginScope();
+        ctx.variableTracker.declareLocal("$switch_val", value::ValueType::VOID);
+        ctx.functionFrameManager.updateMaxLocalSlot(ctx.variableTracker.getNextLocalSlot());
+        size_t switchValueSlot = ctx.variableTracker.getNextLocalSlot() - 1;
+        if (ctx.functionFrameManager.isInFunction()) {
+            switchValueSlot -= ctx.functionFrameManager.currentFrame().localStartSlot;
+        }
+        ctx.emitter.emitWithLocation(bytecode::OpCode::STORE_LOCAL,
+                                     static_cast<uint64_t>(switchValueSlot), node);
+        ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
+
         // First pass: generate comparisons
         for (size_t i = 0; i < cases.size(); ++i) {
             if (dynamic_cast<ast::DefaultCaseNode*>(cases[i].get())) {
                 defaultCaseIndex = i;
                 caseBodyStarts.push_back(SIZE_MAX);
             } else if (auto* regularCase = dynamic_cast<ast::CaseNode*>(cases[i].get())) {
-                ctx.emitter.emitWithLocation(bytecode::OpCode::DUP, regularCase);
+                ctx.emitter.emitWithLocation(bytecode::OpCode::LOAD_LOCAL,
+                                             static_cast<uint64_t>(switchValueSlot), regularCase);
                 regularCase->getValue()->accept(ctx.visitor);
                 ctx.emitter.emitWithLocation(bytecode::OpCode::EQ, regularCase);
                 size_t jumpToCaseBody = ctx.emitter.emitJump(bytecode::OpCode::JUMP_IF_TRUE);
@@ -241,18 +257,18 @@ namespace vm::compiler::visitors
                 defaultBodyStart = ctx.program.getCurrentOffset();
             }
 
-            if (caseBodyStarts[i] != SIZE_MAX || i == defaultCaseIndex) {
-                ctx.emitter.emitWithLocation(bytecode::OpCode::POP, cases[i].get());
-            }
-
             // Compile case statements
             if (auto* defaultCase = dynamic_cast<ast::DefaultCaseNode*>(cases[i].get())) {
                 for (const auto& stmt : defaultCase->getStatements()) {
+                    size_t offsetBefore = ctx.program.getCurrentOffset();
                     stmt->accept(ctx.visitor);
+                    statementCleanup::emitStatementCleanup(ctx, stmt.get(), offsetBefore);
                 }
             } else if (auto* regularCase = dynamic_cast<ast::CaseNode*>(cases[i].get())) {
                 for (const auto& stmt : regularCase->getStatements()) {
+                    size_t offsetBefore = ctx.program.getCurrentOffset();
                     stmt->accept(ctx.visitor);
+                    statementCleanup::emitStatementCleanup(ctx, stmt.get(), offsetBefore);
                 }
             }
         }
@@ -263,8 +279,6 @@ namespace vm::compiler::visitors
         ctx.emitter.patchJump(jumpToDefaultOrEnd);
         if (defaultBodyStart != SIZE_MAX) {
             ctx.emitter.emitWithLocation(bytecode::OpCode::JUMP, static_cast<uint64_t>(defaultBodyStart), node);
-        } else {
-            ctx.emitter.emitWithLocation(bytecode::OpCode::POP, node);
         }
 
         // Patch all break jumps
@@ -274,6 +288,7 @@ namespace vm::compiler::visitors
         }
 
         ctx.switchManager.exitSwitch();
+        ctx.variableTracker.endScope();
 
         return std::monostate{};
     }

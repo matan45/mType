@@ -2,7 +2,7 @@ Class name: Person
 Is abstract: false
 Is final: false
 Number of declared fields: 3
-  Field: name type=String static=false
+  Field: name type=string static=false
   Field: age type=int static=false
   Field: count type=int static=true
 Number of declared methods: 4
