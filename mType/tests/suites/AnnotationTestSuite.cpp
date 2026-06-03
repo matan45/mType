@@ -164,6 +164,9 @@ namespace tests::testSuite
         addOutputVerificationTest("Annotation Const - Folded Arg On Method",
                                   passPath + "annotation_const_on_method_pass.mt");
 
+        addOutputVerificationTest("Annotation DI - Reflection Field Injection + Qualifier Constant",
+                                  passPath + "di_field_injection_pass.mt");
+
         // ===== MYT-376: COMPILE-TIME CONSTANT-FOLDED ARGUMENTS - ERROR TESTS =====
         // The boundary stays precise: only compile-time constants fold; genuine
         // runtime forms still error.
