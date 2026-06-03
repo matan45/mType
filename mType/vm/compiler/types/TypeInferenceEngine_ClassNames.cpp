@@ -36,6 +36,18 @@ namespace vm::compiler::types
     {
         std::string varName = varNode->getName();
 
+        // MYT-377: resolve `Class::FIELD` to the static field's class name so
+        // object and object-array static fields type-check in typed positions
+        // (ParameterValidator compares class names for OBJECT arguments).
+        if (varName.find("::") != std::string::npos) {
+            if (auto field = resolveQualifiedStaticField(varName)) {
+                if (auto uType = field->getUnifiedType()) {
+                    return ::types::TypeConversionUtils::stripNullable(uType->toString());
+                }
+            }
+            return "";
+        }
+
         const auto& locals = variableTracker.getLocals();
         for (auto it = locals.rbegin(); it != locals.rend(); ++it) {
             if (it->name == varName) {

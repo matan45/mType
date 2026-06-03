@@ -39,6 +39,10 @@ namespace tests::testSuite
                         passPath + "methodParameterTypeChecking.mt");
         addOutputVerificationTest("Constructor Parameter Type Checking",
                         passPath + "constructorParameterTypeChecking.mt");
+        // MYT-377: Class::FIELD static field access infers the field's declared
+        // type (int/float/bool/string/object/array) in typed param/assign positions.
+        addOutputVerificationTest("Static Field Typed Positions (MYT-377)",
+                        passPath + "staticFieldTypedPositions.mt");
 
         // Function return type tests
         addOutputVerificationTest("Function Return Type Matching",
@@ -66,6 +70,11 @@ namespace tests::testSuite
         addTestFromFile("Async Return Inner Array Mismatch Error",
                         errorPath + "typeAsyncReturnInnerArrayMismatch_error.mt",
                         TestType::ERROR_EXPECTED);
+        // MYT-377: a string static field into an int parameter must still be
+        // rejected on the correct ground, now that the type infers (not void).
+        addTestFromFile("Static Field Type Mismatch (MYT-377)",
+                        errorPath + "staticFieldTypeMismatch.mt",
+                        TestType::ERROR_EXPECTED, "expects int but got string");
 
         // String handling edge case tests
         addOutputVerificationTest("String Concatenation with Null Objects",

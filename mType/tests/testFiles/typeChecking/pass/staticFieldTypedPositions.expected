@@ -1,0 +1,12 @@
+int=5432
+float=1.5
+bool=false
+string=localhost
+arr0=80
+obj=Rex barks
+assignInt=5432
+assignFloat=1.5
+assignBool=false
+assignStr=localhost
+assignArr=8080
+assignObj=Rex barks
