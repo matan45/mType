@@ -185,19 +185,7 @@ namespace vm::compiler::visitors
                                              static_cast<uint64_t>(bodyStart));
                 }
 
-                if (auto* defaultCase = dynamic_cast<ast::DefaultCaseNode*>(cases[i].get())) {
-                    for (const auto& stmt : defaultCase->getStatements()) {
-                        size_t offsetBefore = ctx.program.getCurrentOffset();
-                        stmt->accept(ctx.visitor);
-                        statementCleanup::emitStatementCleanup(ctx, stmt.get(), offsetBefore);
-                    }
-                } else if (auto* regularCase = dynamic_cast<ast::CaseNode*>(cases[i].get())) {
-                    for (const auto& stmt : regularCase->getStatements()) {
-                        size_t offsetBefore = ctx.program.getCurrentOffset();
-                        stmt->accept(ctx.visitor);
-                        statementCleanup::emitStatementCleanup(ctx, stmt.get(), offsetBefore);
-                    }
-                }
+                compileCaseBody(cases[i].get());
             }
 
             const size_t endOffset = ctx.program.getCurrentOffset();
@@ -258,19 +246,7 @@ namespace vm::compiler::visitors
             }
 
             // Compile case statements
-            if (auto* defaultCase = dynamic_cast<ast::DefaultCaseNode*>(cases[i].get())) {
-                for (const auto& stmt : defaultCase->getStatements()) {
-                    size_t offsetBefore = ctx.program.getCurrentOffset();
-                    stmt->accept(ctx.visitor);
-                    statementCleanup::emitStatementCleanup(ctx, stmt.get(), offsetBefore);
-                }
-            } else if (auto* regularCase = dynamic_cast<ast::CaseNode*>(cases[i].get())) {
-                for (const auto& stmt : regularCase->getStatements()) {
-                    size_t offsetBefore = ctx.program.getCurrentOffset();
-                    stmt->accept(ctx.visitor);
-                    statementCleanup::emitStatementCleanup(ctx, stmt.get(), offsetBefore);
-                }
-            }
+            compileCaseBody(cases[i].get());
         }
 
         size_t implicitEndJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
@@ -291,6 +267,25 @@ namespace vm::compiler::visitors
         ctx.variableTracker.endScope();
 
         return std::monostate{};
+    }
+
+    void ControlFlowCompiler::compileCaseBody(ast::ASTNode* caseNode)
+    {
+        const std::vector<std::unique_ptr<ast::ASTNode>>* statements = nullptr;
+        if (auto* defaultCase = dynamic_cast<ast::DefaultCaseNode*>(caseNode)) {
+            statements = &defaultCase->getStatements();
+        } else if (auto* regularCase = dynamic_cast<ast::CaseNode*>(caseNode)) {
+            statements = &regularCase->getStatements();
+        }
+        if (!statements) {
+            return;
+        }
+
+        for (const auto& stmt : *statements) {
+            size_t offsetBefore = ctx.program.getCurrentOffset();
+            stmt->accept(ctx.visitor);
+            statementCleanup::emitStatementCleanup(ctx, stmt.get(), offsetBefore);
+        }
     }
 
     value::Value ControlFlowCompiler::compileCase(ast::CaseNode* node)

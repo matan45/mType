@@ -248,6 +248,13 @@ private:
     void convertToHeterogeneous();
 
     /**
+     * @brief MYT-378: store @p value at an already-resolved effective (flat,
+     * offset-applied) index, applying the SoA-vs-heterogeneous decision. Shared
+     * by set() and setLinear() so the fallback rule lives in exactly one place.
+     */
+    void storeAt(size_t effectiveIndex, const ::value::Value& value);
+
+    /**
      * @brief Get reference to the actual field arrays storage (own or parent's)
      */
     std::unordered_map<std::string, std::shared_ptr<IArray>>& getFieldArraysStorage() {
