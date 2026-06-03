@@ -1024,6 +1024,15 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="tests\testFiles\annotation\error\array_invalid_default_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\array_missing_required_param_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\array_wrong_element_type_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\error\empty_throw_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
@@ -1046,6 +1055,9 @@
       <Filter>testFiles\annotation\error</Filter>
     </None>
     <None Include="tests\testFiles\annotation\error\non_exception_class_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\nullable_primitive_annotation_param_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
     <None Include="tests\testFiles\annotation\error\override_no_parent_error.mt">
@@ -1117,6 +1129,9 @@
     <None Include="tests\testFiles\annotation\error\unknown_param_name_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\error\unsupported_object_annotation_param_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\error\wrong_param_type_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
@@ -1124,6 +1139,12 @@
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotationOnGenericMethodParam.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_array_params_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_array_params_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_declare_empty_pass.expected">

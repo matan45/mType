@@ -78,6 +78,10 @@ namespace services
             case AnnotationValueType::STRING:      v = TypedAnnotationValue::makeString(arg.stringVal); break;
             case AnnotationValueType::CLASS_REF:   v = TypedAnnotationValue::makeClassRef(arg.stringVal); break;
             case AnnotationValueType::CLASS_ARRAY: v = TypedAnnotationValue::makeClassArray(arg.arrayVal); break;
+            case AnnotationValueType::INT_ARRAY:   v = TypedAnnotationValue::makeIntArray(arg.intArrayVal); break;
+            case AnnotationValueType::FLOAT_ARRAY: v = TypedAnnotationValue::makeFloatArray(arg.floatArrayVal); break;
+            case AnnotationValueType::BOOL_ARRAY:  v = TypedAnnotationValue::makeBoolArray(arg.boolArrayVal); break;
+            case AnnotationValueType::STRING_ARRAY:v = TypedAnnotationValue::makeStringArray(arg.stringArrayVal); break;
             case AnnotationValueType::NULL_VALUE:  v = TypedAnnotationValue::makeNull(); break;
             }
             node->setTypedParameter(arg.key, std::move(v));
@@ -107,7 +111,8 @@ namespace services
                 schema.isArray      = p.isArray;
                 if (p.hasDefault)
                 {
-                    switch (schema.declaredType)
+                    const auto defaultType = static_cast<AnnotationValueType>(p.defaultValueType);
+                    switch (defaultType)
                     {
                     case AnnotationValueType::INT:         schema.defaultValue = TypedAnnotationValue::makeInt(p.defaultInt); break;
                     case AnnotationValueType::FLOAT:       schema.defaultValue = TypedAnnotationValue::makeFloat(p.defaultFloat); break;
@@ -115,6 +120,10 @@ namespace services
                     case AnnotationValueType::STRING:      schema.defaultValue = TypedAnnotationValue::makeString(p.defaultString); break;
                     case AnnotationValueType::CLASS_REF:   schema.defaultValue = TypedAnnotationValue::makeClassRef(p.defaultString); break;
                     case AnnotationValueType::CLASS_ARRAY: schema.defaultValue = TypedAnnotationValue::makeClassArray(p.defaultStringArray); break;
+                    case AnnotationValueType::INT_ARRAY:   schema.defaultValue = TypedAnnotationValue::makeIntArray(p.defaultIntArray); break;
+                    case AnnotationValueType::FLOAT_ARRAY: schema.defaultValue = TypedAnnotationValue::makeFloatArray(p.defaultFloatArray); break;
+                    case AnnotationValueType::BOOL_ARRAY:  schema.defaultValue = TypedAnnotationValue::makeBoolArray(p.defaultBoolArray); break;
+                    case AnnotationValueType::STRING_ARRAY:schema.defaultValue = TypedAnnotationValue::makeStringArray(p.defaultTextArray); break;
                     case AnnotationValueType::NULL_VALUE:  schema.defaultValue = TypedAnnotationValue::makeNull(); break;
                     }
                 }

@@ -231,7 +231,7 @@ namespace parser::utilities
             return parseArrayLiteral(tokenStream);
         default:
             throw ParseException(
-                "Expected annotation literal value (int, float, bool, string, identifier, null, or [Class,...])",
+                "Expected annotation literal value (int, float, bool, string, identifier, null, or supported array literal)",
                 tok.location);
         }
     }
@@ -239,32 +239,155 @@ namespace parser::utilities
     TypedAnnotationValue AnnotationParser::parseArrayLiteral(TokenStream& tokenStream)
     {
         tokenStream.advance(); // consume '['
-        std::vector<std::string> entries;
-        while (tokenStream.current().type != TokenType::RBRACKET)
+
+        if (tokenStream.current().type == TokenType::RBRACKET)
         {
-            if (tokenStream.current().type != TokenType::IDENTIFIER)
-            {
-                throw ParseException("Expected class identifier inside annotation array literal",
-                                     tokenStream.current().location);
-            }
-            entries.push_back(std::string(tokenStream.current().stringValue));
             tokenStream.advance();
-            if (tokenStream.current().type == TokenType::COMMA)
+            return TypedAnnotationValue::makeClassArray({});
+        }
+
+        const TokenType firstType = tokenStream.current().type;
+        if (firstType == TokenType::IDENTIFIER)
+        {
+            std::vector<std::string> entries;
+            while (tokenStream.current().type != TokenType::RBRACKET)
             {
-                tokenStream.advance();
-                if (tokenStream.current().type == TokenType::RBRACKET)
+                if (tokenStream.current().type != TokenType::IDENTIFIER)
                 {
-                    throw ParseException("Trailing ',' in annotation array literal",
+                    throw ParseException("Expected class identifier inside annotation Class[] literal",
+                                         tokenStream.current().location);
+                }
+                entries.push_back(std::string(tokenStream.current().stringValue));
+                tokenStream.advance();
+                if (tokenStream.current().type == TokenType::COMMA)
+                {
+                    tokenStream.advance();
+                    if (tokenStream.current().type == TokenType::RBRACKET)
+                    {
+                        throw ParseException("Trailing ',' in annotation array literal",
+                                             tokenStream.current().location);
+                    }
+                }
+                else if (tokenStream.current().type != TokenType::RBRACKET)
+                {
+                    throw ParseException("Expected ',' or ']' in annotation array literal",
                                          tokenStream.current().location);
                 }
             }
-            else if (tokenStream.current().type != TokenType::RBRACKET)
-            {
-                throw ParseException("Expected ',' or ']' in annotation array literal",
-                                     tokenStream.current().location);
-            }
+            tokenStream.advance();
+            return TypedAnnotationValue::makeClassArray(std::move(entries));
         }
-        tokenStream.advance(); // consume ']'
-        return TypedAnnotationValue::makeClassArray(std::move(entries));
+
+        if (firstType == TokenType::STRING_LITERAL)
+        {
+            std::vector<std::string> entries;
+            while (tokenStream.current().type != TokenType::RBRACKET)
+            {
+                if (tokenStream.current().type != TokenType::STRING_LITERAL)
+                {
+                    throw ParseException("Expected string literal inside annotation string[] literal",
+                                         tokenStream.current().location);
+                }
+                entries.push_back(std::string(tokenStream.current().stringValue));
+                tokenStream.advance();
+                if (tokenStream.current().type == TokenType::COMMA)
+                {
+                    tokenStream.advance();
+                    if (tokenStream.current().type == TokenType::RBRACKET)
+                    {
+                        throw ParseException("Trailing ',' in annotation array literal",
+                                             tokenStream.current().location);
+                    }
+                }
+                else if (tokenStream.current().type != TokenType::RBRACKET)
+                {
+                    throw ParseException("Expected ',' or ']' in annotation array literal",
+                                         tokenStream.current().location);
+                }
+            }
+            tokenStream.advance();
+            return TypedAnnotationValue::makeStringArray(std::move(entries));
+        }
+
+        if (firstType == TokenType::TRUE || firstType == TokenType::FALSE)
+        {
+            std::vector<bool> entries;
+            while (tokenStream.current().type != TokenType::RBRACKET)
+            {
+                if (tokenStream.current().type == TokenType::TRUE) entries.push_back(true);
+                else if (tokenStream.current().type == TokenType::FALSE) entries.push_back(false);
+                else
+                {
+                    throw ParseException("Expected boolean literal inside annotation bool[] literal",
+                                         tokenStream.current().location);
+                }
+
+                tokenStream.advance();
+                if (tokenStream.current().type == TokenType::COMMA)
+                {
+                    tokenStream.advance();
+                    if (tokenStream.current().type == TokenType::RBRACKET)
+                    {
+                        throw ParseException("Trailing ',' in annotation array literal",
+                                             tokenStream.current().location);
+                    }
+                }
+                else if (tokenStream.current().type != TokenType::RBRACKET)
+                {
+                    throw ParseException("Expected ',' or ']' in annotation array literal",
+                                         tokenStream.current().location);
+                }
+            }
+            tokenStream.advance();
+            return TypedAnnotationValue::makeBoolArray(std::move(entries));
+        }
+
+        if (firstType == TokenType::INT_NUMBER || firstType == TokenType::FLOAT_NUMBER)
+        {
+            std::vector<int64_t> ints;
+            std::vector<double> floats;
+            bool hasFloat = false;
+
+            while (tokenStream.current().type != TokenType::RBRACKET)
+            {
+                if (tokenStream.current().type == TokenType::INT_NUMBER)
+                {
+                    ints.push_back(tokenStream.current().intValue);
+                    floats.push_back(static_cast<double>(tokenStream.current().intValue));
+                }
+                else if (tokenStream.current().type == TokenType::FLOAT_NUMBER)
+                {
+                    hasFloat = true;
+                    floats.push_back(tokenStream.current().floatValue);
+                }
+                else
+                {
+                    throw ParseException("Expected numeric literal inside annotation numeric[] literal",
+                                         tokenStream.current().location);
+                }
+
+                tokenStream.advance();
+                if (tokenStream.current().type == TokenType::COMMA)
+                {
+                    tokenStream.advance();
+                    if (tokenStream.current().type == TokenType::RBRACKET)
+                    {
+                        throw ParseException("Trailing ',' in annotation array literal",
+                                             tokenStream.current().location);
+                    }
+                }
+                else if (tokenStream.current().type != TokenType::RBRACKET)
+                {
+                    throw ParseException("Expected ',' or ']' in annotation array literal",
+                                         tokenStream.current().location);
+                }
+            }
+            tokenStream.advance();
+            if (hasFloat) return TypedAnnotationValue::makeFloatArray(std::move(floats));
+            return TypedAnnotationValue::makeIntArray(std::move(ints));
+        }
+
+        throw ParseException("Unsupported annotation array literal element type",
+                             tokenStream.current().location);
     }
 }

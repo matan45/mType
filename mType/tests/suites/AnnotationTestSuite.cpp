@@ -29,6 +29,9 @@ namespace tests::testSuite
         addOutputVerificationTest("Annotation On Top-Level Function",
                                   passPath + "annotation_on_top_function_pass.mt");
 
+        addOutputVerificationTest("Annotation Arrays and Nullable Params",
+                                  passPath + "annotation_array_params_pass.mt");
+
         // ===== USER-DEFINED ANNOTATIONS (MYT-108) - ERROR TESTS =====
 
         addTestFromFile("Annotation Usage - Unknown Annotation",
@@ -55,6 +58,31 @@ namespace tests::testSuite
                         errorPath + "unknown_annotation_on_function_error.mt",
                         TestType::ERROR_EXPECTED,
                         "Unknown annotation");
+
+        addTestFromFile("Annotation Array - Wrong Element Type",
+                        errorPath + "array_wrong_element_type_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Expected numeric literal");
+
+        addTestFromFile("Annotation Array - Missing Required Param",
+                        errorPath + "array_missing_required_param_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "missing required parameter");
+
+        addTestFromFile("Annotation Array - Invalid Default",
+                        errorPath + "array_invalid_default_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Expected integer literal");
+
+        addTestFromFile("Annotation Param - Unsupported Object",
+                        errorPath + "unsupported_object_annotation_param_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Annotation parameter type");
+
+        addTestFromFile("Annotation Param - Nullable Primitive",
+                        errorPath + "nullable_primitive_annotation_param_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Primitive annotation parameters cannot be nullable");
 
         // ===== @Override ANNOTATION - PASS TESTS =====
         // Tests for valid @Override usage with parent classes and interfaces

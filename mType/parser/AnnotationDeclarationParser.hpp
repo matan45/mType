@@ -10,7 +10,7 @@
 namespace parser
 {
     /// Parses `annotation Name { Type[?] field [= literal]; ... }`.
-    /// Supported field types: int, float, bool, string, Class, Class[].
+    /// Supported field types: int, float, bool, string, Class, and supported arrays.
     /// Defaults must be literal expressions of the matching declared type.
     class AnnotationDeclarationParser : public core::BaseParser
     {
@@ -30,7 +30,7 @@ namespace parser
         // Parses a single `Type[?] name [= literal];` field declaration.
         ast::nodes::annotations::AnnotationParamDecl parseParamDeclaration();
 
-        // Parses the type prefix (int / float / bool / string / Class / Class[])
+        // Parses the type prefix (int / float / bool / string / Class plus [])
         // and returns the resulting AnnotationValueType plus nullable/isArray flags.
         struct ParsedTypeSpec
         {

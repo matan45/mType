@@ -503,6 +503,16 @@ namespace reflection
         static value::Value __reflect_getAnnotationClass(void* userData, NativeContext& ctx, std::span<const value::Value> args);
         /// args: (annotationHandle:int, paramKey:string) -> int[] (Class handles)
         static value::Value __reflect_getAnnotationClassArray(void* userData, NativeContext& ctx, std::span<const value::Value> args);
+        /// args: (annotationHandle:int, paramKey:string) -> string[] (Class names)
+        static value::Value __reflect_getAnnotationClassNames(void* userData, NativeContext& ctx, std::span<const value::Value> args);
+        /// args: (annotationHandle:int, paramKey:string) -> int[]
+        static value::Value __reflect_getAnnotationIntArray(void* userData, NativeContext& ctx, std::span<const value::Value> args);
+        /// args: (annotationHandle:int, paramKey:string) -> float[]
+        static value::Value __reflect_getAnnotationFloatArray(void* userData, NativeContext& ctx, std::span<const value::Value> args);
+        /// args: (annotationHandle:int, paramKey:string) -> bool[]
+        static value::Value __reflect_getAnnotationBoolArray(void* userData, NativeContext& ctx, std::span<const value::Value> args);
+        /// args: (annotationHandle:int, paramKey:string) -> string[]
+        static value::Value __reflect_getAnnotationStringArray(void* userData, NativeContext& ctx, std::span<const value::Value> args);
         /// args: (annotationHandle:int, paramKey:string) -> bool
         static value::Value __reflect_isAnnotationParamNull(void* userData, NativeContext& ctx, std::span<const value::Value> args);
 

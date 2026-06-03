@@ -27,6 +27,10 @@ namespace vm::compiler::registration
             case AnnotationValueType::STRING:      arg.stringVal = v->asString(); break;
             case AnnotationValueType::CLASS_REF:   arg.stringVal = v->asClassRef(); break;
             case AnnotationValueType::CLASS_ARRAY: arg.arrayVal  = v->asClassArray(); break;
+            case AnnotationValueType::INT_ARRAY:   arg.intArrayVal = v->asIntArray(); break;
+            case AnnotationValueType::FLOAT_ARRAY: arg.floatArrayVal = v->asFloatArray(); break;
+            case AnnotationValueType::BOOL_ARRAY:  arg.boolArrayVal = v->asBoolArray(); break;
+            case AnnotationValueType::STRING_ARRAY:arg.stringArrayVal = v->asStringArray(); break;
             case AnnotationValueType::NULL_VALUE:  break;
             }
             out.typedArguments.push_back(std::move(arg));

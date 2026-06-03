@@ -22,7 +22,7 @@ namespace parser::utilities
     ///   * legacy bare-identifier list — preserved for the @Throw migration
     ///     path; identifiers parsed as an ordered list of CLASS_REF values.
     /// Literal types: int, float, bool (true/false), string, identifier
-    /// (treated as a Class reference), null, array literal `[Id, Id, ...]`.
+    /// (treated as a Class reference), null, and homogeneous array literals.
     class AnnotationParser
     {
     public:
@@ -37,7 +37,7 @@ namespace parser::utilities
         // Parses a single literal value at the current token, advancing past it.
         static TypedAnnotationValue parseLiteral(TokenStream& tokenStream);
 
-        // Parses an array literal `[Id, Id, ...]` (Class[] only in v1).
+        // Parses a homogeneous annotation array literal.
         static TypedAnnotationValue parseArrayLiteral(TokenStream& tokenStream);
     };
 }

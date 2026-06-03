@@ -3,6 +3,7 @@
 #include "../environment/registry/AnnotationDefinition.hpp"
 #include "../errors/TypeException.hpp"
 #include <sstream>
+#include <vector>
 
 namespace validation
 {
@@ -23,8 +24,61 @@ namespace validation
             case AnnotationValueType::STRING:      return "string";
             case AnnotationValueType::CLASS_REF:   return "Class";
             case AnnotationValueType::CLASS_ARRAY: return "Class[]";
+            case AnnotationValueType::INT_ARRAY:   return "int[]";
+            case AnnotationValueType::FLOAT_ARRAY: return "float[]";
+            case AnnotationValueType::BOOL_ARRAY:  return "bool[]";
+            case AnnotationValueType::STRING_ARRAY:return "string[]";
             }
             return "<unknown>";
+        }
+
+        bool isArrayType(AnnotationValueType t)
+        {
+            return t == AnnotationValueType::CLASS_ARRAY ||
+                   t == AnnotationValueType::INT_ARRAY ||
+                   t == AnnotationValueType::FLOAT_ARRAY ||
+                   t == AnnotationValueType::BOOL_ARRAY ||
+                   t == AnnotationValueType::STRING_ARRAY;
+        }
+
+        bool isEmptyClassArrayLiteral(const TypedAnnotationValue& value)
+        {
+            return value.getType() == AnnotationValueType::CLASS_ARRAY &&
+                   value.asClassArray().empty();
+        }
+
+        TypedAnnotationValue emptyArrayFor(AnnotationValueType type)
+        {
+            switch (type)
+            {
+            case AnnotationValueType::INT_ARRAY:    return TypedAnnotationValue::makeIntArray({});
+            case AnnotationValueType::FLOAT_ARRAY:  return TypedAnnotationValue::makeFloatArray({});
+            case AnnotationValueType::BOOL_ARRAY:   return TypedAnnotationValue::makeBoolArray({});
+            case AnnotationValueType::STRING_ARRAY: return TypedAnnotationValue::makeStringArray({});
+            case AnnotationValueType::CLASS_ARRAY:  return TypedAnnotationValue::makeClassArray({});
+            default:                                return TypedAnnotationValue::makeNull();
+            }
+        }
+
+        TypedAnnotationValue coerceValue(const TypedAnnotationValue& value, const AnnotationParamSchema& schema)
+        {
+            if (isEmptyClassArrayLiteral(value) && isArrayType(schema.declaredType))
+            {
+                return emptyArrayFor(schema.declaredType);
+            }
+            if (schema.declaredType == AnnotationValueType::CLASS_ARRAY &&
+                value.getType() == AnnotationValueType::CLASS_REF)
+            {
+                return TypedAnnotationValue::makeClassArray({ value.asClassRef() });
+            }
+            if (schema.declaredType == AnnotationValueType::FLOAT_ARRAY &&
+                value.getType() == AnnotationValueType::INT_ARRAY)
+            {
+                std::vector<double> floats;
+                for (int64_t i : value.asIntArray()) floats.push_back(static_cast<double>(i));
+                return TypedAnnotationValue::makeFloatArray(std::move(floats));
+            }
+            return value;
         }
 
         // Allow some forgiving conversions:
@@ -35,6 +89,7 @@ namespace validation
             if (actual == schema.declaredType) return true;
             if (schema.declaredType == AnnotationValueType::FLOAT && actual == AnnotationValueType::INT) return true;
             if (schema.declaredType == AnnotationValueType::CLASS_ARRAY && actual == AnnotationValueType::CLASS_REF) return true;
+            if (schema.declaredType == AnnotationValueType::FLOAT_ARRAY && actual == AnnotationValueType::INT_ARRAY) return true;
             return false;
         }
 
@@ -180,11 +235,25 @@ namespace validation
 
             if (!isAssignable(value->getType(), *schema))
             {
-                std::ostringstream oss;
-                oss << "Annotation '@" << annotation->getName() << "' parameter '" << key
-                    << "' expects " << typeName(schema->declaredType)
-                    << " but received " << typeName(value->getType()) << ".";
-                throw errors::TypeException(oss.str(), location);
+                if (!(isEmptyClassArrayLiteral(*value) && isArrayType(schema->declaredType)))
+                {
+                    std::ostringstream oss;
+                    oss << "Annotation '@" << annotation->getName() << "' parameter '" << key
+                        << "' expects " << typeName(schema->declaredType)
+                        << " but received " << typeName(value->getType()) << ".";
+                    throw errors::TypeException(oss.str(), location);
+                }
+            }
+
+            TypedAnnotationValue normalized = coerceValue(*value, *schema);
+            if (normalized.getType() != value->getType())
+            {
+                annotation->setTypedParameter(key, std::move(normalized));
+            }
+            else if (schema->declaredType == AnnotationValueType::FLOAT_ARRAY &&
+                     value->getType() == AnnotationValueType::INT_ARRAY)
+            {
+                annotation->setTypedParameter(key, std::move(normalized));
             }
         }
 

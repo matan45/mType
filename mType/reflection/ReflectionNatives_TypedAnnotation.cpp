@@ -11,6 +11,7 @@
 #include "../ast/nodes/annotations/TypedAnnotationValue.hpp"
 #include "../environment/Environment.hpp"
 #include <sstream>
+#include <vector>
 
 namespace reflection
 {
@@ -43,6 +44,18 @@ namespace reflection
             if (!v) throw errors::RuntimeException(std::string(fn) + ": parameter not present");
             if (v->getType() != expected)
                 throw errors::RuntimeException(std::string(fn) + ": parameter is not " + expectedName);
+        }
+
+        template<typename T>
+        Value makeNativeArrayValue(const std::vector<T>& values, ValueType elementType)
+        {
+            auto result = std::make_shared<NativeArray>(values.size(), elementType);
+            for (size_t i = 0; i < values.size(); ++i)
+            {
+                T item = values[i];
+                result->set(i, item);
+            }
+            return result;
         }
     }
 
@@ -103,6 +116,55 @@ namespace reflection
             result->set(static_cast<int>(i), ReflectionHandleRegistry::instance().getOrCreateClassHandle(def));
         }
         return result;
+    }
+
+    Value ReflectionNatives::__reflect_getAnnotationClassNames(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
+    {
+        const auto* v = fetchTypedParam(userData, ctx, args, "__reflect_getAnnotationClassNames");
+        if (!v) throw errors::RuntimeException("__reflect_getAnnotationClassNames: parameter not present");
+        std::vector<std::string> names;
+        if (v->getType() == AnnotationValueType::CLASS_ARRAY) names = v->asClassArray();
+        else if (v->getType() == AnnotationValueType::CLASS_REF) names.push_back(v->asClassRef());
+        else throw errors::RuntimeException("__reflect_getAnnotationClassNames: parameter is not Class[]");
+        return makeNativeArrayValue(names, ValueType::STRING);
+    }
+
+    Value ReflectionNatives::__reflect_getAnnotationIntArray(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
+    {
+        const auto* v = fetchTypedParam(userData, ctx, args, "__reflect_getAnnotationIntArray");
+        requireType(v, AnnotationValueType::INT_ARRAY, "__reflect_getAnnotationIntArray", "int[]");
+        return makeNativeArrayValue(v->asIntArray(), ValueType::INT);
+    }
+
+    Value ReflectionNatives::__reflect_getAnnotationFloatArray(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
+    {
+        const auto* v = fetchTypedParam(userData, ctx, args, "__reflect_getAnnotationFloatArray");
+        if (!v) throw errors::RuntimeException("__reflect_getAnnotationFloatArray: parameter not present");
+        if (v->getType() == AnnotationValueType::FLOAT_ARRAY)
+        {
+            return makeNativeArrayValue(v->asFloatArray(), ValueType::FLOAT);
+        }
+        if (v->getType() == AnnotationValueType::INT_ARRAY)
+        {
+            std::vector<double> floats;
+            for (int64_t i : v->asIntArray()) floats.push_back(static_cast<double>(i));
+            return makeNativeArrayValue(floats, ValueType::FLOAT);
+        }
+        throw errors::RuntimeException("__reflect_getAnnotationFloatArray: parameter is not float[]");
+    }
+
+    Value ReflectionNatives::__reflect_getAnnotationBoolArray(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
+    {
+        const auto* v = fetchTypedParam(userData, ctx, args, "__reflect_getAnnotationBoolArray");
+        requireType(v, AnnotationValueType::BOOL_ARRAY, "__reflect_getAnnotationBoolArray", "bool[]");
+        return makeNativeArrayValue(v->asBoolArray(), ValueType::BOOL);
+    }
+
+    Value ReflectionNatives::__reflect_getAnnotationStringArray(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)
+    {
+        const auto* v = fetchTypedParam(userData, ctx, args, "__reflect_getAnnotationStringArray");
+        requireType(v, AnnotationValueType::STRING_ARRAY, "__reflect_getAnnotationStringArray", "string[]");
+        return makeNativeArrayValue(v->asStringArray(), ValueType::STRING);
     }
 
     Value ReflectionNatives::__reflect_isAnnotationParamNull(void* userData, environment::NativeContext& ctx, std::span<const value::Value> args)

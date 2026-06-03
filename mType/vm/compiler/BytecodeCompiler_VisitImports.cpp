@@ -187,6 +187,7 @@ namespace vm::compiler
             if (p.hasDefault)
             {
                 const auto& dv = *declParam.defaultValue;
+                p.defaultValueType = static_cast<uint8_t>(dv.getType());
                 switch (dv.getType())
                 {
                 case AnnotationValueType::INT:         p.defaultInt = dv.asInt(); break;
@@ -195,6 +196,10 @@ namespace vm::compiler
                 case AnnotationValueType::STRING:      p.defaultString = dv.asString(); break;
                 case AnnotationValueType::CLASS_REF:   p.defaultString = dv.asClassRef(); break;
                 case AnnotationValueType::CLASS_ARRAY: p.defaultStringArray = dv.asClassArray(); break;
+                case AnnotationValueType::INT_ARRAY:   p.defaultIntArray = dv.asIntArray(); break;
+                case AnnotationValueType::FLOAT_ARRAY: p.defaultFloatArray = dv.asFloatArray(); break;
+                case AnnotationValueType::BOOL_ARRAY:  p.defaultBoolArray = dv.asBoolArray(); break;
+                case AnnotationValueType::STRING_ARRAY:p.defaultTextArray = dv.asStringArray(); break;
                 case AnnotationValueType::NULL_VALUE:  break;
                 }
             }
@@ -224,6 +229,10 @@ namespace vm::compiler
                     case AnnotationValueType::STRING:      arg.stringVal = v->asString(); break;
                     case AnnotationValueType::CLASS_REF:   arg.stringVal = v->asClassRef(); break;
                     case AnnotationValueType::CLASS_ARRAY: arg.arrayVal  = v->asClassArray(); break;
+                    case AnnotationValueType::INT_ARRAY:   arg.intArrayVal = v->asIntArray(); break;
+                    case AnnotationValueType::FLOAT_ARRAY: arg.floatArrayVal = v->asFloatArray(); break;
+                    case AnnotationValueType::BOOL_ARRAY:  arg.boolArrayVal = v->asBoolArray(); break;
+                    case AnnotationValueType::STRING_ARRAY:arg.stringArrayVal = v->asStringArray(); break;
                     case AnnotationValueType::NULL_VALUE:  break;
                     }
                     annot.typedArguments.push_back(std::move(arg));

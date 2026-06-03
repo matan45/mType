@@ -59,6 +59,26 @@ class Annotation {
         return __reflect_getAnnotationClass(this._nativeHandle, key);
     }
 
+    public function getClassNames(string key): string[] {
+        return __reflect_getAnnotationClassNames(this._nativeHandle, key);
+    }
+
+    public function getIntArray(string key): int[] {
+        return __reflect_getAnnotationIntArray(this._nativeHandle, key);
+    }
+
+    public function getFloatArray(string key): float[] {
+        return __reflect_getAnnotationFloatArray(this._nativeHandle, key);
+    }
+
+    public function getBoolArray(string key): bool[] {
+        return __reflect_getAnnotationBoolArray(this._nativeHandle, key);
+    }
+
+    public function getStringArray(string key): string[] {
+        return __reflect_getAnnotationStringArray(this._nativeHandle, key);
+    }
+
     public function isNull(string key): bool {
         return __reflect_isAnnotationParamNull(this._nativeHandle, key);
     }
