@@ -145,6 +145,10 @@ namespace vm::bytecode
                 arg.boolVal   = BytecodeIOHelper::readPrimitive<bool>(in);
                 arg.stringVal = BytecodeIOHelper::readString(in);
                 arg.arrayVal  = BytecodeIOHelper::readStringVector(in);
+                arg.intArrayVal = BytecodeIOHelper::readPrimitiveVector<int64_t>(in);
+                arg.floatArrayVal = BytecodeIOHelper::readPrimitiveVector<double>(in);
+                arg.boolArrayVal = BytecodeIOHelper::readPrimitiveVector<bool>(in);
+                arg.stringArrayVal = BytecodeIOHelper::readStringVector(in);
             }
         }
     }
@@ -284,11 +288,16 @@ namespace vm::bytecode
                 p.isArray      = BytecodeIOHelper::readPrimitive<bool>(in);
                 p.hasDefault   = BytecodeIOHelper::readPrimitive<bool>(in);
                 if (p.hasDefault) {
+                    p.defaultValueType  = BytecodeIOHelper::readPrimitive<uint8_t>(in);
                     p.defaultInt         = BytecodeIOHelper::readPrimitive<int64_t>(in);
                     p.defaultFloat       = BytecodeIOHelper::readPrimitive<double>(in);
                     p.defaultBool        = BytecodeIOHelper::readPrimitive<bool>(in);
                     p.defaultString      = BytecodeIOHelper::readString(in);
                     p.defaultStringArray = BytecodeIOHelper::readStringVector(in);
+                    p.defaultIntArray    = BytecodeIOHelper::readPrimitiveVector<int64_t>(in);
+                    p.defaultFloatArray  = BytecodeIOHelper::readPrimitiveVector<double>(in);
+                    p.defaultBoolArray   = BytecodeIOHelper::readPrimitiveVector<bool>(in);
+                    p.defaultTextArray   = BytecodeIOHelper::readStringVector(in);
                 }
             }
             // MYT-109 (.mtc v6+): meta-annotations on the annotation declaration.

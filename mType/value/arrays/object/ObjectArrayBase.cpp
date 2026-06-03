@@ -2,6 +2,7 @@
 #include <cstddef>
 #include "../../../environment/registry/FieldDefinition.hpp"
 #include "../../ValueTypeUtils.hpp"
+#include "../../ValueShim.hpp"
 #include "../../ObjectInstancePool.hpp"
 
 namespace mType {
@@ -133,6 +134,22 @@ std::shared_ptr<IArray> ObjectArrayBase::getFieldArray(const std::string& fieldN
         return nullptr;
     }
     return it->second;
+}
+
+bool ObjectArrayBase::canStoreExact(const ::value::Value& value) const
+{
+    if (!::value::isObject(value))
+    {
+        return false;
+    }
+
+    const auto& instance = ::value::asObject(value);
+    if (!instance || !instance->getClassDefinition())
+    {
+        return false;
+    }
+
+    return instance->getClassDefinition()->getClassName() == classDefinition_->getClassName();
 }
 
 bool ObjectArrayBase::supportsSIMD() const

@@ -1,5 +1,6 @@
 #pragma once
 #include "ObjectArrayBase.hpp"
+#include "../../FlatMultiArray.hpp"
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -205,12 +206,53 @@ private:
     std::shared_ptr<FlatMultiObjectArray> parent_;  // Parent array (nullptr if this is not a view)
     size_t viewOffset_;                             // Offset into parent's data (0 if not a view)
 
+    // MYT-378: heterogeneous fallback. Lives ONLY on the root (parent_ == nullptr).
+    // When a value whose exact class != classDefinition_ is stored, the root's SoA
+    // columns are materialized into hetero_ and all subsequent access routes there,
+    // preserving subtype fields and polymorphic identity. Views always delegate to
+    // the root via the accessors below, so a fallback triggered through any view is
+    // visible to all sibling views immediately (same invariant as fieldArrays_).
+    bool heterogeneous_ = false;                       // root-authoritative mode flag
+    std::unique_ptr<::value::FlatMultiArray> hetero_;  // Value store, root only
+
     /**
      * @brief Check if this is a view into another array
      */
     bool isView() const {
         return parent_ != nullptr;
     }
+
+    /**
+     * @brief Whether the (root) array has fallen back to heterogeneous storage
+     */
+    bool isHeterogeneous() const {
+        return isView() ? parent_->isHeterogeneous() : heterogeneous_;
+    }
+
+    /**
+     * @brief Get the root's heterogeneous Value store (nullptr if not converted)
+     */
+    ::value::FlatMultiArray* heteroStore() {
+        return isView() ? parent_->heteroStore() : hetero_.get();
+    }
+
+    const ::value::FlatMultiArray* heteroStore() const {
+        return isView() ? parent_->heteroStore() : hetero_.get();
+    }
+
+    /**
+     * @brief MYT-378: migrate the ROOT's SoA columns into hetero_ Value storage.
+     * Delegates to the root first, then materializes every existing element so
+     * already-stored (exact-class) objects keep their identity. Idempotent.
+     */
+    void convertToHeterogeneous();
+
+    /**
+     * @brief MYT-378: store @p value at an already-resolved effective (flat,
+     * offset-applied) index, applying the SoA-vs-heterogeneous decision. Shared
+     * by set() and setLinear() so the fallback rule lives in exactly one place.
+     */
+    void storeAt(size_t effectiveIndex, const ::value::Value& value);
 
     /**
      * @brief Get reference to the actual field arrays storage (own or parent's)

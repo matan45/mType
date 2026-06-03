@@ -92,7 +92,63 @@ namespace mType
                 }
 
                 size_t effectiveIndex = getEffectiveOffset() + linearIndex;
+                if (isHeterogeneous())
+                {
+                    return heteroStore()->get(effectiveIndex);
+                }
                 return materializeInstance(effectiveIndex);
+            }
+
+            void FlatMultiObjectArray::convertToHeterogeneous()
+            {
+                if (isView())
+                {
+                    parent_->convertToHeterogeneous(); // root-authoritative
+                    return;
+                }
+                if (heterogeneous_)
+                {
+                    return; // idempotent
+                }
+
+                // Allocate the Value store over the ROOT's full flat extent. `this`
+                // is the root here (delegated above), so dimensions_/totalSize_ are
+                // the root's. Mirrors NativeArray::convertToHeterogeneous: materialize
+                // every existing SoA element back to a full Value so already-stored
+                // (exact-class) objects keep their fields and identity.
+                hetero_ = std::make_unique<::value::FlatMultiArray>(
+                    dimensions_, ::value::Value(std::monostate{}));
+
+                for (size_t i = 0; i < totalSize_; ++i)
+                {
+                    hetero_->set(i, materializeInstance(i));
+                }
+
+                heterogeneous_ = true;
+                // fieldArrays_ are intentionally left allocated (dead storage) so any
+                // field-array aliases handed out before conversion do not dangle.
+            }
+
+            void FlatMultiObjectArray::storeAt(size_t effectiveIndex, const ::value::Value& value)
+            {
+                // MYT-378: already in fallback -> store the full Value at the root slot.
+                if (isHeterogeneous())
+                {
+                    heteroStore()->set(effectiveIndex, value);
+                    return;
+                }
+
+                // SoA is faithful only for the exact declared class; anything else
+                // (subtype, value-class box, non-object, null) falls back instead of
+                // throwing, preserving fields and polymorphic identity.
+                if (!canStoreExact(value))
+                {
+                    convertToHeterogeneous();
+                    heteroStore()->set(effectiveIndex, value);
+                    return;
+                }
+
+                decomposeInstance(effectiveIndex, ::value::asObject(value));
             }
 
             void FlatMultiObjectArray::set(const std::vector<size_t>& indices, const ::value::Value& value)
@@ -107,20 +163,7 @@ namespace mType
                     throw std::out_of_range("Calculated index exceeds array bounds");
                 }
 
-                if (!::value::isObject(value))
-                {
-                    throw std::runtime_error("Value must be an ObjectInstance");
-                }
-
-                auto instance = ::value::asObject(value);
-
-                if (instance->getClassDefinition()->getClassName() != classDefinition_->getClassName())
-                {
-                    throw std::runtime_error("ObjectInstance class mismatch");
-                }
-
-                size_t effectiveIndex = getEffectiveOffset() + linearIndex;
-                decomposeInstance(effectiveIndex, instance);
+                storeAt(getEffectiveOffset() + linearIndex, value);
             }
 
             ::value::Value FlatMultiObjectArray::getLinear(size_t linearIndex) const
@@ -131,6 +174,10 @@ namespace mType
                 }
 
                 size_t effectiveIndex = getEffectiveOffset() + linearIndex;
+                if (isHeterogeneous())
+                {
+                    return heteroStore()->get(effectiveIndex);
+                }
                 return materializeInstance(effectiveIndex);
             }
 
@@ -141,20 +188,7 @@ namespace mType
                     throw std::out_of_range("Linear index out of bounds");
                 }
 
-                if (!::value::isObject(value))
-                {
-                    throw std::runtime_error("Value must be an ObjectInstance");
-                }
-
-                auto instance = ::value::asObject(value);
-
-                if (instance->getClassDefinition()->getClassName() != classDefinition_->getClassName())
-                {
-                    throw std::runtime_error("ObjectInstance class mismatch");
-                }
-
-                size_t effectiveIndex = getEffectiveOffset() + linearIndex;
-                decomposeInstance(effectiveIndex, instance);
+                storeAt(getEffectiveOffset() + linearIndex, value);
             }
 
             // Field-level access
@@ -170,6 +204,22 @@ namespace mType
                     throw std::out_of_range("Invalid indices");
                 }
 
+                size_t effectiveIndex = getEffectiveOffset() + linearIndex;
+
+                // MYT-378: in fallback mode the SoA columns are dead; read the field
+                // off the live materialized Value instead. A non-object element
+                // (null) has no fields — throw rather than silently returning VOID,
+                // mirroring setField() and the SoA path's hard errors.
+                if (isHeterogeneous())
+                {
+                    ::value::Value elem = heteroStore()->get(effectiveIndex);
+                    if (!::value::isObject(elem))
+                    {
+                        throw std::runtime_error("Cannot get field on non-object heterogeneous element");
+                    }
+                    return ::value::asObject(elem)->getFieldValue(fieldName);
+                }
+
                 const auto& storage = getFieldArraysStorage();
                 auto it = storage.find(fieldName);
                 if (it == storage.end())
@@ -177,7 +227,6 @@ namespace mType
                     throw std::runtime_error("Field not found: " + fieldName);
                 }
 
-                size_t effectiveIndex = getEffectiveOffset() + linearIndex;
                 return it->second->get(effectiveIndex);
             }
 
@@ -193,6 +242,32 @@ namespace mType
                     throw std::out_of_range("Invalid indices");
                 }
 
+                size_t effectiveIndex = getEffectiveOffset() + linearIndex;
+
+                // MYT-378: in fallback mode mutate the live materialized instance.
+                // Object Values share their ObjectInstance via shared_ptr, so the
+                // store sees the mutation. ObjectInstance::setField does no type
+                // checking, so enforce the SoA column's declared type here for any
+                // field the array's element class declares (catches e.g. a String
+                // written into an Int field). Subtype-specific fields are not a
+                // declared column (validateFieldType returns false for them), so
+                // they are left to the element's own storage — the element may
+                // legitimately be a subtype with extra fields.
+                if (isHeterogeneous())
+                {
+                    ::value::Value elem = heteroStore()->get(effectiveIndex);
+                    if (!::value::isObject(elem))
+                    {
+                        throw std::runtime_error("Cannot set field on non-object heterogeneous element");
+                    }
+                    if (classDefinition_->getField(fieldName) && !validateFieldType(fieldName, value))
+                    {
+                        throw std::runtime_error("Field type mismatch for: " + fieldName);
+                    }
+                    ::value::asObject(elem)->setField(fieldName, value);
+                    return;
+                }
+
                 auto& storage = getFieldArraysStorage();
                 auto it = storage.find(fieldName);
                 if (it == storage.end())
@@ -205,7 +280,6 @@ namespace mType
                     throw std::runtime_error("Field type mismatch for: " + fieldName);
                 }
 
-                size_t effectiveIndex = getEffectiveOffset() + linearIndex;
                 it->second->set(effectiveIndex, value);
             }
 

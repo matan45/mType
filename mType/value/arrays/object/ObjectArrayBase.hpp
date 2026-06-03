@@ -77,6 +77,18 @@ public:
      */
     bool supportsSIMD() const;
 
+    /**
+     * @brief MYT-378: true IFF `value` is an object whose runtime class name
+     * EXACTLY equals this array's declared element class.
+     *
+     * SoA columns are keyed by the declared element class, so they are only a
+     * faithful representation for that exact class. Subtypes (extra fields lost,
+     * polymorphic identity dropped on materialize), value-class boxes, non-object
+     * values, and null all return false and must be stored via a heterogeneous
+     * fallback instead. Deliberately EXACT, not isSubclassOf().
+     */
+    bool canStoreExact(const ::value::Value& value) const;
+
 protected:
     /**
      * @brief Protected constructor (base class)

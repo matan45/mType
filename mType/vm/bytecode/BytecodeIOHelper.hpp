@@ -50,5 +50,30 @@ namespace vm::bytecode
 
             return value;
         }
+
+        template<typename T>
+        static void writePrimitiveVector(std::ostream& out, const std::vector<T>& vec) {
+            size_t count = vec.size();
+            writePrimitive(out, count);
+            for (const auto& value : vec) {
+                T primitive = static_cast<T>(value);
+                writePrimitive(out, primitive);
+            }
+        }
+
+        template<typename T>
+        static std::vector<T> readPrimitiveVector(std::istream& in) {
+            size_t count = readPrimitive<size_t>(in);
+            if (count > MAX_VECTOR_SIZE) {
+                throw std::runtime_error(
+                    "Bytecode primitive vector count exceeds maximum allowed size");
+            }
+            std::vector<T> result;
+            result.reserve(count);
+            for (size_t i = 0; i < count; ++i) {
+                result.push_back(readPrimitive<T>(in));
+            }
+            return result;
+        }
     };
 }

@@ -71,8 +71,12 @@ namespace mType
 
                 auto instance = ::value::asObject(value);
 
-                // Validate it's the same class type
-                if (instance->getClassDefinition()->getClassName() != classDefinition_->getClassName())
+                // MYT-378: defensive invariant. The SoA fast path is only faithful
+                // for the exact declared class; callers that may store a subtype
+                // (e.g. NativeArray::setUnchecked case 5) gate on canStoreExact and
+                // fall back to heterogeneous storage, so this throw is unreachable
+                // for mismatches through that path. Kept to protect direct callers.
+                if (!canStoreExact(value))
                 {
                     throw std::runtime_error("ObjectInstance class mismatch");
                 }

@@ -2,6 +2,8 @@
 #include "../environment/registry/FieldDefinition.hpp"
 #include "../environment/registry/ClassDefinition.hpp"
 #include "../value/ObjectInstancePool.hpp"
+#include "../value/NativeArray.hpp"
+#include <vector>
 
 namespace reflection
 {
@@ -21,9 +23,25 @@ namespace reflection
             case AnnotationValueType::STRING:      return value::ValueType::STRING;
             case AnnotationValueType::CLASS_REF:   return value::ValueType::STRING; // Class ref stored as name
             case AnnotationValueType::CLASS_ARRAY: return value::ValueType::ARRAY;
+            case AnnotationValueType::INT_ARRAY:   return value::ValueType::ARRAY;
+            case AnnotationValueType::FLOAT_ARRAY: return value::ValueType::ARRAY;
+            case AnnotationValueType::BOOL_ARRAY:  return value::ValueType::ARRAY;
+            case AnnotationValueType::STRING_ARRAY:return value::ValueType::ARRAY;
             case AnnotationValueType::NULL_VALUE:  return value::ValueType::NULL_TYPE;
             }
             return value::ValueType::OBJECT;
+        }
+
+        template<typename T>
+        value::Value makeNativeArray(const std::vector<T>& values, value::ValueType elementType)
+        {
+            auto result = std::make_shared<value::NativeArray>(values.size(), elementType);
+            for (size_t i = 0; i < values.size(); ++i)
+            {
+                T item = values[i];
+                result->set(i, item);
+            }
+            return result;
         }
 
         value::Value toRuntimeValue(const TypedAnnotationValue& v)
@@ -37,9 +55,15 @@ namespace reflection
             case AnnotationValueType::STRING:      return v.asString();
             case AnnotationValueType::CLASS_REF:   return v.asClassRef();
             case AnnotationValueType::CLASS_ARRAY:
-                // Returned as a comma-joined string for now — array materialization
-                // requires NativeArray construction with element-typed handles.
-                return v.toDisplayString();
+                return makeNativeArray(v.asClassArray(), value::ValueType::STRING);
+            case AnnotationValueType::INT_ARRAY:
+                return makeNativeArray(v.asIntArray(), value::ValueType::INT);
+            case AnnotationValueType::FLOAT_ARRAY:
+                return makeNativeArray(v.asFloatArray(), value::ValueType::FLOAT);
+            case AnnotationValueType::BOOL_ARRAY:
+                return makeNativeArray(v.asBoolArray(), value::ValueType::BOOL);
+            case AnnotationValueType::STRING_ARRAY:
+                return makeNativeArray(v.asStringArray(), value::ValueType::STRING);
             }
             return std::monostate{};
         }

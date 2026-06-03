@@ -142,7 +142,19 @@ namespace reflection
             throw errors::RuntimeException("Invalid field handle");
         }
 
-        // Return type name as string
+        if (fieldInfo.field->hasUnifiedType())
+        {
+            auto unifiedType = fieldInfo.field->getUnifiedType();
+            if (unifiedType)
+            {
+                std::string typeName = unifiedType->toString();
+                if (!typeName.empty())
+                {
+                    return typeName;
+                }
+            }
+        }
+
         return valueTypeToTypeName(fieldInfo.field->getType());
     }
 
@@ -303,9 +315,6 @@ namespace reflection
 
 
 } // namespace reflection
-
-
-
 
 
 

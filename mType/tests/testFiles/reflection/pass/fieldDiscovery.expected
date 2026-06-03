@@ -1,5 +1,5 @@
 Number of declared fields: 4
-Field: name type=String
+Field: name type=string
 Field: age type=int
 Field: score type=float
 Field: count type=int

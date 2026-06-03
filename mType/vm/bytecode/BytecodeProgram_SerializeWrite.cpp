@@ -19,7 +19,9 @@ namespace vm::bytecode
         //      every entry past the deletions.
         //   10: MYT-290 serialized static-initializer function list.
         //   11: Serialized top-level local names for debugger variable inspection.
-        constexpr uint32_t BYTECODE_FORMAT_VERSION = 11;
+        //   12: MYT-375 typed annotation array payloads.
+        //   13: MYT-375 annotation schema default value type.
+        constexpr uint32_t BYTECODE_FORMAT_VERSION = 13;
     }
 
     std::string BytecodeProgram::disassemble() const {
@@ -270,6 +272,10 @@ namespace vm::bytecode
                 BytecodeIOHelper::writePrimitive(out, arg.boolVal);
                 BytecodeIOHelper::writeString(out, arg.stringVal);
                 BytecodeIOHelper::writeStringVector(out, arg.arrayVal);
+                BytecodeIOHelper::writePrimitiveVector(out, arg.intArrayVal);
+                BytecodeIOHelper::writePrimitiveVector(out, arg.floatArrayVal);
+                BytecodeIOHelper::writePrimitiveVector(out, arg.boolArrayVal);
+                BytecodeIOHelper::writeStringVector(out, arg.stringArrayVal);
             }
         }
     }
@@ -392,11 +398,16 @@ namespace vm::bytecode
                 BytecodeIOHelper::writePrimitive(out, p.isArray);
                 BytecodeIOHelper::writePrimitive(out, p.hasDefault);
                 if (p.hasDefault) {
+                    BytecodeIOHelper::writePrimitive(out, p.defaultValueType);
                     BytecodeIOHelper::writePrimitive(out, p.defaultInt);
                     BytecodeIOHelper::writePrimitive(out, p.defaultFloat);
                     BytecodeIOHelper::writePrimitive(out, p.defaultBool);
                     BytecodeIOHelper::writeString(out, p.defaultString);
                     BytecodeIOHelper::writeStringVector(out, p.defaultStringArray);
+                    BytecodeIOHelper::writePrimitiveVector(out, p.defaultIntArray);
+                    BytecodeIOHelper::writePrimitiveVector(out, p.defaultFloatArray);
+                    BytecodeIOHelper::writePrimitiveVector(out, p.defaultBoolArray);
+                    BytecodeIOHelper::writeStringVector(out, p.defaultTextArray);
                 }
             }
             // MYT-109 (.mtc v6+): meta-annotations on the annotation declaration.

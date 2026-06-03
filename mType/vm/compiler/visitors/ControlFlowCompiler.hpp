@@ -50,6 +50,12 @@ namespace vm::compiler::visitors
         value::Value compileThrow(ast::ThrowNode* node);
 
     private:
+        // Compile the statement body of a case/default node, emitting per-statement
+        // cleanup after each. Shared by the string- and int-switch lowering so the
+        // cleanup wiring lives in one place (a missed cleanup on one branch was the
+        // exact defect class this consolidation guards against).
+        void compileCaseBody(ast::ASTNode* caseNode);
+
         CompilerContext& ctx;
         std::unique_ptr<TryStatementHelper> tryHelper;
     };

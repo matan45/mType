@@ -46,7 +46,7 @@ namespace parser
 
     std::unique_ptr<ASTNode> ClassParser::parseClass()
     {
-        auto annotations = AnnotationParser::parseAnnotations(tokenStream);
+        auto annotations = AnnotationParser::parseAnnotations(tokenStream, &context);
 
         validateClassDeclarationContext();
 
@@ -129,7 +129,7 @@ namespace parser
     {
         while (tokenStream.current().type != TokenType::RBRACE && tokenStream.current().type != TokenType::END)
         {
-            auto annotations = AnnotationParser::parseAnnotations(tokenStream);
+            auto annotations = AnnotationParser::parseAnnotations(tokenStream, &context);
 
             TokenType currentToken = tokenStream.current().type;
 

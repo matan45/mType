@@ -221,6 +221,10 @@ namespace vm::bytecode
             bool    boolVal = false;
             std::string stringVal;
             std::vector<std::string> arrayVal;
+            std::vector<int64_t> intArrayVal;
+            std::vector<double> floatArrayVal;
+            std::vector<bool> boolArrayVal;
+            std::vector<std::string> stringArrayVal;
         };
 
         struct AnnotationData
@@ -291,11 +295,16 @@ namespace vm::bytecode
             bool nullable;
             bool isArray;
             bool hasDefault;
+            uint8_t defaultValueType = 0;
             int64_t defaultInt = 0;
             double  defaultFloat = 0.0;
             bool    defaultBool = false;
             std::string defaultString;
             std::vector<std::string> defaultStringArray;
+            std::vector<int64_t> defaultIntArray;
+            std::vector<double> defaultFloatArray;
+            std::vector<bool> defaultBoolArray;
+            std::vector<std::string> defaultTextArray;
         };
 
         struct AnnotationDeclData

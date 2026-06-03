@@ -29,6 +29,9 @@ namespace tests::testSuite
         addOutputVerificationTest("Annotation On Top-Level Function",
                                   passPath + "annotation_on_top_function_pass.mt");
 
+        addOutputVerificationTest("Annotation Arrays and Nullable Params",
+                                  passPath + "annotation_array_params_pass.mt");
+
         // ===== USER-DEFINED ANNOTATIONS (MYT-108) - ERROR TESTS =====
 
         addTestFromFile("Annotation Usage - Unknown Annotation",
@@ -55,6 +58,184 @@ namespace tests::testSuite
                         errorPath + "unknown_annotation_on_function_error.mt",
                         TestType::ERROR_EXPECTED,
                         "Unknown annotation");
+
+        addTestFromFile("Annotation Array - Wrong Element Type",
+                        errorPath + "array_wrong_element_type_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Expected numeric literal");
+
+        addTestFromFile("Annotation Array - Missing Required Param",
+                        errorPath + "array_missing_required_param_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "missing required parameter");
+
+        addTestFromFile("Annotation Array - Invalid Default",
+                        errorPath + "array_invalid_default_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Expected integer literal");
+
+        addTestFromFile("Annotation Param - Unsupported Object",
+                        errorPath + "unsupported_object_annotation_param_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Annotation parameter type");
+
+        addTestFromFile("Annotation Param - Nullable Primitive",
+                        errorPath + "nullable_primitive_annotation_param_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Primitive annotation parameters cannot be nullable");
+
+        // ===== MYT-375: FORGIVING CONVERSIONS - PASS TESTS =====
+        // Validator isAssignable/coerceValue widening + shorthand acceptance.
+
+        addOutputVerificationTest("Annotation Class-ref Wrapped Into Class[]",
+                                  passPath + "annotation_class_ref_single_wrap_pass.mt");
+
+        addOutputVerificationTest("Annotation int[] Widened To float[]",
+                                  passPath + "annotation_int_array_to_float_array_pass.mt");
+
+        addOutputVerificationTest("Annotation Empty Array Literal",
+                                  passPath + "annotation_empty_array_pass.mt");
+
+        addOutputVerificationTest("Annotation int Widened To float",
+                                  passPath + "annotation_int_to_float_widen_pass.mt");
+
+        addOutputVerificationTest("Annotation Nullable Ref With Non-null Value",
+                                  passPath + "annotation_nullable_ref_nonnull_pass.mt");
+
+        // ===== MYT-375: FORGIVING CONVERSIONS / SHORTHAND - ERROR TESTS =====
+
+        addTestFromFile("Annotation Null On Non-nullable Reference",
+                        errorPath + "null_on_nonnullable_ref_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "is not nullable but received null");
+
+        addTestFromFile("Annotation Positional Shorthand On Multi-param",
+                        errorPath + "positional_shorthand_multi_param_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Positional shorthand only allowed");
+
+        // ===== MYT-376: COMPILE-TIME CONSTANT-FOLDED ARGUMENTS - PASS TESTS =====
+
+        addOutputVerificationTest("Annotation Const - Arithmetic Expression",
+                                  passPath + "annotation_const_arithmetic_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - String Concatenation",
+                                  passPath + "annotation_const_string_concat_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Unary / Logical-not / Ternary",
+                                  passPath + "annotation_const_unary_ternary_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Primitive Cast",
+                                  passPath + "annotation_const_cast_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Named Class::FIELD Constant",
+                                  passPath + "annotation_named_const_scoped_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Constant Referencing Constant",
+                                  passPath + "annotation_const_refs_const_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - int[] Per-element Folding",
+                                  passPath + "annotation_const_int_array_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - float[] Promotion From Folded Elements",
+                                  passPath + "annotation_const_float_array_promote_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - string[] Per-element Folding",
+                                  passPath + "annotation_const_string_array_scoped_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Imported Class::FIELD Constant",
+                                  passPath + "annotation_const_imported_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Folded int Widened To float Param",
+                                  passPath + "annotation_const_expr_float_widen_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - bool[] Per-element Folding",
+                                  passPath + "annotation_const_bool_array_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - bool From Comparison/Logical Expr",
+                                  passPath + "annotation_const_bool_expr_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Casts To float/String/bool",
+                                  passPath + "annotation_const_cast_widen_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Modulo Expression",
+                                  passPath + "annotation_const_modulo_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Folded Arg On Method",
+                                  passPath + "annotation_const_on_method_pass.mt");
+
+        addOutputVerificationTest("Annotation DI - Reflection Field Injection + Qualifier Constant",
+                                  passPath + "di_field_injection_pass.mt");
+
+        // ===== MYT-376: COMPILE-TIME CONSTANT-FOLDED ARGUMENTS - ERROR TESTS =====
+        // The boundary stays precise: only compile-time constants fold; genuine
+        // runtime forms still error.
+
+        addTestFromFile("Annotation Const - New Construction Rejected",
+                        errorPath + "annotation_const_new_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "not a compile-time constant");
+
+        addTestFromFile("Annotation Const - Method Call Rejected",
+                        errorPath + "annotation_const_method_call_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "not a compile-time constant");
+
+        addTestFromFile("Annotation Const - Non-final Field Rejected",
+                        errorPath + "annotation_const_nonfinal_field_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "must reference a 'static final' field");
+
+        addTestFromFile("Annotation Const - Non-foldable Initializer Rejected",
+                        errorPath + "annotation_const_nonfoldable_init_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "not a compile-time constant");
+
+        addTestFromFile("Annotation Const - Unknown Field Rejected",
+                        errorPath + "annotation_const_unknown_field_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "no static final field");
+
+        addTestFromFile("Annotation Const - Cyclic Dependency Rejected",
+                        errorPath + "annotation_const_cyclic_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Cyclic compile-time constant dependency");
+
+        addTestFromFile("Annotation Const - Division By Zero Not Folded",
+                        errorPath + "annotation_const_div_zero_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "could not be folded");
+
+        addTestFromFile("Annotation Const - Heterogeneous Folded Array Rejected",
+                        errorPath + "annotation_const_hetero_array_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "element type mismatch");
+
+        addTestFromFile("Annotation Const - Runtime Value Param Canary",
+                        errorPath + "runtime_value_param_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "not a compile-time constant");
+
+        addTestFromFile("Annotation Const - Non-bool Ternary Condition Rejected",
+                        errorPath + "annotation_const_ternary_nonbool_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "ternary condition must fold to a boolean");
+
+        addTestFromFile("Annotation Const - Cast To Non-primitive Rejected",
+                        errorPath + "annotation_const_cast_nonprimitive_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "must target a primitive type");
+
+        // ===== MYT-108: DECLARATION SYMMETRY (bool / float / Class) - PASS TESTS =====
+
+        addOutputVerificationTest("Annotation Declaration - Bool Param + Reflection",
+                                  passPath + "annotation_declare_bool_pass.mt");
+
+        addOutputVerificationTest("Annotation Declaration - Float Param + Reflection",
+                                  passPath + "annotation_declare_float_pass.mt");
+
+        addOutputVerificationTest("Annotation Declaration - Class Param + Reflection",
+                                  passPath + "annotation_declare_class_param_pass.mt");
 
         // ===== @Override ANNOTATION - PASS TESTS =====
         // Tests for valid @Override usage with parent classes and interfaces

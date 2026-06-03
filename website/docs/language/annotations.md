@@ -232,7 +232,41 @@ class Service {
 }
 ```
 
-Field types include `int`, `float`, `bool`, `string`, arrays, and class references.
+Parameter types include `int`, `float`, `bool`, `string`, nullable reference
+types such as `string?`, `Class`, `Class[]`, and homogeneous primitive/string
+arrays: `int[]`, `float[]`, `bool[]`, and `string[]`.
+
+```mtype
+@Retention(RUNTIME)
+annotation Uses {
+    Class[] types;
+    int[] weights;
+    float[] ratios = [1, 2.5];
+    bool[] flags;
+    string[] names;
+    string? optional = null;
+}
+
+class A { }
+class B { }
+
+@Uses(
+    types = [A, B],
+    weights = [3, 5],
+    flags = [true, false],
+    names = ["left", "right"]
+)
+class Target { }
+```
+
+Array literals must be homogeneous. `int` values can be widened to `float`
+values, including for `float[]` parameters. A single `Class` value can be used
+where a `Class[]` parameter is expected. Empty array literals are accepted and
+typed from the declared annotation parameter.
+
+Arbitrary object instances are not valid annotation parameter values. Use
+compile-time-representable values such as primitives, strings, `Class`, and
+`Class[]`.
 
 ## Reading Annotations at Runtime
 
@@ -248,6 +282,22 @@ Method m = c.getDeclaredMethod("ping", 0);
 Annotation? t = m.getAnnotation("Timeout");
 if (t != null) {
     print(t.getInt("ms"));
+}
+```
+
+Array parameters can be read through typed accessors on `Annotation`:
+
+```mtype
+Annotation? uses = Class::forName("Target").getAnnotation("Uses");
+if (uses != null) {
+    string[] typeNames = uses.getClassNames("types");
+    int[] weights = uses.getIntArray("weights");
+    float[] ratios = uses.getFloatArray("ratios");
+    bool[] flags = uses.getBoolArray("flags");
+    string[] names = uses.getStringArray("names");
+
+    print(typeNames[0]);              // A
+    print(uses.isNull("optional"));   // true
 }
 ```
 

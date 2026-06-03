@@ -1,0 +1,7 @@
+types=A,B
+weights=3,5
+ratiosOk=true,true
+flags=true,false
+names=left,right
+optionalNull=true
+hasSourceOnly=false

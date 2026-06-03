@@ -69,7 +69,7 @@ namespace parser
         std::vector<std::shared_ptr<AnnotationNode>> metaAnnotations;
         if (tokenStream.check(TokenType::AT))
         {
-            metaAnnotations = utilities::AnnotationParser::parseAnnotations(tokenStream);
+            metaAnnotations = utilities::AnnotationParser::parseAnnotations(tokenStream, &context);
         }
 
         SourceLocation declLocation = tokenStream.current().location;
@@ -169,7 +169,7 @@ namespace parser
             if (tok.stringValue != "Class")
             {
                 throw ParseException(
-                    "Annotation parameter type must be one of: int, float, bool, string, Class, Class[]",
+                    "Annotation parameter type must be one of: int, float, bool, string, Class, or supported arrays",
                     tok.location);
             }
             spec.type = AnnotationValueType::CLASS_REF;
@@ -177,22 +177,27 @@ namespace parser
             break;
         default:
             throw ParseException(
-                "Expected annotation parameter type (int, float, bool, string, Class, Class[])",
+                "Expected annotation parameter type (int, float, bool, string, Class, or supported arrays)",
                 tok.location);
         }
 
-        // Optional `[]` suffix — limited to `Class[]` for v1 (per @Throw migration).
+        // Optional `[]` suffix for compile-time-safe annotation arrays.
         if (tryConsumeToken(TokenType::LBRACKET))
         {
             expectToken(TokenType::RBRACKET);
-            if (spec.type != AnnotationValueType::CLASS_REF)
+            spec.isArray = true;
+            switch (spec.type)
             {
+            case AnnotationValueType::INT:       spec.type = AnnotationValueType::INT_ARRAY; break;
+            case AnnotationValueType::FLOAT:     spec.type = AnnotationValueType::FLOAT_ARRAY; break;
+            case AnnotationValueType::BOOL:      spec.type = AnnotationValueType::BOOL_ARRAY; break;
+            case AnnotationValueType::STRING:    spec.type = AnnotationValueType::STRING_ARRAY; break;
+            case AnnotationValueType::CLASS_REF: spec.type = AnnotationValueType::CLASS_ARRAY; break;
+            default:
                 throw ParseException(
-                    "Array-valued annotation parameters are only supported for Class[] in v1",
+                    "Unsupported annotation array parameter type",
                     tokenStream.current().location);
             }
-            spec.isArray = true;
-            spec.type = AnnotationValueType::CLASS_ARRAY;
         }
 
         // Optional `?` for nullability — applies to reference-typed params.
@@ -299,6 +304,104 @@ namespace parser
             }
             expectToken(TokenType::RBRACKET);
             return TypedAnnotationValue::makeClassArray(std::move(entries));
+        }
+        case AnnotationValueType::INT_ARRAY:
+        {
+            if (tok.type != TokenType::LBRACKET)
+                throw ParseException("Expected '[' to begin int[] default value", tok.location);
+            tokenStream.advance();
+            std::vector<int64_t> entries;
+            while (!tokenStream.check(TokenType::RBRACKET))
+            {
+                if (!tokenStream.check(TokenType::INT_NUMBER))
+                {
+                    throw ParseException("Expected integer literal in int[] default", tokenStream.current().location);
+                }
+                entries.push_back(tokenStream.current().intValue);
+                tokenStream.advance();
+                if (tokenStream.check(TokenType::COMMA)) tokenStream.advance();
+                else if (!tokenStream.check(TokenType::RBRACKET))
+                {
+                    throw ParseException("Expected ',' or ']' in int[] default", tokenStream.current().location);
+                }
+            }
+            expectToken(TokenType::RBRACKET);
+            return TypedAnnotationValue::makeIntArray(std::move(entries));
+        }
+        case AnnotationValueType::FLOAT_ARRAY:
+        {
+            if (tok.type != TokenType::LBRACKET)
+                throw ParseException("Expected '[' to begin float[] default value", tok.location);
+            tokenStream.advance();
+            std::vector<double> entries;
+            while (!tokenStream.check(TokenType::RBRACKET))
+            {
+                if (tokenStream.check(TokenType::FLOAT_NUMBER))
+                {
+                    entries.push_back(tokenStream.current().floatValue);
+                }
+                else if (tokenStream.check(TokenType::INT_NUMBER))
+                {
+                    entries.push_back(static_cast<double>(tokenStream.current().intValue));
+                }
+                else
+                {
+                    throw ParseException("Expected numeric literal in float[] default", tokenStream.current().location);
+                }
+                tokenStream.advance();
+                if (tokenStream.check(TokenType::COMMA)) tokenStream.advance();
+                else if (!tokenStream.check(TokenType::RBRACKET))
+                {
+                    throw ParseException("Expected ',' or ']' in float[] default", tokenStream.current().location);
+                }
+            }
+            expectToken(TokenType::RBRACKET);
+            return TypedAnnotationValue::makeFloatArray(std::move(entries));
+        }
+        case AnnotationValueType::BOOL_ARRAY:
+        {
+            if (tok.type != TokenType::LBRACKET)
+                throw ParseException("Expected '[' to begin bool[] default value", tok.location);
+            tokenStream.advance();
+            std::vector<bool> entries;
+            while (!tokenStream.check(TokenType::RBRACKET))
+            {
+                if (tokenStream.check(TokenType::TRUE)) entries.push_back(true);
+                else if (tokenStream.check(TokenType::FALSE)) entries.push_back(false);
+                else throw ParseException("Expected boolean literal in bool[] default", tokenStream.current().location);
+
+                tokenStream.advance();
+                if (tokenStream.check(TokenType::COMMA)) tokenStream.advance();
+                else if (!tokenStream.check(TokenType::RBRACKET))
+                {
+                    throw ParseException("Expected ',' or ']' in bool[] default", tokenStream.current().location);
+                }
+            }
+            expectToken(TokenType::RBRACKET);
+            return TypedAnnotationValue::makeBoolArray(std::move(entries));
+        }
+        case AnnotationValueType::STRING_ARRAY:
+        {
+            if (tok.type != TokenType::LBRACKET)
+                throw ParseException("Expected '[' to begin string[] default value", tok.location);
+            tokenStream.advance();
+            std::vector<std::string> entries;
+            while (!tokenStream.check(TokenType::RBRACKET))
+            {
+                if (!tokenStream.check(TokenType::STRING_LITERAL))
+                {
+                    throw ParseException("Expected string literal in string[] default", tokenStream.current().location);
+                }
+                entries.push_back(std::string(tokenStream.current().stringValue));
+                tokenStream.advance();
+                if (tokenStream.check(TokenType::COMMA)) tokenStream.advance();
+                else if (!tokenStream.check(TokenType::RBRACKET))
+                {
+                    throw ParseException("Expected ',' or ']' in string[] default", tokenStream.current().location);
+                }
+            }
+            expectToken(TokenType::RBRACKET);
+            return TypedAnnotationValue::makeStringArray(std::move(entries));
         }
         default:
             throw ParseException("Unsupported annotation parameter type for default value", tok.location);

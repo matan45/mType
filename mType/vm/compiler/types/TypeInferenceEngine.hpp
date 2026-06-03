@@ -97,6 +97,21 @@ namespace vm::compiler::types
         bool isUnboundGenericReturn(
             const bytecode::BytecodeProgram::FunctionMetadata* metadata) const;
 
+        // Resolves a "Class::FIELD" scope-qualified name to its static field
+        // definition. Returns nullptr when varName is not qualified, names an
+        // unregistered class, or the field does not exist. Shared by the type
+        // and className inference paths so both resolve static fields the same way.
+        std::shared_ptr<runtimeTypes::klass::FieldDefinition>
+        resolveQualifiedStaticField(const std::string& varName) const;
+
+        // Normalizes a field's declared (ValueType, typeName) pair: array forms
+        // ([]/Array<...>) collapse to ARRAY and the boxed primitive names
+        // (Int/Float/Bool/String) map to their primitive ValueType when they do
+        // not name a real class. Shared by instance-field and static-field type
+        // inference.
+        value::ValueType normalizeFieldValueType(
+            value::ValueType type, const std::string& typeName) const;
+
         // Helper methods for inferExpressionType
         value::ValueType inferLiteralType(ast::ASTNode* node) const;
         value::ValueType inferVariableType(ast::VariableNode* varNode) const;

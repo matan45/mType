@@ -58,6 +58,44 @@ if (t != null) {
 }
 ```
 
+`Annotation` exposes typed getters for scalar and array parameters:
+
+| Method | Returns |
+|---|---|
+| `getInt(key)` | `int` |
+| `getFloat(key)` | `float` |
+| `getBool(key)` | `bool` |
+| `getString(key)` | `string` |
+| `getClass(key)` | reflected `Class` handle |
+| `getClassArray(key)` | reflected `Class[]` handles |
+| `getClassNames(key)` | `string[]` of class names |
+| `getIntArray(key)` | `int[]` |
+| `getFloatArray(key)` | `float[]` |
+| `getBoolArray(key)` | `bool[]` |
+| `getStringArray(key)` | `string[]` |
+| `isNull(key)` | `true` when the annotation value is `null` |
+
+```mtype
+@Retention(RUNTIME)
+annotation Uses {
+    Class[] types;
+    string[] names;
+}
+
+class A { }
+class B { }
+
+@Uses(types = [A, B], names = ["left", "right"])
+class Target { }
+
+Annotation? uses = Class::forName("Target").getAnnotation("Uses");
+if (uses != null) {
+    string[] typeNames = uses.getClassNames("types");
+    string[] names = uses.getStringArray("names");
+    print(typeNames[0] + ":" + names[0]);   // A:left
+}
+```
+
 ## Invocation
 
 ```mtype

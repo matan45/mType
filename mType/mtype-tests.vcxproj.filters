@@ -142,6 +142,12 @@
     <Filter Include="testFiles\exe">
       <UniqueIdentifier>{C90EED9F-35CF-68D6-FE09-B2536A89ADB2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\exe\annotation-const">
+      <UniqueIdentifier>{475FF121-3385-BB88-1CCB-40540890E054}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\annotation-const\src">
+      <UniqueIdentifier>{DE68A96E-CAA4-ACD8-33B7-C4CF1F1255F3}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\exe\arrays">
       <UniqueIdentifier>{6A1826F9-56A7-AFC2-FFC5-C3BDEB33C068}</UniqueIdentifier>
     </Filter>
@@ -1024,6 +1030,45 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="tests\testFiles\annotation\error\annotation_const_cast_nonprimitive_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\annotation_const_cyclic_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\annotation_const_div_zero_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\annotation_const_hetero_array_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\annotation_const_method_call_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\annotation_const_new_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\annotation_const_nonfinal_field_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\annotation_const_nonfoldable_init_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\annotation_const_ternary_nonbool_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\annotation_const_unknown_field_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\array_invalid_default_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\array_missing_required_param_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\array_wrong_element_type_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\error\empty_throw_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
@@ -1048,6 +1093,12 @@
     <None Include="tests\testFiles\annotation\error\non_exception_class_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\error\null_on_nonnullable_ref_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\nullable_primitive_annotation_param_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\error\override_no_parent_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
@@ -1064,6 +1115,12 @@
       <Filter>testFiles\annotation\error</Filter>
     </None>
     <None Include="tests\testFiles\annotation\error\parameter_target_violation_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\positional_shorthand_multi_param_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\runtime_value_param_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
     <None Include="tests\testFiles\annotation\error\script_annotation_abstract_error.mt">
@@ -1117,6 +1174,9 @@
     <None Include="tests\testFiles\annotation\error\unknown_param_name_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\error\unsupported_object_annotation_param_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\error\wrong_param_type_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
@@ -1126,10 +1186,133 @@
     <None Include="tests\testFiles\annotation\pass\annotationOnGenericMethodParam.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_array_params_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_array_params_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_class_ref_single_wrap_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_class_ref_single_wrap_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_arithmetic_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_arithmetic_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_bool_array_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_bool_array_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_bool_expr_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_bool_expr_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_cast_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_cast_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_cast_widen_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_cast_widen_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_expr_float_widen_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_expr_float_widen_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_float_array_promote_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_float_array_promote_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_imported_helper.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_imported_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_imported_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_int_array_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_int_array_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_modulo_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_modulo_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_on_method_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_on_method_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_refs_const_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_refs_const_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_string_array_scoped_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_string_array_scoped_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_string_concat_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_string_concat_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_unary_ternary_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_unary_ternary_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_bool_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_bool_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_class_param_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_class_param_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\pass\annotation_declare_empty_pass.expected">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_declare_empty_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_float_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_declare_float_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_declare_int_pass.expected">
@@ -1148,6 +1331,36 @@
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_defaults_partial_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_empty_array_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_empty_array_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_int_array_to_float_array_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_int_array_to_float_array_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_int_to_float_widen_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_int_to_float_widen_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_named_const_scoped_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_named_const_scoped_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_nullable_ref_nonnull_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_nullable_ref_nonnull_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_on_constructor_pass.expected">
@@ -1202,6 +1415,12 @@
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\combined_annotations_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\di_field_injection_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\di_field_injection_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\entrypoint_annotation_pass.expected">
@@ -1415,6 +1634,12 @@
       <Filter>testFiles\arrays\error\objectSubtype</Filter>
     </None>
     <None Include="tests\testFiles\arrays\error\objectSubtype\nonArrayObjectCastToArray_error.mt">
+      <Filter>testFiles\arrays\error\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\objectSubtype\objectElementCastWrongSibling_error.mt">
+      <Filter>testFiles\arrays\error\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\objectSubtype\subtypeElementCastWrongSibling_size16_error.mt">
       <Filter>testFiles\arrays\error\objectSubtype</Filter>
     </None>
     <None Include="tests\testFiles\arrays\error\outOfBoundsAccess.mt">
@@ -2056,6 +2281,12 @@
     <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayReturnedAsObject.mt">
       <Filter>testFiles\arrays\pass\objectSubtype</Filter>
     </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\interfaceArrayHoldsImplementors_size16.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\interfaceArrayHoldsImplementors_size16.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
     <None Include="tests\testFiles\arrays\pass\objectSubtype\mixedObjectArrayWithArraysAndInstances.expected">
       <Filter>testFiles\arrays\pass\objectSubtype</Filter>
     </None>
@@ -2066,6 +2297,72 @@
       <Filter>testFiles\arrays\pass\objectSubtype</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\objectSubtype\multidimArrayAsObject.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\multidimObjectArraySubtypes.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\multidimObjectArraySubtypes.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayDeepInheritance_size16.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayDeepInheritance_size16.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayHoldsSubtypes_size16.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayHoldsSubtypes_size16.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayHoldsSubtypes_small.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayHoldsSubtypes_small.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayHomogeneousFastPath.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayHomogeneousFastPath.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayNullInterleaved_size16.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayNullInterleaved_size16.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayOverwriteElement_size16.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayOverwriteElement_size16.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArraySoaThenSubtype_size16.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArraySoaThenSubtype_size16.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectSlotArrayValueClass_size16.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectSlotArrayValueClass_size16.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectSlotArray_size16.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectSlotArray_size16.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectSlotArray_small.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectSlotArray_small.mt">
       <Filter>testFiles\arrays\pass\objectSubtype</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\optimizationVerification.expected">
@@ -7377,6 +7674,12 @@
     </None>
     <None Include="tests\testFiles\exe\ExeTest.expected">
       <Filter>testFiles\exe</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\annotation-const\AnnotationConstExe.expected">
+      <Filter>testFiles\exe\annotation-const</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\annotation-const\src\Main.mt">
+      <Filter>testFiles\exe\annotation-const\src</Filter>
     </None>
     <None Include="tests\testFiles\exe\arrays\ArrayExe.expected">
       <Filter>testFiles\exe\arrays</Filter>
@@ -13843,6 +14146,9 @@
     <None Include="tests\testFiles\typeChecking\error\objectReturnTypesWrongObjectType.mt">
       <Filter>testFiles\typeChecking\error</Filter>
     </None>
+    <None Include="tests\testFiles\typeChecking\error\staticFieldTypeMismatch.mt">
+      <Filter>testFiles\typeChecking\error</Filter>
+    </None>
     <None Include="tests\testFiles\typeChecking\error\staticMethodNamingConventionError.mt">
       <Filter>testFiles\typeChecking\error</Filter>
     </None>
@@ -14123,6 +14429,12 @@
       <Filter>testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\sameTypeAssignment.mt">
+      <Filter>testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\staticFieldTypedPositions.expected">
+      <Filter>testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\staticFieldTypedPositions.mt">
       <Filter>testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\stringConcatenationWithNulls.expected">

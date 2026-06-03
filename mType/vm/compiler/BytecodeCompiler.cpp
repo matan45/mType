@@ -2,6 +2,7 @@
 #include <cstddef>
 #include "../../ast/nodes/annotations/AnnotationDeclarationNode.hpp"
 #include "../../ast/nodes/statements/ImportNode.hpp"
+#include "../../optimizer/passes/annotation_folding/AnnotationConstantResolver.hpp"
 #include "../../types/TypeConversionUtils.hpp"
 #include "../../types/TypeConversionBridge.hpp"
 #include "analysis/NestedReferenceCollector.hpp"
@@ -114,6 +115,14 @@ namespace vm::compiler
         // MYT-108: pre-register annotation type declarations so usage validation
         // (which runs inside class registration) can resolve user-defined annotations.
         preRegisterAnnotationDeclarations(root);
+
+        // MYT-376: fold constant-expression / `Class::FIELD` annotation
+        // arguments to literal TypedAnnotationValues BEFORE class registration
+        // serializes annotation metadata. Imports are already resolved
+        // (ScriptInterpreter::resolveImports runs before compile), so the
+        // resolver also folds annotations in imported files and can resolve
+        // constants declared across file boundaries.
+        optimizer::passes::annotation_folding::AnnotationConstantResolver::resolve(root);
 
         // Third, register all classes and interfaces using registrars
         registerClassesForBytecode(root);

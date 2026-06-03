@@ -1,7 +1,7 @@
 intField type: int
 floatField type: float
 boolField type: bool
-stringField type: String
-objectField type: Object
-arrayField type: Object
+stringField type: string
+objectField type: OtherClass
+arrayField type: int[]
 Test passed

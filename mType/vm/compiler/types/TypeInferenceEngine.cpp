@@ -64,9 +64,63 @@ namespace vm::compiler::types
         return value::ValueType::VOID;
     }
 
+    std::shared_ptr<runtimeTypes::klass::FieldDefinition>
+    TypeInferenceEngine::resolveQualifiedStaticField(const std::string& varName) const
+    {
+        size_t pos = varName.find("::");
+        if (pos == std::string::npos || !environment) {
+            return nullptr;
+        }
+
+        std::string className = varName.substr(0, pos);
+        std::string fieldName = varName.substr(pos + 2);
+
+        auto classDef = environment->getClassRegistry()->findClass(className);
+        if (!classDef) {
+            return nullptr;
+        }
+
+        return classDef->getField(fieldName);
+    }
+
+    value::ValueType TypeInferenceEngine::normalizeFieldValueType(
+        value::ValueType type, const std::string& typeName) const
+    {
+        if (type == value::ValueType::ARRAY) {
+            return value::ValueType::ARRAY;
+        }
+
+        if (!typeName.empty() &&
+            (typeName.find("[]") != std::string::npos || typeName.find("Array<") == 0)) {
+            return value::ValueType::ARRAY;
+        }
+
+        if (type == value::ValueType::OBJECT && environment && !environment->findClass(typeName)) {
+            if (typeName == "Int") return value::ValueType::INT;
+            if (typeName == "Float") return value::ValueType::FLOAT;
+            if (typeName == "Bool") return value::ValueType::BOOL;
+            if (typeName == "String") return value::ValueType::STRING;
+        }
+
+        return type;
+    }
+
     value::ValueType TypeInferenceEngine::inferVariableType(ast::VariableNode* varNode) const
     {
         std::string varName = varNode->getName();
+
+        // MYT-377: `Class::FIELD` parses into a single VariableNode whose name is
+        // the qualified string. Resolve the static field's declared type so typed
+        // parameter/assignment positions infer the real type instead of VOID.
+        if (varName.find("::") != std::string::npos) {
+            if (auto field = resolveQualifiedStaticField(varName)) {
+                auto unifiedType = field->getUnifiedType();
+                return normalizeFieldValueType(
+                    field->getType(),
+                    unifiedType ? unifiedType->toString() : "");
+            }
+            return value::ValueType::VOID;
+        }
 
         const auto& locals = variableTracker.getLocals();
         for (auto it = locals.rbegin(); it != locals.rend(); ++it) {
@@ -87,31 +141,11 @@ namespace vm::compiler::types
         }
 
         if (currentClassNode && inInstanceMethod) {
-            auto fieldValueType = [this](value::ValueType type, const std::string& typeName) {
-                if (type == value::ValueType::ARRAY) {
-                    return value::ValueType::ARRAY;
-                }
-
-                if (!typeName.empty() &&
-                    (typeName.find("[]") != std::string::npos || typeName.find("Array<") == 0)) {
-                    return value::ValueType::ARRAY;
-                }
-
-                if (type == value::ValueType::OBJECT && environment && !environment->findClass(typeName)) {
-                    if (typeName == "Int") return value::ValueType::INT;
-                    if (typeName == "Float") return value::ValueType::FLOAT;
-                    if (typeName == "Bool") return value::ValueType::BOOL;
-                    if (typeName == "String") return value::ValueType::STRING;
-                }
-
-                return type;
-            };
-
             for (const auto& field : currentClassNode->getFields()) {
                 if (auto* fieldNode = dynamic_cast<ast::FieldNode*>(field.get())) {
                     if (fieldNode->getName() == varName && !fieldNode->getIsStatic()) {
                         auto genericType = fieldNode->getGenericType();
-                        return fieldValueType(
+                        return normalizeFieldValueType(
                             fieldNode->getType(),
                             genericType ? genericType->toString() : "");
                     }
@@ -125,7 +159,7 @@ namespace vm::compiler::types
                     if (field && !field->isStatic() &&
                         field->getAccessModifier() != ast::AccessModifier::PRIVATE) {
                         auto unifiedType = field->getUnifiedType();
-                        return fieldValueType(
+                        return normalizeFieldValueType(
                             field->getType(),
                             unifiedType ? unifiedType->toString() : "");
                     }

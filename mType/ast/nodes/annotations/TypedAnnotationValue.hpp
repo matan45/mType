@@ -17,7 +17,11 @@ namespace ast::nodes::annotations
         BOOL = 3,
         STRING = 4,
         CLASS_REF = 5,
-        CLASS_ARRAY = 6
+        CLASS_ARRAY = 6,
+        INT_ARRAY = 7,
+        FLOAT_ARRAY = 8,
+        BOOL_ARRAY = 9,
+        STRING_ARRAY = 10
     };
 
     /// Carries a typed literal supplied to an annotation parameter
@@ -73,6 +77,34 @@ namespace ast::nodes::annotations
             t.data_ = std::move(names);
             return t;
         }
+        static TypedAnnotationValue makeIntArray(std::vector<int64_t> values)
+        {
+            TypedAnnotationValue t;
+            t.type_ = AnnotationValueType::INT_ARRAY;
+            t.data_ = std::move(values);
+            return t;
+        }
+        static TypedAnnotationValue makeFloatArray(std::vector<double> values)
+        {
+            TypedAnnotationValue t;
+            t.type_ = AnnotationValueType::FLOAT_ARRAY;
+            t.data_ = std::move(values);
+            return t;
+        }
+        static TypedAnnotationValue makeBoolArray(std::vector<bool> values)
+        {
+            TypedAnnotationValue t;
+            t.type_ = AnnotationValueType::BOOL_ARRAY;
+            t.data_ = std::move(values);
+            return t;
+        }
+        static TypedAnnotationValue makeStringArray(std::vector<std::string> values)
+        {
+            TypedAnnotationValue t;
+            t.type_ = AnnotationValueType::STRING_ARRAY;
+            t.data_ = std::move(values);
+            return t;
+        }
 
         AnnotationValueType getType() const { return type_; }
         bool isNull() const { return type_ == AnnotationValueType::NULL_VALUE; }
@@ -107,6 +139,26 @@ namespace ast::nodes::annotations
             if (type_ != AnnotationValueType::CLASS_ARRAY) throw std::runtime_error("annotation value: not class array");
             return std::get<std::vector<std::string>>(data_);
         }
+        const std::vector<int64_t>& asIntArray() const
+        {
+            if (type_ != AnnotationValueType::INT_ARRAY) throw std::runtime_error("annotation value: not int array");
+            return std::get<std::vector<int64_t>>(data_);
+        }
+        const std::vector<double>& asFloatArray() const
+        {
+            if (type_ != AnnotationValueType::FLOAT_ARRAY) throw std::runtime_error("annotation value: not float array");
+            return std::get<std::vector<double>>(data_);
+        }
+        const std::vector<bool>& asBoolArray() const
+        {
+            if (type_ != AnnotationValueType::BOOL_ARRAY) throw std::runtime_error("annotation value: not bool array");
+            return std::get<std::vector<bool>>(data_);
+        }
+        const std::vector<std::string>& asStringArray() const
+        {
+            if (type_ != AnnotationValueType::STRING_ARRAY) throw std::runtime_error("annotation value: not string array");
+            return std::get<std::vector<std::string>>(data_);
+        }
 
         /// Back-compat accessor for AnnotationNode::getParameter() — formats
         /// any typed value as a display string. Empty for NULL.
@@ -121,10 +173,32 @@ namespace ast::nodes::annotations
             case AnnotationValueType::STRING:     return std::get<std::string>(data_);
             case AnnotationValueType::CLASS_REF:  return std::get<std::string>(data_);
             case AnnotationValueType::CLASS_ARRAY:
+            case AnnotationValueType::STRING_ARRAY:
             {
                 const auto& arr = std::get<std::vector<std::string>>(data_);
                 std::string out;
                 for (size_t i = 0; i < arr.size(); ++i) { if (i) out += ","; out += arr[i]; }
+                return out;
+            }
+            case AnnotationValueType::INT_ARRAY:
+            {
+                const auto& arr = std::get<std::vector<int64_t>>(data_);
+                std::string out;
+                for (size_t i = 0; i < arr.size(); ++i) { if (i) out += ","; out += std::to_string(arr[i]); }
+                return out;
+            }
+            case AnnotationValueType::FLOAT_ARRAY:
+            {
+                const auto& arr = std::get<std::vector<double>>(data_);
+                std::string out;
+                for (size_t i = 0; i < arr.size(); ++i) { if (i) out += ","; out += std::to_string(arr[i]); }
+                return out;
+            }
+            case AnnotationValueType::BOOL_ARRAY:
+            {
+                const auto& arr = std::get<std::vector<bool>>(data_);
+                std::string out;
+                for (size_t i = 0; i < arr.size(); ++i) { if (i) out += ","; out += (arr[i] ? "true" : "false"); }
                 return out;
             }
             }
@@ -133,6 +207,15 @@ namespace ast::nodes::annotations
 
     private:
         AnnotationValueType type_;
-        std::variant<std::monostate, int64_t, double, bool, std::string, std::vector<std::string>> data_;
+        std::variant<
+            std::monostate,
+            int64_t,
+            double,
+            bool,
+            std::string,
+            std::vector<std::string>,
+            std::vector<int64_t>,
+            std::vector<double>,
+            std::vector<bool>> data_;
     };
 }

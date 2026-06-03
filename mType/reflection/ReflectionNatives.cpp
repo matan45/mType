@@ -90,6 +90,11 @@ namespace reflection
         nativeRegistry->registerNativeFunction("__reflect_getAnnotationString",  { nullptr, __reflect_getAnnotationString });
         nativeRegistry->registerNativeFunction("__reflect_getAnnotationClass",   { nullptr, __reflect_getAnnotationClass });
         nativeRegistry->registerNativeFunction("__reflect_getAnnotationClassArray", { nullptr, __reflect_getAnnotationClassArray });
+        nativeRegistry->registerNativeFunction("__reflect_getAnnotationClassNames", { nullptr, __reflect_getAnnotationClassNames });
+        nativeRegistry->registerNativeFunction("__reflect_getAnnotationIntArray", { nullptr, __reflect_getAnnotationIntArray });
+        nativeRegistry->registerNativeFunction("__reflect_getAnnotationFloatArray", { nullptr, __reflect_getAnnotationFloatArray });
+        nativeRegistry->registerNativeFunction("__reflect_getAnnotationBoolArray", { nullptr, __reflect_getAnnotationBoolArray });
+        nativeRegistry->registerNativeFunction("__reflect_getAnnotationStringArray", { nullptr, __reflect_getAnnotationStringArray });
         nativeRegistry->registerNativeFunction("__reflect_isAnnotationParamNull", { nullptr, __reflect_isAnnotationParamNull });
         nativeRegistry->registerNativeFunction("__reflect_getMethodAnnotation",  { nullptr, __reflect_getMethodAnnotation });
         nativeRegistry->registerNativeFunction("__reflect_hasMethodAnnotation",  { nullptr, __reflect_hasMethodAnnotation });
