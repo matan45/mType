@@ -93,5 +93,11 @@ namespace tests::testSuite
 
         addExeTest("Exe - Regression: Inherited Method Resolution (MYT-63)",
                    basePath + "regression-method/RegressionMethodExe.mtproj");
+
+        // ===== MYT-376: const-folded annotation round-trip =====
+        // Proves a folded annotation argument (60 * 1000) survives compilation
+        // to a standalone .exe and is still readable via reflection at runtime.
+        addExeTest("Exe - Annotation Const Fold (MYT-376)",
+                   basePath + "annotation-const/AnnotationConstExe.mtproj");
     }
 }

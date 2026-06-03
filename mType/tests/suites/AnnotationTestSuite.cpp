@@ -149,6 +149,21 @@ namespace tests::testSuite
         addOutputVerificationTest("Annotation Const - Folded int Widened To float Param",
                                   passPath + "annotation_const_expr_float_widen_pass.mt");
 
+        addOutputVerificationTest("Annotation Const - bool[] Per-element Folding",
+                                  passPath + "annotation_const_bool_array_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - bool From Comparison/Logical Expr",
+                                  passPath + "annotation_const_bool_expr_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Casts To float/String/bool",
+                                  passPath + "annotation_const_cast_widen_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Modulo Expression",
+                                  passPath + "annotation_const_modulo_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Folded Arg On Method",
+                                  passPath + "annotation_const_on_method_pass.mt");
+
         // ===== MYT-376: COMPILE-TIME CONSTANT-FOLDED ARGUMENTS - ERROR TESTS =====
         // The boundary stays precise: only compile-time constants fold; genuine
         // runtime forms still error.
@@ -197,6 +212,16 @@ namespace tests::testSuite
                         errorPath + "runtime_value_param_error.mt",
                         TestType::ERROR_EXPECTED,
                         "not a compile-time constant");
+
+        addTestFromFile("Annotation Const - Non-bool Ternary Condition Rejected",
+                        errorPath + "annotation_const_ternary_nonbool_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "ternary condition must fold to a boolean");
+
+        addTestFromFile("Annotation Const - Cast To Non-primitive Rejected",
+                        errorPath + "annotation_const_cast_nonprimitive_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "must target a primitive type");
 
         // ===== MYT-108: DECLARATION SYMMETRY (bool / float / Class) - PASS TESTS =====
 

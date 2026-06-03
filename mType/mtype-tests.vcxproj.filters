@@ -142,6 +142,12 @@
     <Filter Include="testFiles\exe">
       <UniqueIdentifier>{C90EED9F-35CF-68D6-FE09-B2536A89ADB2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\exe\annotation-const">
+      <UniqueIdentifier>{475FF121-3385-BB88-1CCB-40540890E054}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\exe\annotation-const\src">
+      <UniqueIdentifier>{DE68A96E-CAA4-ACD8-33B7-C4CF1F1255F3}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\exe\arrays">
       <UniqueIdentifier>{6A1826F9-56A7-AFC2-FFC5-C3BDEB33C068}</UniqueIdentifier>
     </Filter>
@@ -1024,6 +1030,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="tests\testFiles\annotation\error\annotation_const_cast_nonprimitive_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\error\annotation_const_cyclic_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
@@ -1043,6 +1052,9 @@
       <Filter>testFiles\annotation\error</Filter>
     </None>
     <None Include="tests\testFiles\annotation\error\annotation_const_nonfoldable_init_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\annotation_const_ternary_nonbool_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
     <None Include="tests\testFiles\annotation\error\annotation_const_unknown_field_error.mt">
@@ -1192,10 +1204,28 @@
     <None Include="tests\testFiles\annotation\pass\annotation_const_arithmetic_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_bool_array_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_bool_array_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_bool_expr_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_bool_expr_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\pass\annotation_const_cast_pass.expected">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_const_cast_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_cast_widen_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_cast_widen_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_const_expr_float_widen_pass.expected">
@@ -1223,6 +1253,18 @@
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_const_int_array_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_modulo_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_modulo_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_on_method_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\annotation_const_on_method_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\annotation_const_refs_const_pass.expected">
@@ -1373,6 +1415,12 @@
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\combined_annotations_pass.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\di_field_injection_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\di_field_injection_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\entrypoint_annotation_pass.expected">
@@ -7548,6 +7596,12 @@
     </None>
     <None Include="tests\testFiles\exe\ExeTest.expected">
       <Filter>testFiles\exe</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\annotation-const\AnnotationConstExe.expected">
+      <Filter>testFiles\exe\annotation-const</Filter>
+    </None>
+    <None Include="tests\testFiles\exe\annotation-const\src\Main.mt">
+      <Filter>testFiles\exe\annotation-const\src</Filter>
     </None>
     <None Include="tests\testFiles\exe\arrays\ArrayExe.expected">
       <Filter>testFiles\exe\arrays</Filter>
