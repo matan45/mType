@@ -392,6 +392,66 @@ namespace tests::testSuite
         addOutputVerificationTest("Array HashCode Stable",
                         passPath + "objectSubtype/arrayHashCodeStable.mt");
 
+        // === MYT-378: polymorphic object arrays (SoA -> heterogeneous fallback) ===
+        // Object arrays of size >= 16 use SoA storage that can only faithfully
+        // hold the exact declared class. Storing a subtype (or anything into
+        // Object[]) now falls back to heterogeneous Value storage instead of
+        // throwing "ObjectInstance class mismatch", preserving subtype fields
+        // and polymorphic identity. The homogeneous case stays on the fast path.
+        addOutputVerificationTest("Array Holds Subtypes Size16",
+                        passPath + "objectSubtype/objectArrayHoldsSubtypes_size16.mt");
+        addOutputVerificationTest("Object Slot Array Size16",
+                        passPath + "objectSubtype/objectSlotArray_size16.mt");
+        addOutputVerificationTest("Object Array Homogeneous Fast Path",
+                        passPath + "objectSubtype/objectArrayHomogeneousFastPath.mt");
+        addOutputVerificationTest("Multidim Object Array Subtypes",
+                        passPath + "objectSubtype/multidimObjectArraySubtypes.mt");
+
+        // --- MYT-378 small arrays (< 16, non-SoA Value[] path) ---
+        // The ticket's literal repro is small (`new Animal[1]`, `Object[4]`).
+        // These never touch SoA; they pin the plain Value[] store path.
+        addOutputVerificationTest("Array Holds Subtypes Small",
+                        passPath + "objectSubtype/objectArrayHoldsSubtypes_small.mt");
+        addOutputVerificationTest("Object Slot Array Small",
+                        passPath + "objectSubtype/objectSlotArray_small.mt");
+
+        // --- MYT-378 SoA -> heterogeneous conversion mid-stream ---
+        // Populate the SoA fast path with the exact declared class first, then
+        // store a subtype: convertToHeterogeneous() must migrate the existing
+        // columns intact. (The size16 fixture above stores a subtype at index
+        // 0, so SoA is bypassed; this exercises the populated-then-demoted path.)
+        addOutputVerificationTest("Array SoA Then Subtype Size16",
+                        passPath + "objectSubtype/objectArraySoaThenSubtype_size16.mt");
+
+        // --- MYT-378 deep inheritance + element overwrite ---
+        addOutputVerificationTest("Array Deep Inheritance Size16",
+                        passPath + "objectSubtype/objectArrayDeepInheritance_size16.mt");
+        addOutputVerificationTest("Array Overwrite Element Size16",
+                        passPath + "objectSubtype/objectArrayOverwriteElement_size16.mt");
+
+        // --- MYT-378 interface / null / value-class at SoA size ---
+        // Each is non-exact vs the declared element class, so each rides the
+        // heterogeneous fallback at size 16.
+        addOutputVerificationTest("Interface Array Holds Implementors Size16",
+                        passPath + "objectSubtype/interfaceArrayHoldsImplementors_size16.mt");
+        addOutputVerificationTest("Array Null Interleaved Size16",
+                        passPath + "objectSubtype/objectArrayNullInterleaved_size16.mt");
+        addOutputVerificationTest("Object Slot Array Value Class Size16",
+                        passPath + "objectSubtype/objectSlotArrayValueClass_size16.mt");
+
+        // --- MYT-378 soundness: wrong-sibling cast after widening must throw ---
+        // Widening a Dog into Object[]/Animal[] is allowed, but the fallback
+        // must preserve the element's runtime class so narrowing to a sibling
+        // (Cat) still fails. Substring pins the rendered cast message.
+        addTestFromFile("Object Element Cast Wrong Sibling",
+                        errorPath + "objectSubtype/objectElementCastWrongSibling_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Cannot cast Dog to Cat");
+        addTestFromFile("Subtype Element Cast Wrong Sibling Size16",
+                        errorPath + "objectSubtype/subtypeElementCastWrongSibling_size16_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Cannot cast Dog to Cat");
+
         // Edge-case error tests — wrong-target casts after Object widening.
         addTestFromFile("Array Cast To Concrete Class",
                         errorPath + "objectSubtype/arrayCastToConcreteClass_error.mt",

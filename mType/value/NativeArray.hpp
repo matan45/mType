@@ -344,7 +344,11 @@ namespace value
                     break;
 
                 case 5: // SOA_OBJECT
-                    if (value::isObject(value)) {
+                    // MYT-378: SoA columns are faithful only for the exact declared
+                    // element class. A subtype, a value-class box, a null, or any
+                    // non-object can't be represented (fields sliced / identity lost),
+                    // so fall back to heterogeneous Value storage instead of throwing.
+                    if (std::get<5>(storage)->canStoreExact(value)) {
                         std::get<5>(storage)->set(index, value); // ObjectArray doesn't have setUnchecked yet
                     } else {
                         convertToHeterogeneous();

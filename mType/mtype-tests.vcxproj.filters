@@ -1636,6 +1636,12 @@
     <None Include="tests\testFiles\arrays\error\objectSubtype\nonArrayObjectCastToArray_error.mt">
       <Filter>testFiles\arrays\error\objectSubtype</Filter>
     </None>
+    <None Include="tests\testFiles\arrays\error\objectSubtype\objectElementCastWrongSibling_error.mt">
+      <Filter>testFiles\arrays\error\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\objectSubtype\subtypeElementCastWrongSibling_size16_error.mt">
+      <Filter>testFiles\arrays\error\objectSubtype</Filter>
+    </None>
     <None Include="tests\testFiles\arrays\error\outOfBoundsAccess.mt">
       <Filter>testFiles\arrays\error</Filter>
     </None>
@@ -2275,6 +2281,12 @@
     <None Include="tests\testFiles\arrays\pass\objectSubtype\arrayReturnedAsObject.mt">
       <Filter>testFiles\arrays\pass\objectSubtype</Filter>
     </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\interfaceArrayHoldsImplementors_size16.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\interfaceArrayHoldsImplementors_size16.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
     <None Include="tests\testFiles\arrays\pass\objectSubtype\mixedObjectArrayWithArraysAndInstances.expected">
       <Filter>testFiles\arrays\pass\objectSubtype</Filter>
     </None>
@@ -2285,6 +2297,72 @@
       <Filter>testFiles\arrays\pass\objectSubtype</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\objectSubtype\multidimArrayAsObject.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\multidimObjectArraySubtypes.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\multidimObjectArraySubtypes.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayDeepInheritance_size16.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayDeepInheritance_size16.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayHoldsSubtypes_size16.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayHoldsSubtypes_size16.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayHoldsSubtypes_small.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayHoldsSubtypes_small.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayHomogeneousFastPath.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayHomogeneousFastPath.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayNullInterleaved_size16.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayNullInterleaved_size16.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayOverwriteElement_size16.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArrayOverwriteElement_size16.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArraySoaThenSubtype_size16.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectArraySoaThenSubtype_size16.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectSlotArrayValueClass_size16.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectSlotArrayValueClass_size16.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectSlotArray_size16.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectSlotArray_size16.mt">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectSlotArray_small.expected">
+      <Filter>testFiles\arrays\pass\objectSubtype</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\pass\objectSubtype\objectSlotArray_small.mt">
       <Filter>testFiles\arrays\pass\objectSubtype</Filter>
     </None>
     <None Include="tests\testFiles\arrays\pass\optimizationVerification.expected">
