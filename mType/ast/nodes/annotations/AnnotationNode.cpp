@@ -53,6 +53,26 @@ namespace ast::nodes::annotations
         return true;
     }
 
+    void AnnotationNode::setDeferredExpression(const std::string& key, std::shared_ptr<ASTNode> expr)
+    {
+        deferredExpressions.insert_or_assign(key, std::move(expr));
+    }
+
+    const std::unordered_map<std::string, std::shared_ptr<ASTNode>>& AnnotationNode::getDeferredExpressions() const
+    {
+        return deferredExpressions;
+    }
+
+    bool AnnotationNode::hasDeferredExpressions() const
+    {
+        return !deferredExpressions.empty();
+    }
+
+    void AnnotationNode::clearDeferredExpressions()
+    {
+        deferredExpressions.clear();
+    }
+
     std::unordered_map<std::string, std::string> AnnotationNode::getParameters() const
     {
         std::unordered_map<std::string, std::string> out;
@@ -94,6 +114,12 @@ namespace ast::nodes::annotations
             {
                 copy->setTypedParameter(key, it->second);
             }
+        }
+        // MYT-376: deep-copy any not-yet-folded deferred expressions so a clone
+        // taken before the resolver runs stays self-consistent.
+        for (const auto& [key, expr] : deferredExpressions)
+        {
+            copy->setDeferredExpression(key, expr ? std::shared_ptr<ASTNode>(expr->clone()) : nullptr);
         }
         return copy;
     }

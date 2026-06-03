@@ -19,6 +19,13 @@ namespace ast::nodes::annotations
         // Insertion order of keys — used by the validator to support
         // positional shorthand (single-value annotations like `@DisplayName("x")`).
         std::vector<std::string> keyOrder;
+        // MYT-376: transient expression-valued arguments that cannot be folded
+        // at parse time (they reference `Class::FIELD` constants or are
+        // constant expressions). The AnnotationConstantResolver pass folds each
+        // to a TypedAnnotationValue and clears this map BEFORE bytecode
+        // serialization, so it is never serialized and the literal-only
+        // validator/serializer/reflection paths are unaffected.
+        std::unordered_map<std::string, std::shared_ptr<ASTNode>> deferredExpressions;
 
     public:
         explicit AnnotationNode(const std::string& annotationName,
@@ -45,6 +52,16 @@ namespace ast::nodes::annotations
         // erase the synthetic "__positional__" key after binding it to the
         // sole declared parameter name.
         bool removeTypedParameter(const std::string& key);
+
+        // MYT-376: deferred expression-valued arguments. Stored by the parser
+        // when an argument is a constant expression / `Class::FIELD` reference;
+        // consumed and cleared by AnnotationConstantResolver before
+        // serialization. `key` may be a declared parameter name or the
+        // synthetic "__positional__" key (resolved like the typed path).
+        void setDeferredExpression(const std::string& key, std::shared_ptr<ASTNode> expr);
+        const std::unordered_map<std::string, std::shared_ptr<ASTNode>>& getDeferredExpressions() const;
+        bool hasDeferredExpressions() const;
+        void clearDeferredExpressions();
 
         // Legacy string-only API — preserved so unmigrated code paths keep
         // building. Reads format the typed value via `toDisplayString()`;

@@ -950,7 +950,7 @@ namespace parser
 
     std::unique_ptr<ASTNode> StatementParser::parseFunction()
     {
-        auto annotations = AnnotationParser::parseAnnotations(tokenStream);
+        auto annotations = AnnotationParser::parseAnnotations(tokenStream, &context);
 
         if (context.isInsideFunctionBody())
         {

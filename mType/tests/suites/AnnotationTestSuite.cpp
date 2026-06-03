@@ -114,6 +114,90 @@ namespace tests::testSuite
                         TestType::ERROR_EXPECTED,
                         "Positional shorthand only allowed");
 
+        // ===== MYT-376: COMPILE-TIME CONSTANT-FOLDED ARGUMENTS - PASS TESTS =====
+
+        addOutputVerificationTest("Annotation Const - Arithmetic Expression",
+                                  passPath + "annotation_const_arithmetic_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - String Concatenation",
+                                  passPath + "annotation_const_string_concat_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Unary / Logical-not / Ternary",
+                                  passPath + "annotation_const_unary_ternary_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Primitive Cast",
+                                  passPath + "annotation_const_cast_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Named Class::FIELD Constant",
+                                  passPath + "annotation_named_const_scoped_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Constant Referencing Constant",
+                                  passPath + "annotation_const_refs_const_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - int[] Per-element Folding",
+                                  passPath + "annotation_const_int_array_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - float[] Promotion From Folded Elements",
+                                  passPath + "annotation_const_float_array_promote_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - string[] Per-element Folding",
+                                  passPath + "annotation_const_string_array_scoped_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Imported Class::FIELD Constant",
+                                  passPath + "annotation_const_imported_pass.mt");
+
+        addOutputVerificationTest("Annotation Const - Folded int Widened To float Param",
+                                  passPath + "annotation_const_expr_float_widen_pass.mt");
+
+        // ===== MYT-376: COMPILE-TIME CONSTANT-FOLDED ARGUMENTS - ERROR TESTS =====
+        // The boundary stays precise: only compile-time constants fold; genuine
+        // runtime forms still error.
+
+        addTestFromFile("Annotation Const - New Construction Rejected",
+                        errorPath + "annotation_const_new_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "not a compile-time constant");
+
+        addTestFromFile("Annotation Const - Method Call Rejected",
+                        errorPath + "annotation_const_method_call_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "not a compile-time constant");
+
+        addTestFromFile("Annotation Const - Non-final Field Rejected",
+                        errorPath + "annotation_const_nonfinal_field_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "must reference a 'static final' field");
+
+        addTestFromFile("Annotation Const - Non-foldable Initializer Rejected",
+                        errorPath + "annotation_const_nonfoldable_init_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "not a compile-time constant");
+
+        addTestFromFile("Annotation Const - Unknown Field Rejected",
+                        errorPath + "annotation_const_unknown_field_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "no static final field");
+
+        addTestFromFile("Annotation Const - Cyclic Dependency Rejected",
+                        errorPath + "annotation_const_cyclic_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "Cyclic compile-time constant dependency");
+
+        addTestFromFile("Annotation Const - Division By Zero Not Folded",
+                        errorPath + "annotation_const_div_zero_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "could not be folded");
+
+        addTestFromFile("Annotation Const - Heterogeneous Folded Array Rejected",
+                        errorPath + "annotation_const_hetero_array_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "element type mismatch");
+
+        addTestFromFile("Annotation Const - Runtime Value Param Canary",
+                        errorPath + "runtime_value_param_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "not a compile-time constant");
+
         // ===== MYT-108: DECLARATION SYMMETRY (bool / float / Class) - PASS TESTS =====
 
         addOutputVerificationTest("Annotation Declaration - Bool Param + Reflection",

@@ -13,6 +13,9 @@
     <Filter Include="optimizer\passes">
       <UniqueIdentifier>{26D592AF-12CE-B101-3B00-97862758910D}</UniqueIdentifier>
     </Filter>
+    <Filter Include="optimizer\passes\annotation_folding">
+      <UniqueIdentifier>{92EB037B-FEA4-6E25-8704-89FFF3BC2495}</UniqueIdentifier>
+    </Filter>
     <Filter Include="optimizer\passes\constant_folding">
       <UniqueIdentifier>{E1A28FFD-4D11-E57C-96FA-9F7C02A8DA18}</UniqueIdentifier>
     </Filter>
@@ -89,6 +92,9 @@
     </ClInclude>
     <ClInclude Include="optimizer\passes\StructuralEqualitySynthesisPass.hpp">
       <Filter>optimizer\passes</Filter>
+    </ClInclude>
+    <ClInclude Include="optimizer\passes\annotation_folding\AnnotationConstantResolver.hpp">
+      <Filter>optimizer\passes\annotation_folding</Filter>
     </ClInclude>
     <ClInclude Include="optimizer\passes\constant_folding\ConstantEvaluator.hpp">
       <Filter>optimizer\passes\constant_folding</Filter>
@@ -265,6 +271,9 @@
     </ClCompile>
     <ClCompile Include="optimizer\passes\StructuralEqualitySynthesisPass.cpp">
       <Filter>optimizer\passes</Filter>
+    </ClCompile>
+    <ClCompile Include="optimizer\passes\annotation_folding\AnnotationConstantResolver.cpp">
+      <Filter>optimizer\passes\annotation_folding</Filter>
     </ClCompile>
     <ClCompile Include="optimizer\passes\constant_folding\ConstantEvaluator.cpp">
       <Filter>optimizer\passes\constant_folding</Filter>

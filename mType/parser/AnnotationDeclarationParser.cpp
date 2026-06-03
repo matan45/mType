@@ -69,7 +69,7 @@ namespace parser
         std::vector<std::shared_ptr<AnnotationNode>> metaAnnotations;
         if (tokenStream.check(TokenType::AT))
         {
-            metaAnnotations = utilities::AnnotationParser::parseAnnotations(tokenStream);
+            metaAnnotations = utilities::AnnotationParser::parseAnnotations(tokenStream, &context);
         }
 
         SourceLocation declLocation = tokenStream.current().location;
