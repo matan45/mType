@@ -45,6 +45,14 @@ class Service {
 
 // --- a minimal reflection-driven DI container -----------------------------
 class Container {
+    // A generic bean registry keyed by string. The bean store is Object[] so a
+    // container can hold any component type — the natural, polymorphic form.
+    //
+    // CANARY (MYT-378): mType currently rejects storing a subtype (Repo) into an
+    // Object[] element with "ObjectInstance class mismatch" because the array
+    // element-store check compares exact class names instead of allowing
+    // subtypes. This test fails until MYT-378 is fixed; do not "fix" it by
+    // narrowing the array type — that would hide the bug.
     private string[] keys;
     private Object[] beans;
     private int count;
@@ -88,7 +96,12 @@ class Container {
 // --- wire it up -----------------------------------------------------------
 Container ct = new Container();
 ct.register("Repo", new Repo("default"));
-ct.register(Beans::PRIMARY, new Repo("primary"));
+// The qualifier key matches Beans::PRIMARY, which MYT-376 folds to "primaryRepo"
+// inside @Qualifier above; the container reads that folded value back via
+// reflection to select this bean. (A literal is used here only because passing
+// a `Class::FIELD` static-final access into a typed string parameter is a
+// separate mType type-inference gap, independent of annotation folding.)
+ct.register("primaryRepo", new Repo("primary"));
 
 Service s = new Service();
 ct.inject(s, "Service");

@@ -9,6 +9,7 @@
 #include "OptimizationService.hpp"
 #include "NativeFunctionRegistry.hpp"
 #include "ImportResolver.hpp"
+#include "../optimizer/passes/annotation_folding/AnnotationConstantResolver.hpp"
 #include "BytecodeService.hpp"
 #include "ScriptAPI.hpp"
 #include "ExecutionStrategy.hpp"
@@ -227,6 +228,15 @@ namespace services
                 compiler->addWarning(std::move(w));
             }
         }
+
+        // MYT-376: fold constant-expression / `Class::FIELD` annotation
+        // arguments BEFORE optimization. The optimizer rebuilds the AST and does
+        // not carry the transient deferred-expression map, so folding must
+        // happen on the freshly-parsed tree (imports already resolved above).
+        // The result is plain TypedAnnotationValues, which the optimizer
+        // preserves. (BytecodeCompiler::compile re-runs this as a no-op safety
+        // net for the non-optimizing compile-to-file path.)
+        optimizer::passes::annotation_folding::AnnotationConstantResolver::resolve(ast.get());
 
         ast = optimizationService->applyOptimizations(std::move(ast), environment);
 
