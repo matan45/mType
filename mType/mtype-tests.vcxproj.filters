@@ -14068,6 +14068,9 @@
     <None Include="tests\testFiles\typeChecking\error\objectReturnTypesWrongObjectType.mt">
       <Filter>testFiles\typeChecking\error</Filter>
     </None>
+    <None Include="tests\testFiles\typeChecking\error\staticFieldTypeMismatch.mt">
+      <Filter>testFiles\typeChecking\error</Filter>
+    </None>
     <None Include="tests\testFiles\typeChecking\error\staticMethodNamingConventionError.mt">
       <Filter>testFiles\typeChecking\error</Filter>
     </None>
@@ -14348,6 +14351,12 @@
       <Filter>testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\sameTypeAssignment.mt">
+      <Filter>testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\staticFieldTypedPositions.expected">
+      <Filter>testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\staticFieldTypedPositions.mt">
       <Filter>testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\stringConcatenationWithNulls.expected">
