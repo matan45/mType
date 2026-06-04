@@ -74,19 +74,15 @@ namespace value
         // Safe across element writes: views always alias the parent's storage,
         // so a cached view sees writes immediately.
         //
-        // Cycle: cachedSubArray_ holds the view; the view's parent_
-        // (in MultiArrayBase) holds this. Steady-state is fine — the GC's
-        // CycleDetector reclaims it. Process exit, however, depends on a
-        // final GC sweep running before destructors are released; without
-        // it, a live cached-view FlatMultiArray will be reported as a leak
-        // by ASAN/Valgrind. Use clearSubArrayCache() to break the cycle
-        // explicitly from VM shutdown / leak-checker harnesses.
+        // cachedSubArray_ is weak: the view owns its parent, but the parent's
+        // cache does not own the view. That preserves the hot repeated-index
+        // lookup without creating parent -> cached view -> parent ownership.
         //
         // mutable: the const getSubArray() override at the IMultiDimensionalArray
         // boundary casts away const and calls the non-const version, so the
         // cache must be writable through a const path.
         mutable size_t cachedSubArrayIndex_ = SIZE_MAX;
-        mutable std::shared_ptr<FlatMultiArray> cachedSubArray_;
+        mutable std::weak_ptr<FlatMultiArray> cachedSubArray_;
 
         /**
          * @brief Get reference to the actual data storage (own or parent's)
@@ -219,8 +215,10 @@ namespace value
         std::shared_ptr<FlatMultiArray> getSubArray(size_t index) {
             // Hot-path fast return for repeated same-index access (inner loop
             // of `grid[i][j]` calls getSubArray(i) 32 times in a row).
-            if (index == cachedSubArrayIndex_ && cachedSubArray_) {
-                return cachedSubArray_;
+            if (index == cachedSubArrayIndex_) {
+                if (auto cached = cachedSubArray_.lock()) {
+                    return cached;
+                }
             }
 
             auto subDims = getSubDimensions();
@@ -277,15 +275,12 @@ namespace value
         }
 
         /**
-         * @brief Drop the cached sub-array view, breaking the cache→view→parent
-         * reference cycle. Safe to call repeatedly; idempotent.
+         * @brief Drop the cached sub-array view reference. Safe to call
+         * repeatedly; idempotent.
          *
-         * Intended callers: GC sweep over tracked FlatMultiArrays, VM
-         * shutdown, leak-checker harnesses that need cycles broken before
-         * destructors fire. Calling this from a routine where `*this` is
-         * held only by the cached view itself will trigger the parent's
-         * destructor recursively — only call from outside or while another
-         * strong reference to `*this` is alive.
+         * Intended callers: pool reset, VM shutdown, and leak-checker harnesses
+         * that want deterministic cache state. The cache is weak, so this is
+         * not required for ownership-cycle cleanup.
          */
         void clearSubArrayCache() const {
             cachedSubArrayIndex_ = SIZE_MAX;
