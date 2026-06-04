@@ -66,13 +66,14 @@ namespace value
         size_t sparseAccesses_; // Accesses to sparse locations
 
         // Single-entry sub-array view cache. Same rationale and trade-offs as
-        // FlatMultiArray::cachedSubArray_ — see that header for the cycle and
-        // GC story. Inner-loop `arr[i][j]` patterns repeat the same `i` for N
-        // iterations, collapsing N heap allocations into 1 on cache hit.
+        // FlatMultiArray::cachedSubArray_. The cache is weak so the view's
+        // strong parent_ edge does not form an ownership cycle with the parent.
+        // Inner-loop `arr[i][j]` patterns repeat the same `i` for N iterations,
+        // collapsing N heap allocations into 1 on cache hit.
         // Single-threaded VM => no synchronisation. mutable to support the
         // const getSubArray() override that casts away const.
         mutable size_t cachedSubArrayIndex_ = SIZE_MAX;
-        mutable std::shared_ptr<SparseMultiArray> cachedSubArray_;
+        mutable std::weak_ptr<SparseMultiArray> cachedSubArray_;
 
         /**
          * @brief Get reference to the actual dense data storage (own or parent's)
@@ -615,9 +616,8 @@ namespace value
         }
 
         /**
-         * @brief Drop the cached sub-array view, breaking the cache→view→parent
-         * reference cycle. See FlatMultiArray::clearSubArrayCache for the
-         * rationale and the safe-call contract.
+         * @brief Drop the cached sub-array view reference. See
+         * FlatMultiArray::clearSubArrayCache for the rationale.
          */
         void clearSubArrayCache() const {
             cachedSubArrayIndex_ = SIZE_MAX;
@@ -638,8 +638,10 @@ namespace value
         {
             // Hot-path fast return: same-index repeats are common in inner
             // loops over multi-dim arrays.
-            if (index == cachedSubArrayIndex_ && cachedSubArray_) {
-                return cachedSubArray_;
+            if (index == cachedSubArrayIndex_) {
+                if (auto cached = cachedSubArray_.lock()) {
+                    return cached;
+                }
             }
 
             auto subDims = getSubDimensions();

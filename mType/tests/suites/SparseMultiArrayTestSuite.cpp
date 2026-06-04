@@ -1,6 +1,8 @@
 #include "SparseMultiArrayTestSuite.hpp"
+#include "../../value/FlatMultiArray.hpp"
 #include "../../value/SparseMultiArray.hpp"
 #include "../../value/ValueType.hpp"
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -27,6 +29,54 @@ namespace tests::testSuite
 
     void SparseMultiArrayTestSuite::setupTests()
     {
+        addCallbackTest("FlatMultiArray cached sub-view does not keep root alive", "",
+            [](services::ScriptAPI&)
+        {
+            std::weak_ptr<value::FlatMultiArray> weakRoot;
+
+            {
+                auto root = std::make_shared<value::FlatMultiArray>(
+                    std::vector<size_t>{2, 2}, value::Value(static_cast<int64_t>(0)));
+                weakRoot = root;
+
+                auto view = root->getSubArray(0);
+                auto cachedView = root->getSubArray(0);
+                if (view.get() != cachedView.get())
+                    throw std::runtime_error("expected live FlatMultiArray sub-view cache hit");
+
+                root.reset();
+                view.reset();
+                cachedView.reset();
+            }
+
+            if (!weakRoot.expired())
+                throw std::runtime_error("FlatMultiArray cached sub-view kept root alive");
+        });
+
+        addCallbackTest("SparseMultiArray cached sub-view does not keep root alive", "",
+            [](services::ScriptAPI&)
+        {
+            std::weak_ptr<value::SparseMultiArray> weakRoot;
+
+            {
+                auto root = std::make_shared<value::SparseMultiArray>(
+                    std::vector<size_t>{100, 100}, value::Value{});
+                weakRoot = root;
+
+                auto view = root->getSubArray(7);
+                auto cachedView = root->getSubArray(7);
+                if (view.get() != cachedView.get())
+                    throw std::runtime_error("expected live SparseMultiArray sub-view cache hit");
+
+                root.reset();
+                view.reset();
+                cachedView.reset();
+            }
+
+            if (!weakRoot.expired())
+                throw std::runtime_error("SparseMultiArray cached sub-view kept root alive");
+        });
+
         // ===== DENSE path =====
         // Small arrays (< MIN_SIZE_FOR_SPARSE = 1000 elements) start in
         // DENSE mode; this exercises the row-major linear scan.
