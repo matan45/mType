@@ -4,14 +4,22 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <mutex>
 #include <vector>
 
 namespace debugger {
 
     std::atomic<std::ostream*> DebugProtocol::protocolOutputStream{nullptr};
+    std::mutex DebugProtocol::protocolWriterMutex;
+    DebugProtocol::ProtocolWriter DebugProtocol::protocolWriter{};
 
     void DebugProtocol::setProtocolStream(std::ostream* stream) {
         protocolOutputStream.store(stream, std::memory_order_release);
+    }
+
+    void DebugProtocol::setProtocolWriter(ProtocolWriter writer) {
+        std::lock_guard<std::mutex> lock(protocolWriterMutex);
+        protocolWriter = std::move(writer);
     }
 
     DebugProtocol::Message DebugProtocol::parse(const std::string& line) {
@@ -96,9 +104,17 @@ namespace debugger {
     }
 
     void DebugProtocol::send(const Message& message) {
+        const std::string line = message.serialize();
+        {
+            std::lock_guard<std::mutex> lock(protocolWriterMutex);
+            if (protocolWriter) {
+                protocolWriter(line);
+                return;
+            }
+        }
         auto* stream = protocolOutputStream.load(std::memory_order_acquire);
         std::ostream& out = stream ? *stream : std::cout;
-        out << message.serialize() << std::endl;
+        out << line << std::endl;
         out.flush();
     }
 

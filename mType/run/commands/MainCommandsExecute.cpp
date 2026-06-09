@@ -69,6 +69,7 @@ namespace runMain::commands
         {
             std::string filename;
             bool debugMode = false;
+            int debugPort = 0;
             bool printGCStats = false;
             bool printJitStats = false;
             bool enableJit = true;
@@ -89,6 +90,20 @@ namespace runMain::commands
                 if (arg == "--debug")
                 {
                     flags.debugMode = true;
+                }
+                else if (arg.rfind("--debug-port=", 0) == 0)
+                {
+                    flags.debugMode = true;
+                    try
+                    {
+                        int p = std::stoi(arg.substr(std::string("--debug-port=").size()));
+                        if (p > 0 && p <= 65535) { flags.debugPort = p; }
+                        else { std::cerr << "Warning: --debug-port out of range, ignoring\n"; }
+                    }
+                    catch (...)
+                    {
+                        std::cerr << "Warning: invalid --debug-port value, ignoring\n";
+                    }
                 }
                 else if (arg == "--gc-stats")
                 {
@@ -235,10 +250,17 @@ namespace runMain::commands
             return 1;
         }
 
-        // Run in debug mode if --debug flag present
+        // Run in debug mode if --debug / --debug-port flag present
         if (flags.debugMode)
         {
-            runInDebugMode(flags.filename, execMode);
+            if (flags.debugPort > 0)
+            {
+                runInDebugModePort(flags.filename, execMode, flags.debugPort);
+            }
+            else
+            {
+                runInDebugMode(flags.filename, execMode);
+            }
             return 0;
         }
 

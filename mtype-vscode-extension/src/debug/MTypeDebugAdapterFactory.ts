@@ -28,6 +28,13 @@ export class MTypeDebugConfigurationProvider implements vscode.DebugConfiguratio
             }
         }
 
+        // Attach connects to an already-running host: no interpreter/program needed.
+        if (config.request === 'attach') {
+            config.host = config.host || 'localhost';
+            config.port = config.port || 5005;
+            return config;
+        }
+
         // Resolve interpreter path from settings if not specified
         if (!config.interpreterPath) {
             const settings = vscode.workspace.getConfiguration('mTypeLanguageServer');

@@ -7,6 +7,8 @@
 #include <sstream>
 #include <atomic>
 #include <iostream>
+#include <functional>
+#include <mutex>
 #include "DebugContext.hpp"
 
 namespace debugger {
@@ -51,6 +53,8 @@ namespace debugger {
      */
     class DebugProtocol {
     public:
+        using ProtocolWriter = std::function<void(const std::string&)>;
+
         /**
          * Set a dedicated output stream for protocol messages.
          * When set, send() uses this stream instead of std::cout.
@@ -58,6 +62,13 @@ namespace debugger {
          * while keeping protocol messages on the original stdout.
          */
         static void setProtocolStream(std::ostream* stream);
+
+        /**
+         * Set a dedicated line writer for protocol messages.
+         * When set, send() calls writer(serializedLine) instead of writing to
+         * the protocol stream/stdout. Used by embedded attach transports.
+         */
+        static void setProtocolWriter(ProtocolWriter writer);
 
 
         struct Message {
@@ -191,6 +202,8 @@ namespace debugger {
     private:
         static std::string unescapeValue(const std::string& value);
         static std::atomic<std::ostream*> protocolOutputStream;
+        static std::mutex protocolWriterMutex;
+        static ProtocolWriter protocolWriter;
     };
 
     // Forward declarations
@@ -243,11 +256,23 @@ namespace debugger {
         void run();
 
         /**
+         * Start the debug server loop using a caller-provided line reader.
+         * The callback returns false when the transport is closed.
+         */
+        void run(const std::function<bool(std::string&)>& readLine);
+
+        /**
          * Stop the debug server
          */
         void stop();
 
+        /**
+         * Process one serialized protocol line.
+         */
+        void processLine(const std::string& line);
+
     private:
+        void installEventCallback();
         void processCommand(const DebugProtocol::Message& message);
         void handleSetBreakpoint(const DebugProtocol::Message& message);
         void handleClearBreakpoint(const DebugProtocol::Message& message);
