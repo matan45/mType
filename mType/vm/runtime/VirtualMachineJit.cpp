@@ -92,6 +92,9 @@ namespace vm::runtime
         // executor that switches program (e.g. cross-library CALL) is
         // honoured by the next instruction fetch.
         auto& jitCurrentProgram = executionCtx->program;
+        // VK-1378: keep breakpoints working on this JIT-invoked mini-interpreter
+        // too, so the debug hook is uniform across every bytecode-driving loop.
+        bool debugActive = isDebugActive();
         while (callStack.size() > savedCallStackDepth)
         {
             if (instructionPointer >= jitCurrentProgram->getInstructionCount())
@@ -100,6 +103,11 @@ namespace vm::runtime
             }
 
             const auto& instr = jitCurrentProgram->getInstruction(instructionPointer);
+
+            if (debugActive)
+            {
+                debugPauseIfNeeded();
+            }
 
             try
             {
