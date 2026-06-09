@@ -7,7 +7,18 @@
 #include "../environment/EnvironmentBuilder.hpp"
 #include "../reflection/ReflectionNatives.hpp"
 #include "../json/JsonNatives.hpp"
-#include "../net/WinSocket.hpp"
+// Socket transport for --debug-port attach. Pick the platform implementation;
+// the Win/Posix .cpp files are mutually excluded by the build (see premake), so
+// referencing the wrong one would fail to link (mac/Linux CI).
+#ifdef _WIN32
+#   include "../net/WinSocket.hpp"
+    using DebugSocket       = net::WinSocket;
+    using DebugSocketServer = net::WinSocketServer;
+#else
+#   include "../net/PosixSocket.hpp"
+    using DebugSocket       = net::PosixSocket;
+    using DebugSocketServer = net::PosixSocketServer;
+#endif
 
 #include <atomic>
 #include <cstdint>
@@ -161,7 +172,7 @@ void runInDebugModePort(const std::string& filename,
         debugServer.setEnvironment(interpreter.getEnvironment());
 
         // Listen for a single attaching debug client.
-        net::WinSocketServer server;
+        DebugSocketServer server;
         std::promise<uintptr_t> clientPromise;
         std::future<uintptr_t> clientFuture = clientPromise.get_future();
         std::atomic<bool> accepted{false};
@@ -186,7 +197,11 @@ void runInDebugModePort(const std::string& filename,
 
         // Block until a client connects (the engine/host equivalent of stdin).
         uintptr_t clientFd = clientFuture.get();
-        auto sock = std::make_shared<net::WinSocket>(clientFd);
+#ifdef _WIN32
+        std::shared_ptr<net::ISocket> sock = std::make_shared<DebugSocket>(clientFd);
+#else
+        std::shared_ptr<net::ISocket> sock = std::make_shared<DebugSocket>(static_cast<int>(clientFd));
+#endif
 
         // Route protocol output to the socket; read commands back from it.
         debugger::DebugProtocol::setProtocolWriter(
