@@ -79,31 +79,6 @@ namespace vm::runtime
             executionCtx->program, stackManager, callStack, &loadedPrograms);
     }
 
-    // VK-1378: Shared debug gate. interpretLoop caches the result of
-    // isDebugActive() and refreshes it on the GC interval; the interop invoke
-    // loops compute it once per call. Both then call debugPauseIfNeeded()
-    // before each executeInstruction so breakpoints honour every execution
-    // path, not just interpretLoop.
-    bool VirtualMachine::isDebugActive() const
-    {
-        return debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled();
-    }
-
-    void VirtualMachine::debugPauseIfNeeded()
-    {
-        auto* loc = program->getSourceLocation(instructionPointer);
-        if (loc && loc->line > 0 && !loc->filename.empty())
-        {
-            errors::SourceLocation location(loc->filename,
-                                            static_cast<int>(loc->line),
-                                            static_cast<int>(loc->column));
-            if (debugger::DebugHookHelper::shouldPause(location))
-            {
-                debugger::DebugHookHelper::waitForResume();
-            }
-        }
-    }
-
     value::Value VirtualMachine::interpretLoop()
     {
         suspendedByAwait = false; // Reset flag at start
@@ -138,7 +113,7 @@ namespace vm::runtime
         // singleton + member call, so checking it per instruction isn't
         // free. Refresh inside the periodic GC block so a mid-run debug
         // attach still gets picked up within GC_CHECK_INTERVAL ops.
-        bool debugActive = isDebugActive();
+        bool debugActive = debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled();
 
         // Use executionCtx->program for instruction fetch so cross-library calls
         // (which switch executionCtx->program to a library) fetch from the correct bytecode.
@@ -177,7 +152,7 @@ namespace vm::runtime
                     {
                         instructionsSinceGC = 0;
                         gc::GC::maybeCollect();
-                        debugActive = isDebugActive();
+                        debugActive = debuggingEnabled && debugger::DebugHookHelper::isDebuggingEnabled();
                         profilerFull = vm::profiler::ProfilerHookHelper::isProfilingEnabled()
                                        && vm::profiler::ProfilerContext::getInstance().isFullMode();
                     }
@@ -201,7 +176,17 @@ namespace vm::runtime
                     // cached + refreshed inside the GC block above.
                     if (debugActive)
                     {
-                        debugPauseIfNeeded();
+                        auto* loc = program->getSourceLocation(instructionPointer);
+                        if (loc && loc->line > 0 && !loc->filename.empty())
+                        {
+                            errors::SourceLocation location(loc->filename,
+                                                            static_cast<int>(loc->line),
+                                                            static_cast<int>(loc->column));
+                            if (debugger::DebugHookHelper::shouldPause(location))
+                            {
+                                debugger::DebugHookHelper::waitForResume();
+                            }
+                        }
                     }
 
                     // Profiler: count opcode execution (full mode only)

@@ -125,10 +125,6 @@ namespace vm::runtime
                 // Use executionCtx->program so cross-library calls fetch from the correct bytecode
                 auto& currentProgram = executionCtx->program;
                 size_t targetDepth = savedCallStack.size();
-                // VK-1378: this mini-loop bypasses interpretLoop, so honour the
-                // debug hook here too — otherwise breakpoints in engine-invoked
-                // methods (onUpdate etc.) never pause.
-                bool debugActive = isDebugActive();
                 while (callStack.size() > targetDepth)
                 {
                     if (instructionPointer >= currentProgram->getInstructionCount())
@@ -136,10 +132,6 @@ namespace vm::runtime
                     if (suspendedByAwait)
                         break;
                     const auto& instr = currentProgram->getInstruction(instructionPointer);
-                    if (debugActive)
-                    {
-                        debugPauseIfNeeded();
-                    }
                     try
                     {
                         executeInstruction(instr);
@@ -338,8 +330,6 @@ namespace vm::runtime
                 // Use executionCtx->program so cross-library calls fetch from the correct bytecode
                 auto& currentProgram = executionCtx->program;
                 size_t targetDepth = savedCallStack.size();
-                // VK-1378: mirror invokeMethod — debug hook in the interop loop.
-                bool debugActive = isDebugActive();
                 while (callStack.size() > targetDepth)
                 {
                     if (instructionPointer >= currentProgram->getInstructionCount())
@@ -347,10 +337,6 @@ namespace vm::runtime
                     if (suspendedByAwait)
                         break;
                     const auto& instr = currentProgram->getInstruction(instructionPointer);
-                    if (debugActive)
-                    {
-                        debugPauseIfNeeded();
-                    }
                     try
                     {
                         executeInstruction(instr);

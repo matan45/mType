@@ -137,18 +137,11 @@ namespace vm::runtime
                 // executionCtx->program so cross-library calls fetch the correct bytecode.
                 auto& lambdaCurrentProgram = executionCtx->program;
                 size_t targetDepth = savedCallStack.size();
-                // VK-1378: debug hook in the interop loop so breakpoints inside
-                // engine-invoked lambda callbacks pause too.
-                bool debugActive = isDebugActive();
                 while (callStack.size() > targetDepth)
                 {
                     if (instructionPointer >= lambdaCurrentProgram->getInstructionCount())
                         break;
                     const auto& instr = lambdaCurrentProgram->getInstruction(instructionPointer);
-                    if (debugActive)
-                    {
-                        debugPauseIfNeeded();
-                    }
                     try
                     {
                         executeInstruction(instr);
