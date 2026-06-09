@@ -290,6 +290,11 @@ namespace tests::testSuite
             "interop: breakpoint pauses inside invokeMethod (VK-1378)",
             interopFixture,
             [interopFixture](services::ScriptInterpreter& interp) {
+                // Debugging is an interpreter-mode feature; JIT and the debugger
+                // are mutually exclusive. The --tests runner arms JIT for every
+                // suite, so force it off here for a deterministic interpreter run.
+                interp.getVM()->setJitEnabled(false);
+
                 resetDebugContext();
                 auto& ctx = debugger::DebugContext::getInstance();
 
