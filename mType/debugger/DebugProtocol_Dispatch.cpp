@@ -126,9 +126,7 @@ namespace debugger {
         }
     }
 
-    void DebugServer::run() {
-        running = true;
-
+    void DebugServer::installEventCallback() {
         debugContext->setEventCallback([](const DebugEvent& event) {
             switch (event.type) {
                 case DebugEvent::Type::BREAKPOINT_HIT:
@@ -152,6 +150,11 @@ namespace debugger {
                 }
             }
         });
+    }
+
+    void DebugServer::run() {
+        running = true;
+        installEventCallback();
 
         // Read commands from stdin without blocking shutdown. On Windows, VS Code
         // talks to us through anonymous pipes where streambuf::in_avail() can
@@ -168,10 +171,22 @@ namespace debugger {
 
             if (line.empty()) continue;
 
-            DebugProtocol::Message msg = DebugProtocol::parse(line);
-            if (!msg.command.empty()) {
-                processCommand(msg);
+            processLine(line);
+        }
+    }
+
+    void DebugServer::run(const std::function<bool(std::string&)>& readLine) {
+        running = true;
+        installEventCallback();
+
+        std::string line;
+        while (running) {
+            line.clear();
+            if (!readLine(line)) {
+                break;
             }
+            if (line.empty()) continue;
+            processLine(line);
         }
     }
 
@@ -180,6 +195,13 @@ namespace debugger {
         if (debugContext) {
             debugContext->setConditionEvaluator(nullptr);
             debugContext->stop();
+        }
+    }
+
+    void DebugServer::processLine(const std::string& line) {
+        DebugProtocol::Message msg = DebugProtocol::parse(line);
+        if (!msg.command.empty()) {
+            processCommand(msg);
         }
     }
 

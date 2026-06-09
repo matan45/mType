@@ -197,6 +197,33 @@
                 "default": "${workspaceFolder}"
               }
             }
+          },
+          "attach": {
+            "required": [
+              "port"
+            ],
+            "properties": {
+              "host": {
+                "type": "string",
+                "description": "Host of the running mType debug engine",
+                "default": "localhost"
+              },
+              "port": {
+                "type": "number",
+                "description": "TCP port the running mType debug engine is listening on",
+                "default": 5005
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Break immediately after attaching (only if the engine is paused at entry)",
+                "default": false
+              },
+              "trace": {
+                "type": "boolean",
+                "description": "Enable logging of the Debug Adapter Protocol",
+                "default": false
+              }
+            }
           }
         },
         "initialConfigurations": [
@@ -206,6 +233,13 @@
             "name": "Debug mType File",
             "program": "${file}",
             "stopOnEntry": true
+          },
+          {
+            "type": "mtype",
+            "request": "attach",
+            "name": "Attach to mType Engine",
+            "host": "localhost",
+            "port": 5005
           }
         ],
         "configurationSnippets": [
@@ -218,6 +252,17 @@
               "name": "Debug mType",
               "program": "^\"\\${file}\"",
               "stopOnEntry": true
+            }
+          },
+          {
+            "label": "mType: Attach",
+            "description": "Attach to a running mType debug engine over TCP",
+            "body": {
+              "type": "mtype",
+              "request": "attach",
+              "name": "Attach to mType",
+              "host": "localhost",
+              "port": 5005
             }
           }
         ]

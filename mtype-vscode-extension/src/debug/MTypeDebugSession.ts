@@ -11,7 +11,9 @@ import {
     Breakpoint
 } from '@vscode/debugadapter';
 import { DebugProtocol } from '@vscode/debugprotocol';
-import { InterpreterConnection, ProtocolMessage } from './InterpreterConnection';
+import { ProtocolConnection, ProtocolMessage } from './ProtocolConnection';
+import { InterpreterConnection } from './InterpreterConnection';
+import { SocketConnection } from './SocketConnection';
 import * as path from 'path';
 
 const THREAD_ID = 1;
@@ -30,9 +32,17 @@ interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
     cwd?: string;
 }
 
+interface AttachRequestArguments extends DebugProtocol.AttachRequestArguments {
+    host?: string;
+    port?: number;
+    stopOnEntry?: boolean;
+    trace?: boolean;
+}
+
 export class MTypeDebugSession extends LoggingDebugSession {
-    private connection: InterpreterConnection;
+    private connection!: ProtocolConnection;
     private stopOnEntry: boolean = true;
+    private isAttach: boolean = false;
     private lastStoppedFile: string = '';
     private lastStoppedLine: number = 0;
     private terminatedSent: boolean = false;
@@ -42,13 +52,26 @@ export class MTypeDebugSession extends LoggingDebugSession {
 
         this.setDebuggerLinesStartAt1(true);
         this.setDebuggerColumnsStartAt1(true);
+    }
 
-        this.connection = new InterpreterConnection();
+    /**
+     * Wire a freshly-created transport's events to DAP events. Shared by the
+     * launch (process) and attach (socket) flows.
+     */
+    private wireConnection(connection: ProtocolConnection): void {
+        this.connection = connection;
 
-        this.connection.on('stopped', (msg: ProtocolMessage) => {
+        connection.on('stopped', (msg: ProtocolMessage) => {
             const reason = msg.parameters.get('reason') || 'breakpoint';
             this.lastStoppedFile = msg.parameters.get('file') || '';
             this.lastStoppedLine = parseInt(msg.parameters.get('line') || '0', 10);
+
+            // On attach, the host emits its entry stop as soon as we connect.
+            // Swallow it (unless the user wants to stop at entry) so we don't
+            // surface a premature pause before configurationDone resumes it.
+            if (this.isAttach && reason === 'entry' && !this.stopOnEntry) {
+                return;
+            }
 
             // Clear variable cache on each stop
             if (reason === 'exception') {
@@ -59,15 +82,15 @@ export class MTypeDebugSession extends LoggingDebugSession {
             }
         });
 
-        this.connection.on('terminated', () => {
+        connection.on('terminated', () => {
             this.sendTerminatedOnce();
         });
 
-        this.connection.on('output', (text: string, category: string) => {
+        connection.on('output', (text: string, category: string) => {
             this.sendEvent(new OutputEvent(text + '\n', category));
         });
 
-        this.connection.on('exit', () => {
+        connection.on('exit', () => {
             this.sendTerminatedOnce();
         });
     }
@@ -101,6 +124,7 @@ export class MTypeDebugSession extends LoggingDebugSession {
 
     protected async launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments): Promise<void> {
         this.terminatedSent = false;
+        this.isAttach = false;
         this.stopOnEntry = args.stopOnEntry !== false;
 
         const interpreterPath = args.interpreterPath || '';
@@ -115,8 +139,11 @@ export class MTypeDebugSession extends LoggingDebugSession {
             return;
         }
 
+        const connection = new InterpreterConnection();
+        this.wireConnection(connection);
+
         try {
-            await this.connection.start(
+            await connection.start(
                 interpreterPath,
                 program,
                 args.args || [],
@@ -129,6 +156,29 @@ export class MTypeDebugSession extends LoggingDebugSession {
 
         } catch (err: any) {
             this.sendErrorResponse(response, 3, `Failed to launch: ${err.message}`);
+        }
+    }
+
+    protected async attachRequest(response: DebugProtocol.AttachResponse, args: AttachRequestArguments): Promise<void> {
+        this.terminatedSent = false;
+        this.isAttach = true;
+        // An attached, already-running host is typically not paused at entry.
+        this.stopOnEntry = args.stopOnEntry === true;
+
+        const host = args.host || 'localhost';
+        const port = args.port || 5005;
+
+        const connection = new SocketConnection();
+        this.wireConnection(connection);
+
+        try {
+            await connection.connect(host, port);
+
+            this.sendResponse(response);
+            this.sendEvent(new InitializedEvent());
+
+        } catch (err: any) {
+            this.sendErrorResponse(response, 5, `Failed to attach to ${host}:${port}: ${err.message}`);
         }
     }
 
@@ -205,6 +255,21 @@ export class MTypeDebugSession extends LoggingDebugSession {
 
     protected async configurationDoneRequest(response: DebugProtocol.ConfigurationDoneResponse, args: DebugProtocol.ConfigurationDoneArguments): Promise<void> {
         this.sendResponse(response);
+
+        if (this.isAttach) {
+            // The host drives itself. If it is paused at entry (the standalone
+            // --debug-port host does this), resume it now that breakpoints are
+            // set — unless the user asked to stop at entry. Any real STOPPED
+            // event flows through naturally, so don't synthesize one here.
+            if (!this.stopOnEntry) {
+                try {
+                    await this.connection.sendCommandExpectOK('CONTINUE');
+                } catch {
+                    // Already-running host: CONTINUE is harmless/ignored.
+                }
+            }
+            return;
+        }
 
         if (this.stopOnEntry) {
             // Already stopped at entry — send a stopped event so VS Code shows it
