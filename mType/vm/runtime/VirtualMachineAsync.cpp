@@ -176,6 +176,10 @@ namespace vm::runtime
 
         auto& currentProgram = executionCtx->program;
         size_t targetDepth = restoreCallStack.size();
+        // VK-1378: this async driver runs bytecode outside interpretLoop too;
+        // honour the debug hook so breakpoints in async method/lambda bodies
+        // pause. Re-evaluated each (re-entrant) call via the continuations.
+        bool debugActive = isDebugActive();
 
         auto restoreOuter = [&]() {
             callStack = restoreCallStack;
@@ -203,6 +207,10 @@ namespace vm::runtime
                     break;
 
                 const auto& instr = currentProgram->getInstruction(instructionPointer);
+                if (debugActive)
+                {
+                    debugPauseIfNeeded();
+                }
                 try
                 {
                     executeInstruction(instr);

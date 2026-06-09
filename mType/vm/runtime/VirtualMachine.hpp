@@ -513,6 +513,15 @@ namespace vm::runtime
         // Main execution loop
         value::Value interpretLoop();
 
+        // Debug hook shared by interpretLoop and the interop invoke paths
+        // (invokeMethod/invokeStaticMethod/invokeLambda/driveAsyncInvocation).
+        // isDebugActive() folds the per-VM flag with the global debugger state;
+        // debugPauseIfNeeded() performs the breakpoint check + waitForResume at
+        // the current instructionPointer. Defined in VirtualMachineLoop.cpp so
+        // the debug-helper includes stay confined to one TU. (VK-1378)
+        bool isDebugActive() const;
+        void debugPauseIfNeeded();
+
         // Instruction dispatch
         void executeInstruction(const bytecode::BytecodeProgram::Instruction& instr);
 
