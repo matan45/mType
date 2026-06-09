@@ -4,7 +4,9 @@
 #include "../../debugger/DebugExpressionEvaluator.hpp"
 #include "../../debugger/DebugProtocol.hpp"
 #include "../../errors/SourceLocation.hpp"
+#include "../../services/ScriptInterpreter.hpp"
 #include "../../value/ValueType.hpp"
+#include "../../value/ValueShim.hpp"
 
 #include <optional>
 #include <cstdint>
@@ -273,6 +275,62 @@ namespace tests::testSuite
 
                 ctx.resume();
                 ctx.popCallFrame();
+                debugger::DebugContext::shutdown();
+            });
+
+        // VK-1378: end-to-end regression. A method invoked through the interop
+        // path (ScriptInterpreter::callMethod -> vm->invokeMethod) must honour
+        // breakpoints. Before the fix the invokeMethod mini-loop bypassed the
+        // debug hook that lived only in interpretLoop, so engine-invoked
+        // lifecycle methods (onUpdate etc.) never paused.
+        const std::string interopFixture =
+            "mType/tests/testFiles/debugger/interopBreakpoint.mt";
+
+        addInterpreterCallbackTest(
+            "interop: breakpoint pauses inside invokeMethod (VK-1378)",
+            interopFixture,
+            [interopFixture](services::ScriptInterpreter& interp) {
+                // Debugging is an interpreter-mode feature; JIT and the debugger
+                // are mutually exclusive. The --tests runner arms JIT for every
+                // suite, so force it off here for a deterministic interpreter run.
+                interp.getVM()->setJitEnabled(false);
+
+                resetDebugContext();
+                auto& ctx = debugger::DebugContext::getInstance();
+
+                // line 15 is `total = total + delta;` inside step().
+                ctx.addBreakpoint(interopFixture, 15);
+
+                bool hit = false;
+                ctx.setEventCallback([&](const debugger::DebugEvent& event) {
+                    if (event.type == debugger::DebugEvent::Type::BREAKPOINT_HIT &&
+                        event.location.getLine() == 15)
+                    {
+                        hit = true;
+                    }
+                    // Release the paused VM thread immediately so the test
+                    // can't deadlock on waitForResume(); also models the
+                    // debug client's CONTINUE.
+                    ctx.continueExecution();
+                });
+
+                // Arm the executing VM exactly as ScriptDebugServer does.
+                interp.enableDebugging();
+
+                value::Value target = interp.createObject("InteropBreakTarget");
+                require(value::isObject(target),
+                    "fixture object should construct");
+
+                // Routes through vm->invokeMethod — the path that lacked the hook.
+                std::vector<value::Value> args{ value::Value(int64_t{5}) };
+                value::Value result = interp.callMethod(target, "step", args);
+
+                ctx.setEventCallback(nullptr);
+                require(hit,
+                    "breakpoint inside invokeMethod did not pause (VK-1378 regression)");
+                require(value::isInt(result) && value::asInt(result) == 5,
+                    "step() should still return its value after the debug pause");
+
                 debugger::DebugContext::shutdown();
             });
     }
