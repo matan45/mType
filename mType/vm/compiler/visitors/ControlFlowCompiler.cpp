@@ -94,9 +94,17 @@ namespace vm::compiler::visitors
 
         // Guard-clause narrowing: `if (x == null) { return/throw; }` narrows x
         // to non-null for all subsequent code in the enclosing scope.
+        // MYT-381: inside a loop, `continue`/`break` also exit the guarded
+        // path; break narrows only when it binds to the loop (not a switch).
         if (!conditionFacts.whenFalseNonNull.empty() && !node->getElseStatement())
         {
-            if (validation::ReturnPathValidator::pathAlwaysReturns(node->getThenStatement()))
+            const bool inLoop = ctx.loopManager.isInLoop();
+            const bool breakExits = inLoop && !ctx.switchManager.isInSwitch();
+            const bool thenExits = inLoop
+                ? validation::ReturnPathValidator::pathAlwaysExitsLoopIteration(
+                      node->getThenStatement(), breakExits)
+                : validation::ReturnPathValidator::pathAlwaysReturns(node->getThenStatement());
+            if (thenExits)
             {
                 ctx.nullNarrowing.ensureScope();
                 for (const auto& varName : conditionFacts.whenFalseNonNull)

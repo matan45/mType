@@ -7,6 +7,8 @@
 #include "../../../ast/nodes/statements/CaseNode.hpp"
 #include "../../../ast/nodes/statements/DefaultCaseNode.hpp"
 #include "../../../ast/nodes/statements/TryNode.hpp"
+#include "../../../ast/nodes/statements/BreakNode.hpp"
+#include "../../../ast/nodes/statements/ContinueNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 
 namespace vm::compiler::validation
@@ -86,6 +88,59 @@ namespace vm::compiler::validation
         }
 
         // Other statements don't guarantee a return
+        return false;
+    }
+
+    bool ReturnPathValidator::pathAlwaysExitsLoopIteration(ast::ASTNode* node, bool breakExits)
+    {
+        if (!node)
+        {
+            return false;
+        }
+
+        // Direct exits: return/throw leave the function, continue ends the
+        // iteration, break ends the loop (only when it binds to the loop).
+        if (dynamic_cast<ast::ReturnNode*>(node))
+        {
+            return true;
+        }
+
+        if (dynamic_cast<ast::ThrowNode*>(node))
+        {
+            return true;
+        }
+
+        if (dynamic_cast<ast::ContinueNode*>(node))
+        {
+            return true;
+        }
+
+        if (dynamic_cast<ast::BreakNode*>(node))
+        {
+            return breakExits;
+        }
+
+        if (auto* block = dynamic_cast<ast::BlockNode*>(node))
+        {
+            return blockAlwaysExits(block, breakExits);
+        }
+
+        if (auto* ifNode = dynamic_cast<ast::IfNode*>(node))
+        {
+            return ifAlwaysExits(ifNode, breakExits);
+        }
+
+        if (auto* switchNode = dynamic_cast<ast::SwitchNode*>(node))
+        {
+            return switchAlwaysExits(switchNode);
+        }
+
+        if (auto* tryNode = dynamic_cast<ast::TryNode*>(node))
+        {
+            return tryAlwaysExits(tryNode, breakExits);
+        }
+
+        // Other statements (including nested loops) don't guarantee an exit
         return false;
     }
 
@@ -239,6 +294,121 @@ namespace vm::compiler::validation
 
         // Try returns and all catches (if any) return
         // This is true even if there are no catch blocks
+        return true;
+    }
+
+    bool ReturnPathValidator::blockAlwaysExits(ast::BlockNode* block, bool breakExits)
+    {
+        if (!block)
+        {
+            return false;
+        }
+
+        for (const auto& stmt : block->getStatements())
+        {
+            if (pathAlwaysExitsLoopIteration(stmt.get(), breakExits))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool ReturnPathValidator::ifAlwaysExits(ast::IfNode* ifNode, bool breakExits)
+    {
+        if (!ifNode)
+        {
+            return false;
+        }
+
+        auto* elseBranch = ifNode->getElseStatement();
+        if (!elseBranch)
+        {
+            return false;
+        }
+
+        return pathAlwaysExitsLoopIteration(ifNode->getThenStatement(), breakExits)
+            && pathAlwaysExitsLoopIteration(elseBranch, breakExits);
+    }
+
+    bool ReturnPathValidator::switchAlwaysExits(ast::SwitchNode* switchNode)
+    {
+        if (!switchNode)
+        {
+            return false;
+        }
+
+        // Inside the switch a `break` binds to the switch itself and falls
+        // through to the code after it — it never exits the loop iteration.
+        const auto& cases = switchNode->getCases();
+        bool hasDefault = false;
+
+        for (const auto& caseNode : cases)
+        {
+            if (dynamic_cast<ast::DefaultCaseNode*>(caseNode.get()))
+            {
+                hasDefault = true;
+            }
+
+            const std::vector<std::unique_ptr<ast::ASTNode>>* statements = nullptr;
+            if (auto* casePtr = dynamic_cast<ast::CaseNode*>(caseNode.get()))
+            {
+                statements = &casePtr->getStatements();
+            }
+            else if (auto* defaultPtr = dynamic_cast<ast::DefaultCaseNode*>(caseNode.get()))
+            {
+                statements = &defaultPtr->getStatements();
+            }
+
+            if (statements)
+            {
+                bool caseExits = false;
+                for (const auto& stmt : *statements)
+                {
+                    if (pathAlwaysExitsLoopIteration(stmt.get(), /*breakExits=*/false))
+                    {
+                        caseExits = true;
+                        break;
+                    }
+                }
+
+                if (!caseExits)
+                {
+                    return false;
+                }
+            }
+        }
+
+        return hasDefault;
+    }
+
+    bool ReturnPathValidator::tryAlwaysExits(ast::TryNode* tryNode, bool breakExits)
+    {
+        if (!tryNode)
+        {
+            return false;
+        }
+
+        auto* finallyBlock = tryNode->getFinallyBlock();
+        if (finallyBlock && pathAlwaysExitsLoopIteration(finallyBlock, breakExits))
+        {
+            return true;
+        }
+
+        if (!pathAlwaysExitsLoopIteration(tryNode->getTryBlock(), breakExits))
+        {
+            return false;
+        }
+
+        for (const auto& catchBlock : tryNode->getCatchBlocks())
+        {
+            if (!pathAlwaysExitsLoopIteration(catchBlock->getBody(), breakExits))
+            {
+                return false;
+            }
+        }
+
         return true;
     }
 }

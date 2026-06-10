@@ -48,7 +48,8 @@ namespace vm::compiler::visitors
         ctx.variableTracker.beginScope();
         {
             types::ScopedNullNarrowing narrowing(ctx.nullNarrowing,
-                                                 conditionFacts.whenTrueNonNull);
+                                                 conditionFacts.whenTrueNonNull,
+                                                 /*forceScope=*/true);
             // MYT-271: braceless while-bodies need the same cleanup as braced.
             size_t whileBodyOffsetBefore = ctx.program.getCurrentOffset();
             node->getBody()->accept(ctx.visitor);
@@ -85,10 +86,17 @@ namespace vm::compiler::visitors
 
         // Compile body with its own scope
         ctx.variableTracker.beginScope();
-        // MYT-271: braceless do-while bodies need the same cleanup as braced.
-        size_t doBodyOffsetBefore = ctx.program.getCurrentOffset();
-        node->getBody()->accept(ctx.visitor);
-        statementCleanup::emitStatementCleanup(ctx, node->getBody(), doBodyOffsetBefore);
+        {
+            // MYT-381: bound guard-clause narrowing to the body (no condition
+            // facts apply — a do-while body runs before the condition).
+            types::ScopedNullNarrowing narrowing(ctx.nullNarrowing,
+                                                 std::vector<std::string>{},
+                                                 /*forceScope=*/true);
+            // MYT-271: braceless do-while bodies need the same cleanup as braced.
+            size_t doBodyOffsetBefore = ctx.program.getCurrentOffset();
+            node->getBody()->accept(ctx.visitor);
+            statementCleanup::emitStatementCleanup(ctx, node->getBody(), doBodyOffsetBefore);
+        }
         ctx.variableTracker.endScope();
         ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
@@ -181,7 +189,8 @@ namespace vm::compiler::visitors
         // MYT-271: braceless for-bodies need the same cleanup as braced.
         if (node->getBody()) {
             types::ScopedNullNarrowing narrowing(ctx.nullNarrowing,
-                                                 forConditionFacts.whenTrueNonNull);
+                                                 forConditionFacts.whenTrueNonNull,
+                                                 /*forceScope=*/true);
             size_t forBodyOffsetBefore = ctx.program.getCurrentOffset();
             node->getBody()->accept(ctx.visitor);
             statementCleanup::emitStatementCleanup(ctx, node->getBody(), forBodyOffsetBefore);

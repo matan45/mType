@@ -95,6 +95,22 @@ namespace tests::testSuite
                         errorPath + "narrowingScopedToIfBlock_error.mt",
                         TestType::ERROR_EXPECTED);
 
+        // === LOOP EXIT GUARD NARROWING (MYT-381) ===
+        addOutputVerificationTest("Continue Guard Narrowing",
+                        passPath + "continueGuardNarrowing.mt");
+        addOutputVerificationTest("Break Guard Narrowing",
+                        passPath + "breakGuardNarrowing.mt");
+        addOutputVerificationTest("Do-While Guard Narrowing",
+                        passPath + "doWhileGuardNarrowing.mt");
+        addTestFromFile("Narrowing Not Leaked Past Loop",
+                        errorPath + "narrowingNotLeakedPastLoop_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "nullable receiver");
+        addTestFromFile("Break Guard Inside Switch Not Narrowed",
+                        errorPath + "breakGuardInsideSwitch_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "nullable receiver");
+
         // === FIELDS AND CHAINED ACCESS ===
         addOutputVerificationTest("Nullable Field Assign and Get",
                         passPath + "nullableFieldAssignAndGet.mt");

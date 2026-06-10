@@ -1,0 +1,15 @@
+Test 1: for + continue guard
+1
+2
+Test 2: while + continue guard
+1
+2
+Test 3: statement before continue
+skip
+1
+2
+Test 4: nested exit guard
+0
+1
+3
+Continue guard tests passed!
