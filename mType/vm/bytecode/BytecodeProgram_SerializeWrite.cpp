@@ -21,7 +21,8 @@ namespace vm::bytecode
         //   11: Serialized top-level local names for debugger variable inspection.
         //   12: MYT-375 typed annotation array payloads.
         //   13: MYT-375 annotation schema default value type.
-        constexpr uint32_t BYTECODE_FORMAT_VERSION = 13;
+        //   14: MYT-380 serialized per-function local-variable names for debugger inspection.
+        constexpr uint32_t BYTECODE_FORMAT_VERSION = 14;
     }
 
     std::string BytecodeProgram::disassemble() const {
@@ -186,6 +187,8 @@ namespace vm::bytecode
                 out.write(reinterpret_cast<const char*>(&len), sizeof(len));
                 out.write(paramName.data(), len);
             }
+
+            BytecodeIOHelper::writeStringVector(out, func.localVariableNames);
 
             const auto& exceptionTable = func.exceptionTable;
             size_t entryCount = exceptionTable.size();

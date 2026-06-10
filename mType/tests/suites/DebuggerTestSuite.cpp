@@ -3,6 +3,7 @@
 #include "../../debugger/DebugContext.hpp"
 #include "../../debugger/DebugExpressionEvaluator.hpp"
 #include "../../debugger/DebugProtocol.hpp"
+#include "../../debugger/VMVariableInspector.hpp"
 #include "../../errors/SourceLocation.hpp"
 #include "../../services/ScriptInterpreter.hpp"
 #include "../../value/ValueType.hpp"
@@ -64,6 +65,19 @@ namespace tests::testSuite
                 }
                 return it->second;
             };
+        }
+
+        bool hasVariableNamed(const std::vector<debugger::DebugVariable>& variables,
+                              const std::string& name)
+        {
+            for (const auto& variable : variables)
+            {
+                if (variable.name == name)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 
@@ -330,6 +344,66 @@ namespace tests::testSuite
                     "breakpoint inside invokeMethod did not pause (VK-1378 regression)");
                 require(value::isInt(result) && value::asInt(result) == 5,
                     "step() should still return its value after the debug pause");
+
+                debugger::DebugContext::shutdown();
+            });
+
+        const std::string methodLocalsFixture =
+            "mType/tests/testFiles/debugger/methodFrameLocalNames.mt";
+
+        addInterpreterCallbackTest(
+            "interop: method frame locals use source names (MYT-380)",
+            methodLocalsFixture,
+            [methodLocalsFixture](services::ScriptInterpreter& interp) {
+                interp.getVM()->setJitEnabled(false);
+
+                resetDebugContext();
+                auto& ctx = debugger::DebugContext::getInstance();
+
+                // line 15 is `return mag;`, after dx/dy/mag have all been initialized.
+                ctx.addBreakpoint(methodLocalsFixture, 15);
+
+                bool hit = false;
+                std::vector<debugger::DebugVariable> localsAtPause;
+                ctx.setEventCallback([&](const debugger::DebugEvent& event) {
+                    if (event.type == debugger::DebugEvent::Type::BREAKPOINT_HIT &&
+                        event.location.getLine() == 15)
+                    {
+                        hit = true;
+                        debugger::VMVariableInspector inspector;
+                        localsAtPause = inspector.getLocalVariables(interp.getVM());
+                    }
+                    ctx.continueExecution();
+                });
+
+                interp.enableDebugging();
+
+                value::Value target = interp.createObject("MethodFrameLocalNamesTarget");
+                require(value::isObject(target),
+                    "fixture object should construct");
+
+                std::vector<value::Value> args{ value::Value(int64_t{5}) };
+                value::Value result = interp.callMethod(target, "step", args);
+
+                ctx.setEventCallback(nullptr);
+                require(hit, "breakpoint inside method did not pause");
+                require(value::isInt(result) && value::asInt(result) == 13,
+                    "step() should still return its computed value");
+
+                require(hasVariableNamed(localsAtPause, "this"),
+                    "method locals should include this");
+                require(hasVariableNamed(localsAtPause, "delta"),
+                    "method locals should include parameter delta");
+                require(hasVariableNamed(localsAtPause, "dx"),
+                    "method locals should include local dx");
+                require(hasVariableNamed(localsAtPause, "dy"),
+                    "method locals should include local dy");
+                require(hasVariableNamed(localsAtPause, "mag"),
+                    "method locals should include local mag");
+                require(!hasVariableNamed(localsAtPause, "local_2") &&
+                        !hasVariableNamed(localsAtPause, "local_3") &&
+                        !hasVariableNamed(localsAtPause, "local_4"),
+                    "method locals should not fall back to local_N names");
 
                 debugger::DebugContext::shutdown();
             });

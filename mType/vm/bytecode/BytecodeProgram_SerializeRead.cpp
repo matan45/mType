@@ -12,7 +12,7 @@ namespace vm::bytecode
         // BytecodeProgram_SerializeWrite.cpp. Reader rejects any other value
         // with a "recompile" diagnostic so a stale .mtc cannot silently
         // misexecute against a newer interpreter.
-        constexpr uint32_t BYTECODE_FORMAT_VERSION = 13;
+        constexpr uint32_t BYTECODE_FORMAT_VERSION = 14;
     }
 
     BytecodeProgram BytecodeProgram::deserialize(std::istream& in) {
