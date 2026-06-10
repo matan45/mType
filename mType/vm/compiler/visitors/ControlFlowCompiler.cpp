@@ -119,7 +119,10 @@ namespace vm::compiler::visitors
 
     value::Value ControlFlowCompiler::compileSwitch(ast::SwitchNode* node)
     {
-        ctx.switchManager.enterSwitch();
+        // Capture the entry offset before the switch expression so compileBreak
+        // can resolve break targets by nesting order (MYT-382). This is the
+        // smallest possible offset for the switch, which is strictly safe.
+        ctx.switchManager.enterSwitch(ctx.program.getCurrentOffset());
 
         // Compile switch expression
         node->getExpression()->accept(ctx.visitor);
@@ -428,12 +431,34 @@ namespace vm::compiler::visitors
         // so pool slots allocated inside the loop body are returned before
         // the break jump. Switch contexts are not stack-scope-emitting so
         // only the loop branch needs the delta.
-        // IMPORTANT: Check switch context first! When a switch is nested in a
-        // loop, break should exit the switch, not the loop.
-        if (ctx.switchManager.isInSwitch()) {
+        //
+        // MYT-382: bind break to the INNERMOST breakable construct. The two
+        // managers are independent stacks, so decide by entry order: bytecode
+        // offsets are strictly monotonic and a nested construct is always
+        // entered after its encloser, so the construct entered later (larger
+        // offset) is nested deeper. A bare isInSwitch()-first check wrongly
+        // bound a break in a loop nested inside a switch case to the switch.
+        const bool inSwitch = ctx.switchManager.isInSwitch();
+        const bool inLoop = ctx.loopManager.isInLoop();
+        bool breakToSwitch;
+        if (inSwitch && inLoop) {
+            // Strict >: equal offsets cannot occur for genuine nesting
+            // (compileSwitch always emits >= 1 instruction before any case
+            // body, hence before any loop nested in a case).
+            breakToSwitch = ctx.switchManager.getCurrentSwitchEntryOffset()
+                          > ctx.loopManager.getLoopStart();
+        } else if (inSwitch) {
+            breakToSwitch = true;
+        } else if (inLoop) {
+            breakToSwitch = false;
+        } else {
+            throw errors::ParseException("Break outside of loop or switch");
+        }
+
+        if (breakToSwitch) {
             size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
             ctx.switchManager.registerBreak(breakJump);
-        } else if (ctx.loopManager.isInLoop()) {
+        } else {
             const uint32_t leaveCount = ctx.loopManager.getOpenStackScopeDepthInLoop();
             for (uint32_t i = 0; i < leaveCount; ++i) {
                 ctx.emitter.emitWithLocation(bytecode::OpCode::STACK_SCOPE_LEAVE, node);
@@ -449,8 +474,6 @@ namespace vm::compiler::visitors
                 size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
                 ctx.loopManager.registerBreak(breakJump);
             }
-        } else {
-            throw errors::ParseException("Break outside of loop or switch");
         }
         return std::monostate{};
     }

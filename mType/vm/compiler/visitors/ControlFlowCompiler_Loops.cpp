@@ -100,6 +100,11 @@ namespace vm::compiler::visitors
         ctx.variableTracker.endScope();
         ctx.globalRegistry.removeVariablesOutOfScope(ctx.variableTracker.getCurrentScopeDepth());
 
+        // MYT-383: continue in a do-while must jump to the condition, not the
+        // body start (loopStart). The condition is emitted after the body with
+        // no separate label, so record its offset here for the continue patch.
+        size_t conditionStart = ctx.program.getCurrentOffset();
+
         // Compile condition
         node->getCondition()->accept(ctx.visitor);
 
@@ -129,7 +134,7 @@ namespace vm::compiler::visitors
             ctx.emitter.patchJump(breakJump);
         }
         for (size_t contJump : ctx.loopManager.getContinueJumps()) {
-            ctx.program.patchJump(contJump, static_cast<uint64_t>(loopStart));
+            ctx.program.patchJump(contJump, static_cast<uint64_t>(conditionStart));
         }
         ctx.loopManager.exitLoop();
 
