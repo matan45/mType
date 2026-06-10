@@ -102,6 +102,10 @@ namespace tests::testSuite
                         passPath + "breakGuardNarrowing.mt");
         addOutputVerificationTest("Do-While Guard Narrowing",
                         passPath + "doWhileGuardNarrowing.mt");
+        // MYT-384: break in a loop nested inside a switch case binds to the
+        // loop, so the break-guard narrows for the rest of the loop body.
+        addOutputVerificationTest("Break Guard Loop Inside Switch",
+                        passPath + "breakGuardLoopInsideSwitch.mt");
         addTestFromFile("Narrowing Not Leaked Past Loop",
                         errorPath + "narrowingNotLeakedPastLoop_error.mt",
                         TestType::ERROR_EXPECTED,

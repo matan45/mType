@@ -99,7 +99,7 @@ namespace vm::compiler::visitors
         if (!conditionFacts.whenFalseNonNull.empty() && !node->getElseStatement())
         {
             const bool inLoop = ctx.loopManager.isInLoop();
-            const bool breakExits = inLoop && !ctx.switchManager.isInSwitch();
+            const bool breakExits = breakBindsToLoop();   // MYT-384: was inLoop && !isInSwitch()
             const bool thenExits = inLoop
                 ? validation::ReturnPathValidator::pathAlwaysExitsLoopIteration(
                       node->getThenStatement(), breakExits)
@@ -424,6 +424,21 @@ namespace vm::compiler::visitors
         return std::monostate{};
     }
 
+    bool ControlFlowCompiler::breakBindsToLoop() const
+    {
+        if (!ctx.loopManager.isInLoop()) {
+            return false;
+        }
+        if (!ctx.switchManager.isInSwitch()) {
+            return true;
+        }
+        // Both active: the loop is nested deeper iff it was entered later
+        // (strictly larger offset). Equal offsets cannot occur for genuine
+        // nesting — compileSwitch emits >= 1 instruction before any case body.
+        return ctx.loopManager.getLoopStart()
+             > ctx.switchManager.getCurrentSwitchEntryOffset();
+    }
+
     value::Value ControlFlowCompiler::compileBreak(ast::BreakNode* node)
     {
         // Synthesize one STACK_SCOPE_LEAVE per active stack-scope between
@@ -432,28 +447,13 @@ namespace vm::compiler::visitors
         // the break jump. Switch contexts are not stack-scope-emitting so
         // only the loop branch needs the delta.
         //
-        // MYT-382: bind break to the INNERMOST breakable construct. The two
-        // managers are independent stacks, so decide by entry order: bytecode
-        // offsets are strictly monotonic and a nested construct is always
-        // entered after its encloser, so the construct entered later (larger
-        // offset) is nested deeper. A bare isInSwitch()-first check wrongly
-        // bound a break in a loop nested inside a switch case to the switch.
-        const bool inSwitch = ctx.switchManager.isInSwitch();
-        const bool inLoop = ctx.loopManager.isInLoop();
-        bool breakToSwitch;
-        if (inSwitch && inLoop) {
-            // Strict >: equal offsets cannot occur for genuine nesting
-            // (compileSwitch always emits >= 1 instruction before any case
-            // body, hence before any loop nested in a case).
-            breakToSwitch = ctx.switchManager.getCurrentSwitchEntryOffset()
-                          > ctx.loopManager.getLoopStart();
-        } else if (inSwitch) {
-            breakToSwitch = true;
-        } else if (inLoop) {
-            breakToSwitch = false;
-        } else {
+        // MYT-382/MYT-384: bind break to the INNERMOST breakable construct.
+        // The innermost-construct decision lives in breakBindsToLoop() so this
+        // emit path and compileIf's guard-narrowing predicate can't drift.
+        if (!ctx.switchManager.isInSwitch() && !ctx.loopManager.isInLoop()) {
             throw errors::ParseException("Break outside of loop or switch");
         }
+        const bool breakToSwitch = !breakBindsToLoop();
 
         if (breakToSwitch) {
             size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);

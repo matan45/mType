@@ -56,6 +56,13 @@ namespace vm::compiler::visitors
         // exact defect class this consolidation guards against).
         void compileCaseBody(ast::ASTNode* caseNode);
 
+        // MYT-382/MYT-384: a `break` at the current compile point binds to the
+        // INNERMOST breakable construct. Returns true iff such a break exits the
+        // innermost LOOP iteration (binds to the loop, not an enclosing switch).
+        // Single source of truth shared by compileBreak (emit) and compileIf
+        // (guard-narrowing predicate) so the two can't drift.
+        bool breakBindsToLoop() const;
+
         CompilerContext& ctx;
         std::unique_ptr<TryStatementHelper> tryHelper;
     };
