@@ -1,0 +1,7 @@
+Test 1: do-while + continue guard
+5
+Test 2: do-while + break guard
+0
+1
+after do-while
+Do-while guard tests passed!

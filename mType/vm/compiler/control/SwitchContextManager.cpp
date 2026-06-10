@@ -3,9 +3,10 @@
 
 namespace vm::compiler::control
 {
-    void SwitchContextManager::enterSwitch()
+    void SwitchContextManager::enterSwitch(size_t entryOffset)
     {
         SwitchContext ctx;
+        ctx.entryOffset = entryOffset;
         switchStack.push_back(ctx);
     }
 
@@ -44,5 +45,13 @@ namespace vm::compiler::control
             throw errors::RuntimeException("Not in a switch context");
         }
         return switchStack.back().breakJumps;
+    }
+
+    size_t SwitchContextManager::getCurrentSwitchEntryOffset() const
+    {
+        if (switchStack.empty()) {
+            throw errors::RuntimeException("Not in a switch context");
+        }
+        return switchStack.back().entryOffset;
     }
 }

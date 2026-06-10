@@ -94,9 +94,17 @@ namespace vm::compiler::visitors
 
         // Guard-clause narrowing: `if (x == null) { return/throw; }` narrows x
         // to non-null for all subsequent code in the enclosing scope.
+        // MYT-381: inside a loop, `continue`/`break` also exit the guarded
+        // path; break narrows only when it binds to the loop (not a switch).
         if (!conditionFacts.whenFalseNonNull.empty() && !node->getElseStatement())
         {
-            if (validation::ReturnPathValidator::pathAlwaysReturns(node->getThenStatement()))
+            const bool inLoop = ctx.loopManager.isInLoop();
+            const bool breakExits = breakBindsToLoop();   // MYT-384: was inLoop && !isInSwitch()
+            const bool thenExits = inLoop
+                ? validation::ReturnPathValidator::pathAlwaysExitsLoopIteration(
+                      node->getThenStatement(), breakExits)
+                : validation::ReturnPathValidator::pathAlwaysReturns(node->getThenStatement());
+            if (thenExits)
             {
                 ctx.nullNarrowing.ensureScope();
                 for (const auto& varName : conditionFacts.whenFalseNonNull)
@@ -111,7 +119,10 @@ namespace vm::compiler::visitors
 
     value::Value ControlFlowCompiler::compileSwitch(ast::SwitchNode* node)
     {
-        ctx.switchManager.enterSwitch();
+        // Capture the entry offset before the switch expression so compileBreak
+        // can resolve break targets by nesting order (MYT-382). This is the
+        // smallest possible offset for the switch, which is strictly safe.
+        ctx.switchManager.enterSwitch(ctx.program.getCurrentOffset());
 
         // Compile switch expression
         node->getExpression()->accept(ctx.visitor);
@@ -413,6 +424,21 @@ namespace vm::compiler::visitors
         return std::monostate{};
     }
 
+    bool ControlFlowCompiler::breakBindsToLoop() const
+    {
+        if (!ctx.loopManager.isInLoop()) {
+            return false;
+        }
+        if (!ctx.switchManager.isInSwitch()) {
+            return true;
+        }
+        // Both active: the loop is nested deeper iff it was entered later
+        // (strictly larger offset). Equal offsets cannot occur for genuine
+        // nesting — compileSwitch emits >= 1 instruction before any case body.
+        return ctx.loopManager.getLoopStart()
+             > ctx.switchManager.getCurrentSwitchEntryOffset();
+    }
+
     value::Value ControlFlowCompiler::compileBreak(ast::BreakNode* node)
     {
         // Synthesize one STACK_SCOPE_LEAVE per active stack-scope between
@@ -420,12 +446,19 @@ namespace vm::compiler::visitors
         // so pool slots allocated inside the loop body are returned before
         // the break jump. Switch contexts are not stack-scope-emitting so
         // only the loop branch needs the delta.
-        // IMPORTANT: Check switch context first! When a switch is nested in a
-        // loop, break should exit the switch, not the loop.
-        if (ctx.switchManager.isInSwitch()) {
+        //
+        // MYT-382/MYT-384: bind break to the INNERMOST breakable construct.
+        // The innermost-construct decision lives in breakBindsToLoop() so this
+        // emit path and compileIf's guard-narrowing predicate can't drift.
+        if (!ctx.switchManager.isInSwitch() && !ctx.loopManager.isInLoop()) {
+            throw errors::ParseException("Break outside of loop or switch");
+        }
+        const bool breakToSwitch = !breakBindsToLoop();
+
+        if (breakToSwitch) {
             size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
             ctx.switchManager.registerBreak(breakJump);
-        } else if (ctx.loopManager.isInLoop()) {
+        } else {
             const uint32_t leaveCount = ctx.loopManager.getOpenStackScopeDepthInLoop();
             for (uint32_t i = 0; i < leaveCount; ++i) {
                 ctx.emitter.emitWithLocation(bytecode::OpCode::STACK_SCOPE_LEAVE, node);
@@ -441,8 +474,6 @@ namespace vm::compiler::visitors
                 size_t breakJump = ctx.emitter.emitJump(bytecode::OpCode::JUMP);
                 ctx.loopManager.registerBreak(breakJump);
             }
-        } else {
-            throw errors::ParseException("Break outside of loop or switch");
         }
         return std::monostate{};
     }

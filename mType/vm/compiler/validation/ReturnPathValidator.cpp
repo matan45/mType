@@ -7,6 +7,8 @@
 #include "../../../ast/nodes/statements/CaseNode.hpp"
 #include "../../../ast/nodes/statements/DefaultCaseNode.hpp"
 #include "../../../ast/nodes/statements/TryNode.hpp"
+#include "../../../ast/nodes/statements/BreakNode.hpp"
+#include "../../../ast/nodes/statements/ContinueNode.hpp"
 #include "../../../types/TypeConversionUtils.hpp"
 
 namespace vm::compiler::validation
@@ -45,12 +47,25 @@ namespace vm::compiler::validation
 
     bool ReturnPathValidator::pathAlwaysReturns(ast::ASTNode* node)
     {
+        // Only return/throw count as exits — continue/break do not return.
+        return pathAlwaysExits(node, {/*continueExits=*/false, /*breakExits=*/false});
+    }
+
+    bool ReturnPathValidator::pathAlwaysExitsLoopIteration(ast::ASTNode* node, bool breakExits)
+    {
+        // continue always ends the iteration; break does so only when it binds
+        // to the loop (breakExits) rather than an enclosing switch.
+        return pathAlwaysExits(node, {/*continueExits=*/true, breakExits});
+    }
+
+    bool ReturnPathValidator::pathAlwaysExits(ast::ASTNode* node, ExitCriteria crit)
+    {
         if (!node)
         {
             return false;
         }
 
-        // Direct return or throw statements
+        // return/throw always leave the function; continue/break exit per crit.
         if (dynamic_cast<ast::ReturnNode*>(node))
         {
             return true;
@@ -61,48 +76,51 @@ namespace vm::compiler::validation
             return true;
         }
 
-        // Block statement
+        if (dynamic_cast<ast::ContinueNode*>(node))
+        {
+            return crit.continueExits;
+        }
+
+        if (dynamic_cast<ast::BreakNode*>(node))
+        {
+            return crit.breakExits;
+        }
+
         if (auto* block = dynamic_cast<ast::BlockNode*>(node))
         {
-            return blockAlwaysReturns(block);
+            return blockAlwaysExits(block, crit);
         }
 
-        // If statement
         if (auto* ifNode = dynamic_cast<ast::IfNode*>(node))
         {
-            return ifAlwaysReturns(ifNode);
+            return ifAlwaysExits(ifNode, crit);
         }
 
-        // Switch statement
         if (auto* switchNode = dynamic_cast<ast::SwitchNode*>(node))
         {
-            return switchAlwaysReturns(switchNode);
+            return switchAlwaysExits(switchNode, crit);
         }
 
-        // Try statement
         if (auto* tryNode = dynamic_cast<ast::TryNode*>(node))
         {
-            return tryAlwaysReturns(tryNode);
+            return tryAlwaysExits(tryNode, crit);
         }
 
-        // Other statements don't guarantee a return
+        // Other statements (including nested loops) don't guarantee an exit
         return false;
     }
 
-    bool ReturnPathValidator::blockAlwaysReturns(ast::BlockNode* block)
+    bool ReturnPathValidator::blockAlwaysExits(ast::BlockNode* block, ExitCriteria crit)
     {
         if (!block)
         {
             return false;
         }
 
-        const auto& statements = block->getStatements();
-
-        // Check if any statement in the block definitely returns
-        // Once we find a statement that returns, we know the block returns
-        for (const auto& stmt : statements)
+        // A block exits once any of its statements definitely exits.
+        for (const auto& stmt : block->getStatements())
         {
-            if (pathAlwaysReturns(stmt.get()))
+            if (pathAlwaysExits(stmt.get(), crit))
             {
                 return true;
             }
@@ -111,134 +129,104 @@ namespace vm::compiler::validation
         return false;
     }
 
-    bool ReturnPathValidator::ifAlwaysReturns(ast::IfNode* ifNode)
+    bool ReturnPathValidator::ifAlwaysExits(ast::IfNode* ifNode, ExitCriteria crit)
     {
         if (!ifNode)
         {
             return false;
         }
 
-        // An if statement always returns if:
-        // 1. Both then and else branches exist AND
-        // 2. Both branches always return
-
-        auto* thenBranch = ifNode->getThenStatement();
+        // Both branches must exist and exit, otherwise a path falls through.
         auto* elseBranch = ifNode->getElseStatement();
-
-        // If there's no else branch, the if doesn't guarantee a return
         if (!elseBranch)
         {
             return false;
         }
 
-        // Both branches must return
-        return pathAlwaysReturns(thenBranch) && pathAlwaysReturns(elseBranch);
+        return pathAlwaysExits(ifNode->getThenStatement(), crit)
+            && pathAlwaysExits(elseBranch, crit);
     }
 
-    bool ReturnPathValidator::switchAlwaysReturns(ast::SwitchNode* switchNode)
+    bool ReturnPathValidator::switchAlwaysExits(ast::SwitchNode* switchNode, ExitCriteria crit)
     {
         if (!switchNode)
         {
             return false;
         }
 
-        // A switch always returns if:
-        // 1. It has a default case AND
-        // 2. All cases (including default) have a return statement
-
+        // Inside the switch a `break` binds to the switch itself and falls
+        // through to the code after it — it never exits the analyzed path, so
+        // recurse with breakExits=false regardless of the caller.
+        const ExitCriteria inner{crit.continueExits, /*breakExits=*/false};
         const auto& cases = switchNode->getCases();
         bool hasDefault = false;
 
         for (const auto& caseNode : cases)
         {
-            // Check if this is a default case
-            if (dynamic_cast<ast::DefaultCaseNode*>(caseNode.get()))
-            {
-                hasDefault = true;
-            }
-
-            // Check if regular case node
+            const std::vector<std::unique_ptr<ast::ASTNode>>* statements = nullptr;
             if (auto* casePtr = dynamic_cast<ast::CaseNode*>(caseNode.get()))
             {
-                // Case statements are a vector - check if any returns
-                const auto& statements = casePtr->getStatements();
-                bool caseReturns = false;
-                for (const auto& stmt : statements)
-                {
-                    if (pathAlwaysReturns(stmt.get()))
-                    {
-                        caseReturns = true;
-                        break;
-                    }
-                }
-
-                if (!caseReturns)
-                {
-                    return false;
-                }
+                statements = &casePtr->getStatements();
             }
-            // Check if default case node
             else if (auto* defaultPtr = dynamic_cast<ast::DefaultCaseNode*>(caseNode.get()))
             {
-                // Default case statements - same logic
-                const auto& statements = defaultPtr->getStatements();
-                bool defaultReturns = false;
-                for (const auto& stmt : statements)
-                {
-                    if (pathAlwaysReturns(stmt.get()))
-                    {
-                        defaultReturns = true;
-                        break;
-                    }
-                }
+                hasDefault = true;
+                statements = &defaultPtr->getStatements();
+            }
 
-                if (!defaultReturns)
+            if (!statements)
+            {
+                continue;
+            }
+
+            bool caseExits = false;
+            for (const auto& stmt : *statements)
+            {
+                if (pathAlwaysExits(stmt.get(), inner))
                 {
-                    return false;
+                    caseExits = true;
+                    break;
                 }
+            }
+
+            if (!caseExits)
+            {
+                return false;
             }
         }
 
-        // Must have a default case to guarantee all paths are covered
+        // Without a default an unmatched value falls past the switch.
         return hasDefault;
     }
 
-    bool ReturnPathValidator::tryAlwaysReturns(ast::TryNode* tryNode)
+    bool ReturnPathValidator::tryAlwaysExits(ast::TryNode* tryNode, ExitCriteria crit)
     {
         if (!tryNode)
         {
             return false;
         }
 
-        // A try statement always returns if:
-        // 1. The try block returns AND all catch blocks return, OR
-        // 2. The finally block returns (finally always executes)
-
+        // finally always runs, so if it exits the whole try exits.
         auto* finallyBlock = tryNode->getFinallyBlock();
-        if (finallyBlock && pathAlwaysReturns(finallyBlock))
+        if (finallyBlock && pathAlwaysExits(finallyBlock, crit))
         {
-            // Finally block returns - this guarantees a return
             return true;
         }
 
-        // Check if try block and all catch blocks return
-        auto* tryBlock = tryNode->getTryBlock();
-        if (!pathAlwaysReturns(tryBlock))
+        // Otherwise the try block and every catch block must exit.
+        if (!pathAlwaysExits(tryNode->getTryBlock(), crit))
         {
             return false;
         }
 
-        const auto& catchBlocks = tryNode->getCatchBlocks();
-        for (const auto& catchBlock : catchBlocks)
+        for (const auto& catchBlock : tryNode->getCatchBlocks())
         {
-            if (!pathAlwaysReturns(catchBlock->getBody()))
+            if (!pathAlwaysExits(catchBlock->getBody(), crit))
             {
                 return false;
             }
         }
 
-        // Try returns and all catches (if any) return
-        // This is true even if there are no catch blocks
         return true;
     }
 }

@@ -149,10 +149,14 @@ namespace vm::compiler::types
     class ScopedNullNarrowing
     {
     public:
+        // MYT-381: forceScope pushes a narrowing scope even with no facts, so
+        // guard-clause narrowing registered inside a loop body cannot outlive
+        // the loop (the break path lands right after it).
         ScopedNullNarrowing(NullNarrowingTracker& tracker,
-                            const std::vector<std::string>& varNames)
+                            const std::vector<std::string>& varNames,
+                            bool forceScope = false)
             : tracker_(tracker)
-            , active_(!varNames.empty())
+            , active_(forceScope || !varNames.empty())
         {
             if (!active_)
             {

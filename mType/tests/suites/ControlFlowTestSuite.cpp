@@ -38,6 +38,22 @@ namespace tests::testSuite
         addTestFromFile("Nested Loop Break Continue Limits",
                         passPath + "nestedLoopBreakContinueLimits.mt");
 
+        // MYT-382: break binds to the innermost loop, not an enclosing switch.
+        addOutputVerificationTest("Break in Loop Inside Switch",
+                        passPath + "breakInLoopInsideSwitch.mt");
+        addOutputVerificationTest("Break in While/Foreach Inside Switch",
+                        passPath + "breakInWhileForeachInsideSwitch.mt");
+        addOutputVerificationTest("Break in Do-While Inside Switch",
+                        passPath + "breakInDoWhileInsideSwitch.mt");
+        addOutputVerificationTest("Break in Loop in Try-Finally Inside Switch",
+                        passPath + "breakInLoopInTryFinallyInsideSwitch.mt");
+
+        // MYT-383: continue in a do-while jumps to the condition.
+        addOutputVerificationTest("Continue in Do-While",
+                        passPath + "continueInDoWhile.mt");
+        addOutputVerificationTest("Continue in Do-While with Scoped Objects",
+                        passPath + "continueInDoWhileScopedObjects.mt");
+
         // Final variables tests
         addOutputVerificationTest("Final Variables",
                         passPath + "finalVariables.mt");

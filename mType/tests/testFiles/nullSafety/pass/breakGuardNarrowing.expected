@@ -1,0 +1,10 @@
+Test 1: for + break guard
+0
+1
+after for
+Test 2: while true + break guard
+0
+1
+2
+after while
+Break guard tests passed!

@@ -43,26 +43,47 @@ namespace vm::compiler::validation
          */
         static bool pathAlwaysReturns(ast::ASTNode* node);
 
+        /**
+         * MYT-381: Checks if a code path definitely exits the current loop
+         * iteration: return, throw, continue, or (when breakExits) break.
+         * breakExits must be false when the path is compiled inside a switch
+         * context, because there `break` binds to the switch, not the loop.
+         * Used only by guard-clause narrowing inside loops — NOT by
+         * validateMethodReturns.
+         * @param node The AST node to check
+         * @param breakExits Whether a `break` counts as exiting the iteration
+         * @return true if this path always exits the loop iteration
+         */
+        static bool pathAlwaysExitsLoopIteration(ast::ASTNode* node, bool breakExits);
+
     private:
 
         /**
-         * Checks if a block always returns
+         * Which leaf statements count as "exiting" the analyzed path. Lets the
+         * single recursion below serve both callers: return/throw always exit;
+         * pathAlwaysReturns uses {false,false}; pathAlwaysExitsLoopIteration
+         * uses {continueExits=true, breakExits} so a new control-flow node only
+         * has to be taught one tree.
          */
-        static bool blockAlwaysReturns(ast::BlockNode* block);
+        struct ExitCriteria
+        {
+            bool continueExits;
+            bool breakExits;
+        };
 
         /**
-         * Checks if an if statement always returns (both branches must return)
+         * Recursion shared by pathAlwaysReturns and
+         * pathAlwaysExitsLoopIteration. return/throw always exit; continue and
+         * break exit per `crit`.
          */
-        static bool ifAlwaysReturns(ast::IfNode* ifNode);
+        static bool pathAlwaysExits(ast::ASTNode* node, ExitCriteria crit);
 
-        /**
-         * Checks if a switch statement always returns (all cases + default must return)
-         */
-        static bool switchAlwaysReturns(ast::SwitchNode* switchNode);
+        static bool blockAlwaysExits(ast::BlockNode* block, ExitCriteria crit);
 
-        /**
-         * Checks if a try statement always returns (try, all catches, and finally must coordinate)
-         */
-        static bool tryAlwaysReturns(ast::TryNode* tryNode);
+        static bool ifAlwaysExits(ast::IfNode* ifNode, ExitCriteria crit);
+
+        static bool switchAlwaysExits(ast::SwitchNode* switchNode, ExitCriteria crit);
+
+        static bool tryAlwaysExits(ast::TryNode* tryNode, ExitCriteria crit);
     };
 }
