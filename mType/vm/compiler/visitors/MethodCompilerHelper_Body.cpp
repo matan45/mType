@@ -166,12 +166,17 @@ namespace vm::compiler::visitors
         size_t localCount = ctx.functionFrameManager.getLocalCount();
 
         const auto& locals = ctx.variableTracker.getLocals();
+        const auto& currentFrame = ctx.functionFrameManager.currentFrame();
         std::vector<std::string> localVarNames(localCount);
         for (const auto& local : locals)
         {
-            if (local.slot < localCount)
+            if (local.slot >= currentFrame.localStartSlot)
             {
-                localVarNames[local.slot] = local.name;
+                size_t relativeSlot = local.slot - currentFrame.localStartSlot;
+                if (relativeSlot < localCount)
+                {
+                    localVarNames[relativeSlot] = local.name;
+                }
             }
         }
 

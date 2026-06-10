@@ -183,6 +183,44 @@ namespace tests::testSuite
                 requireEq("int", interfaces[0].methods[0].returnType, "Return type");
             });
 
+        addCallbackTest("Function local debug names round-trip through serialization (MYT-380)",
+            "",
+            [](ScriptAPI&) {
+                BytecodeProgram prog;
+                prog.emit(OpCode::RETURN_VALUE);
+                prog.setEntryPoint(0);
+
+                BytecodeProgram::FunctionMetadata meta;
+                meta.name = "DebugProbe::step";
+                meta.mangledName = meta.name;
+                meta.startOffset = 0;
+                meta.instructionCount = 1;
+                meta.localCount = 5;
+                meta.parameterCount = 2;
+                meta.parameterNames = {"this", "delta"};
+                meta.parameterTypes = {"DebugProbe", "int"};
+                meta.parameterNullable = {false, false};
+                meta.returnType = "int";
+                meta.isStatic = false;
+                meta.isNative = false;
+                meta.localVariableNames = {"this", "delta", "dx", "dy", "mag"};
+                prog.registerFunction(meta.name, meta);
+
+                std::stringstream ss;
+                prog.serialize(ss);
+                auto deserialized = BytecodeProgram::deserialize(ss);
+
+                const auto* reloaded = deserialized.getFunction("DebugProbe::step");
+                require(reloaded != nullptr, "Function should round-trip");
+                require(reloaded->localVariableNames.size() == 5,
+                    "Expected five local debug names after round-trip");
+                requireEq("this", reloaded->localVariableNames[0], "Local slot 0");
+                requireEq("delta", reloaded->localVariableNames[1], "Local slot 1");
+                requireEq("dx", reloaded->localVariableNames[2], "Local slot 2");
+                requireEq("dy", reloaded->localVariableNames[3], "Local slot 3");
+                requireEq("mag", reloaded->localVariableNames[4], "Local slot 4");
+            });
+
         // MYT-368 (was MYT-286): peephole shrinking instructions inside a
         // function body must update that function's instructionCount in
         // memory, not at serialize time. Predecessor MYT-286 clamped on the

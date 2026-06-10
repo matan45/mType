@@ -59,6 +59,19 @@ namespace vm::bytecode
                 func.parameterNames[j] = paramName;
             }
 
+            size_t localNameCount;
+            in.read(reinterpret_cast<char*>(&localNameCount), sizeof(localNameCount));
+            if (!in) throw std::runtime_error("Malformed bytecode: failed to read function local-name count");
+            readv::validateCount(localNameCount, constants::security::MAX_LOCAL_STACK_PER_FRAME, "function local names");
+            func.localVariableNames.resize(localNameCount);
+            for (size_t j = 0; j < localNameCount; ++j) {
+                in.read(reinterpret_cast<char*>(&len), sizeof(len));
+                readv::validateStringLen(len, "function local name");
+                std::string localName(len, '\0');
+                in.read(&localName[0], len);
+                func.localVariableNames[j] = localName;
+            }
+
             size_t entryCount;
             in.read(reinterpret_cast<char*>(&entryCount), sizeof(entryCount));
             readv::validateCount(entryCount, constants::security::MAX_EXCEPTION_TABLE_ENTRIES, "function exception table entries");
