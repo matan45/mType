@@ -59,36 +59,31 @@ namespace vm::compiler::validation
     private:
 
         /**
-         * Checks if a block always returns
+         * Which leaf statements count as "exiting" the analyzed path. Lets the
+         * single recursion below serve both callers: return/throw always exit;
+         * pathAlwaysReturns uses {false,false}; pathAlwaysExitsLoopIteration
+         * uses {continueExits=true, breakExits} so a new control-flow node only
+         * has to be taught one tree.
          */
-        static bool blockAlwaysReturns(ast::BlockNode* block);
+        struct ExitCriteria
+        {
+            bool continueExits;
+            bool breakExits;
+        };
 
         /**
-         * Checks if an if statement always returns (both branches must return)
+         * Recursion shared by pathAlwaysReturns and
+         * pathAlwaysExitsLoopIteration. return/throw always exit; continue and
+         * break exit per `crit`.
          */
-        static bool ifAlwaysReturns(ast::IfNode* ifNode);
+        static bool pathAlwaysExits(ast::ASTNode* node, ExitCriteria crit);
 
-        /**
-         * Checks if a switch statement always returns (all cases + default must return)
-         */
-        static bool switchAlwaysReturns(ast::SwitchNode* switchNode);
+        static bool blockAlwaysExits(ast::BlockNode* block, ExitCriteria crit);
 
-        /**
-         * Checks if a try statement always returns (try, all catches, and finally must coordinate)
-         */
-        static bool tryAlwaysReturns(ast::TryNode* tryNode);
+        static bool ifAlwaysExits(ast::IfNode* ifNode, ExitCriteria crit);
 
-        /**
-         * MYT-381: loop-iteration-exit counterparts of the *AlwaysReturns
-         * helpers. Same recursion shape; leaf set additionally includes
-         * continue and (when breakExits) break.
-         */
-        static bool blockAlwaysExits(ast::BlockNode* block, bool breakExits);
+        static bool switchAlwaysExits(ast::SwitchNode* switchNode, ExitCriteria crit);
 
-        static bool ifAlwaysExits(ast::IfNode* ifNode, bool breakExits);
-
-        static bool switchAlwaysExits(ast::SwitchNode* switchNode);
-
-        static bool tryAlwaysExits(ast::TryNode* tryNode, bool breakExits);
+        static bool tryAlwaysExits(ast::TryNode* tryNode, ExitCriteria crit);
     };
 }
