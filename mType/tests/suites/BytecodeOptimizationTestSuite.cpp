@@ -8,6 +8,7 @@
 #include "../../vm/optimization/passes/PeepholeOptimizationPass.hpp"
 #include "../../vm/optimization/base/BytecodeOptimizationContext.hpp"
 
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 
@@ -22,6 +23,35 @@ namespace tests::testSuite
         void require(bool cond, const std::string& msg)
         {
             if (!cond) throw std::runtime_error(msg);
+        }
+
+        void optimizePeephole(vm::bytecode::BytecodeProgram& program)
+        {
+            auto cfg = vm::optimization::BytecodeOptimizationConfig::noOptimization();
+            cfg.setPeephole(true);
+            vm::optimization::BytecodeOptimizer optimizer(cfg);
+            optimizer.optimize(program);
+        }
+
+        void emitPushInt(vm::bytecode::BytecodeProgram& program, int64_t value)
+        {
+            const size_t index = program.getConstantPool().addInteger(value);
+            program.emit(OpCode::PUSH_INT, static_cast<uint64_t>(index));
+        }
+
+        void requireSinglePushBool(const vm::bytecode::BytecodeProgram& program,
+                                   bool expected,
+                                   const std::string& context)
+        {
+            require(program.getInstructionCount() == 1,
+                    context + ": expected one folded instruction");
+            const auto& instr = program.getInstruction(0);
+            require(instr.opcode == OpCode::PUSH_BOOL,
+                    context + ": expected PUSH_BOOL");
+            require(instr.operandCount == 1,
+                    context + ": expected one inline bool operand");
+            require(instr.inlineOperands[0] == (expected ? 1 : 0),
+                    context + ": PUSH_BOOL operand must be inline 0/1");
         }
     }
 
@@ -127,6 +157,81 @@ namespace tests::testSuite
                     "the one metric should be LocalArrayFusion");
                 require(program.getInstruction(0).opcode == OpCode::ARRAY_GET_ALIAS,
                     "the gated pass should still rewrite the instruction");
+            });
+
+        // Peephole ConstantFoldingPattern · bool operand convention (MYT-386)
+        //
+        // PUSH_BOOL is an inline-immediate opcode: operand 0 means false,
+        // operand 1 means true. It must not carry an integer constant-pool
+        // index, or folded false conditions can become truthy at runtime.
+        addCallbackTest("Peephole folds false int comparison to inline PUSH_BOOL 0",
+            "",
+            [](ScriptAPI&) {
+                vm::bytecode::BytecodeProgram program;
+                emitPushInt(program, 1);
+                emitPushInt(program, 2);
+                program.emit(OpCode::EQ_INT);
+
+                optimizePeephole(program);
+
+                requireSinglePushBool(program, false, "false int comparison");
+            });
+
+        addCallbackTest("Peephole folds true int comparison to inline PUSH_BOOL 1",
+            "",
+            [](ScriptAPI&) {
+                vm::bytecode::BytecodeProgram program;
+                emitPushInt(program, 1);
+                emitPushInt(program, 1);
+                program.emit(OpCode::EQ_INT);
+
+                optimizePeephole(program);
+
+                requireSinglePushBool(program, true, "true int comparison");
+            });
+
+        addCallbackTest("Peephole folds boolean NOT to inline PUSH_BOOL",
+            "",
+            [](ScriptAPI&) {
+                vm::bytecode::BytecodeProgram program;
+                program.emit(OpCode::PUSH_BOOL, 1);
+                program.emit(OpCode::NOT);
+
+                optimizePeephole(program);
+
+                requireSinglePushBool(program, false, "boolean NOT");
+            });
+
+        addCallbackTest("Peephole folds boolean OR to inline PUSH_BOOL",
+            "",
+            [](ScriptAPI&) {
+                vm::bytecode::BytecodeProgram program;
+                program.emit(OpCode::PUSH_BOOL, 0);
+                program.emit(OpCode::PUSH_BOOL, 0);
+                program.emit(OpCode::OR);
+
+                optimizePeephole(program);
+
+                requireSinglePushBool(program, false, "boolean OR");
+            });
+
+        addCallbackTest("Peephole does not fold invalid boolean NEG",
+            "",
+            [](ScriptAPI&) {
+                vm::bytecode::BytecodeProgram program;
+                program.emit(OpCode::PUSH_BOOL, 1);
+                program.emit(OpCode::NEG);
+
+                optimizePeephole(program);
+
+                require(program.getInstructionCount() == 2,
+                    "PUSH_BOOL + NEG should not be folded");
+                require(program.getInstruction(0).opcode == OpCode::PUSH_BOOL,
+                    "first instruction should remain PUSH_BOOL");
+                require(program.getInstruction(0).inlineOperands[0] == 1,
+                    "PUSH_BOOL operand should remain unchanged");
+                require(program.getInstruction(1).opcode == OpCode::NEG,
+                    "second instruction should remain NEG");
             });
     }
 }

@@ -17,6 +17,11 @@ namespace vm::optimization::patterns
         // have a name.
         constexpr size_t kBinaryFoldWindow = 3;
         constexpr size_t kUnaryFoldWindow = 2;
+
+        bool readInlineBool(const BytecodeProgram::Instruction& instr)
+        {
+            return instr.inlineOperands[0] != 0;
+        }
     }
 
     bool ConstantFoldingPattern::matches(const BytecodeProgram& program,
@@ -36,12 +41,30 @@ namespace vm::optimization::patterns
         // Note: matches() has already been called, so we know one of these will match
         // We check which one by examining the instructions directly
 
-        if (offset + kBinaryFoldWindow > program.getInstructionCount())
+        if (offset >= program.getInstructionCount())
         {
             return Replacement(0);
         }
 
         const auto& i1 = program.getInstruction(offset);
+
+        // Unary only needs 2 instructions, so handle it before requiring the
+        // 3-instruction binary fold window.
+        if (offset + kUnaryFoldWindow <= program.getInstructionCount())
+        {
+            const auto& i2_unary = program.getInstruction(offset + 1);
+            if ((i1.opcode == OpCode::PUSH_INT && i2_unary.opcode == OpCode::NEG) ||
+                (i1.opcode == OpCode::PUSH_BOOL && i2_unary.opcode == OpCode::NOT))
+            {
+                return applyUnary(program, offset);
+            }
+        }
+
+        if (offset + kBinaryFoldWindow > program.getInstructionCount())
+        {
+            return Replacement(0);
+        }
+
         const auto& i2 = program.getInstruction(offset + 1);
         const auto& i3 = program.getInstruction(offset + 2);
 
@@ -81,17 +104,6 @@ namespace vm::optimization::patterns
             (i3.opcode == OpCode::AND || i3.opcode == OpCode::OR))
         {
             return applyLogical(program, offset);
-        }
-
-        // Unary (only needs 2 instructions)
-        if (offset + kUnaryFoldWindow <= program.getInstructionCount())
-        {
-            const auto& i2_unary = program.getInstruction(offset + 1);
-            if ((i1.opcode == OpCode::PUSH_INT || i1.opcode == OpCode::PUSH_BOOL) &&
-                (i2_unary.opcode == OpCode::NEG || i2_unary.opcode == OpCode::NOT))
-            {
-                return applyUnary(program, offset);
-            }
         }
 
         return Replacement(0);
@@ -222,22 +234,11 @@ namespace vm::optimization::patterns
         const auto& i1 = program.getInstruction(offset);
         const auto& i2 = program.getInstruction(offset + 1);
 
-        // Match: PUSH_INT/PUSH_BOOL, NEG/NOT
-        bool validPush = (i1.opcode == OpCode::PUSH_INT || i1.opcode == OpCode::PUSH_BOOL);
-        bool validUnary = (i2.opcode == OpCode::NEG || i2.opcode == OpCode::NOT);
+        // Match only the valid typed unary forms.
+        bool validUnary = (i1.opcode == OpCode::PUSH_INT && i2.opcode == OpCode::NEG) ||
+                          (i1.opcode == OpCode::PUSH_BOOL && i2.opcode == OpCode::NOT);
 
-        if (!validPush || !validUnary)
-        {
-            return false;
-        }
-
-        // NOT only works on booleans
-        if (i2.opcode == OpCode::NOT && i1.opcode != OpCode::PUSH_BOOL)
-        {
-            return false;
-        }
-
-        return cfg.canOptimizeRange(offset, offset + 2);
+        return validUnary && cfg.canOptimizeRange(offset, offset + 2);
     }
 
     OptimizationPattern::Replacement ConstantFoldingPattern::applyUnary(const BytecodeProgram& program,
@@ -260,12 +261,9 @@ namespace vm::optimization::patterns
         }
         else if (i2.opcode == OpCode::NOT)
         {
-            int64_t val = PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset);  // Boolean stored as int64_t
-            int64_t result = !val;
+            bool result = !readInlineBool(i1);
 
-            auto& mutablePool = const_cast<BytecodeProgram&>(program).getConstantPool();
-            size_t resultIdx = mutablePool.addInteger(result);
-            rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_BOOL, static_cast<uint64_t>(resultIdx)));
+            rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_BOOL, result ? 1 : 0));
         }
 
         return rep;
@@ -327,11 +325,8 @@ namespace vm::optimization::patterns
 
         bool result = performComparison(i3.opcode, val1, val2);
 
-        auto& mutablePool = const_cast<BytecodeProgram&>(program).getConstantPool();
-        size_t resultIdx = mutablePool.addInteger(result ? 1 : 0);
-
         Replacement rep(3);
-        rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_BOOL, static_cast<uint64_t>(resultIdx)));
+        rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_BOOL, result ? 1 : 0));
 
         return rep;
     }
@@ -367,13 +362,12 @@ namespace vm::optimization::patterns
     OptimizationPattern::Replacement ConstantFoldingPattern::applyLogical(const BytecodeProgram& program,
                                                                            size_t offset) const
     {
-        const auto& pool = program.getConstantPool();
         const auto& i1 = program.getInstruction(offset);
         const auto& i2 = program.getInstruction(offset + 1);
         const auto& i3 = program.getInstruction(offset + 2);
 
-        bool val1 = PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset) != 0;
-        bool val2 = PatternSafetyHelper::safeGetInteger(pool, i2, 0, offset + 1) != 0;
+        bool val1 = readInlineBool(i1);
+        bool val2 = readInlineBool(i2);
 
         bool result;
         if (i3.opcode == OpCode::AND)
@@ -385,11 +379,8 @@ namespace vm::optimization::patterns
             result = val1 || val2;
         }
 
-        auto& mutablePool = const_cast<BytecodeProgram&>(program).getConstantPool();
-        size_t resultIdx = mutablePool.addInteger(result ? 1 : 0);
-
         Replacement rep(3);
-        rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_BOOL, static_cast<uint64_t>(resultIdx)));
+        rep.instructions.push_back(BytecodeProgram::Instruction(OpCode::PUSH_BOOL, result ? 1 : 0));
 
         return rep;
     }
