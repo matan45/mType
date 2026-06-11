@@ -112,11 +112,9 @@ namespace tests::testSuite
                         passPath + "deadBranchConstantCondition.mt");
 
         // === INT64 DIVISION EDGE CASES ===
-        // repro cannot run as a normal failing canary — it would abort the
-        // entire suite. Flip to addOutputVerificationTest (expected output
-        // -9223372036854775808) when MYT-387 lands. Fixture:
-        // numerics/error/int64MinDivMinusOne_crash.mt
         addOutputVerificationTest("Int64 Min Div Minus One",
                         passPath + "int64MinDivMinusOne.mt");
+        addOutputVerificationTest("Int64 Min Div/Mod Minus One Hot",
+                        passPath + "int64MinDivModMinusOneHot.mt");
     }
 }

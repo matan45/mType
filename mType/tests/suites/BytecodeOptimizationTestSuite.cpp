@@ -9,6 +9,7 @@
 #include "../../vm/optimization/base/BytecodeOptimizationContext.hpp"
 
 #include <cstdint>
+#include <limits>
 #include <stdexcept>
 #include <string>
 
@@ -52,6 +53,23 @@ namespace tests::testSuite
                     context + ": expected one inline bool operand");
             require(instr.inlineOperands[0] == (expected ? 1 : 0),
                     context + ": PUSH_BOOL operand must be inline 0/1");
+        }
+
+        void requireSinglePushInt(const vm::bytecode::BytecodeProgram& program,
+                                  int64_t expected,
+                                  const std::string& context)
+        {
+            require(program.getInstructionCount() == 1,
+                    context + ": expected one folded instruction");
+            const auto& instr = program.getInstruction(0);
+            require(instr.opcode == OpCode::PUSH_INT,
+                    context + ": expected PUSH_INT");
+            require(instr.operandCount == 1,
+                    context + ": expected one integer constant operand");
+            int64_t actual = program.getConstantPool().getInteger(
+                static_cast<size_t>(instr.inlineOperands[0]));
+            require(actual == expected,
+                    context + ": folded integer value mismatch");
         }
     }
 
@@ -213,6 +231,33 @@ namespace tests::testSuite
                 optimizePeephole(program);
 
                 requireSinglePushBool(program, false, "boolean OR");
+            });
+
+        addCallbackTest("Peephole folds INT64_MIN divided by -1 without host UB",
+            "",
+            [](ScriptAPI&) {
+                vm::bytecode::BytecodeProgram program;
+                emitPushInt(program, std::numeric_limits<int64_t>::min());
+                emitPushInt(program, -1);
+                program.emit(OpCode::DIV_INT);
+
+                optimizePeephole(program);
+
+                requireSinglePushInt(program, std::numeric_limits<int64_t>::min(),
+                    "INT64_MIN / -1");
+            });
+
+        addCallbackTest("Peephole folds INT64_MIN modulo -1 without host UB",
+            "",
+            [](ScriptAPI&) {
+                vm::bytecode::BytecodeProgram program;
+                emitPushInt(program, std::numeric_limits<int64_t>::min());
+                emitPushInt(program, -1);
+                program.emit(OpCode::MOD);
+
+                optimizePeephole(program);
+
+                requireSinglePushInt(program, 0, "INT64_MIN % -1");
             });
 
         addCallbackTest("Peephole does not fold invalid boolean NEG",
