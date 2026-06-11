@@ -101,12 +101,16 @@ void AstPositionIndexTestSuite::registerTests(LspTestHarness& harness) {
         auto* doc = docMgr->getDocument("file:///t.mt");
         require(doc != nullptr, "document should exist");
 
-        // Expression-position call (`int h = helper();`). Bare
-        // statement-position calls (`helper();`) do not currently match —
-        // the statement parser anchors/wraps them differently than the
-        // expression parser's name-token anchor this index matches against.
+        // FunctionCallNode is anchored after its argument list (not at the
+        // name token like MethodCallNode), so findFunctionCallAt matches by
+        // line + name; the column argument cannot discriminate.
         const auto* call = findFunctionCallAt(doc->ast, 11, 12, "helper");
-        require(call != nullptr, "expected FunctionCallNode for helper() at 11:12");
+        require(call != nullptr, "expected FunctionCallNode for helper() on line 11");
+
+        require(findFunctionCallAt(doc->ast, 5, 12, "helper") == nullptr,
+            "wrong line should return null");
+        require(findFunctionCallAt(doc->ast, 11, 12, "nope") == nullptr,
+            "name mismatch should return null");
     });
 
     // === findEnclosingCallable ===

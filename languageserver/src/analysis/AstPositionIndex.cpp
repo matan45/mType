@@ -323,18 +323,25 @@ const ast::nodes::functions::FunctionCallNode* findFunctionCallAt(
     const std::string& functionName) {
 
     const int astLine = line + 1;
-    const int astCol = col + 1;
     const ast::nodes::functions::FunctionCallNode* match = nullptr;
 
+    // Unlike MethodCallNode, the parser anchors FunctionCallNode at the token
+    // AFTER the argument list (ExpressionParser.cpp parseFunctionCall passes
+    // tokenStream.current().location, not the name token's callLocation), so
+    // an identifier-window column match can never hit when the cursor is on
+    // the call name. Match by line + name instead — same relaxation
+    // findSuperMethodCallAt uses. Ambiguous only when one line contains two
+    // calls to the same function, which line-granularity callers accept.
     walkAst(roots, [&](const ast::ASTNode* n) -> bool {
         auto* call = dynamic_cast<const ast::nodes::functions::FunctionCallNode*>(n);
         if (!call) return false;
         if (call->getFunctionName() != functionName) return false;
-        if (!cursorOnIdentifier(*call, astLine, astCol, functionName)) return false;
+        if (call->getLocation().getLine() != astLine) return false;
         match = call;
         return true;
     });
 
+    (void)col;  // see anchor note above — column cannot discriminate
     return match;
 }
 
