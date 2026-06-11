@@ -108,6 +108,33 @@ namespace packagemanager
         return fs::exists(pkgDir / "mtpkg.json");
     }
 
+    std::optional<PackageManifest> MtModulesManager::getInstalledManifest(
+        const std::string& packageName) const
+    {
+        if (!isValidPackageName(packageName))
+        {
+            return std::nullopt;
+        }
+
+        fs::path manifestPath = fs::path(projectRoot) / "mt_modules" / ("@" + packageName) / "mtpkg.json";
+        if (!fs::exists(manifestPath))
+        {
+            return std::nullopt;
+        }
+
+        try
+        {
+            std::ifstream file(manifestPath);
+            std::stringstream buffer;
+            buffer << file.rdbuf();
+            return PackageManifest::parseFromJson(buffer.str());
+        }
+        catch (const std::exception&)
+        {
+            return std::nullopt;
+        }
+    }
+
     void MtModulesManager::removePackage(const std::string& packageName)
     {
         validatePackageName(packageName);

@@ -147,14 +147,21 @@ namespace packagemanager
             // Install each resolved package
             for (const auto& [name, pkg] : resolved)
             {
-                if (modulesManager.isInstalled(name))
+                bool hasInstalledPackage = modulesManager.isInstalled(name);
+                auto installedManifest = modulesManager.getInstalledManifest(name);
+                bool isCurrent = installedManifest
+                    && installedManifest->name == name
+                    && installedManifest->version == pkg.version;
+
+                if (isCurrent)
                 {
                     reportProgress("  Up to date: " + name + "@" + pkg.version);
                     ++result.upToDate;
                 }
                 else
                 {
-                    reportProgress("  Installing: " + name + "@" + pkg.version);
+                    reportProgress(std::string(hasInstalledPackage ? "  Updating: " : "  Installing: ")
+                        + name + "@" + pkg.version);
                     copyPackageToModules(pkg);
                     ++result.installed;
                 }

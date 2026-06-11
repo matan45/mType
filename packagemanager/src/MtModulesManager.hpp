@@ -1,4 +1,6 @@
 #pragma once
+#include "PackageManifest.hpp"
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -21,6 +23,9 @@ namespace packagemanager
 
         // Check if a package is installed
         bool isInstalled(const std::string& packageName) const;
+
+        // Read the installed package manifest, if present and valid
+        std::optional<PackageManifest> getInstalledManifest(const std::string& packageName) const;
 
         // Remove a package from mt_modules/
         void removePackage(const std::string& packageName);
