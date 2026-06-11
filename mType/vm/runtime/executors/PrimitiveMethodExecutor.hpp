@@ -9,6 +9,7 @@
 #include "../../../value/ValueShim.hpp"
 #include "../../../value/ObjectInstance.hpp"
 #include "../utils/ErrorLocationHelper.hpp"
+#include "../utils/CheckedArithmetic.hpp"
 
 namespace vm::runtime {
 
@@ -80,7 +81,7 @@ public:
 
         value::Value receiverValue = context.stackManager->pop();
         int64_t receiver = unboxIntFromValue(receiverValue);
-        context.stackManager->push(receiver / arg);
+        context.stackManager->push(utils::wrappingDiv64(receiver, arg));
     }
 
     inline void handleInvokeIntMod() {
@@ -93,7 +94,7 @@ public:
 
         value::Value receiverValue = context.stackManager->pop();
         int64_t receiver = unboxIntFromValue(receiverValue);
-        context.stackManager->push(receiver % arg);
+        context.stackManager->push(utils::wrappingMod64(receiver, arg));
     }
 
     inline void handleInvokeIntNeg() {

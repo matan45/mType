@@ -1,6 +1,7 @@
 #include "JitCompiler.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include "JitEmissionState.hpp"
 #include "JitHelpers.hpp"
 #include "ic/TypeFeedbackCollector.hpp"
@@ -157,6 +158,20 @@ namespace vm::jit
                 cc.bind(nz);
                 Gp left = cc.new_gp64();
                 cc.mov(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+                Label normalDivMod = cc.new_label();
+                Label divModDone = cc.new_label();
+                Gp minValue = cc.new_gp64();
+                cc.mov(minValue, std::numeric_limits<int64_t>::min());
+                cc.cmp(right, -1);
+                cc.jne(normalDivMod);
+                cc.cmp(left, minValue);
+                cc.jne(normalDivMod);
+                if (instr.opcode == OpCode::DIV)
+                    cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), minValue);
+                else
+                    cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), 0);
+                cc.jmp(divModDone);
+                cc.bind(normalDivMod);
                 Gp rax = cc.new_gp64();
                 Gp rdx = cc.new_gp64();
                 cc.mov(rax, left);
@@ -164,6 +179,7 @@ namespace vm::jit
                 cc.idiv(rdx, rax, right);
                 cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8),
                        instr.opcode == OpCode::DIV ? rax : rdx);
+                cc.bind(divModDone);
                 s.slotTypes.push_back(SlotType::INT);
             }
             else if (lType == SlotType::FLOAT && rType == SlotType::FLOAT

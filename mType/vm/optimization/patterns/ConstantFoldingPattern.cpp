@@ -3,6 +3,7 @@
 #include <cstdint>
 #include "PatternSafetyHelper.hpp"
 #include "../../bytecode/OpCode.hpp"
+#include "../../runtime/utils/CheckedArithmetic.hpp"
 #include "../analysis/ControlFlowAnalyzer.hpp"
 
 namespace vm::optimization::patterns
@@ -253,7 +254,7 @@ namespace vm::optimization::patterns
         if (i2.opcode == OpCode::NEG)
         {
             int64_t val = PatternSafetyHelper::safeGetInteger(pool, i1, 0, offset);
-            int64_t result = -val;
+            int64_t result = vm::runtime::utils::wrappingNeg64(val);
 
             auto& mutablePool = const_cast<BytecodeProgram&>(program).getConstantPool();
             size_t resultIdx = mutablePool.addInteger(result);
@@ -391,11 +392,11 @@ namespace vm::optimization::patterns
     {
         switch (op)
         {
-            case OpCode::ADD_INT: return a + b;
-            case OpCode::SUB_INT: return a - b;
-            case OpCode::MUL_INT: return a * b;
-            case OpCode::DIV_INT: return b != 0 ? a / b : 0;  // Avoid division by zero
-            case OpCode::MOD: return b != 0 ? a % b : 0;
+            case OpCode::ADD_INT: return vm::runtime::utils::wrappingAdd64(a, b);
+            case OpCode::SUB_INT: return vm::runtime::utils::wrappingSub64(a, b);
+            case OpCode::MUL_INT: return vm::runtime::utils::wrappingMul64(a, b);
+            case OpCode::DIV_INT: return b != 0 ? vm::runtime::utils::wrappingDiv64(a, b) : 0;
+            case OpCode::MOD: return b != 0 ? vm::runtime::utils::wrappingMod64(a, b) : 0;
             default: return 0;
         }
     }

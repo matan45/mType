@@ -111,16 +111,12 @@ namespace tests::testSuite
         addOutputVerificationTest("CANARY Dead Branch Constant Condition",
                         passPath + "deadBranchConstantCondition.mt");
 
-        // === SKIPPED (MYT-387: INT64_MIN / -1 HARDWARE TRAP) ===
-        // handleDivInt lacks the INT64_MIN/-1 guard that performBinaryOp has;
-        // the idiv overflow trap (0xc0000095) kills the whole process, so the
+        // === INT64 DIVISION EDGE CASES ===
         // repro cannot run as a normal failing canary — it would abort the
         // entire suite. Flip to addOutputVerificationTest (expected output
         // -9223372036854775808) when MYT-387 lands. Fixture:
         // numerics/error/int64MinDivMinusOne_crash.mt
-        addSkippedTest("Int64 Min Div Minus One",
-                       "MYT-387: crashes the harness process (0xc0000095 idiv trap); "
-                       "enable after fix. Fixture: "
-                       "int64MinDivMinusOne_crash.mt");
+        addOutputVerificationTest("Int64 Min Div Minus One",
+                        passPath + "int64MinDivMinusOne.mt");
     }
 }

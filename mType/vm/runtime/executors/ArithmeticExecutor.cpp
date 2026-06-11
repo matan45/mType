@@ -125,21 +125,12 @@ namespace vm::runtime
                     if (r == 0) {
                         utils::ErrorLocationHelper::throwRuntimeError(context, "Division by zero");
                     }
-                    // INT64_MIN / -1 is UB on x86 (raises SIGFPE). Java
-                    // defines this as wrapping to INT64_MIN; match that.
-                    if (l == INT64_MIN && r == -1) {
-                        return INT64_MIN;
-                    }
-                    return l / r;
+                    return utils::wrappingDiv64(l, r);
                 case OpCode::MOD:
                     if (r == 0) {
                         utils::ErrorLocationHelper::throwRuntimeError(context, "Modulo by zero");
                     }
-                    // INT64_MIN % -1 is UB on x86. Java defines it as 0.
-                    if (l == INT64_MIN && r == -1) {
-                        return static_cast<int64_t>(0);
-                    }
-                    return l % r;
+                    return utils::wrappingMod64(l, r);
                 default: break;
             }
         }

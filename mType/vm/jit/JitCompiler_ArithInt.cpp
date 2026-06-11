@@ -1,6 +1,7 @@
 #include "JitCompiler.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include "JitEmissionState.hpp"
 #include "JitHelpers.hpp"
 #include "../bytecode/OpCode.hpp"
@@ -61,13 +62,26 @@ namespace vm::jit
             cc.invoke(Out(invDZ), reinterpret_cast<uint64_t>(jit_throw_div_by_zero),
                       FuncSignature::build<void>());
             cc.bind(notZero);
+            Label normalDiv = cc.new_label();
+            Label divDone = cc.new_label();
+            Gp minValue = cc.new_gp64();
+            cc.mov(minValue, std::numeric_limits<int64_t>::min());
+            cc.cmp(right, -1);
+            cc.jne(normalDiv);
+            cc.cmp(left, minValue);
+            cc.jne(normalDiv);
+            cc.mov(left, minValue);
+            cc.jmp(divDone);
+            cc.bind(normalDiv);
             Gp raxReg = cc.new_gp64();
             Gp rdxReg = cc.new_gp64();
             cc.mov(raxReg, left);
             cc.cqo(rdxReg, raxReg);
             cc.idiv(rdxReg, raxReg, right);
+            cc.mov(left, raxReg);
+            cc.bind(divDone);
             s.slotTypes.push_back(SlotType::INT);
-            publishGpHint(s, s.stackDepth - 1, raxReg);
+            publishGpHint(s, s.stackDepth - 1, left);
             return true;
         }
 
