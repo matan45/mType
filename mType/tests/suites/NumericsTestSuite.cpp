@@ -11,8 +11,7 @@ namespace tests::testSuite
                         passPath + "int32BoundaryLiterals.mt");
         addOutputVerificationTest("Int64 Wrap Add/Sub/Mul",
                         passPath + "int64WrapArithmetic.mt");
-        // INT64_MIN % -1 is defined as 0 (Java semantics) via the guarded
-        // generic path; the division twin is the MYT-387 skip below.
+        // INT64_MIN / -1 and % -1 use Java-style wrapping semantics.
         addOutputVerificationTest("Int64 Min Mod Minus One",
                         passPath + "int64MinModMinusOne.mt");
 
