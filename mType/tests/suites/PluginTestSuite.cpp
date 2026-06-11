@@ -24,6 +24,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <initializer_list>
 #include <memory>
 #include <span>
@@ -524,6 +525,158 @@ namespace tests::testSuite
                 }
                 require(threw, "callFunction of unknown name should surface as an exception");
             });
+
+        /* Deep reentrancy: __pt_deep_recurse(d) calls the mType function
+         * bounce(d), which calls __pt_deep_recurse(d-1) again — a
+         * plugin→mType→plugin chain 6 frames deep. Each hop must save and
+         * restore the VM's IP/call stack correctly or the count comes back
+         * wrong (or the VM corrupts). */
+        addCallbackTest("hostCallFunction nests 6 levels of plugin/mType reentrancy",
+            "mType/tests/testFiles/plugin/pluginProbe_bootstrap.mt",
+            [](services::ScriptAPI& api) {
+                auto env = api.getEnvironment();
+
+                auto deep = +[](void*, ::MTypeContext* ctx,
+                                 const ::MTypeValue* const* args, int argc) -> ::MTypeValue* {
+                    const ::MTypePluginHost* host = ::plugin::getHostVTable();
+                    if (argc != 1) {
+                        host->raiseError(ctx, "TestError", "__pt_deep_recurse: expected 1 arg");
+                        return host->makeNull(ctx);
+                    }
+                    int64_t d = host->getInt(args[0]);
+                    if (d <= 0) {
+                        return host->makeInt(ctx, 0);
+                    }
+                    ::MTypeValue* a0 = host->makeInt(ctx, d);
+                    const ::MTypeValue* call1[] = { a0 };
+                    return host->callFunction(ctx, "bounce", call1, 1);
+                };
+                auto binding = installSyntheticPlugin(env, "__pt_deep_recurse", deep);
+
+                ::value::Value out = api.callFunction(
+                    "__pt_deep_recurse", { ::value::Value(int64_t{6}) });
+                require(::value::isInt(out), "deep reentrancy result should be int");
+                require(::value::asInt(out) == 6,
+                        "6-level reentrancy should count to 6, got "
+                        + std::to_string(::value::asInt(out)));
+            });
+
+        /* callMethod reentrancy: only callFunction was covered. The plugin
+         * constructs a ProbeBox and invokes its getX() method back in the VM. */
+        addCallbackTest("hostCallMethod invokes a method on a constructed object",
+            "mType/tests/testFiles/plugin/pluginProbe_bootstrap.mt",
+            [](services::ScriptAPI& api) {
+                auto env = api.getEnvironment();
+
+                auto callGetX = +[](void*, ::MTypeContext* ctx,
+                                     const ::MTypeValue* const*, int) -> ::MTypeValue* {
+                    const ::MTypePluginHost* host = ::plugin::getHostVTable();
+                    ::MTypeValue* obj = host->makeObject(ctx, "ProbeBox");
+                    if (!obj || host->getTag(obj) != MT_TAG_OBJECT) {
+                        host->raiseError(ctx, "TestError", "makeObject(ProbeBox) failed");
+                        return host->makeNull(ctx);
+                    }
+                    return host->callMethod(ctx, obj, "getX", nullptr, 0);
+                };
+                auto binding = installSyntheticPlugin(env, "__pt_call_getx", callGetX);
+
+                ::value::Value out = api.callFunction("__pt_call_getx", {});
+                require(::value::isInt(out), "callMethod result should be int");
+                require(::value::asInt(out) == 1,
+                        "ProbeBox.getX() should return 1, got "
+                        + std::to_string(::value::asInt(out)));
+            });
+
+        /* raiseError while an error is already pending: whichever message wins
+         * (overwrite vs first-wins) the trampoline must surface ONE error to
+         * the caller — never crash, never return a value as if nothing
+         * happened. */
+        addCallbackTest("raiseError while pending still surfaces exactly one error",
+            "",
+            [](services::ScriptAPI&) {
+                auto env = ::environment::EnvironmentBuilder().build();
+                auto vm = std::make_shared<::vm::runtime::VirtualMachine>(env);
+
+                auto doubleRaise = +[](void*, ::MTypeContext* ctx,
+                                        const ::MTypeValue* const*, int) -> ::MTypeValue* {
+                    const ::MTypePluginHost* host = ::plugin::getHostVTable();
+                    host->raiseError(ctx, "FirstError", "first message");
+                    host->raiseError(ctx, "SecondError", "second message");
+                    return host->makeNull(ctx);
+                };
+                auto binding = installSyntheticPlugin(env, "__pt_double_raise", doubleRaise);
+                auto fn = env->getNativeRegistry()->findNativeFunction("__pt_double_raise");
+
+                bool threw = false;
+                std::string msg;
+                try {
+                    invokeNative(fn, env, vm, {});
+                } catch (const ::errors::RuntimeException& e) {
+                    threw = true;
+                    msg = e.what();
+                }
+                require(threw, "double raiseError must surface as an exception");
+                require(msg.find("first message") != std::string::npos ||
+                        msg.find("second message") != std::string::npos,
+                        "surfaced error should carry one of the raised messages, got: " + msg);
+            });
+
+        /* arrayGet out of bounds: the bounds-checked getter must yield null
+         * or a pending error — never a junk value pointer. */
+        addCallbackTest("arrayGet out-of-bounds yields null or a pending error",
+            "",
+            [](services::ScriptAPI&) {
+                auto env = ::environment::EnvironmentBuilder().build();
+                auto vm = std::make_shared<::vm::runtime::VirtualMachine>(env);
+
+                auto oobProbe = +[](void*, ::MTypeContext* ctx,
+                                     const ::MTypeValue* const*, int) -> ::MTypeValue* {
+                    const ::MTypePluginHost* host = ::plugin::getHostVTable();
+                    ::MTypeValue* arr = host->makeArray(ctx, MT_TAG_INT, 3);
+                    ::MTypeValue* v = host->arrayGet(ctx, arr, 99);
+                    /* true = OOB read came back null (the safe answer). */
+                    return host->makeBool(ctx, v == nullptr);
+                };
+                auto binding = installSyntheticPlugin(env, "__pt_oob_get", oobProbe);
+                auto fn = env->getNativeRegistry()->findNativeFunction("__pt_oob_get");
+
+                try {
+                    ::value::Value out = invokeNative(fn, env, vm, {});
+                    /* No pending error path: the probe must have observed null. */
+                    require(::value::isBool(out) && ::value::asBool(out),
+                            "arrayGet(99) on a 3-element array returned a non-null value");
+                } catch (const ::errors::RuntimeException&) {
+                    /* A raised pending error is the other acceptable contract. */
+                }
+            });
+
+        /* objGet of a missing field: same null-or-pending-error contract. */
+        addCallbackTest("objGet of a missing field yields null or a pending error",
+            "mType/tests/testFiles/plugin/pluginProbe_bootstrap.mt",
+            [](services::ScriptAPI& api) {
+                auto env = api.getEnvironment();
+
+                auto missingField = +[](void*, ::MTypeContext* ctx,
+                                         const ::MTypeValue* const*, int) -> ::MTypeValue* {
+                    const ::MTypePluginHost* host = ::plugin::getHostVTable();
+                    ::MTypeValue* obj = host->makeObject(ctx, "ProbeBox");
+                    if (!obj || host->getTag(obj) != MT_TAG_OBJECT) {
+                        host->raiseError(ctx, "TestError", "makeObject(ProbeBox) failed");
+                        return host->makeNull(ctx);
+                    }
+                    ::MTypeValue* v = host->objGet(ctx, obj, "noSuchField");
+                    return host->makeBool(ctx, v == nullptr);
+                };
+                auto binding = installSyntheticPlugin(env, "__pt_missing_field", missingField);
+
+                try {
+                    ::value::Value out = api.callFunction("__pt_missing_field", {});
+                    require(::value::isBool(out) && ::value::asBool(out),
+                            "objGet of a missing field returned a non-null value");
+                } catch (const ::errors::RuntimeException&) {
+                    /* pending-error contract also acceptable */
+                }
+            });
     }
 
     /* ============================================================
@@ -804,6 +957,137 @@ namespace tests::testSuite
                     "error should mention 'not found', got: " + msg);
                 require(msg.find(bogus) != std::string::npos,
                     "error should echo the user-supplied path, got: " + msg);
+            });
+
+        /* ============================================================
+         * Malformed library handling
+         * ============================================================ */
+
+        addCallbackTest("Integration: garbage bytes are rejected as a plugin",
+            "",
+            [](services::ScriptAPI&) {
+                auto env = ::environment::EnvironmentBuilder().build();
+                auto vm = std::make_shared<::vm::runtime::VirtualMachine>(env);
+
+                fs::path tmp = fs::temp_directory_path() / "_mtype_garbage_plugin.dll";
+                {
+                    std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+                    f << "this is definitely not a shared library";
+                }
+
+                bool threw = false;
+                try {
+                    ::plugin::PluginLoader::instance().load(tmp.string(), env, vm);
+                } catch (const std::exception&) {
+                    threw = true;
+                }
+                const bool loaded = ::plugin::PluginLoader::instance().isLoaded(tmp.string());
+                std::error_code ec;
+                fs::remove(tmp, ec);
+
+                require(threw, "garbage library must fail to load");
+                require(!loaded, "garbage library must not be tracked as loaded");
+            });
+
+        /* Missing-entry fixture: a VALID shared library that simply lacks the
+         * mtype_plugin_register export, built by plugin-test-fixture-noentry. */
+        {
+            const std::string noentryName = "plugin_test_fixture_noentry";
+            std::vector<std::string> noentryCandidates;
+#if defined(_WIN32)
+            noentryCandidates.push_back(baseDir + noentryName + ".dll");
+#elif defined(__APPLE__)
+            noentryCandidates.push_back(baseDir + noentryName + ".dylib");
+            noentryCandidates.push_back(baseDir + noentryName + ".so");
+#else
+            noentryCandidates.push_back(baseDir + noentryName + ".so");
+#endif
+            std::string noentryPath;
+            for (const auto& c : noentryCandidates)
+            {
+                std::error_code ec;
+                if (fs::exists(c, ec)) { noentryPath = c; break; }
+            }
+
+            if (noentryPath.empty())
+            {
+                addSkippedTest(
+                    "Integration: library without mtype_plugin_register is rejected",
+                    "plugin_test_fixture_noentry not found at " + baseDir
+                    + " (build the `plugin-test-fixture-noentry` project)");
+            }
+            else
+            {
+                addCallbackTest("Integration: library without mtype_plugin_register is rejected",
+                    "",
+                    [noentryPath](services::ScriptAPI&) {
+                        auto env = ::environment::EnvironmentBuilder().build();
+                        auto vm = std::make_shared<::vm::runtime::VirtualMachine>(env);
+
+                        bool threw = false;
+                        try {
+                            ::plugin::PluginLoader::instance().load(noentryPath, env, vm);
+                        } catch (const std::exception&) {
+                            threw = true;
+                        }
+                        const bool loaded =
+                            ::plugin::PluginLoader::instance().isLoaded(noentryPath);
+
+                        require(threw,
+                            "library lacking the entry export must fail to load");
+                        require(!loaded,
+                            "entry-less library must not be tracked as loaded");
+                    });
+            }
+        }
+
+        /* ============================================================
+         * Lifecycle churn and search-path edge cases
+         * ============================================================ */
+
+        addCallbackTest("Integration: 25 load/unload cycles stay clean",
+            "",
+            [fixturePath](services::ScriptAPI&) {
+                auto env = ::environment::EnvironmentBuilder().build();
+                auto vm = std::make_shared<::vm::runtime::VirtualMachine>(env);
+
+                for (int i = 0; i < 25; ++i)
+                {
+                    ::plugin::PluginLoader::instance().load(fixturePath, env, vm);
+                    require(env->getNativeRegistry()->hasNativeFunction(
+                                "__pt_fixture_plus_seven"),
+                            "cycle " + std::to_string(i) + ": native missing after load");
+                    ::plugin::PluginLoader::instance().unload(fixturePath, env, vm);
+                    require(!env->getNativeRegistry()->hasNativeFunction(
+                                "__pt_fixture_plus_seven"),
+                            "cycle " + std::to_string(i) + ": native lingered after unload");
+                    require(!::plugin::PluginLoader::instance().isLoaded(fixturePath),
+                            "cycle " + std::to_string(i) + ": still tracked after unload");
+                }
+            });
+
+        addCallbackTest("Integration: duplicate search paths do not break basename loads",
+            "",
+            [fixturePath](services::ScriptAPI&) {
+                auto env = ::environment::EnvironmentBuilder().build();
+                auto vm = std::make_shared<::vm::runtime::VirtualMachine>(env);
+
+                fs::path fixtureAbs = fs::weakly_canonical(fs::path(fixturePath));
+                std::string searchRoot = fixtureAbs.parent_path().string();
+                std::string leaf = fixtureAbs.filename().string();
+
+                /* Registering the same root twice must be harmless. */
+                ::plugin::PluginLoader::instance().addSearchPath(searchRoot);
+                ::plugin::PluginLoader::instance().addSearchPath(searchRoot);
+
+                ::plugin::PluginLoader::instance().load(leaf, env, vm);
+                LoadedPluginGuard guard{leaf, env, vm};
+
+                require(::plugin::PluginLoader::instance().isLoaded(fixtureAbs.string()),
+                        "fixture should load once despite duplicate search roots");
+                require(env->getNativeRegistry()->hasNativeFunction(
+                            "__pt_fixture_plus_seven"),
+                        "fixture native should be registered");
             });
     }
 }

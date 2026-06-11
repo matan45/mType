@@ -379,3 +379,6 @@ mtproj.lock
 !mType/tests/testFiles/**/mt_modules/
 !mType/tests/testFiles/**/mt_modules/**
 !mType/tests/testFiles/**/mtproj.lock
+# plugin test fixture build artifacts (built by the premake plugin-test-fixture projects)
+mType/tests/testFiles/plugin/plugin_test_fixture.*
+mType/tests/testFiles/plugin/plugin_test_fixture_noentry.*
