@@ -860,7 +860,7 @@ namespace parser
 
     std::unique_ptr<ASTNode> ExpressionParser::parseIntegerLiteral()
     {
-        int value = static_cast<int>(tokenStream.current().intValue);
+        int64_t value = tokenStream.current().intValue;
         auto intLocation = tokenStream.current().location;
         tokenStream.advance();
         return std::make_unique<IntegerNode>(value, intLocation);
