@@ -1032,7 +1032,13 @@ namespace tests::testSuite
             }
         });
 
-        addCallbackTest("PackageRegistry: traversal-style package name does not escape registry", "", [](services::ScriptAPI&) {
+        // === CANARY (MYT-389: TRAVERSAL-STYLE PACKAGE NAMES ESCAPE THE REGISTRY) ===
+        // PackageRegistry joins registryPath/name/version with no validation,
+        // so "../registry/mathlib" resolves back into (or out of) the registry
+        // root and packageExists answers true. Names come from third-party
+        // mtpkg.json dependencies, so this is a path-traversal hole. Stays
+        // failing until MYT-389 lands (memory: feedback_keep_failing_canary_tests).
+        addCallbackTest("CANARY PackageRegistry: traversal-style package name does not escape registry", "", [](services::ScriptAPI&) {
             std::string registryPath = "mType/tests/testFiles/packagemanager/registry";
             packagemanager::PackageRegistry registry(registryPath);
             // "../registry/mathlib" would point back INTO the registry if
@@ -1284,10 +1290,16 @@ namespace tests::testSuite
                 throw std::runtime_error("Upgrade install failed: " + errors);
             }
 
-            std::ifstream f(tempDir / "mt_modules" / "@mathlib" / "mtpkg.json");
-            std::stringstream buf;
-            buf << f.rdbuf();
-            auto manifest = packagemanager::PackageManifest::parseFromJson(buf.str());
+            std::string manifestJson;
+            {
+                // Scoped so the handle closes before remove_all — Windows
+                // refuses to delete a directory tree with an open file in it.
+                std::ifstream f(tempDir / "mt_modules" / "@mathlib" / "mtpkg.json");
+                std::stringstream buf;
+                buf << f.rdbuf();
+                manifestJson = buf.str();
+            }
+            auto manifest = packagemanager::PackageManifest::parseFromJson(manifestJson);
             fs::remove_all(tempDir);
 
             if (manifest.version != "1.2.0")

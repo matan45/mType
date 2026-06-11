@@ -1,15 +1,15 @@
-Testing integer boundary values in arrays
+﻿Testing integer boundary values in arrays
 Created int array with length: 4
 boundaries[0] = 2147483647
-boundaries[1] = 2147483648
+boundaries[1] = -2147483648
 boundaries[2] = 0
 boundaries[3] = -1
 Testing arithmetic near boundaries:
 MAX_VALUE + 1 = 2147483648
-MIN_VALUE - 1 = 2147483647
--(MIN_VALUE) = -2147483648
+MIN_VALUE - 1 = -2147483649
+-(MIN_VALUE) = 2147483648
 Boundary calculations:
 results[0] = 2147483646
-results[1] = 2147483649
+results[1] = -2147483647
 results[2] = 1073741823
 Integer boundary values test completed

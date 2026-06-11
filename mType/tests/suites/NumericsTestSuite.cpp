@@ -111,6 +111,9 @@ namespace tests::testSuite
                         passPath + "deadBranchConstantCondition.mt");
 
         // === INT64 DIVISION EDGE CASES ===
+        // The historical MYT-387 crash repro is kept unregistered for
+        // reference at errorPath + "int64MinDivMinusOne_crash.mt"; active
+        // coverage is the two pass fixtures below.
         addOutputVerificationTest("Int64 Min Div Minus One",
                         passPath + "int64MinDivMinusOne.mt");
         addOutputVerificationTest("Int64 Min Div/Mod Minus One Hot",

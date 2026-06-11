@@ -526,11 +526,13 @@ namespace tests::testSuite
                 require(threw, "callFunction of unknown name should surface as an exception");
             });
 
-        /* Deep reentrancy: __pt_deep_recurse(d) calls the mType function
-         * bounce(d), which calls __pt_deep_recurse(d-1) again — a
-         * plugin→mType→plugin chain 6 frames deep. Each hop must save and
-         * restore the VM's IP/call stack correctly or the count comes back
-         * wrong (or the VM corrupts). */
+        /* Deep reentrancy: the native calls the mType function bounce(d),
+         * which calls the native again with d-1 — a plugin→mType→plugin
+         * chain 6 frames deep. Each hop must save and restore the VM's
+         * IP/call stack correctly or the count comes back wrong (or the VM
+         * corrupts). The __native__ name prefix is what CompileTimeValidator
+         * accepts as a runtime-resolved plugin native, letting the bootstrap
+         * compile before the test registers the function. */
         addCallbackTest("hostCallFunction nests 6 levels of plugin/mType reentrancy",
             "mType/tests/testFiles/plugin/pluginProbe_bootstrap.mt",
             [](services::ScriptAPI& api) {
@@ -540,7 +542,7 @@ namespace tests::testSuite
                                  const ::MTypeValue* const* args, int argc) -> ::MTypeValue* {
                     const ::MTypePluginHost* host = ::plugin::getHostVTable();
                     if (argc != 1) {
-                        host->raiseError(ctx, "TestError", "__pt_deep_recurse: expected 1 arg");
+                        host->raiseError(ctx, "TestError", "deep_recurse: expected 1 arg");
                         return host->makeNull(ctx);
                     }
                     int64_t d = host->getInt(args[0]);
@@ -551,10 +553,10 @@ namespace tests::testSuite
                     const ::MTypeValue* call1[] = { a0 };
                     return host->callFunction(ctx, "bounce", call1, 1);
                 };
-                auto binding = installSyntheticPlugin(env, "__pt_deep_recurse", deep);
+                auto binding = installSyntheticPlugin(env, "__native__pt_deep_recurse", deep);
 
                 ::value::Value out = api.callFunction(
-                    "__pt_deep_recurse", { ::value::Value(int64_t{6}) });
+                    "__native__pt_deep_recurse", { ::value::Value(int64_t{6}) });
                 require(::value::isInt(out), "deep reentrancy result should be int");
                 require(::value::asInt(out) == 6,
                         "6-level reentrancy should count to 6, got "
@@ -634,8 +636,12 @@ namespace tests::testSuite
                     const ::MTypePluginHost* host = ::plugin::getHostVTable();
                     ::MTypeValue* arr = host->makeArray(ctx, MT_TAG_INT, 3);
                     ::MTypeValue* v = host->arrayGet(ctx, arr, 99);
-                    /* true = OOB read came back null (the safe answer). */
-                    return host->makeBool(ctx, v == nullptr);
+                    /* hostArrayGet returns an arena-owned NULL-tagged value
+                     * for OOB reads (a valid pointer, never nullptr) — both
+                     * shapes count as the safe answer. */
+                    int isNullish = (v == nullptr) ||
+                                    (host->getTag(v) == MT_TAG_NULL);
+                    return host->makeBool(ctx, isNullish);
                 };
                 auto binding = installSyntheticPlugin(env, "__pt_oob_get", oobProbe);
                 auto fn = env->getNativeRegistry()->findNativeFunction("__pt_oob_get");
@@ -665,7 +671,11 @@ namespace tests::testSuite
                         return host->makeNull(ctx);
                     }
                     ::MTypeValue* v = host->objGet(ctx, obj, "noSuchField");
-                    return host->makeBool(ctx, v == nullptr);
+                    /* Same contract as arrayGet OOB: nullptr or a NULL-tagged
+                     * arena value are both the safe answer. */
+                    int isNullish = (v == nullptr) ||
+                                    (host->getTag(v) == MT_TAG_NULL);
+                    return host->makeBool(ctx, isNullish);
                 };
                 auto binding = installSyntheticPlugin(env, "__pt_missing_field", missingField);
 
