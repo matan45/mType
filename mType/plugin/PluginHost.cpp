@@ -120,9 +120,28 @@ namespace plugin
         }
         ::MTypeValue* hostMakeObject(::MTypeContext* ctx, const char* className)
         {
+            if (!ctx)
+            {
+                return nullptr;
+            }
             if (!className || !ctx->env)
             {
                 return arenaPush(ctx, ::value::Value(nullptr));
+            }
+            if (ctx->vm)
+            {
+                try
+                {
+                    ::value::Value created = ctx->vm->createObject(
+                        className, std::span<const ::value::Value>{});
+                    return arenaPush(ctx, std::move(created));
+                }
+                catch (const std::exception& e)
+                {
+                    hostRaiseError(ctx, "PluginError",
+                                   (std::string("makeObject '") + className + "' failed: " + e.what()).c_str());
+                    return arenaPush(ctx, ::value::Value(nullptr));
+                }
             }
             auto classDef = ctx->env->findClass(className);
             if (!classDef)
