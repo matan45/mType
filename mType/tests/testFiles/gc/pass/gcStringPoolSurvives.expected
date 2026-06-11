@@ -1,0 +1,3 @@
+kept-alive-42
+true
+String pool survives GC test passed!

@@ -144,5 +144,15 @@ namespace tests::testSuite
         addTestFromFile("ArrayQueue Peek Empty Deref NPE",
                         errorPath + "arrayQueuePeekEmptyDeref_error.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === LIFECYCLE / STRESS EDGE CASES ===
+        addOutputVerificationTest("LinkedList Drain And Reuse",
+                                  passPath + "linkedListDrainAndReuse.mt");
+
+        addOutputVerificationTest("HashMap 5000 Colliding Puts With Removes",
+                                  passPath + "hashMapManyAddsAfterCollisions.mt");
+
+        addOutputVerificationTest("ArrayQueue Multi-Cycle Churn",
+                                  passPath + "arrayQueueMultiCycleChurn.mt");
     }
 }

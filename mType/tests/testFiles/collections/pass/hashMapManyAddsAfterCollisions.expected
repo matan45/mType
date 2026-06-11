@@ -1,0 +1,6 @@
+Testing HashMap 5000 colliding puts:
+size: 5000
+hits: 5000
+size after removes: 3333
+survivors: 3333
+HashMap many colliding puts test passed!

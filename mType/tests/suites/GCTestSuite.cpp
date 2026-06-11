@@ -47,5 +47,15 @@ namespace tests::testSuite
 
         addOutputVerificationTest("Force Abort (50000 nodes)",
                                   passPath + "forceAbort.mt");
+
+        // === SURVIVAL UNDER ALLOCATION PRESSURE ===
+        // The existing tests prove garbage IS collected; these prove live
+        // data is NOT — strings and collection-internal objects must survive
+        // the GC cycles triggered by churning 40k cyclic garbage objects.
+        addOutputVerificationTest("String Pool Survives GC Pressure",
+                                  passPath + "gcStringPoolSurvives.mt");
+
+        addOutputVerificationTest("Objects In Collections Survive GC Pressure",
+                                  passPath + "gcObjectsInCollectionsSurvive.mt");
     }
 }

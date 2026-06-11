@@ -72,5 +72,27 @@ namespace tests::testSuite
         addTestFromFile("Empty JSON",
                         errorPath + "emptyJson.mt",
                         TestType::ERROR_EXPECTED);
+
+        addTestFromFile("Truncated JSON",
+                        errorPath + "truncatedJson.mt",
+                        TestType::ERROR_EXPECTED,
+                        "JSON parse error");
+
+        // === ROUND-TRIP EDGE CASES ===
+        addOutputVerificationTest("Deep Nesting Round Trip (50 levels)",
+                                  passPath + "jsonDeepNestingRoundTrip.mt");
+
+        addOutputVerificationTest("Unicode And Escapes Round Trip",
+                                  passPath + "jsonUnicodeRoundTrip.mt");
+
+        // === CANARIES (MYT-388: DESERIALIZATION IGNORES FIELD TYPES) ===
+        // JsonDeserializer sets fields directly from the parsed value without
+        // checking the declared type — a JSON string lands intact in an
+        // int-typed field and no error fires. This ERROR_EXPECTED test fails
+        // today (nothing throws) and stays failing until MYT-388 lands
+        // (memory: feedback_keep_failing_canary_tests).
+        addTestFromFile("CANARY Type Mismatch Raises Error",
+                        errorPath + "typeMismatchJson.mt",
+                        TestType::ERROR_EXPECTED);
     }
 }

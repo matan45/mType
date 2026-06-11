@@ -1,0 +1,12 @@
+Testing LinkedList drain and reuse:
+drained: 1
+drained: 2
+drained: 3
+size after drain: 0
+size after reuse: 2
+10
+20
+removed last: 20
+removed first: 10
+final size: 0
+LinkedList drain and reuse test passed!
