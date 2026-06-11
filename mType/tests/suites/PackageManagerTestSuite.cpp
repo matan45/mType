@@ -793,6 +793,42 @@ namespace tests::testSuite
             cleanup();
         });
 
+        addCallbackTest("Publish: traversal-style package name does not escape registry", "", [](services::ScriptAPI&) {
+            fs::path tempProject = fs::temp_directory_path() / "_mtype_pkg_test_publish_traversal";
+            fs::path tempRegistry = fs::temp_directory_path() / "_mtype_pkg_test_publish_traversal_reg";
+            if (fs::exists(tempProject)) fs::remove_all(tempProject);
+            if (fs::exists(tempRegistry)) fs::remove_all(tempRegistry);
+            fs::create_directories(tempProject / "src");
+            fs::create_directories(tempRegistry);
+
+            { std::ofstream f(tempProject / "mtpkg.json");
+              f << "{\"name\":\"../escaped\",\"version\":\"1.0.0\"}"; }
+            { std::ofstream f(tempProject / "src" / "Main.mt"); f << "// no escape\n"; }
+
+            packagemanager::PublishOptions opts;
+            opts.projectDir = tempProject.string();
+            auto result = packagemanager::publish(tempRegistry.string(), opts, nullptr);
+
+            auto cleanup = [&] {
+                fs::remove_all(tempProject);
+                fs::remove_all(tempRegistry);
+                fs::remove_all(tempRegistry.parent_path() / "escaped");
+            };
+
+            if (result.success)
+            {
+                cleanup();
+                throw std::runtime_error("Publish with traversal-style package name must fail");
+            }
+            if (fs::exists(tempRegistry.parent_path() / "escaped" / "1.0.0" / "mtpkg.json"))
+            {
+                cleanup();
+                throw std::runtime_error("Publish must not create files outside the registry root");
+            }
+
+            cleanup();
+        });
+
         addCallbackTest("Publish: refuses to overwrite without --force", "", [](services::ScriptAPI&) {
             fs::path tempProject = fs::temp_directory_path() / "_mtype_pkg_test_publish_overwrite";
             fs::path tempRegistry = fs::temp_directory_path() / "_mtype_pkg_test_publish_overwrite_reg";
