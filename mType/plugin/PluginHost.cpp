@@ -128,7 +128,7 @@ namespace plugin
             {
                 return arenaPush(ctx, ::value::Value(nullptr));
             }
-            if (ctx->vm)
+            if (ctx->vm && ctx->vm->getProgram())
             {
                 try
                 {
