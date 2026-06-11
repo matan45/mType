@@ -405,7 +405,15 @@ namespace vm::jit
         }
 
         cc.end_func();
-        return finalizeAndStore(cc, code, codeCache, osrKey,
-                               compileCount, bailoutCount);
+        if (!finalizeAndStore(cc, code, codeCache, osrKey,
+                              compileCount, bailoutCount))
+        {
+            // Emission succeeded per-opcode but asmjit rejected the IR at
+            // finalize/add time — report a distinct reason so --jit-stats
+            // doesn't misattribute it to opcode 0 (PUSH_INT).
+            reportBailout(OSRBailoutReason::FINALIZE_FAILURE);
+            return false;
+        }
+        return true;
     }
 }

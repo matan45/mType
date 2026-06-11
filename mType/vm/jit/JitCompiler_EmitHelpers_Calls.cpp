@@ -3,6 +3,7 @@
 #include <asmjit/x86.h>
 #include <cstddef>
 #include <cstdint>
+#include <iostream>
 #include <string>
 #include "JitCodeCache.hpp"
 #include "JitHelpers.hpp"
@@ -313,6 +314,8 @@ namespace vm::jit
         Error err = cc.finalize();
         if (err != Error::kOk)
         {
+            std::cerr << "[JIT] finalize failed for '" << key << "': "
+                      << DebugUtils::error_as_string(err) << "\n";
             bailoutCount++;
             return false;
         }
@@ -321,6 +324,8 @@ namespace vm::jit
         err = codeCache.getRuntime().add(&fn, &code);
         if (err != Error::kOk)
         {
+            std::cerr << "[JIT] runtime add failed for '" << key << "': "
+                      << DebugUtils::error_as_string(err) << "\n";
             bailoutCount++;
             return false;
         }

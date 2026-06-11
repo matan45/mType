@@ -38,7 +38,8 @@ namespace vm::jit
         OPERAND_STACK_NOT_EMPTY,     // captureState(): values left on operand stack at back-edge
         UNSUPPORTED_OPCODE,          // canCompileLoopOSR(): opcode not in getSupportedOpcodes
         LOCAL_COUNT_EXCEEDED,        // compileLoopOSR(): localCount > MAX_LOCAL_COUNT
-        CODEGEN_FAILURE              // Generic compileFailed during emission
+        CODEGEN_FAILURE,             // Generic compileFailed during emission
+        FINALIZE_FAILURE             // finalizeAndStore(): asmjit finalize/add rejected the emitted IR
     };
 
     const char* osrBailoutReasonName(OSRBailoutReason r);

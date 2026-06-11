@@ -169,7 +169,7 @@ namespace vm::jit
                 if (instr.opcode == OpCode::DIV)
                     cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), minValue);
                 else
-                    cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), 0);
+                    cc.mov(qword_ptr(s.stackBase, (s.stackDepth - 1) * 8), 0);
                 cc.jmp(divModDone);
                 cc.bind(normalDivMod);
                 Gp rax = cc.new_gp64();
