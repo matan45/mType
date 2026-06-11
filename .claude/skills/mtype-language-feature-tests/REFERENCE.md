@@ -19,6 +19,7 @@ Which suite owns which language feature. Test fixtures live under `mType/tests/t
 | Lambda / closures                      | `LambdaTestSuite`              | `lambda/`             |
 | Streams (`Stream<T>`, terminal ops)    | `StreamTestSuite`              | `stream/`             |
 | Control flow (`if/else`, `while`, `for`, ternary) | `ControlFlowTestSuite` | `controlFlow/`        |
+| Numeric boundaries, bitwise ops, float specials | `NumericsTestSuite`   | `numerics/`           |
 | Method overloading / overriding        | `OverloadingTestSuite`         | `overloading/`        |
 | Modifiers (`public/private/static/final/abstract`) | `ModifiersTestSuite` | `modifiers/`          |
 | Annotations (`@Override`, `@Throw`, `@Script`) | `AnnotationTestSuite`  | `annotation/`         |
