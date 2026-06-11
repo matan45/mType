@@ -63,6 +63,9 @@
     <ClInclude Include="..\packagemanager\src\PackageManifest.hpp">
       <Filter>packagemanager\src</Filter>
     </ClInclude>
+    <ClInclude Include="..\packagemanager\src\PackageName.hpp">
+      <Filter>packagemanager\src</Filter>
+    </ClInclude>
     <ClInclude Include="..\packagemanager\src\PackageRegistry.hpp">
       <Filter>packagemanager\src</Filter>
     </ClInclude>

@@ -1,4 +1,5 @@
 #include "PackageInstaller.hpp"
+#include "PackageName.hpp"
 #include "Sha256.hpp"
 #include <filesystem>
 #include <iostream>
@@ -241,6 +242,7 @@ namespace packagemanager
 
     void PackageInstaller::copyPackageToModules(const ResolvedPackage& pkg)
     {
+        validatePackageName(pkg.name);
         fs::path source = fs::path(pkg.registryPath);
         fs::path dest = fs::path(projectRoot) / "mt_modules" / ("@" + pkg.name);
 

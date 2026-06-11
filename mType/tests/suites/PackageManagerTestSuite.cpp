@@ -1032,13 +1032,9 @@ namespace tests::testSuite
             }
         });
 
-        // === CANARY (MYT-389: TRAVERSAL-STYLE PACKAGE NAMES ESCAPE THE REGISTRY) ===
-        // PackageRegistry joins registryPath/name/version with no validation,
-        // so "../registry/mathlib" resolves back into (or out of) the registry
-        // root and packageExists answers true. Names come from third-party
-        // mtpkg.json dependencies, so this is a path-traversal hole. Stays
-        // failing until MYT-389 lands (memory: feedback_keep_failing_canary_tests).
-        addCallbackTest("CANARY PackageRegistry: traversal-style package name does not escape registry", "", [](services::ScriptAPI&) {
+        // MYT-389: package names from third-party manifests must not become
+        // filesystem path segments that escape the package registry.
+        addCallbackTest("PackageRegistry: traversal-style package name does not escape registry", "", [](services::ScriptAPI&) {
             std::string registryPath = "mType/tests/testFiles/packagemanager/registry";
             packagemanager::PackageRegistry registry(registryPath);
             // "../registry/mathlib" would point back INTO the registry if
@@ -1051,6 +1047,12 @@ namespace tests::testSuite
             if (!versions.empty())
                 throw std::runtime_error(
                     "getAvailableVersions('..') must not enumerate the registry parent");
+            if (registry.packageExists("..\\registry\\mathlib", "1.0.0"))
+                throw std::runtime_error(
+                    "packageExists must not resolve backslash traversal-style names");
+            if (registry.packageExists("C:\\tmp", "1.0.0"))
+                throw std::runtime_error(
+                    "packageExists must not resolve drive-style package names");
         });
 
         addCallbackTest("DependencyResolver: bad semver in registry manifest throws", "", [](services::ScriptAPI&) {
