@@ -42,6 +42,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "mtype-vm", "mType\mtype-vm.
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "plugin-test-fixture", "mType\plugin-test-fixture.vcxproj", "{D596F202-41F8-CF10-CA65-16C336C606D0}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "plugin-test-fixture-noentry", "mType\plugin-test-fixture-noentry.vcxproj", "{51B91950-BDC6-4736-46AD-4321B2B913ED}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -124,6 +126,10 @@ Global
 		{D596F202-41F8-CF10-CA65-16C336C606D0}.Debug|x64.Build.0 = Debug|x64
 		{D596F202-41F8-CF10-CA65-16C336C606D0}.Release|x64.ActiveCfg = Release|x64
 		{D596F202-41F8-CF10-CA65-16C336C606D0}.Release|x64.Build.0 = Release|x64
+		{51B91950-BDC6-4736-46AD-4321B2B913ED}.Debug|x64.ActiveCfg = Debug|x64
+		{51B91950-BDC6-4736-46AD-4321B2B913ED}.Debug|x64.Build.0 = Debug|x64
+		{51B91950-BDC6-4736-46AD-4321B2B913ED}.Release|x64.ActiveCfg = Release|x64
+		{51B91950-BDC6-4736-46AD-4321B2B913ED}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

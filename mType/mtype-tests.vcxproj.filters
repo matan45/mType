@@ -82,6 +82,9 @@
     <Filter Include="testFiles\controlFlow\pass">
       <UniqueIdentifier>{062782EB-F236-2EBC-5BF0-92DA471F1D55}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\debugger">
+      <UniqueIdentifier>{EC54CE77-D838-8FCD-4199-89202D9C794F}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\deps">
       <UniqueIdentifier>{930C8E9D-7FDA-81A3-686E-F2C954DB5D08}</UniqueIdentifier>
     </Filter>
@@ -574,6 +577,15 @@
     <Filter Include="testFiles\nullSafety\pass">
       <UniqueIdentifier>{F4706AB1-6033-9E3B-A9E3-2CC815E57619}</UniqueIdentifier>
     </Filter>
+    <Filter Include="testFiles\numerics">
+      <UniqueIdentifier>{0DB9919A-F99C-52F0-62FD-4C434E003D72}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\numerics\error">
+      <UniqueIdentifier>{2626F4B6-124B-4337-3B96-28C7271A4255}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="testFiles\numerics\pass">
+      <UniqueIdentifier>{33FF7189-9F36-BA20-A840-1E4414F7E019}</UniqueIdentifier>
+    </Filter>
     <Filter Include="testFiles\overloading">
       <UniqueIdentifier>{81B13C67-ED1D-F861-B611-90BF223D1ACA}</UniqueIdentifier>
     </Filter>
@@ -852,6 +864,9 @@
     <ClInclude Include="tests\suites\NullSafetyTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\NumericsTestSuite.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\OverloadingTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
@@ -984,6 +999,9 @@
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\NullSafetyTestSuite.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\NumericsTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\OverloadingTestSuite.cpp">
@@ -1595,6 +1613,9 @@
       <Filter>testFiles\arrays\error</Filter>
     </None>
     <None Include="tests\testFiles\arrays\error\arrayUninitializedAccess.mt">
+      <Filter>testFiles\arrays\error</Filter>
+    </None>
+    <None Include="tests\testFiles\arrays\error\jaggedRowReassign_error.mt">
       <Filter>testFiles\arrays\error</Filter>
     </None>
     <None Include="tests\testFiles\arrays\error\largeArrayOutOfBounds.mt">
@@ -5473,6 +5494,12 @@
     <None Include="tests\testFiles\collections\pass\arrayQueueEmptyOps.mt">
       <Filter>testFiles\collections\pass</Filter>
     </None>
+    <None Include="tests\testFiles\collections\pass\arrayQueueMultiCycleChurn.expected">
+      <Filter>testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\arrayQueueMultiCycleChurn.mt">
+      <Filter>testFiles\collections\pass</Filter>
+    </None>
     <None Include="tests\testFiles\collections\pass\arrayQueueResizePreservesOrder.expected">
       <Filter>testFiles\collections\pass</Filter>
     </None>
@@ -5507,6 +5534,12 @@
       <Filter>testFiles\collections\pass</Filter>
     </None>
     <None Include="tests\testFiles\collections\pass\hashMapContainsValue.mt">
+      <Filter>testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\hashMapManyAddsAfterCollisions.expected">
+      <Filter>testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\hashMapManyAddsAfterCollisions.mt">
       <Filter>testFiles\collections\pass</Filter>
     </None>
     <None Include="tests\testFiles\collections\pass\hashMapPutAll.expected">
@@ -5567,6 +5600,12 @@
       <Filter>testFiles\collections\pass</Filter>
     </None>
     <None Include="tests\testFiles\collections\pass\linkedListContainsAndSize.mt">
+      <Filter>testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\linkedListDrainAndReuse.expected">
+      <Filter>testFiles\collections\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\collections\pass\linkedListDrainAndReuse.mt">
       <Filter>testFiles\collections\pass</Filter>
     </None>
     <None Include="tests\testFiles\collections\pass\linkedListRemoveHeadAndTail.expected">
@@ -5695,6 +5734,30 @@
     <None Include="tests\testFiles\controlFlow\pass\bracelessIfNativeUnderflow_pass.mt">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
+    <None Include="tests\testFiles\controlFlow\pass\breakInDoWhileInsideSwitch.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\breakInDoWhileInsideSwitch.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\breakInLoopInTryFinallyInsideSwitch.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\breakInLoopInTryFinallyInsideSwitch.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\breakInLoopInsideSwitch.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\breakInLoopInsideSwitch.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\breakInWhileForeachInsideSwitch.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\breakInWhileForeachInsideSwitch.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
     <None Include="tests\testFiles\controlFlow\pass\breakStatement.expected">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
@@ -5765,6 +5828,24 @@
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\pass\conditionalShortCircuitDiv_pass.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\continueInDoWhile.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\continueInDoWhile.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\continueInDoWhileScopedObjects.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\continueInDoWhileScopedObjects.mt">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\continueInTryWithFinally.expected">
+      <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\controlFlow\pass\continueInTryWithFinally.mt">
       <Filter>testFiles\controlFlow\pass</Filter>
     </None>
     <None Include="tests\testFiles\controlFlow\pass\continueStatement.expected">
@@ -6330,6 +6411,15 @@
     </None>
     <None Include="tests\testFiles\controlFlow\pass\voidReturnInCtor_pass.mt">
       <Filter>testFiles\controlFlow\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\debugger\arrayLocalsExpansion.mt">
+      <Filter>testFiles\debugger</Filter>
+    </None>
+    <None Include="tests\testFiles\debugger\interopBreakpoint.mt">
+      <Filter>testFiles\debugger</Filter>
+    </None>
+    <None Include="tests\testFiles\debugger\methodFrameLocalNames.mt">
+      <Filter>testFiles\debugger</Filter>
     </None>
     <None Include="tests\testFiles\deps\alias\Main.mt">
       <Filter>testFiles\deps\alias</Filter>
@@ -7826,6 +7916,18 @@
       <Filter>testFiles\gc\pass</Filter>
     </None>
     <None Include="tests\testFiles\gc\pass\forceAbort.mt">
+      <Filter>testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\gcObjectsInCollectionsSurvive.expected">
+      <Filter>testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\gcObjectsInCollectionsSurvive.mt">
+      <Filter>testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\gcStringPoolSurvives.expected">
+      <Filter>testFiles\gc\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\gc\pass\gcStringPoolSurvives.mt">
       <Filter>testFiles\gc\pass</Filter>
     </None>
     <None Include="tests\testFiles\gc\pass\lambdaCycle.expected">
@@ -11305,6 +11407,12 @@
     <None Include="tests\testFiles\iterator\pass\iteratorLinkedList.mt">
       <Filter>testFiles\iterator\pass</Filter>
     </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorMutationDuringIteration.expected">
+      <Filter>testFiles\iterator\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\iterator\pass\iteratorMutationDuringIteration.mt">
+      <Filter>testFiles\iterator\pass</Filter>
+    </None>
     <None Include="tests\testFiles\iterator\pass\iteratorNeverAdvancedClose.expected">
       <Filter>testFiles\iterator\pass</Filter>
     </None>
@@ -11341,6 +11449,12 @@
     <None Include="tests\testFiles\json\error\invalidJson.mt">
       <Filter>testFiles\json\error</Filter>
     </None>
+    <None Include="tests\testFiles\json\error\truncatedJson.mt">
+      <Filter>testFiles\json\error</Filter>
+    </None>
+    <None Include="tests\testFiles\json\error\typeMismatchJson.mt">
+      <Filter>testFiles\json\error</Filter>
+    </None>
     <None Include="tests\testFiles\json\error\unknownClass.mt">
       <Filter>testFiles\json\error</Filter>
     </None>
@@ -11372,6 +11486,18 @@
       <Filter>testFiles\json\pass</Filter>
     </None>
     <None Include="tests\testFiles\json\pass\format.mt">
+      <Filter>testFiles\json\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\json\pass\jsonDeepNestingRoundTrip.expected">
+      <Filter>testFiles\json\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\json\pass\jsonDeepNestingRoundTrip.mt">
+      <Filter>testFiles\json\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\json\pass\jsonUnicodeRoundTrip.expected">
+      <Filter>testFiles\json\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\json\pass\jsonUnicodeRoundTrip.mt">
       <Filter>testFiles\json\pass</Filter>
     </None>
     <None Include="tests\testFiles\json\pass\nullFields.expected">
@@ -12811,6 +12937,9 @@
     <None Include="tests\testFiles\network\pass\runNetworkTests.mt">
       <Filter>testFiles\network\pass</Filter>
     </None>
+    <None Include="tests\testFiles\nullSafety\error\breakGuardInsideSwitch_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
     <None Include="tests\testFiles\nullSafety\error\chainedAccessThroughNullable_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
@@ -12824,6 +12953,9 @@
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\error\methodCallOnNullable_error.mt">
+      <Filter>testFiles\nullSafety\error</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\error\narrowingNotLeakedPastLoop_error.mt">
       <Filter>testFiles\nullSafety\error</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\error\narrowingScopedToIfBlock_error.mt">
@@ -12877,6 +13009,18 @@
     <None Include="tests\testFiles\nullSafety\pass\arrayIterateWithNullCheck.mt">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
+    <None Include="tests\testFiles\nullSafety\pass\breakGuardLoopInsideSwitch.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\breakGuardLoopInsideSwitch.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\breakGuardNarrowing.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\breakGuardNarrowing.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
     <None Include="tests\testFiles\nullSafety\pass\compoundGuardClauseNarrowing.expected">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
@@ -12887,6 +13031,18 @@
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\compoundIfConditionNarrowing.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\continueGuardNarrowing.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\continueGuardNarrowing.mt">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\doWhileGuardNarrowing.expected">
+      <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\nullSafety\pass\doWhileGuardNarrowing.mt">
       <Filter>testFiles\nullSafety\pass</Filter>
     </None>
     <None Include="tests\testFiles\nullSafety\pass\elseBranchMethodDispatch.expected">
@@ -13068,6 +13224,120 @@
     </None>
     <None Include="tests\testFiles\nullSafety\pass\whileLoopNarrowing.mt">
       <Filter>testFiles\nullSafety\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\error\divByZeroNotCatchable_error.mt">
+      <Filter>testFiles\numerics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\error\divByZeroRuntime_error.mt">
+      <Filter>testFiles\numerics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\error\floatDivByZeroRuntime_error.mt">
+      <Filter>testFiles\numerics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\error\int64MinDivMinusOne_crash.mt">
+      <Filter>testFiles\numerics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\error\intLiteralOutOfRange_error.mt">
+      <Filter>testFiles\numerics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\error\moduloByZeroRuntime_error.mt">
+      <Filter>testFiles\numerics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\error\shiftAmountNegative_error.mt">
+      <Filter>testFiles\numerics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\error\shiftAmountTooLarge_error.mt">
+      <Filter>testFiles\numerics\error</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\bitwiseAndOrXorBoundaries.expected">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\bitwiseAndOrXorBoundaries.mt">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\bitwiseInCondition.expected">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\bitwiseInCondition.mt">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\bitwiseNotChain.expected">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\bitwiseNotChain.mt">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\constantComparisonBranch.expected">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\constantComparisonBranch.mt">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\deadBranchConstantCondition.expected">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\deadBranchConstantCondition.mt">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\floatNanComparisons.expected">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\floatNanComparisons.mt">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\floatOverflowToInf.expected">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\floatOverflowToInf.mt">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\int32BoundaryLiterals.expected">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\int32BoundaryLiterals.mt">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\int64MaxLiteral.expected">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\int64MaxLiteral.mt">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\int64MinModMinusOne.expected">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\int64MinModMinusOne.mt">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\int64WrapArithmetic.expected">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\int64WrapArithmetic.mt">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\intLiteralAboveInt32Max.expected">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\intLiteralAboveInt32Max.mt">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\negativeModuloOperands.expected">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\negativeModuloOperands.mt">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\shiftBoundaryAmounts.expected">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\shiftBoundaryAmounts.mt">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\shiftChainHotLoop.expected">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\shiftChainHotLoop.mt">
+      <Filter>testFiles\numerics\pass</Filter>
     </None>
     <None Include="tests\testFiles\overloading\error\ambiguousCall.mt">
       <Filter>testFiles\overloading\error</Filter>
@@ -13293,6 +13563,9 @@
     </None>
     <None Include="tests\testFiles\packagemanager\registry\utils\2.1.0\src\StringUtil.mt">
       <Filter>testFiles\packagemanager\registry\utils\2.1.0\src</Filter>
+    </None>
+    <None Include="tests\testFiles\plugin\pluginProbe_bootstrap.mt">
+      <Filter>testFiles\plugin</Filter>
     </None>
     <None Include="tests\testFiles\plugin\reentrancy_bootstrap.mt">
       <Filter>testFiles\plugin</Filter>
