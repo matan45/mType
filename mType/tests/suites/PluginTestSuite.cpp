@@ -540,7 +540,7 @@ namespace tests::testSuite
          * hop. A crash aborts the whole suite run, so the test is registered
          * as a SKIP until the fix lands; flip the flag below to re-arm it.
          * The body stays compiled so it cannot rot. */
-        constexpr bool kMyt390DeepReentrancyFixed = false;
+        constexpr bool kMyt390DeepReentrancyFixed = true;
         if (!kMyt390DeepReentrancyFixed)
         {
             addSkippedTest("hostCallFunction nests 6 levels of plugin/mType reentrancy",
@@ -588,7 +588,7 @@ namespace tests::testSuite
          * crashing, so unlike the deep-reentrancy skip above it stays armed
          * and failing until the fix lands
          * (memory: feedback_keep_failing_canary_tests). */
-        addCallbackTest("CANARY hostCallMethod invokes a method on a constructed object",
+        addCallbackTest("hostCallMethod invokes a method on a constructed object",
             "mType/tests/testFiles/plugin/pluginProbe_bootstrap.mt",
             [](services::ScriptAPI& api) {
                 auto env = api.getEnvironment();

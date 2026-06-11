@@ -171,6 +171,29 @@ namespace vm::runtime
     {
         size_t savedIP = instructionPointer;
         std::vector<CallFrame> savedCallStack = callStack;
+        size_t savedStackSize = stackManager->size();
+        size_t savedCurrentFinallyOffset = currentFinallyOffset;
+        const bytecode::BytecodeProgram* savedExecutionProgram =
+            executionCtx ? executionCtx->program : program;
+
+        auto restoreReentrantState = [&]() {
+            while (callStack.size() > savedCallStack.size())
+            {
+                callStack.back().releaseStackObjects();
+                callStack.pop_back();
+            }
+            instructionPointer = savedIP;
+            callStack = savedCallStack;
+            currentFinallyOffset = savedCurrentFinallyOffset;
+            while (stackManager->size() > savedStackSize)
+            {
+                stackManager->pop();
+            }
+            if (executionCtx)
+            {
+                executionCtx->program = savedExecutionProgram;
+            }
+        };
 
         try
         {
@@ -186,14 +209,97 @@ namespace vm::runtime
                 throw errors::FunctionNotFoundException(functionName);
             }
 
+            if (!executionCtx || !controlFlowExecutor)
+            {
+                ensureExecutors();
+            }
+
+            currentFinallyOffset = SIZE_MAX;
+            if (executionCtx)
+            {
+                executionCtx->program = program;
+            }
+
+            size_t frameBase = stackManager->size();
             for (const auto& arg : args)
             {
                 push(arg);
             }
+            for (size_t i = args.size(); i < funcMetadata->localCount; ++i)
+            {
+                push(std::monostate{});
+            }
 
+            CallFrame frame;
+            frame.returnAddress = savedIP;
+            frame.frameBase = frameBase;
+            frame.localBase = frameBase;
+            frame.functionName = program->internFrameName(functionName);
+            frame.thisInstance = nullptr;
+            frame.programIndex = 0;
+
+            pushCallFrame(std::move(frame));
+            stats.functionCalls++;
             instructionPointer = funcMetadata->startOffset;
 
-            return interpretLoop();
+            value::Value result = std::monostate{};
+            const size_t targetDepth = savedCallStack.size();
+            bool debugActive = isDebugActive();
+            auto& currentProgram = executionCtx->program;
+
+            while (callStack.size() > targetDepth)
+            {
+                if (instructionPointer >= currentProgram->getInstructionCount())
+                {
+                    break;
+                }
+                if (suspendedByAwait)
+                {
+                    break;
+                }
+
+                const auto& instr = currentProgram->getInstruction(instructionPointer);
+                if (debugActive)
+                {
+                    debugPauseIfNeeded();
+                }
+
+                try
+                {
+                    executeInstruction(instr);
+                }
+                catch (errors::UserException& e)
+                {
+                    auto handlerResult = exceptionHandler->handleUserException(
+                        e, instructionPointer, currentFinallyOffset);
+                    if (!handlerResult.handled)
+                    {
+                        throw;
+                    }
+                    if (callStack.size() < targetDepth)
+                    {
+                        restoreReentrantState();
+                        throw;
+                    }
+                    instructionPointer = handlerResult.newInstructionPointer;
+                    if (handlerResult.jumpedToFinally)
+                    {
+                        pendingException = std::make_unique<errors::UserException>(e);
+                    }
+                    continue;
+                }
+
+                stats.instructionsExecuted++;
+                instructionPointer++;
+            }
+
+            if (!suspendedByAwait && stackManager->size() > frameBase)
+            {
+                result = stackManager->pop();
+            }
+
+            restoreReentrantState();
+            return result;
         }
         catch (errors::ScriptException& e)
         {
@@ -201,14 +307,12 @@ namespace vm::runtime
             // saved one — the live stack still contains any frame pushed by
             // interpretLoop. The decorator no-ops on empty stacks.
             utils::decorateFromCallStack(e, callStack, program);
-            instructionPointer = savedIP;
-            callStack = savedCallStack;
+            restoreReentrantState();
             throw;
         }
         catch (...)
         {
-            instructionPointer = savedIP;
-            callStack = savedCallStack;
+            restoreReentrantState();
             throw;
         }
     }
