@@ -209,7 +209,7 @@ namespace vm::runtime
             if (r == 0) {
                 utils::ErrorLocationHelper::throwRuntimeError(context, "Division by zero");
             }
-            context.stackManager->binaryReplaceTop(l / r);
+            context.stackManager->binaryReplaceTop(utils::wrappingDiv64(l, r));
         }
 
         // Optimized float operations

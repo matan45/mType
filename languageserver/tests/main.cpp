@@ -29,6 +29,9 @@
 
 // Phase 4: Analysis suites
 #include "SymbolRegistrationVisitorTestSuite.hpp"
+#include "ReceiverTypeResolverTestSuite.hpp"
+#include "AstPositionIndexTestSuite.hpp"
+#include "InterfaceHierarchyWalkerTestSuite.hpp"
 
 // Phase 5: Filesystem-dependent suites
 #include "PathCompletionHandlerTestSuite.hpp"
@@ -95,6 +98,9 @@ int main(int argc, char* argv[]) {
 
     // Phase 4: Analysis
     RUN_SUITE("symbolregistration", "SymbolRegistrationVisitor Tests", SymbolRegistrationVisitorTestSuite)
+    RUN_SUITE("receivertyperesolver", "ReceiverTypeResolver Tests", ReceiverTypeResolverTestSuite)
+    RUN_SUITE("astpositionindex", "AstPositionIndex Tests", AstPositionIndexTestSuite)
+    RUN_SUITE("interfacehierarchy", "InterfaceHierarchyWalker Tests", InterfaceHierarchyWalkerTestSuite)
 
     // Phase 5: Filesystem-dependent
     RUN_SUITE("pathcompletion", "PathCompletionHandler Tests", PathCompletionHandlerTestSuite)

@@ -47,6 +47,24 @@ namespace vm::runtime::utils
         return static_cast<int64_t>(0u - static_cast<uint64_t>(a));
     }
 
+    inline int64_t wrappingDiv64(int64_t a, int64_t b) {
+        // INT64_MIN / -1 overflows the hardware idiv result. Java defines it
+        // as wrapping to INT64_MIN; keep the VM's default arithmetic semantics.
+        if (a == INT64_MIN && b == -1) {
+            return INT64_MIN;
+        }
+        return a / b;
+    }
+
+    inline int64_t wrappingMod64(int64_t a, int64_t b) {
+        // INT64_MIN % -1 is paired with the idiv overflow case above; Java
+        // defines the remainder as 0.
+        if (a == INT64_MIN && b == -1) {
+            return 0;
+        }
+        return a % b;
+    }
+
     // ---- Checked (opt-in, throws on overflow) ----
 
 #if defined(__GNUC__) || defined(__clang__)

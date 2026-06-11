@@ -746,6 +746,32 @@ project "plugin-test-fixture"
    filter {}
 
 
+--------------------------------------------------------------------------------
+-- Shared library: plugin-test-fixture-noentry
+-- A valid shared library that deliberately lacks the mtype_plugin_register
+-- export, so PluginTestSuite can pin the loader's missing-entry-point error.
+-- Same links-NOTHING constraint as plugin-test-fixture above.
+--------------------------------------------------------------------------------
+project "plugin-test-fixture-noentry"
+   kind "SharedLib"
+   location "mType"
+   commonConfig()
+
+   targetdir   "mType/tests/testFiles/plugin"
+   targetname  "plugin_test_fixture_noentry"
+   targetprefix ""  -- no "lib" prefix on POSIX
+
+   includedirs { "mType/plugin" }
+
+   files {
+      "mType/tests/pluginFixture/fixtureNoEntry.cpp",
+   }
+
+   filter "system:linux or system:macosx"
+      buildoptions { "-fvisibility=hidden" }
+   filter {}
+
+
 -- The SDL3 + ImGui plugin previously lived here. It moved to its own
 -- standalone repo at C:\matan\mtype-imgui-sdl (CMake build, not premake)
 -- so third-party plugins follow the recommended out-of-tree pattern.

@@ -1,6 +1,7 @@
 #include "JitCompiler.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include "JitEmissionState.hpp"
 #include "JitHelpers.hpp"
 #include "../bytecode/OpCode.hpp"
@@ -38,6 +39,20 @@ namespace vm::jit
             cc.bind(nz);
             Gp left = cc.new_gp64();
             cc.mov(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
+            Label normalDivMod = cc.new_label();
+            Label divModDone = cc.new_label();
+            Gp minValue = cc.new_gp64();
+            cc.mov(minValue, std::numeric_limits<int64_t>::min());
+            cc.cmp(right, -1);
+            cc.jne(normalDivMod);
+            cc.cmp(left, minValue);
+            cc.jne(normalDivMod);
+            if (op == OpCode::INVOKE_INT_DIV)
+                cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8), minValue);
+            else
+                cc.mov(qword_ptr(s.stackBase, (s.stackDepth - 1) * 8), 0);
+            cc.jmp(divModDone);
+            cc.bind(normalDivMod);
             Gp raxReg = cc.new_gp64();
             Gp rdxReg = cc.new_gp64();
             cc.mov(raxReg, left);
@@ -45,6 +60,7 @@ namespace vm::jit
             cc.idiv(rdxReg, raxReg, right);
             cc.mov(Mem(s.stackBase, (s.stackDepth - 1) * 8),
                    op == OpCode::INVOKE_INT_DIV ? raxReg : rdxReg);
+            cc.bind(divModDone);
             s.slotTypes.push_back(SlotType::INT);
             return true;
         }

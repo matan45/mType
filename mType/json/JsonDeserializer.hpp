@@ -49,11 +49,17 @@ namespace json
 
         value::Value convertToFieldType(
             const std::shared_ptr<JsonValue>& json,
-            const std::string& targetType);
+            const std::string& targetType,
+            const std::string& context = "");
 
         std::string resolveFieldTypeFromDef(
             const std::shared_ptr<runtimeTypes::klass::FieldDefinition>& field);
         static std::string valueTypeToString(value::ValueType type);
+        static std::string jsonTypeToString(JsonType type);
+        [[noreturn]] static void throwTypeMismatch(
+            const std::shared_ptr<JsonValue>& json,
+            const std::string& targetType,
+            const std::string& context);
 
         // Collection deserialization
         value::Value deserializeCollection(const std::shared_ptr<JsonValue>& json,

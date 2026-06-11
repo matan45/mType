@@ -105,9 +105,14 @@ std::optional<int64_t> SafeArithmetic::safeModulo(int64_t dividend, int64_t divi
         return std::nullopt;
     }
 
-    // Note: C++ modulo behavior with negative numbers is well-defined since C++11
-    // (dividend % divisor) has the same sign as dividend
-    // No overflow issues with modulo
+    // INT64_MIN % -1 is paired with the hardware division-overflow case.
+    // mType follows Java semantics here, so the remainder is 0.
+    if (dividend == std::numeric_limits<int64_t>::min() && divisor == -1) {
+        return 0;
+    }
+
+    // C++ modulo behavior with negative numbers is well-defined since C++11
+    // once the INT64_MIN/-1 overflow pair is handled above.
     return dividend % divisor;
 }
 

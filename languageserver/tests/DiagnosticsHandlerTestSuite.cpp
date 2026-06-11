@@ -122,6 +122,71 @@ void DiagnosticsHandlerTestSuite::registerTests(LspTestHarness& harness) {
 
         require(sawWarning, "expected at least one warning-severity diagnostic");
     });
+
+    // === MALFORMED-CODE RECOVERY ===
+
+    harness.addTest("missing closing brace produces diagnostics without crashing", []() {
+        auto docMgr = makeDocManager("file:///test.mt",
+            "class Foo {\n"
+            "    public function bar(): void {\n"
+            "        print(1);\n"
+            "\n"          // bar's brace never closes
+            "function orphan(): void {}\n");
+        DiagnosticsHandler handler(docMgr.get());
+
+        std::vector<Diagnostic> capturedDiags;
+        handler.setPublisher([&](const std::string&, const std::vector<Diagnostic>& diags) {
+            capturedDiags = diags;
+        });
+
+        handler.publishDiagnostics("file:///test.mt");
+        require(!capturedDiags.empty(),
+            "unclosed brace should produce at least one diagnostic");
+        for (const auto& d : capturedDiags) {
+            require(d.range.start.line >= 0,
+                "diagnostic range must be non-negative");
+        }
+    });
+
+    harness.addTest("multiple independent errors still publish diagnostics", []() {
+        auto docMgr = makeDocManager("file:///test.mt",
+            "int a = ;\n"
+            "class Ok {}\n"
+            "int b = ;\n");
+        DiagnosticsHandler handler(docMgr.get());
+
+        std::vector<Diagnostic> capturedDiags;
+        handler.setPublisher([&](const std::string&, const std::vector<Diagnostic>& diags) {
+            capturedDiags = diags;
+        });
+
+        handler.publishDiagnostics("file:///test.mt");
+        require(!capturedDiags.empty(),
+            "two broken statements should produce diagnostics");
+    });
+
+    harness.addTest("fixing the document clears error diagnostics on republish", []() {
+        auto docMgr = makeDocManager("file:///test.mt", "class { broken");
+        DiagnosticsHandler handler(docMgr.get());
+
+        std::vector<Diagnostic> capturedDiags;
+        handler.setPublisher([&](const std::string&, const std::vector<Diagnostic>& diags) {
+            capturedDiags = diags;
+        });
+
+        handler.publishDiagnostics("file:///test.mt");
+        require(!capturedDiags.empty(), "broken source should produce diagnostics");
+
+        docMgr->updateDocument("file:///test.mt", "class Fixed {}\n", 2);
+        docMgr->parseDocument("file:///test.mt");
+        handler.publishDiagnostics("file:///test.mt");
+
+        for (const auto& d : capturedDiags) {
+            require(d.severity != 1,
+                "after the fix no error-severity diagnostics should remain, got: "
+                + d.message);
+        }
+    });
 }
 
 } // namespace mtype::lsp::test

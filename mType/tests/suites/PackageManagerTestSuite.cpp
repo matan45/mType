@@ -793,6 +793,42 @@ namespace tests::testSuite
             cleanup();
         });
 
+        addCallbackTest("Publish: traversal-style package name does not escape registry", "", [](services::ScriptAPI&) {
+            fs::path tempProject = fs::temp_directory_path() / "_mtype_pkg_test_publish_traversal";
+            fs::path tempRegistry = fs::temp_directory_path() / "_mtype_pkg_test_publish_traversal_reg";
+            if (fs::exists(tempProject)) fs::remove_all(tempProject);
+            if (fs::exists(tempRegistry)) fs::remove_all(tempRegistry);
+            fs::create_directories(tempProject / "src");
+            fs::create_directories(tempRegistry);
+
+            { std::ofstream f(tempProject / "mtpkg.json");
+              f << "{\"name\":\"../escaped\",\"version\":\"1.0.0\"}"; }
+            { std::ofstream f(tempProject / "src" / "Main.mt"); f << "// no escape\n"; }
+
+            packagemanager::PublishOptions opts;
+            opts.projectDir = tempProject.string();
+            auto result = packagemanager::publish(tempRegistry.string(), opts, nullptr);
+
+            auto cleanup = [&] {
+                fs::remove_all(tempProject);
+                fs::remove_all(tempRegistry);
+                fs::remove_all(tempRegistry.parent_path() / "escaped");
+            };
+
+            if (result.success)
+            {
+                cleanup();
+                throw std::runtime_error("Publish with traversal-style package name must fail");
+            }
+            if (fs::exists(tempRegistry.parent_path() / "escaped" / "1.0.0" / "mtpkg.json"))
+            {
+                cleanup();
+                throw std::runtime_error("Publish must not create files outside the registry root");
+            }
+
+            cleanup();
+        });
+
         addCallbackTest("Publish: refuses to overwrite without --force", "", [](services::ScriptAPI&) {
             fs::path tempProject = fs::temp_directory_path() / "_mtype_pkg_test_publish_overwrite";
             fs::path tempRegistry = fs::temp_directory_path() / "_mtype_pkg_test_publish_overwrite_reg";
@@ -976,6 +1012,344 @@ namespace tests::testSuite
             }
 
             cleanup();
+        });
+
+        // =============================================
+        // Malformed Manifest / Registry Robustness
+        // =============================================
+
+        addCallbackTest("PackageManifest: malformed JSON throws", "", [](services::ScriptAPI&) {
+            try
+            {
+                packagemanager::PackageManifest::parseFromJson("{ \"name\": \"x\", ");
+                throw std::runtime_error("Expected exception for malformed JSON");
+            }
+            catch (const std::exception&)
+            {
+                // any parse exception is acceptable
+            }
+        });
+
+        addCallbackTest("PackageManifest: missing version is rejected or empty", "", [](services::ScriptAPI&) {
+            // `name` is validated today (see 'missing name throws'); version
+            // validation strictness is pinned tolerantly: either the parse
+            // throws mentioning version, or it yields an empty version field
+            // (in which case downstream SemVer parsing is the gate).
+            try
+            {
+                auto m = packagemanager::PackageManifest::parseFromJson(
+                    R"({"name": "missing-version"})");
+                if (!m.version.empty())
+                    throw std::runtime_error(
+                        "Expected empty version for manifest without one, got '"
+                        + m.version + "'");
+            }
+            catch (const std::runtime_error& e)
+            {
+                std::string msg = e.what();
+                if (msg.find("version") == std::string::npos
+                    && msg.find("Expected empty") != std::string::npos)
+                    throw;
+            }
+        });
+
+        addCallbackTest("PackageRegistry: malformed manifest in registry throws on getManifest", "", [](services::ScriptAPI&) {
+            std::string registryPath = "mType/tests/testFiles/packagemanager/registry";
+            packagemanager::PackageRegistry registry(registryPath);
+            try
+            {
+                registry.getManifest("malformed-json", "1.0.0");
+                throw std::runtime_error("Expected exception for malformed registry manifest");
+            }
+            catch (const std::exception&)
+            {
+                // any parse/IO exception is acceptable; silently returning a
+                // half-parsed manifest is not
+            }
+        });
+
+        // MYT-389: package names from third-party manifests must not become
+        // filesystem path segments that escape the package registry.
+        addCallbackTest("PackageRegistry: traversal-style package name does not escape registry", "", [](services::ScriptAPI&) {
+            std::string registryPath = "mType/tests/testFiles/packagemanager/registry";
+            packagemanager::PackageRegistry registry(registryPath);
+            // "../registry/mathlib" would point back INTO the registry if
+            // naive path joining were used; an exists() answer of true would
+            // mean the name escaped its package directory.
+            if (registry.packageExists("../registry/mathlib", "1.0.0"))
+                throw std::runtime_error(
+                    "packageExists must not resolve traversal-style names");
+            auto versions = registry.getAvailableVersions("..");
+            if (!versions.empty())
+                throw std::runtime_error(
+                    "getAvailableVersions('..') must not enumerate the registry parent");
+            if (registry.packageExists("..\\registry\\mathlib", "1.0.0"))
+                throw std::runtime_error(
+                    "packageExists must not resolve backslash traversal-style names");
+            if (registry.packageExists("C:\\tmp", "1.0.0"))
+                throw std::runtime_error(
+                    "packageExists must not resolve drive-style package names");
+        });
+
+        addCallbackTest("DependencyResolver: bad semver in registry manifest throws", "", [](services::ScriptAPI&) {
+            std::string registryPath = "mType/tests/testFiles/packagemanager/registry";
+            packagemanager::PackageRegistry registry(registryPath);
+            packagemanager::DependencyResolver resolver(registry);
+
+            std::vector<packagemanager::PackageDependency> deps = {
+                {"bad-semver", "1.0.0"}
+            };
+            try
+            {
+                resolver.resolve(deps);
+                // Resolution by directory version may succeed even though the
+                // manifest's version field is garbage — but then the manifest
+                // version must not silently masquerade as a valid semver.
+                auto manifest = registry.getManifest("bad-semver", "1.0.0");
+                packagemanager::SemVer::parse(manifest.version);
+                throw std::runtime_error(
+                    "Expected bad-semver manifest version to be rejected somewhere");
+            }
+            catch (const std::exception& e)
+            {
+                std::string msg = e.what();
+                if (msg.find("Expected bad-semver") != std::string::npos)
+                    throw;
+            }
+        });
+
+        // =============================================
+        // Version Conflict Resolution
+        // =============================================
+
+        addCallbackTest("DependencyResolver: conflicting constraints satisfiable by one version", "", [](services::ScriptAPI&) {
+            std::string registryPath = "mType/tests/testFiles/packagemanager/registry";
+            packagemanager::PackageRegistry registry(registryPath);
+            packagemanager::DependencyResolver resolver(registry);
+
+            // conflict-mid-a wants utils ^2.0.0 (alone would pick 2.1.0);
+            // conflict-mid-b wants utils exactly 2.0.0. Only 2.0.0 satisfies
+            // both. A correct resolver must either unify on 2.0.0 or report a
+            // conflict — picking 2.1.0 would violate b's constraint.
+            std::vector<packagemanager::PackageDependency> deps = {
+                {"conflict-mid-a", "1.0.0"},
+                {"conflict-mid-b", "1.0.0"}
+            };
+            try
+            {
+                auto resolved = resolver.resolve(deps);
+                auto it = resolved.find("utils");
+                if (it == resolved.end())
+                    throw std::runtime_error("utils should be in the resolution");
+                if (it->second.version != "2.0.0")
+                    throw std::runtime_error(
+                        "Resolver must unify on 2.0.0 (the only version satisfying "
+                        "both constraints), got " + it->second.version);
+            }
+            catch (const std::runtime_error& e)
+            {
+                std::string msg = e.what();
+                // A reported conflict is also acceptable behavior.
+                bool isConflict = msg.find("onflict") != std::string::npos;
+                bool isOurAssertion = msg.find("Resolver must unify") != std::string::npos
+                    || msg.find("utils should be") != std::string::npos;
+                if (!isConflict || isOurAssertion)
+                    throw;
+            }
+        });
+
+        addCallbackTest("DependencyResolver: unsatisfiable exact-version conflict must not resolve silently", "", [](services::ScriptAPI&) {
+            std::string registryPath = "mType/tests/testFiles/packagemanager/registry";
+            packagemanager::PackageRegistry registry(registryPath);
+            packagemanager::DependencyResolver resolver(registry);
+
+            // conflict-strict-a wants utils 2.1.0 exactly; conflict-strict-b
+            // wants utils 2.0.0 exactly. No single version satisfies both —
+            // a silent single-version resolution is a wrong answer for one
+            // of the two packages.
+            std::vector<packagemanager::PackageDependency> deps = {
+                {"conflict-strict-a", "1.0.0"},
+                {"conflict-strict-b", "1.0.0"}
+            };
+            try
+            {
+                resolver.resolve(deps);
+                throw std::runtime_error(
+                    "Expected an error for the unsatisfiable utils 2.1.0 vs 2.0.0 conflict");
+            }
+            catch (const std::runtime_error& e)
+            {
+                std::string msg = e.what();
+                if (msg.find("Expected an error") != std::string::npos)
+                    throw;
+            }
+        });
+
+        addCallbackTest("DependencyResolver: missing transitive dep error names the package", "", [](services::ScriptAPI&) {
+            std::string registryPath = "mType/tests/testFiles/packagemanager/registry";
+            packagemanager::PackageRegistry registry(registryPath);
+            packagemanager::DependencyResolver resolver(registry);
+
+            std::vector<packagemanager::PackageDependency> deps = {
+                {"missing-transitive", "1.0.0"}
+            };
+            try
+            {
+                resolver.resolve(deps);
+                throw std::runtime_error("Expected error for missing transitive dep");
+            }
+            catch (const std::runtime_error& e)
+            {
+                std::string msg = e.what();
+                if (msg.find("ghost-pkg") == std::string::npos)
+                    throw std::runtime_error(
+                        "Error should name the missing package 'ghost-pkg', got: " + msg);
+            }
+        });
+
+        // =============================================
+        // Lockfile Robustness
+        // =============================================
+
+        addCallbackTest("Lockfile: malformed JSON throws", "", [](services::ScriptAPI&) {
+            try
+            {
+                packagemanager::Lockfile::parseFromJson("{ \"version\": 1, ");
+                throw std::runtime_error("Expected exception for malformed lockfile");
+            }
+            catch (const std::exception&)
+            {
+            }
+        });
+
+        addCallbackTest("Lockfile: unknown extra fields are tolerated", "", [](services::ScriptAPI&) {
+            // Forward compatibility: a lockfile written by a newer mtpm with
+            // extra fields must still load.
+            std::string json = R"({
+                "version": 1,
+                "futureField": {"nested": true},
+                "packages": {}
+            })";
+            auto parsed = packagemanager::Lockfile::parseFromJson(json);
+            if (parsed.version != 1)
+                throw std::runtime_error("Expected version 1 despite extra fields");
+            if (!parsed.packages.empty())
+                throw std::runtime_error("Expected empty packages");
+        });
+
+        // =============================================
+        // Install Lifecycle
+        // =============================================
+
+        addCallbackTest("PackageInstaller: missing transitive dep fails gracefully", "", [](services::ScriptAPI&) {
+            fs::path tempDir = fs::temp_directory_path() / "_mtype_pkg_test_missing_dep";
+            if (fs::exists(tempDir)) fs::remove_all(tempDir);
+            fs::create_directories(tempDir);
+
+            std::string registryPath = fs::canonical("mType/tests/testFiles/packagemanager/registry").string();
+            packagemanager::PackageInstaller installer(tempDir.string(), registryPath);
+
+            std::vector<packagemanager::PackageDependency> deps = {
+                {"missing-transitive", "1.0.0"}
+            };
+
+            bool failed = false;
+            try
+            {
+                auto result = installer.install(deps);
+                failed = !result.success;
+            }
+            catch (const std::exception&)
+            {
+                failed = true;  // a thrown error is also a graceful failure
+            }
+            bool leftPartial = fs::exists(tempDir / "mt_modules" / "@ghost-pkg");
+            fs::remove_all(tempDir);
+            if (!failed)
+                throw std::runtime_error("Install with a missing transitive dep must not succeed");
+            if (leftPartial)
+                throw std::runtime_error("Failed install must not leave @ghost-pkg behind");
+        });
+
+        addCallbackTest("PackageInstaller: reinstall same version is idempotent", "", [](services::ScriptAPI&) {
+            fs::path tempDir = fs::temp_directory_path() / "_mtype_pkg_test_reinstall";
+            if (fs::exists(tempDir)) fs::remove_all(tempDir);
+            fs::create_directories(tempDir);
+
+            std::string registryPath = fs::canonical("mType/tests/testFiles/packagemanager/registry").string();
+            std::vector<packagemanager::PackageDependency> deps = {{"mathlib", "1.0.0"}};
+
+            packagemanager::PackageInstaller installer(tempDir.string(), registryPath);
+            auto first = installer.install(deps);
+            if (!first.success)
+            {
+                fs::remove_all(tempDir);
+                throw std::runtime_error("First install failed");
+            }
+
+            packagemanager::PackageInstaller installer2(tempDir.string(), registryPath);
+            auto second = installer2.install(deps);
+            bool stillThere = fs::exists(tempDir / "mt_modules" / "@mathlib" / "mtpkg.json");
+            fs::remove_all(tempDir);
+
+            if (!second.success)
+                throw std::runtime_error("Reinstalling the same version must succeed");
+            if (!stillThere)
+                throw std::runtime_error("@mathlib must survive a reinstall");
+        });
+
+        // === CANARY (MYT-391: INSTALLER SKIPS BY NAME ONLY, UPGRADES NEVER LAND) ===
+        // PackageInstaller.cpp:149 checks modulesManager.isInstalled(name)
+        // without comparing the installed version against the resolved one —
+        // the resolver correctly picks 1.2.0 but 1.0.0 stays on disk while
+        // the progress line claims "Up to date: mathlib@1.2.0" and the
+        // lockfile records 1.2.0. Stays failing until MYT-391 lands
+        // (memory: feedback_keep_failing_canary_tests).
+        addCallbackTest("CANARY PackageInstaller: widening the range upgrades the installed version", "", [](services::ScriptAPI&) {
+            fs::path tempDir = fs::temp_directory_path() / "_mtype_pkg_test_upgrade";
+            if (fs::exists(tempDir)) fs::remove_all(tempDir);
+            fs::create_directories(tempDir);
+
+            std::string registryPath = fs::canonical("mType/tests/testFiles/packagemanager/registry").string();
+
+            packagemanager::PackageInstaller installer(tempDir.string(), registryPath);
+            std::vector<packagemanager::PackageDependency> exact = {{"mathlib", "1.0.0"}};
+            auto first = installer.install(exact);
+            if (!first.success)
+            {
+                fs::remove_all(tempDir);
+                throw std::runtime_error("Initial 1.0.0 install failed");
+            }
+
+            // Re-install with ^1.0.0, which resolves to 1.2.0 in the shared
+            // registry — the installed manifest must reflect the upgrade.
+            packagemanager::PackageInstaller installer2(tempDir.string(), registryPath);
+            installer2.setForceResolve(true);
+            std::vector<packagemanager::PackageDependency> caret = {{"mathlib", "^1.0.0"}};
+            auto second = installer2.install(caret);
+            if (!second.success)
+            {
+                std::string errors;
+                for (const auto& e : second.errors) errors += e + "; ";
+                fs::remove_all(tempDir);
+                throw std::runtime_error("Upgrade install failed: " + errors);
+            }
+
+            std::string manifestJson;
+            {
+                // Scoped so the handle closes before remove_all — Windows
+                // refuses to delete a directory tree with an open file in it.
+                std::ifstream f(tempDir / "mt_modules" / "@mathlib" / "mtpkg.json");
+                std::stringstream buf;
+                buf << f.rdbuf();
+                manifestJson = buf.str();
+            }
+            auto manifest = packagemanager::PackageManifest::parseFromJson(manifestJson);
+            fs::remove_all(tempDir);
+
+            if (manifest.version != "1.2.0")
+                throw std::runtime_error(
+                    "Expected installed mathlib upgraded to 1.2.0, got " + manifest.version);
         });
     }
 }

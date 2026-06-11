@@ -58,10 +58,24 @@ namespace plugin
         wchar_t fullPath[kFullPathCap];
         DWORD n = GetFullPathNameW(wpath.c_str(), kFullPathCap, fullPath, nullptr);
         const wchar_t* loadPath = (n > 0 && n < kFullPathCap) ? fullPath : wpath.c_str();
+
+        // Suppress the Windows "Bad Image" (0xc000012f) modal that the OS
+        // pops for a corrupt/non-PE file during LoadLibrary. Without this a
+        // bad plugin file freezes the host process on a system dialog
+        // instead of flowing into the clean error path below. Thread-scoped
+        // and restored immediately so unrelated hard-error reporting keeps
+        // its prior behavior.
+        DWORD oldErrorMode = 0;
+        SetThreadErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX,
+                           &oldErrorMode);
         HMODULE h = LoadLibraryExW(loadPath, nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+        // Capture the failure code before restoring the error mode — the
+        // restore call may clobber GetLastError().
+        const DWORD loadErr = h ? 0 : GetLastError();
+        SetThreadErrorMode(oldErrorMode, nullptr);
         if (!h)
         {
-            DWORD err = GetLastError();
+            DWORD err = loadErr;
             if (err == ERROR_BAD_EXE_FORMAT)
             {
                 outErr = "plugin architecture mismatch (x86 vs x64) — code 193";

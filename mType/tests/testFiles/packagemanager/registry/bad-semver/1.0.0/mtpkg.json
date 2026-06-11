@@ -1,0 +1,5 @@
+{
+  "name": "bad-semver",
+  "version": "not.a.ver",
+  "description": "manifest whose version is not a semver"
+}

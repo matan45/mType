@@ -52,7 +52,9 @@ const ast::nodes::classes::SuperMethodCallNode* findSuperMethodCallAt(
     int line, int col,
     const std::string& methodName);
 
-// Same shape as findMethodCallAt for free function calls.
+// Same shape as findMethodCallAt for free function calls, but matched by
+// line + name only: the parser anchors FunctionCallNode at the token AFTER
+// the argument list (not the name token), so a column window can't apply.
 const ast::nodes::functions::FunctionCallNode* findFunctionCallAt(
     const std::vector<std::unique_ptr<ast::ASTNode>>& roots,
     int line, int col,

@@ -1,5 +1,6 @@
 #include "Publish.hpp"
 #include "GitSource.hpp"
+#include "PackageName.hpp"
 #include "PackageManifest.hpp"
 #include "SemVer.hpp"
 #include "Sha256.hpp"
@@ -67,7 +68,7 @@ namespace packagemanager
             // Defend the path components against injection — they become
             // directory names under the registry root and could be passed to
             // git later on.
-            GitSource::validateSafeString(manifest.name, "package name");
+            validatePackageName(manifest.name);
             GitSource::validateSafeString(manifest.version, "version");
 
             fs::path registryDest = fs::path(registryRoot) / manifest.name / manifest.version;

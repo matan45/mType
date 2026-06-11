@@ -1,5 +1,6 @@
 #include "MtModulesManager.hpp"
 #include "PackageManifest.hpp"
+#include "PackageName.hpp"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -98,12 +99,45 @@ namespace packagemanager
 
     bool MtModulesManager::isInstalled(const std::string& packageName) const
     {
+        if (!isValidPackageName(packageName))
+        {
+            return false;
+        }
+
         fs::path pkgDir = fs::path(projectRoot) / "mt_modules" / ("@" + packageName);
         return fs::exists(pkgDir / "mtpkg.json");
     }
 
+    std::optional<PackageManifest> MtModulesManager::getInstalledManifest(
+        const std::string& packageName) const
+    {
+        if (!isValidPackageName(packageName))
+        {
+            return std::nullopt;
+        }
+
+        fs::path manifestPath = fs::path(projectRoot) / "mt_modules" / ("@" + packageName) / "mtpkg.json";
+        if (!fs::exists(manifestPath))
+        {
+            return std::nullopt;
+        }
+
+        try
+        {
+            std::ifstream file(manifestPath);
+            std::stringstream buffer;
+            buffer << file.rdbuf();
+            return PackageManifest::parseFromJson(buffer.str());
+        }
+        catch (const std::exception&)
+        {
+            return std::nullopt;
+        }
+    }
+
     void MtModulesManager::removePackage(const std::string& packageName)
     {
+        validatePackageName(packageName);
         fs::path pkgDir = fs::path(projectRoot) / "mt_modules" / ("@" + packageName);
         if (fs::exists(pkgDir))
         {

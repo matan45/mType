@@ -41,6 +41,7 @@
 #include "../tests/suites/ExecutorIsolationTestSuite.hpp"
 #include "../tests/suites/BytecodeOptimizationTestSuite.hpp"
 #include "../tests/suites/SparseMultiArrayTestSuite.hpp"
+#include "../tests/suites/NumericsTestSuite.hpp"
 
 #include "../gc/GC.hpp"
 #include "../services/ScriptInterpreter.hpp"
@@ -224,6 +225,10 @@ std::unique_ptr<TestSuite> createTestSuite(const std::string& suiteName)
     {
         return std::make_unique<SparseMultiArrayTestSuite>();
     }
+    else if (suiteName == "numerics" || suiteName == "math" || suiteName == "bitwise")
+    {
+        return std::make_unique<NumericsTestSuite>();
+    }
     return nullptr;
 }
 
@@ -271,6 +276,7 @@ void printAvailableTestSuites()
     std::cout << "  executor     - Executor Isolation Test Suite (ExecutionContext deepening)\n";
     std::cout << "  bytecode-opt - Bytecode Optimization Pass Pipeline Test Suite\n";
     std::cout << "  sparse-array - SparseMultiArray Test Suite\n";
+    std::cout << "  numerics     - Numerics and Bitwise Test Suite (aliases: math, bitwise)\n";
 }
 
 int runSpecificTestSuite(const std::string& suiteName,
@@ -361,6 +367,7 @@ int runAllTests(constants::ExecutionMode execMode, bool jitEnabled)
     suites.push_back(std::make_unique<ExecutorIsolationTestSuite>());
     suites.push_back(std::make_unique<BytecodeOptimizationTestSuite>());
     suites.push_back(std::make_unique<SparseMultiArrayTestSuite>());
+    suites.push_back(std::make_unique<NumericsTestSuite>());
 
     int totalFailures = 0;
     int totalErrors   = 0;

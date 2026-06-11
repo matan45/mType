@@ -99,5 +99,13 @@ namespace tests::testSuite
         addTestFromFile("HashSet Iterator Past End",
                         errorPath + "hashSetIteratorPastEnd.mt",
                         TestType::ERROR_EXPECTED);
+
+        // BY DESIGN pin: structural modification mid-iteration does NOT throw
+        // (matches the documented for-each behavior in
+        // EnhancedForLoopTestSuite). An element added behind the cursor is
+        // not visited; the list keeps it. If this fails because an exception
+        // appears, that is a deliberate language change, not a regression.
+        addOutputVerificationTest("Iterator Mutation During Iteration (no throw)",
+                                  passPath + "iteratorMutationDuringIteration.mt");
     }
 }

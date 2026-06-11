@@ -6,6 +6,7 @@
 #include "../../value/StringPool.hpp"
 #include "../../value/ValueObject.hpp"
 #include "../../value/ValueShim.hpp"
+#include "../runtime/utils/CheckedArithmetic.hpp"
 
 namespace vm::jit
 {
@@ -89,10 +90,10 @@ namespace vm::jit
                 case '*': *result = l * r; return;
                 case '/':
                     if (r == 0) throw errors::RuntimeException("Division by zero");
-                    *result = l / r; return;
+                    *result = vm::runtime::utils::wrappingDiv64(l, r); return;
                 case '%':
                     if (r == 0) throw errors::RuntimeException("Modulo by zero");
-                    *result = l % r; return;
+                    *result = vm::runtime::utils::wrappingMod64(l, r); return;
             }
         }
 

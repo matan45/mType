@@ -47,6 +47,11 @@ namespace tests::testSuite
                         passPath + "breakInDoWhileInsideSwitch.mt");
         addOutputVerificationTest("Break in Loop in Try-Finally Inside Switch",
                         passPath + "breakInLoopInTryFinallyInsideSwitch.mt");
+        // continue inside a try must still run the finally on every
+        // iteration (break-in-try and continue-in-catch are covered above;
+        // continue-in-try was the missing combination).
+        addOutputVerificationTest("Continue in Try with Finally",
+                        passPath + "continueInTryWithFinally.mt");
 
         // MYT-383: continue in a do-while jumps to the condition.
         addOutputVerificationTest("Continue in Do-While",

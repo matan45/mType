@@ -10,6 +10,7 @@
 #include "../../value/ValueObject.hpp"
 #include "../../value/StringPool.hpp"
 #include "../../value/ValueShim.hpp"
+#include "utils/CheckedArithmetic.hpp"
 #include <sstream>
 #include <string>
 
@@ -161,10 +162,10 @@ namespace vm::runtime
             case OpCode::MUL: return l * r;
             case OpCode::DIV:
                 if (r == 0) throw errors::DivisionByZeroException("division");
-                return l / r;
+                return utils::wrappingDiv64(l, r);
             case OpCode::MOD:
                 if (r == 0) throw errors::DivisionByZeroException("modulo");
-                return l % r;
+                return utils::wrappingMod64(l, r);
             default: break;
             }
         }

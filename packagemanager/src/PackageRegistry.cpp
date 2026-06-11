@@ -1,5 +1,6 @@
 #include "PackageRegistry.hpp"
 #include "GitSource.hpp"
+#include "PackageName.hpp"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -20,6 +21,11 @@ namespace packagemanager
     std::vector<SemVer> PackageRegistry::getAvailableVersions(const std::string& packageName) const
     {
         std::vector<SemVer> versions;
+        if (!isValidPackageName(packageName))
+        {
+            return versions;
+        }
+
         fs::path pkgDir = fs::path(registryRoot) / packageName;
 
         if (!fs::exists(pkgDir) || !fs::is_directory(pkgDir))
@@ -49,6 +55,7 @@ namespace packagemanager
 
     PackageManifest PackageRegistry::getManifest(const std::string& name, const std::string& version) const
     {
+        validatePackageName(name);
         fs::path manifestPath = fs::path(registryRoot) / name / version / "mtpkg.json";
 
         if (!fs::exists(manifestPath))
@@ -65,12 +72,18 @@ namespace packagemanager
 
     std::string PackageRegistry::getPackagePath(const std::string& name, const std::string& version) const
     {
+        validatePackageName(name);
         fs::path pkgPath = fs::path(registryRoot) / name / version;
         return pkgPath.string();
     }
 
     bool PackageRegistry::packageExists(const std::string& name, const std::string& version) const
     {
+        if (!isValidPackageName(name))
+        {
+            return false;
+        }
+
         fs::path pkgPath = fs::path(registryRoot) / name / version / "mtpkg.json";
         return fs::exists(pkgPath);
     }
@@ -117,11 +130,17 @@ namespace packagemanager
 
     void PackageRegistry::registerGitSource(const std::string& packageName, const std::string& source)
     {
+        validatePackageName(packageName);
         gitSources[packageName] = source;
     }
 
     std::vector<SemVer> PackageRegistry::getAvailableVersionsWithFetch(const std::string& packageName)
     {
+        if (!isValidPackageName(packageName))
+        {
+            return {};
+        }
+
         auto localVersions = getAvailableVersions(packageName);
 
         auto it = gitSources.find(packageName);
@@ -144,6 +163,8 @@ namespace packagemanager
 
     void PackageRegistry::ensureCached(const std::string& packageName, const std::string& version)
     {
+        validatePackageName(packageName);
+
         // Already cached locally
         if (packageExists(packageName, version))
         {

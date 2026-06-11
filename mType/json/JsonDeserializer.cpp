@@ -164,7 +164,7 @@ namespace json
 
             auto fieldJson = json->getProperty(name);
             std::string fieldType = resolveFieldType(fieldDef, instance);
-            value::Value val = convertToFieldType(fieldJson, fieldType);
+            value::Value val = convertToFieldType(fieldJson, fieldType, "field '" + name + "'");
             instance->setField(name, val);
         }
     }
@@ -183,7 +183,7 @@ namespace json
 
             auto fieldJson = staticJson->getProperty(name);
             std::string fieldType = resolveFieldTypeFromDef(fieldDef);
-            value::Value val = convertToFieldType(fieldJson, fieldType);
+            value::Value val = convertToFieldType(fieldJson, fieldType, "static field '" + name + "'");
             fieldDef->setValue(val);
         }
     }
@@ -225,19 +225,33 @@ namespace json
 
     value::Value JsonDeserializer::convertToFieldType(
         const std::shared_ptr<JsonValue>& json,
-        const std::string& targetType)
+        const std::string& targetType,
+        const std::string& context)
     {
         if (!json || json->isNull())
             return nullptr;
 
-        if (targetType == "int" || targetType == "Int")
-            return json->isNumber() ? json->asInt() : fromJsonValue(json);
-        if (targetType == "float" || targetType == "Float")
-            return json->isNumber() ? json->asFloat() : fromJsonValue(json);
-        if (targetType == "bool" || targetType == "Bool")
-            return json->isBool() ? json->asBool() : fromJsonValue(json);
-        if (targetType == "string" || targetType == "String")
-            return json->isString() ? value::Value(value::StringPool::getInstance().intern(json->asString())) : fromJsonValue(json);
+        if (targetType == "int")
+        {
+            if (json->isNumber()) return json->asInt();
+            throwTypeMismatch(json, targetType, context);
+        }
+        if (targetType == "float")
+        {
+            if (json->isNumber()) return json->asFloat();
+            throwTypeMismatch(json, targetType, context);
+        }
+        if (targetType == "bool")
+        {
+            if (json->isBool()) return json->asBool();
+            throwTypeMismatch(json, targetType, context);
+        }
+        if (targetType == "string")
+        {
+            if (json->isString())
+                return value::Value(value::StringPool::getInstance().intern(json->asString()));
+            throwTypeMismatch(json, targetType, context);
+        }
 
         // Array types (e.g., "int[]", "Person[]").
         if (targetType.size() > 2 && targetType.substr(targetType.size() - 2) == "[]")
@@ -245,7 +259,13 @@ namespace json
             std::string elemType = targetType.substr(0, targetType.size() - 2);
             if (json->isArray())
                 return deserializeArray(json, elemType);
-            return fromJsonValue(json);
+            throwTypeMismatch(json, targetType, context);
+        }
+        if (targetType == "Array" || targetType == "array")
+        {
+            if (json->isArray())
+                return deserializeArray(json);
+            throwTypeMismatch(json, targetType, context);
         }
 
         // Object type: try to deserialize as class.
@@ -256,7 +276,7 @@ namespace json
             return deserializeObjectAs(json, targetType);
         }
 
-        return fromJsonValue(json);
+        throwTypeMismatch(json, targetType, context);
     }
 
     std::string JsonDeserializer::resolveFieldTypeFromDef(
@@ -280,6 +300,34 @@ namespace json
             case value::ValueType::ARRAY:  return "Array";
             default: return "Object";
         }
+    }
+
+    std::string JsonDeserializer::jsonTypeToString(JsonType type)
+    {
+        switch (type)
+        {
+            case JsonType::NULL_VALUE: return "null";
+            case JsonType::BOOLEAN:    return "bool";
+            case JsonType::INTEGER:    return "int";
+            case JsonType::FLOAT:      return "float";
+            case JsonType::STRING:     return "string";
+            case JsonType::ARRAY:      return "array";
+            case JsonType::OBJECT:     return "object";
+            default: return "unknown";
+        }
+    }
+
+    void JsonDeserializer::throwTypeMismatch(
+        const std::shared_ptr<JsonValue>& json,
+        const std::string& targetType,
+        const std::string& context)
+    {
+        std::string message = "JSON deserialization type mismatch";
+        if (!context.empty())
+            message += " for " + context;
+        message += ": expected " + targetType + ", got ";
+        message += json ? jsonTypeToString(json->getType()) : "null";
+        throw errors::RuntimeException(message);
     }
 
     JsonDeserializer::DepthGuard::DepthGuard(JsonDeserializer& d) : deserializer(d)
