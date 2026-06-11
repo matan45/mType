@@ -13303,6 +13303,18 @@
     <None Include="tests\testFiles\numerics\pass\int64MaxLiteral.mt">
       <Filter>testFiles\numerics\pass</Filter>
     </None>
+    <None Include="tests\testFiles\numerics\pass\int64MinDivMinusOne.expected">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\int64MinDivMinusOne.mt">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\int64MinDivModMinusOneHot.expected">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\numerics\pass\int64MinDivModMinusOneHot.mt">
+      <Filter>testFiles\numerics\pass</Filter>
+    </None>
     <None Include="tests\testFiles\numerics\pass\int64MinModMinusOne.expected">
       <Filter>testFiles\numerics\pass</Filter>
     </None>

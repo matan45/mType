@@ -93,6 +93,7 @@ namespace tests::testSuite
         // (memory: feedback_keep_failing_canary_tests).
         addTestFromFile("CANARY Type Mismatch Raises Error",
                         errorPath + "typeMismatchJson.mt",
-                        TestType::ERROR_EXPECTED);
+                        TestType::ERROR_EXPECTED,
+                        "JSON deserialization type mismatch");
     }
 }
