@@ -1,4 +1,6 @@
 // Test: INT64_MIN / -1 and % -1 stay defined after hot-loop specialization.
+import * from "../../lib/primitives/Int.mt";
+
 function divEdge(int value): int {
     return value / -1;
 }
