@@ -580,8 +580,15 @@ namespace tests::testSuite
             });
 
         /* callMethod reentrancy: only callFunction was covered. The plugin
-         * constructs a ProbeBox and invokes its getX() method back in the VM. */
-        addCallbackTest("hostCallMethod invokes a method on a constructed object",
+         * constructs a ProbeBox and invokes its getX() method back in the VM.
+         *
+         * CANARY (MYT-390 family): currently returns a non-int — invokeMethod
+         * from a plugin context appears to share the nested-execution defect
+         * tracked in MYT-390 (multi-hop reentrancy). It fails WITHOUT
+         * crashing, so unlike the deep-reentrancy skip above it stays armed
+         * and failing until the fix lands
+         * (memory: feedback_keep_failing_canary_tests). */
+        addCallbackTest("CANARY hostCallMethod invokes a method on a constructed object",
             "mType/tests/testFiles/plugin/pluginProbe_bootstrap.mt",
             [](services::ScriptAPI& api) {
                 auto env = api.getEnvironment();
@@ -687,10 +694,13 @@ namespace tests::testSuite
                         return host->makeNull(ctx);
                     }
                     ::MTypeValue* v = host->objGet(ctx, obj, "noSuchField");
-                    /* Same contract as arrayGet OOB: nullptr or a NULL-tagged
-                     * arena value are both the safe answer. */
+                    /* ObjectInstance::getFieldValue returns std::monostate{}
+                     * (a VOID value) for a missing field, so the safe answers
+                     * at the C ABI are: nullptr, a NULL-tagged value, or a
+                     * VOID-tagged value. Anything else is a junk read. */
                     int isNullish = (v == nullptr) ||
-                                    (host->getTag(v) == MT_TAG_NULL);
+                                    (host->getTag(v) == MT_TAG_NULL) ||
+                                    (host->getTag(v) == MT_TAG_VOID);
                     return host->makeBool(ctx, isNullish);
                 };
                 auto binding = installSyntheticPlugin(env, "__pt_missing_field", missingField);

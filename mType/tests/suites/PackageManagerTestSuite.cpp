@@ -1260,7 +1260,14 @@ namespace tests::testSuite
                 throw std::runtime_error("@mathlib must survive a reinstall");
         });
 
-        addCallbackTest("PackageInstaller: widening the range upgrades the installed version", "", [](services::ScriptAPI&) {
+        // === CANARY (MYT-391: INSTALLER SKIPS BY NAME ONLY, UPGRADES NEVER LAND) ===
+        // PackageInstaller.cpp:149 checks modulesManager.isInstalled(name)
+        // without comparing the installed version against the resolved one —
+        // the resolver correctly picks 1.2.0 but 1.0.0 stays on disk while
+        // the progress line claims "Up to date: mathlib@1.2.0" and the
+        // lockfile records 1.2.0. Stays failing until MYT-391 lands
+        // (memory: feedback_keep_failing_canary_tests).
+        addCallbackTest("CANARY PackageInstaller: widening the range upgrades the installed version", "", [](services::ScriptAPI&) {
             fs::path tempDir = fs::temp_directory_path() / "_mtype_pkg_test_upgrade";
             if (fs::exists(tempDir)) fs::remove_all(tempDir);
             fs::create_directories(tempDir);

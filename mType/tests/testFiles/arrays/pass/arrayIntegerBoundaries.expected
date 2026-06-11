@@ -1,4 +1,4 @@
-﻿Testing integer boundary values in arrays
+Testing integer boundary values in arrays
 Created int array with length: 4
 boundaries[0] = 2147483647
 boundaries[1] = -2147483648
