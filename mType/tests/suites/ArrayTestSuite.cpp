@@ -508,6 +508,14 @@ namespace tests::testSuite
         addTestFromFile("Array Alias Invariance",
                         errorPath + "objectSubtype/arrayAliasInvariance_error.mt",
                         TestType::ERROR_EXPECTED);
+        // BY DESIGN pin: K[][] sub-arrays are views into the flat backing
+        // store (project_flatmultiarray_no_row_replacement) — replacing a
+        // whole row via arr[i] = newRow is rejected; element-wise writes are
+        // the supported mutation. Not a bug.
+        addTestFromFile("Jagged Row Reassign Rejected (view semantics)",
+                        errorPath + "jaggedRowReassign_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "single index");
         // arrayDeclCovarianceStrict_error.mt is intentionally left
         // unregistered: it pins MYT-137 strict-invariance, which is blocked
         // on array-literal target-type inference. Flip on with MYT-137.
