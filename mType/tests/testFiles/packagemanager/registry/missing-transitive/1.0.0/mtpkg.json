@@ -1,0 +1,8 @@
+{
+  "name": "missing-transitive",
+  "version": "1.0.0",
+  "description": "depends on a package that does not exist in the registry",
+  "dependencies": {
+    "ghost-pkg": "^1.0.0"
+  }
+}

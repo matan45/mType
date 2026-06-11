@@ -1,0 +1,8 @@
+{
+  "name": "conflict-mid-a",
+  "version": "1.0.0",
+  "description": "wants utils ^2.0.0 (would pick 2.1.0 alone)",
+  "dependencies": {
+    "utils": "^2.0.0"
+  }
+}
