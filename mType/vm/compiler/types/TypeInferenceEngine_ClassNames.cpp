@@ -256,23 +256,37 @@ namespace vm::compiler::types
             }
         }
 
-        if (funcMetadata && !funcMetadata->returnType.empty()) {
+        bool genericArityMatches = funcMetadata &&
+            (!methodCall->hasGenericTypeArguments() ||
+             funcMetadata->genericTypeParameters.size() == methodCall->getGenericTypeArguments().size());
+
+        if (funcMetadata && genericArityMatches && !funcMetadata->returnType.empty()) {
             std::string returnType = applyGenericMethodReturnSubstitutions(
                 funcMetadata->returnType,
                 methodCall,
                 funcMetadata->genericTypeParameters);
+            if (isUnresolvedGenericReturnTypeName(returnType)) {
+                return "";
+            }
             value::ValueType classifiedType = classifyReturnTypeName(returnType);
-            if (classifiedType == value::ValueType::OBJECT || classifiedType == value::ValueType::ARRAY) {
-                return ::types::TypeConversionUtils::stripNullable(resolveGenericType(returnType));
+            std::string resolvedReturnType = ::types::TypeConversionUtils::stripNullable(resolveGenericType(returnType));
+            if ((classifiedType == value::ValueType::OBJECT || classifiedType == value::ValueType::ARRAY) &&
+                resolvedReturnType != "object") {
+                return resolvedReturnType;
             }
         }
 
         auto methodDef = resolveEnvironmentMethodCall(methodCall);
         if (methodDef) {
             std::string returnType = getMethodDefinitionReturnTypeName(methodDef, methodCall);
+            if (isUnresolvedGenericReturnTypeName(returnType)) {
+                return "";
+            }
             value::ValueType classifiedType = classifyReturnTypeName(returnType);
-            if (classifiedType == value::ValueType::OBJECT || classifiedType == value::ValueType::ARRAY) {
-                return ::types::TypeConversionUtils::stripNullable(resolveGenericType(returnType));
+            std::string resolvedReturnType = ::types::TypeConversionUtils::stripNullable(resolveGenericType(returnType));
+            if ((classifiedType == value::ValueType::OBJECT || classifiedType == value::ValueType::ARRAY) &&
+                resolvedReturnType != "object") {
+                return resolvedReturnType;
             }
         }
 

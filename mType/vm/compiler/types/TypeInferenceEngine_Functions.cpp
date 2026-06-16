@@ -172,18 +172,32 @@ namespace vm::compiler::types
                 methodCall->getArgumentCount(),
                 methodCall->getArguments());
 
-            if (funcMetadata && !funcMetadata->returnType.empty()) {
-                return classifyReturnTypeName(applyGenericMethodReturnSubstitutions(
+            bool genericArityMatches = funcMetadata &&
+                (!methodCall->hasGenericTypeArguments() ||
+                 funcMetadata->genericTypeParameters.size() == methodCall->getGenericTypeArguments().size());
+
+            if (funcMetadata && genericArityMatches && !funcMetadata->returnType.empty()) {
+                std::string returnType = applyGenericMethodReturnSubstitutions(
                     funcMetadata->returnType,
                     methodCall,
-                    funcMetadata->genericTypeParameters));
+                    funcMetadata->genericTypeParameters);
+                if (isUnresolvedGenericReturnTypeName(returnType))
+                {
+                    return value::ValueType::VOID;
+                }
+                return classifyReturnTypeName(returnType);
             }
         }
 
         auto methodDef = resolveEnvironmentMethodCall(methodCall);
         if (methodDef)
         {
-            return classifyReturnTypeName(getMethodDefinitionReturnTypeName(methodDef, methodCall));
+            std::string returnType = getMethodDefinitionReturnTypeName(methodDef, methodCall);
+            if (isUnresolvedGenericReturnTypeName(returnType))
+            {
+                return value::ValueType::VOID;
+            }
+            return classifyReturnTypeName(returnType);
         }
 
         return value::ValueType::VOID;
@@ -423,6 +437,11 @@ namespace vm::compiler::types
     {
         std::string normalized = ::types::TypeConversionUtils::stripNullable(resolveGenericType(returnType));
 
+        if (::types::TypeConversionUtils::containsGenericTypeParameter(normalized))
+        {
+            return value::ValueType::VOID;
+        }
+
         if (normalized == "int") return value::ValueType::INT;
         if (normalized == "float") return value::ValueType::FLOAT;
         if (normalized == "string") return value::ValueType::STRING;
@@ -434,6 +453,12 @@ namespace vm::compiler::types
         }
         if (!normalized.empty()) return value::ValueType::OBJECT;
         return value::ValueType::VOID;
+    }
+
+    bool TypeInferenceEngine::isUnresolvedGenericReturnTypeName(const std::string& returnType) const
+    {
+        std::string resolved = ::types::TypeConversionUtils::stripNullable(resolveGenericType(returnType));
+        return ::types::TypeConversionUtils::containsGenericTypeParameter(resolved);
     }
 
     const bytecode::BytecodeProgram::FunctionMetadata* TypeInferenceEngine::findInstanceMethodMetadata(

@@ -268,6 +268,13 @@ namespace vm::compiler::types
             return;
         }
 
+        // Unresolved generic object slots (T, V, Box<T>, etc.) are validated
+        // when concrete bindings are available. Do not reject primitive values
+        // here based only on the placeholder name.
+        if (::types::TypeConversionUtils::containsGenericTypeParameter(varClassName)) {
+            return;
+        }
+
         if (!varClassName.empty()) {
             std::string valueTypeStr = ::types::TypeConversionUtils::getTypeDisplayName(valueType);
             throw errors::TypeException(

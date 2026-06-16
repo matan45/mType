@@ -182,6 +182,7 @@ namespace vm::compiler::types
             ast::MethodCallNode* methodCall) const;
 
         value::ValueType classifyReturnTypeName(const std::string& returnType) const;
+        bool isUnresolvedGenericReturnTypeName(const std::string& returnType) const;
 
         // Per-node-kind className helpers for inferExpressionClassName
         std::string inferArrayCreationClassName(
