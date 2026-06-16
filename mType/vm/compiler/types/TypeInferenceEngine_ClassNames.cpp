@@ -36,6 +36,10 @@ namespace vm::compiler::types
     {
         std::string varName = varNode->getName();
 
+        if (varName == "this" && currentClassNode && inInstanceMethod) {
+            return currentClassNode->getClassName();
+        }
+
         // MYT-377: resolve `Class::FIELD` to the static field's class name so
         // object and object-array static fields type-check in typed positions
         // (ParameterValidator compares class names for OBJECT arguments).
@@ -207,7 +211,7 @@ namespace vm::compiler::types
 
     std::string TypeInferenceEngine::inferMethodCallClassName(ast::MethodCallNode* methodCall) const
     {
-        std::string className = inferExpressionClassName(methodCall->getObject());
+        std::string className = resolveMethodCallReceiverClassName(methodCall);
         if (className.empty()) {
             return "";
         }
@@ -253,12 +257,25 @@ namespace vm::compiler::types
         }
 
         if (funcMetadata && !funcMetadata->returnType.empty()) {
-            if (funcMetadata->returnType != "int" && funcMetadata->returnType != "float" &&
-                funcMetadata->returnType != "string" && funcMetadata->returnType != "bool" &&
-                funcMetadata->returnType != "void") {
-                return resolveGenericType(funcMetadata->returnType);
+            std::string returnType = applyGenericMethodReturnSubstitutions(
+                funcMetadata->returnType,
+                methodCall,
+                funcMetadata->genericTypeParameters);
+            value::ValueType classifiedType = classifyReturnTypeName(returnType);
+            if (classifiedType == value::ValueType::OBJECT || classifiedType == value::ValueType::ARRAY) {
+                return ::types::TypeConversionUtils::stripNullable(resolveGenericType(returnType));
             }
         }
+
+        auto methodDef = resolveEnvironmentMethodCall(methodCall);
+        if (methodDef) {
+            std::string returnType = getMethodDefinitionReturnTypeName(methodDef, methodCall);
+            value::ValueType classifiedType = classifyReturnTypeName(returnType);
+            if (classifiedType == value::ValueType::OBJECT || classifiedType == value::ValueType::ARRAY) {
+                return ::types::TypeConversionUtils::stripNullable(resolveGenericType(returnType));
+            }
+        }
+
         return "";
     }
 

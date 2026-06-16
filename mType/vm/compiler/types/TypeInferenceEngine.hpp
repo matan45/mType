@@ -3,6 +3,7 @@
 #include <cstddef>
 #include "../../../ast/nodes/classes/ClassNode.hpp"
 #include "../../../value/ValueType.hpp"
+#include "../../../value/ParameterType.hpp"
 #include "../../bytecode/BytecodeProgram.hpp"
 #include "../../../environment/Environment.hpp"
 #include "../variables/VariableTracker.hpp"
@@ -159,6 +160,28 @@ namespace vm::compiler::types
         const bytecode::BytecodeProgram::FunctionMetadata* findInstanceMethodMetadata(
             const std::string& className,
             ast::MethodCallNode* methodCall) const;
+
+        // Resolves the receiver class name for instance/static MethodCallNode
+        // inference. Handles `this` explicitly because parser represents it as
+        // a normal VariableNode, while type inference needs the current class.
+        std::string resolveMethodCallReceiverClassName(ast::MethodCallNode* methodCall) const;
+
+        std::vector<value::ParameterType> inferArgumentParameterTypes(
+            const std::vector<std::unique_ptr<ast::ASTNode>>& arguments) const;
+
+        std::shared_ptr<runtimeTypes::klass::MethodDefinition> resolveEnvironmentMethodCall(
+            ast::MethodCallNode* methodCall) const;
+
+        std::string applyGenericMethodReturnSubstitutions(
+            std::string returnType,
+            ast::MethodCallNode* methodCall,
+            const std::vector<std::string>& genericTypeParameters) const;
+
+        std::string getMethodDefinitionReturnTypeName(
+            const std::shared_ptr<runtimeTypes::klass::MethodDefinition>& method,
+            ast::MethodCallNode* methodCall) const;
+
+        value::ValueType classifyReturnTypeName(const std::string& returnType) const;
 
         // Per-node-kind className helpers for inferExpressionClassName
         std::string inferArrayCreationClassName(

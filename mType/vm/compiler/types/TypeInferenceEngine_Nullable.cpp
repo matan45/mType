@@ -59,7 +59,7 @@ namespace vm::compiler::types
             return true;
         }
 
-        std::string className = inferExpressionClassName(methodCall->getObject());
+        std::string className = resolveMethodCallReceiverClassName(methodCall);
         if (!className.empty())
         {
             std::string qualifiedName = className + "::" + methodCall->getMethodName();
@@ -96,13 +96,12 @@ namespace vm::compiler::types
 
         if (!className.empty())
         {
-            auto classDef = environment->findClass(className);
-            if (classDef)
+            auto methodDef = resolveEnvironmentMethodCall(methodCall);
+            if (methodDef)
             {
-                auto method = classDef->getMethod(methodCall->getMethodName());
-                if (method && method->getUnifiedReturnType())
+                if (auto returnType = methodDef->getUnifiedReturnType())
                 {
-                    return method->getUnifiedReturnType()->isNullable();
+                    return returnType->isNullable();
                 }
             }
         }
