@@ -36,6 +36,10 @@ namespace vm::compiler::types
     {
         std::string varName = varNode->getName();
 
+        if (varName == "this" && currentClassNode && inInstanceMethod) {
+            return currentClassNode->getClassName();
+        }
+
         // MYT-377: resolve `Class::FIELD` to the static field's class name so
         // object and object-array static fields type-check in typed positions
         // (ParameterValidator compares class names for OBJECT arguments).
@@ -207,7 +211,7 @@ namespace vm::compiler::types
 
     std::string TypeInferenceEngine::inferMethodCallClassName(ast::MethodCallNode* methodCall) const
     {
-        std::string className = inferExpressionClassName(methodCall->getObject());
+        std::string className = resolveMethodCallReceiverClassName(methodCall);
         if (className.empty()) {
             return "";
         }
@@ -252,13 +256,40 @@ namespace vm::compiler::types
             }
         }
 
-        if (funcMetadata && !funcMetadata->returnType.empty()) {
-            if (funcMetadata->returnType != "int" && funcMetadata->returnType != "float" &&
-                funcMetadata->returnType != "string" && funcMetadata->returnType != "bool" &&
-                funcMetadata->returnType != "void") {
-                return resolveGenericType(funcMetadata->returnType);
+        bool genericArityMatches = funcMetadata &&
+            (!methodCall->hasGenericTypeArguments() ||
+             funcMetadata->genericTypeParameters.size() == methodCall->getGenericTypeArguments().size());
+
+        if (funcMetadata && genericArityMatches && !funcMetadata->returnType.empty()) {
+            std::string returnType = applyGenericMethodReturnSubstitutions(
+                funcMetadata->returnType,
+                methodCall,
+                funcMetadata->genericTypeParameters);
+            if (isUnresolvedGenericReturnTypeName(returnType)) {
+                return "";
+            }
+            value::ValueType classifiedType = classifyReturnTypeName(returnType);
+            std::string resolvedReturnType = ::types::TypeConversionUtils::stripNullable(resolveGenericType(returnType));
+            if ((classifiedType == value::ValueType::OBJECT || classifiedType == value::ValueType::ARRAY) &&
+                resolvedReturnType != "object") {
+                return resolvedReturnType;
             }
         }
+
+        auto methodDef = resolveEnvironmentMethodCall(methodCall);
+        if (methodDef) {
+            std::string returnType = getMethodDefinitionReturnTypeName(methodDef, methodCall);
+            if (isUnresolvedGenericReturnTypeName(returnType)) {
+                return "";
+            }
+            value::ValueType classifiedType = classifyReturnTypeName(returnType);
+            std::string resolvedReturnType = ::types::TypeConversionUtils::stripNullable(resolveGenericType(returnType));
+            if ((classifiedType == value::ValueType::OBJECT || classifiedType == value::ValueType::ARRAY) &&
+                resolvedReturnType != "object") {
+                return resolvedReturnType;
+            }
+        }
+
         return "";
     }
 

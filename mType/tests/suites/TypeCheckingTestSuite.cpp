@@ -37,6 +37,10 @@ namespace tests::testSuite
                         passPath + "functionParameterFloatConversion.mt");
         addOutputVerificationTest("Method Parameter Type Checking",
                         passPath + "methodParameterTypeChecking.mt");
+        // MYT-393: inline instance-method call results infer their declared
+        // return type in typed argument positions.
+        addOutputVerificationTest("Inline Instance Method Call Argument (MYT-393)",
+                        passPath + "myt393InlineInstanceMethodCallArgument.mt");
         addOutputVerificationTest("Constructor Parameter Type Checking",
                         passPath + "constructorParameterTypeChecking.mt");
         // MYT-377: Class::FIELD static field access infers the field's declared
@@ -361,6 +365,9 @@ namespace tests::testSuite
         addTestFromFile("Method Parameter Type Checking Wrong",
                         errorPath + "methodParameterTypeCheckingWrong.mt",
                         TestType::ERROR_EXPECTED);
+        addTestFromFile("Inline Method Call Wrong Argument (MYT-393)",
+                        errorPath + "myt393InlineMethodCallWrongArgument_error.mt",
+                        TestType::ERROR_EXPECTED, "expects int but got string");
         addTestFromFile("Constructor Parameter Type Checking Wrong Order",
                         errorPath + "constructorParameterTypeCheckingWrongOrder.mt",
                         TestType::ERROR_EXPECTED);

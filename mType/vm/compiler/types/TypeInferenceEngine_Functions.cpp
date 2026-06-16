@@ -1,11 +1,33 @@
 #include "TypeInferenceEngine.hpp"
 #include <cstddef>
 #include <unordered_map>
+#include <utility>
 #include "../../../ast/nodes/classes/MethodCallNode.hpp"
+#include "../../../ast/nodes/expressions/NullNode.hpp"
+#include "../../../ast/nodes/expressions/VariableNode.hpp"
 #include "../../../ast/nodes/functions/FunctionCallNode.hpp"
+#include "../../../environment/registry/MethodDefinition.hpp"
+#include "../../../types/TypeConversionUtils.hpp"
+#include "../overload/OverloadResolver.hpp"
 
 namespace vm::compiler::types
 {
+    namespace rk = runtimeTypes::klass;
+
+    namespace
+    {
+        std::string stripGenericArguments(std::string typeName)
+        {
+            typeName = ::types::TypeConversionUtils::stripNullable(typeName);
+            size_t anglePos = typeName.find('<');
+            if (anglePos != std::string::npos)
+            {
+                typeName = typeName.substr(0, anglePos);
+            }
+            return typeName;
+        }
+    }
+
     const bytecode::BytecodeProgram::FunctionMetadata* TypeInferenceEngine::findOverloadMetadata(
         const std::string& callName,
         size_t argCount,
@@ -142,7 +164,7 @@ namespace vm::compiler::types
 
     value::ValueType TypeInferenceEngine::inferMethodCallType(ast::MethodCallNode* methodCall) const
     {
-        std::string className = inferExpressionClassName(methodCall->getObject());
+        std::string className = resolveMethodCallReceiverClassName(methodCall);
         if (!className.empty()) {
             std::string methodName = className + "::" + methodCall->getMethodName();
             const auto* funcMetadata = findOverloadMetadata(
@@ -150,60 +172,293 @@ namespace vm::compiler::types
                 methodCall->getArgumentCount(),
                 methodCall->getArguments());
 
-            if (funcMetadata && !funcMetadata->returnType.empty()) {
-                std::string returnType = funcMetadata->returnType;
+            bool genericArityMatches = funcMetadata &&
+                (!methodCall->hasGenericTypeArguments() ||
+                 funcMetadata->genericTypeParameters.size() == methodCall->getGenericTypeArguments().size());
 
-                // Generic methods: substitute declared type parameters with the
-                // call-site generic type arguments before classifying.
-                if (methodCall->hasGenericTypeArguments() && !funcMetadata->genericTypeParameters.empty())
+            if (funcMetadata && genericArityMatches && !funcMetadata->returnType.empty()) {
+                std::string returnType = applyGenericMethodReturnSubstitutions(
+                    funcMetadata->returnType,
+                    methodCall,
+                    funcMetadata->genericTypeParameters);
+                if (isUnresolvedGenericReturnTypeName(returnType))
                 {
-                    const auto& genericTypeArgs = methodCall->getGenericTypeArguments();
-                    const auto& genericTypeParams = funcMetadata->genericTypeParameters;
-
-                    std::unordered_map<std::string, std::string> substitutions;
-                    for (size_t i = 0; i < genericTypeParams.size() && i < genericTypeArgs.size(); ++i)
-                    {
-                        substitutions[genericTypeParams[i]] = genericTypeArgs[i];
-                    }
-
-                    if (!substitutions.empty())
-                    {
-                        size_t arrayPos = returnType.find('[');
-                        if (arrayPos != std::string::npos)
-                        {
-                            std::string elementType = returnType.substr(0, arrayPos);
-                            std::string arrayDimensions = returnType.substr(arrayPos);
-                            auto it = substitutions.find(elementType);
-                            if (it != substitutions.end())
-                            {
-                                returnType = it->second + arrayDimensions;
-                            }
-                        }
-                        else
-                        {
-                            auto it = substitutions.find(returnType);
-                            if (it != substitutions.end())
-                            {
-                                returnType = it->second;
-                            }
-                        }
-                    }
+                    return value::ValueType::VOID;
                 }
-
-                if (returnType == "int") return value::ValueType::INT;
-                if (returnType == "float") return value::ValueType::FLOAT;
-                if (returnType == "string") return value::ValueType::STRING;
-                if (returnType == "bool") return value::ValueType::BOOL;
-                if (returnType == "void") return value::ValueType::VOID;
-
-                if (returnType.find("[]") != std::string::npos ||
-                    returnType.find("Array<") == 0) {
-                    return value::ValueType::ARRAY;
-                }
-                return value::ValueType::OBJECT;
+                return classifyReturnTypeName(returnType);
             }
         }
+
+        auto methodDef = resolveEnvironmentMethodCall(methodCall);
+        if (methodDef)
+        {
+            std::string returnType = getMethodDefinitionReturnTypeName(methodDef, methodCall);
+            if (isUnresolvedGenericReturnTypeName(returnType))
+            {
+                return value::ValueType::VOID;
+            }
+            return classifyReturnTypeName(returnType);
+        }
+
         return value::ValueType::VOID;
+    }
+
+    std::string TypeInferenceEngine::resolveMethodCallReceiverClassName(ast::MethodCallNode* methodCall) const
+    {
+        if (!methodCall)
+        {
+            return "";
+        }
+
+        auto* objectNode = methodCall->getObject();
+        if (methodCall->getIsStaticCall())
+        {
+            if (auto* varNode = dynamic_cast<ast::VariableNode*>(objectNode))
+            {
+                std::string className = varNode->getName();
+                if (className == "this" && currentClassNode)
+                {
+                    return currentClassNode->getClassName();
+                }
+                return className;
+            }
+        }
+
+        if (auto* varNode = dynamic_cast<ast::VariableNode*>(objectNode))
+        {
+            if (varNode->getName() == "this" && currentClassNode && inInstanceMethod)
+            {
+                return currentClassNode->getClassName();
+            }
+        }
+
+        return inferExpressionClassName(objectNode);
+    }
+
+    std::vector<value::ParameterType> TypeInferenceEngine::inferArgumentParameterTypes(
+        const std::vector<std::unique_ptr<ast::ASTNode>>& arguments) const
+    {
+        std::vector<value::ParameterType> argTypes;
+        argTypes.reserve(arguments.size());
+
+        for (const auto& arg : arguments)
+        {
+            if (dynamic_cast<ast::NullNode*>(arg.get()))
+            {
+                argTypes.emplace_back(value::ValueType::NULL_TYPE);
+                continue;
+            }
+
+            value::ValueType basicType = inferExpressionType(arg.get());
+            if (basicType == value::ValueType::OBJECT)
+            {
+                std::string className = inferExpressionClassName(arg.get());
+                if (!className.empty())
+                {
+                    if (environment && environment->findInterface(className))
+                    {
+                        argTypes.emplace_back(value::ParameterType::forInterface(className));
+                    }
+                    else
+                    {
+                        argTypes.emplace_back(value::ParameterType::forClass(className));
+                    }
+                }
+                else
+                {
+                    argTypes.emplace_back(basicType);
+                }
+            }
+            else if (basicType == value::ValueType::ARRAY)
+            {
+                std::string arrayTypeName = inferExpressionClassName(arg.get());
+                if (!arrayTypeName.empty())
+                {
+                    argTypes.emplace_back(value::ParameterType::forArray(arrayTypeName));
+                }
+                else
+                {
+                    argTypes.emplace_back(basicType);
+                }
+            }
+            else
+            {
+                argTypes.emplace_back(basicType);
+            }
+        }
+
+        return argTypes;
+    }
+
+    std::shared_ptr<rk::MethodDefinition> TypeInferenceEngine::resolveEnvironmentMethodCall(
+        ast::MethodCallNode* methodCall) const
+    {
+        if (!methodCall || !environment)
+        {
+            return nullptr;
+        }
+
+        std::string className = stripGenericArguments(resolveMethodCallReceiverClassName(methodCall));
+        if (className.empty())
+        {
+            return nullptr;
+        }
+
+        auto classDef = environment->findClass(className);
+        if (!classDef)
+        {
+            return nullptr;
+        }
+
+        std::vector<std::shared_ptr<rk::MethodDefinition>> overloads =
+            methodCall->getIsStaticCall()
+                ? classDef->getAllStaticMethodOverloadsInHierarchy(methodCall->getMethodName())
+                : classDef->getAllInstanceMethodOverloadsInHierarchy(methodCall->getMethodName());
+
+        if (overloads.empty())
+        {
+            return nullptr;
+        }
+
+        if (methodCall->hasGenericTypeArguments())
+        {
+            std::vector<std::shared_ptr<rk::MethodDefinition>> filtered;
+            for (const auto& overload : overloads)
+            {
+                if (overload &&
+                    overload->getGenericTypeParameters().size() == methodCall->getGenericTypeArguments().size())
+                {
+                    filtered.push_back(overload);
+                }
+            }
+            overloads = std::move(filtered);
+        }
+
+        if (overloads.empty())
+        {
+            return nullptr;
+        }
+
+        auto catalog = environment->getTypeCatalog();
+        if (!catalog)
+        {
+            return nullptr;
+        }
+
+        std::vector<value::ParameterType> argTypes = inferArgumentParameterTypes(methodCall->getArguments());
+        auto result = overload::OverloadResolver::resolveMethodOverload(
+            overloads,
+            argTypes,
+            methodCall->getLocation(),
+            *catalog);
+
+        if (!result.isAmbiguous && result.selectedOverload)
+        {
+            return result.selectedOverload;
+        }
+
+        return nullptr;
+    }
+
+    std::string TypeInferenceEngine::applyGenericMethodReturnSubstitutions(
+        std::string returnType,
+        ast::MethodCallNode* methodCall,
+        const std::vector<std::string>& genericTypeParameters) const
+    {
+        if (!methodCall || !methodCall->hasGenericTypeArguments() || genericTypeParameters.empty())
+        {
+            return returnType;
+        }
+
+        const auto& genericTypeArgs = methodCall->getGenericTypeArguments();
+        std::unordered_map<std::string, std::string> substitutions;
+        for (size_t i = 0; i < genericTypeParameters.size() && i < genericTypeArgs.size(); ++i)
+        {
+            substitutions[genericTypeParameters[i]] = genericTypeArgs[i];
+        }
+
+        if (substitutions.empty())
+        {
+            return returnType;
+        }
+
+        size_t arrayPos = returnType.find('[');
+        if (arrayPos != std::string::npos)
+        {
+            std::string elementType = returnType.substr(0, arrayPos);
+            std::string arrayDimensions = returnType.substr(arrayPos);
+            auto it = substitutions.find(elementType);
+            if (it != substitutions.end())
+            {
+                return it->second + arrayDimensions;
+            }
+            return returnType;
+        }
+
+        auto it = substitutions.find(returnType);
+        if (it != substitutions.end())
+        {
+            return it->second;
+        }
+
+        return returnType;
+    }
+
+    std::string TypeInferenceEngine::getMethodDefinitionReturnTypeName(
+        const std::shared_ptr<rk::MethodDefinition>& method,
+        ast::MethodCallNode* methodCall) const
+    {
+        if (!method)
+        {
+            return "";
+        }
+
+        std::string returnType;
+        if (auto unifiedReturn = method->getUnifiedReturnType())
+        {
+            returnType = unifiedReturn->toString();
+        }
+        else
+        {
+            returnType = ::types::TypeConversionUtils::getTypeDisplayName(method->getReturnType());
+        }
+
+        std::vector<std::string> genericParams;
+        genericParams.reserve(method->getGenericTypeParameters().size());
+        for (const auto& param : method->getGenericTypeParameters())
+        {
+            genericParams.push_back(param.name);
+        }
+
+        return applyGenericMethodReturnSubstitutions(returnType, methodCall, genericParams);
+    }
+
+    value::ValueType TypeInferenceEngine::classifyReturnTypeName(const std::string& returnType) const
+    {
+        std::string normalized = ::types::TypeConversionUtils::stripNullable(resolveGenericType(returnType));
+
+        if (::types::TypeConversionUtils::containsGenericTypeParameter(normalized))
+        {
+            return value::ValueType::VOID;
+        }
+
+        if (normalized == "int") return value::ValueType::INT;
+        if (normalized == "float") return value::ValueType::FLOAT;
+        if (normalized == "string") return value::ValueType::STRING;
+        if (normalized == "bool") return value::ValueType::BOOL;
+        if (normalized == "void") return value::ValueType::VOID;
+        if (normalized.find("[]") != std::string::npos ||
+            normalized.find("Array<") == 0) {
+            return value::ValueType::ARRAY;
+        }
+        if (!normalized.empty()) return value::ValueType::OBJECT;
+        return value::ValueType::VOID;
+    }
+
+    bool TypeInferenceEngine::isUnresolvedGenericReturnTypeName(const std::string& returnType) const
+    {
+        std::string resolved = ::types::TypeConversionUtils::stripNullable(resolveGenericType(returnType));
+        return ::types::TypeConversionUtils::containsGenericTypeParameter(resolved);
     }
 
     const bytecode::BytecodeProgram::FunctionMetadata* TypeInferenceEngine::findInstanceMethodMetadata(
