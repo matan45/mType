@@ -7,7 +7,9 @@ namespace tests::testSuite
     class DebuggerTestSuite : public testFramework::TestSuite
     {
     public:
-        explicit DebuggerTestSuite() : TestSuite("Debugger Test Suite") {}
+        explicit DebuggerTestSuite() : TestSuite("Debugger Test Suite")
+        {
+        }
 
         void setupTests() override;
     };
