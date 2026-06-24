@@ -14407,6 +14407,9 @@
     <None Include="tests\testFiles\typeChecking\error\mixedTypeComparisonError.mt">
       <Filter>testFiles\typeChecking\error</Filter>
     </None>
+    <None Include="tests\testFiles\typeChecking\error\myt393InlineMethodCallWrongArgument_error.mt">
+      <Filter>testFiles\typeChecking\error</Filter>
+    </None>
     <None Include="tests\testFiles\typeChecking\error\namespaceReturnTypesMismatch.mt">
       <Filter>testFiles\typeChecking\error</Filter>
     </None>
@@ -14651,6 +14654,12 @@
       <Filter>testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\multipleAssignments.mt">
+      <Filter>testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\myt393InlineInstanceMethodCallArgument.expected">
+      <Filter>testFiles\typeChecking\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\typeChecking\pass\myt393InlineInstanceMethodCallArgument.mt">
       <Filter>testFiles\typeChecking\pass</Filter>
     </None>
     <None Include="tests\testFiles\typeChecking\pass\nullAssignment.expected">
