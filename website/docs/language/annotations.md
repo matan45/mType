@@ -66,6 +66,29 @@ A concrete `@Script` class must declare a no-arg constructor and the **required*
 `onFixedUpdate(float)`, `onEnable()`, `onDisable()` hooks — the host calls them only if present. See
 [Native Interop → Lifecycle hooks](../cli/native-interop.md#lifecycle-hooks) for when each fires.
 
+The required hooks may be **inherited**: the validator resolves them through the whole
+inheritance chain, so a base class (e.g. an engine-provided `Behaviour`) can supply default
+implementations and the `@Script` subclass overrides only what it needs with `@Override`.
+The no-arg constructor stays an own-class requirement — constructors don't inherit (a class
+that declares no constructor gets an implicit no-arg one, which counts).
+
+```mtype
+public class Behaviour {
+    public constructor() { }
+    public function onStart(): void { }
+    public function onUpdate(float deltaTime): void { }
+    public function onDestroy(): void { }
+}
+
+@Script
+public class Turret extends Behaviour {
+    public constructor() : super() { }
+
+    @Override
+    public function onUpdate(float deltaTime): void { /* the only hook it needs */ }
+}
+```
+
 Use `mType --find-script-classes <file.mt>` to list `@Script` classes in a script.
 
 See [Native Interop (FFN)](../cli/native-interop.md) for the full embedding API and the C++ side of the bridge.
