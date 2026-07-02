@@ -186,6 +186,28 @@ public class GameLogic {
 
 Any class can be `@Script`-tagged — the only requirement is that it's `public`.
 
+### Lifecycle hooks
+
+The `@Script` validator requires three methods plus a no-arg constructor:
+
+- `onStart(): void` — called once after construction.
+- `onUpdate(float deltaTime): void` — called every frame.
+- `onDestroy(): void` — called once before teardown.
+
+A host may additionally invoke these **optional** hooks *by name, only if the class declares them*
+(an absent hook is simply skipped — it is never required):
+
+- `onLateUpdate(float deltaTime): void` — a post-update pass that runs **after** the host's per-frame
+  physics/navmesh integration and transform sync. `deltaTime` is the same scaled gameplay delta as
+  `onUpdate`.
+- `onFixedUpdate(float deltaTime): void` — fixed-timestep update.
+- `onEnable(): void` / `onDisable(): void` — component enable / disable.
+
+Within a frame the order is `onUpdate` → host physics/navmesh + transform sync → `onLateUpdate`.
+**Use `onLateUpdate` for reads that must happen after physics/navmesh movement** — e.g. following a
+nav-paced unit's post-move position or velocity — so the value reflects this frame's final position
+instead of trailing a frame behind.
+
 ### Drive it from C++
 
 The host constructs a `ScriptAPI` over an `Environment` and a `VirtualMachine`, then locates classes, instantiates them, and invokes methods:

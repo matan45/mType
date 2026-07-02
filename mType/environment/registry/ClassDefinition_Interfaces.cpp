@@ -46,6 +46,29 @@ namespace runtimeTypes::klass
 
     bool ClassDefinition::implementsInterface(const std::string& interfaceName, std::shared_ptr<InterfaceRegistry> registry) const
     {
+        // A subclass implements everything its ancestors implement. The static
+        // type checker already resolves interface assignability across the
+        // parent chain (TypeConstraintValidator::collectInterfacesFromClass);
+        // walking here keeps the runtime/host answer consistent with it.
+        if (implementsInterfaceOwnLevel(interfaceName, registry)) {
+            return true;
+        }
+
+        auto current = parentClass.lock();
+        int depth = 0;
+        while (current && depth < MAX_INHERITANCE_DEPTH) {
+            if (current->implementsInterfaceOwnLevel(interfaceName, registry)) {
+                return true;
+            }
+            current = current->parentClass.lock();
+            depth++;
+        }
+
+        return false;
+    }
+
+    bool ClassDefinition::implementsInterfaceOwnLevel(const std::string& interfaceName, std::shared_ptr<InterfaceRegistry> registry) const
+    {
         std::string normalizedExpected = normalizeGenericTypeName(interfaceName);
 
         for (const auto& implementedInterface : implementedInterfaces) {

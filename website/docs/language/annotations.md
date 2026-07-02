@@ -53,10 +53,18 @@ Tags a class for native interop. The C++ host can locate, instantiate, and call 
 ```mtype
 @Script
 public class GameLogic {
+    public constructor() { }
+
     public function onStart(): void { print("started"); }
-    public function onTick(): void { /* ... */ }
+    public function onUpdate(float deltaTime): void { /* ... */ }
+    public function onDestroy(): void { }
 }
 ```
+
+A concrete `@Script` class must declare a no-arg constructor and the **required** `onStart()` /
+`onUpdate(float)` / `onDestroy()`. It may also declare the **optional** `onLateUpdate(float)`,
+`onFixedUpdate(float)`, `onEnable()`, `onDisable()` hooks — the host calls them only if present. See
+[Native Interop → Lifecycle hooks](../cli/native-interop.md#lifecycle-hooks) for when each fires.
 
 Use `mType --find-script-classes <file.mt>` to list `@Script` classes in a script.
 

@@ -1106,7 +1106,30 @@ std::vector<CodeAction> CodeActionHandler::generateLifecycleMethodsAction(
         return actions;
     }
 
-    const std::string body = lifecyclegen::buildLifecycleBody(*target->node);
+    // Hooks provided by an ancestor (e.g. a Behaviour-style base class) are
+    // accepted by the validator and must not be scaffolded. Resolve the parent
+    // chain through the document's linked class registry; when the parent
+    // isn't resolvable (unopened import, parse error) the set stays empty and
+    // the action scaffolds everything, as before.
+    std::unordered_set<std::string> inheritedHooks;
+    if (doc->environment) {
+        if (auto classRegistry = doc->environment->getClassRegistry()) {
+            auto classDef = classRegistry->findClass(target->node->getClassName());
+            auto parent = classDef ? classDef->getParentClass() : nullptr;
+            int depth = 0;
+            while (parent && depth < 20) {
+                for (const char* hook : {"onStart", "onUpdate", "onDestroy"}) {
+                    if (parent->hasMethod(hook)) {
+                        inheritedHooks.insert(hook);
+                    }
+                }
+                parent = parent->getParentClass();
+                ++depth;
+            }
+        }
+    }
+
+    const std::string body = lifecyclegen::buildLifecycleBody(*target->node, inheritedHooks);
     if (body.empty()) {
         return actions;  // constructor + all three lifecycle methods present
     }

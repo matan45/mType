@@ -482,5 +482,15 @@ namespace tests::testSuite
                         passPath + "markerAnnotationNoArgs.mt");
         addOutputVerificationTest("Annotation On Generic Method Param",
                         passPath + "annotationOnGenericMethodParam.mt");
+
+        // ===== VK-1458: @Script LIFECYCLE HOOKS INHERITED FROM A BASE CLASS =====
+
+        addOutputVerificationTest("@Script Inherited Lifecycle Hooks (Behaviour-style base)",
+                                  passPath + "script_inherited_lifecycle_pass.mt");
+
+        addTestFromFile("@Script Inherited Hooks - onUpdate Still Required",
+                        errorPath + "script_inherited_missing_update_error.mt",
+                        TestType::ERROR_EXPECTED,
+                        "required onUpdate method");
     }
 }

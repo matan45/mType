@@ -1,0 +1,3 @@
+base onStart
+derived onUpdate
+base onDestroy
