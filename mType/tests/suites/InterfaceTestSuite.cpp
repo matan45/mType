@@ -1,8 +1,26 @@
 ﻿#include "InterfaceTestSuite.hpp"
 
+#include "../../services/ScriptInterpreter.hpp"
+
+#include <stdexcept>
+#include <string>
+
 namespace tests::testSuite
 {
     using namespace testFramework;
+
+    namespace
+    {
+        // Throw on failure — the NATIVE_CALLBACK runner converts this into
+        // a FAILED test with the message attached.
+        void require(bool cond, const std::string& msg)
+        {
+            if (!cond)
+            {
+                throw std::runtime_error(msg);
+            }
+        }
+    }
 
     void InterfaceTestSuite::setupTests()
     {
@@ -325,5 +343,24 @@ namespace tests::testSuite
         addTestFromFile("Interface Final Method Error",
                         errorPath + "interfaceFinalMethod.mt",
                         TestType::ERROR_EXPECTED);
+
+        // === VK-1458: host API sees base-class interface implementations ===
+        // classImplementsInterface must walk the parent chain: a game-engine
+        // host probing listener interfaces on a subclass (e.g. Grunt extends
+        // EnemyBase implements ICollisionListener) has to get `true`, matching
+        // the static checker's assignability rules.
+        addInterpreterCallbackTest(
+            "Host classImplementsInterface walks the class hierarchy",
+            "mType/tests/testFiles/interface/hostInterfaceHierarchyFixture.mt",
+            [](services::ScriptInterpreter& interp) {
+                require(interp.classImplementsInterface("GreeterBase", "IGreeter"),
+                        "direct implementation must be detected on the declaring class");
+                require(interp.classImplementsInterface("GreeterChild", "IGreeter"),
+                        "implementation inherited from the base class must be detected");
+                require(!interp.classImplementsInterface("GreeterChild", "IFarewell"),
+                        "interface implemented by nobody must stay false");
+                require(!interp.classImplementsInterface("GreeterBase", "IFarewell"),
+                        "unrelated interface must stay false on the base class too");
+            });
     }
 }

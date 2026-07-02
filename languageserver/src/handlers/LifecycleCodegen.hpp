@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <unordered_set>
 
 namespace ast::nodes::classes
 {
@@ -17,6 +18,11 @@ namespace ast::nodes::classes
 // This module scaffolds whatever is missing, never regenerating a member the
 // class already declares. Output matches mType's stdlib style (4-space
 // indent) and the canonical signatures the validator reports.
+//
+// The OPTIONAL engine hooks (onLateUpdate/onFixedUpdate/onEnable/onDisable) are
+// deliberately NOT scaffolded here: they are not validator-required, so forcing
+// empty stubs into every @Script would add noise. Authors add them by hand when
+// the host actually invokes them (see the engine's scripting lifecycle docs).
 namespace mtype::lsp::lifecyclegen {
 
 // Duplicate detection -- scans the class's own declared methods and returns
@@ -29,5 +35,14 @@ bool hasMethod(const ast::nodes::classes::ClassNode& cls, const std::string& nam
 // closing-brace line and separated by a blank line. Returns "" when the
 // class already declares all four, so the caller can skip the action.
 std::string buildLifecycleBody(const ast::nodes::classes::ClassNode& cls);
+
+// Same, but hooks named in `inheritedHooks` are treated as already provided
+// (declared by an ancestor class, e.g. a Behaviour-style base) and are not
+// scaffolded — mirrors the validator, which accepts inherited lifecycle
+// methods. The constructor is still own-class: constructors don't inherit.
+// Callers that cannot resolve the parent chain pass an empty set and get
+// the legacy scaffold-everything behavior.
+std::string buildLifecycleBody(const ast::nodes::classes::ClassNode& cls,
+                               const std::unordered_set<std::string>& inheritedHooks);
 
 } // namespace mtype::lsp::lifecyclegen

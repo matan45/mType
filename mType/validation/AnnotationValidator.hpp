@@ -60,10 +60,15 @@ namespace validation
          *
          * Checks that:
          * 1. The class is not abstract
-         * 2. The class has a default constructor (0 parameters)
+         * 2. The class has a default constructor (0 parameters) — own class only,
+         *    constructors are not inherited (an implicit default counts)
          * 3. The class has an onUpdate(float deltaTime): void method
          * 4. The class has an onStart(): void method
          * 5. The class has an onDestroy(): void method
+         *
+         * Checks 3-5 accept hooks declared anywhere in the inheritance chain
+         * (e.g. provided by a Behaviour-style base class); the caller must run
+         * after the parent chain is linked (linkSingleClass does).
          *
          * @param classDefinition The class definition to validate
          * @param location Source location for error reporting

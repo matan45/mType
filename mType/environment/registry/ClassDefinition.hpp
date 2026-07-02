@@ -488,6 +488,12 @@ namespace runtimeTypes::klass
         static constexpr int MAX_INTERFACE_DEPTH = 20;
         static constexpr int MAX_INHERITANCE_DEPTH = 20;
 
+        // Single-level check: this class's own implements-list (normalized +
+        // base-name match) plus transitive interface-extends resolution.
+        // The public registry overload walks the parent chain over this.
+        bool implementsInterfaceOwnLevel(const std::string& interfaceName,
+                                         std::shared_ptr<InterfaceRegistry> registry) const;
+
         // Helper method for transitive interface checking with depth protection
         // Requires InterfaceRegistry for complete transitive resolution
         bool implementsInterfaceTransitive(const std::string& interfaceName,

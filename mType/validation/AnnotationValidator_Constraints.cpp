@@ -55,23 +55,22 @@ namespace validation
 
         // Check 3: Must have onUpdate(float): void method.
         // Instance methods carry an implicit 'this', so params.size() == 2 means one real param.
+        // Hooks may be inherited from a base class (e.g. an engine-provided
+        // Behaviour base): lookups search the whole hierarchy. The validator
+        // runs from linkSingleClass AFTER setParentClass, so the chain is
+        // navigable here; runtime dispatch is hierarchy-aware already.
         bool hasUpdateMethod = false;
-        const auto& instanceMethods = classDefinition->getInstanceMethods();
 
-        auto it = instanceMethods.find("onUpdate");
-        if (it != instanceMethods.end())
+        for (const auto& method : classDefinition->getAllInstanceMethodOverloadsInHierarchy("onUpdate"))
         {
-            for (const auto& method : it->second)
-            {
-                const auto& params = method->getParameters();
+            const auto& params = method->getParameters();
 
-                if (params.size() == 2 &&
-                    params[1].second.basicType == value::ValueType::FLOAT &&
-                    method->getReturnType() == value::ValueType::VOID)
-                {
-                    hasUpdateMethod = true;
-                    break;
-                }
+            if (params.size() == 2 &&
+                params[1].second.basicType == value::ValueType::FLOAT &&
+                method->getReturnType() == value::ValueType::VOID)
+            {
+                hasUpdateMethod = true;
+                break;
             }
         }
 
@@ -86,22 +85,18 @@ namespace validation
             throw TypeException(oss.str(), location);
         }
 
-        // Check 4: Must have onStart(): void method
+        // Check 4: Must have onStart(): void method (own or inherited)
         bool hasStartMethod = false;
 
-        auto startIt = instanceMethods.find("onStart");
-        if (startIt != instanceMethods.end())
+        for (const auto& method : classDefinition->getAllInstanceMethodOverloadsInHierarchy("onStart"))
         {
-            for (const auto& method : startIt->second)
-            {
-                const auto& params = method->getParameters();
+            const auto& params = method->getParameters();
 
-                if (params.size() == 1 &&
-                    method->getReturnType() == value::ValueType::VOID)
-                {
-                    hasStartMethod = true;
-                    break;
-                }
+            if (params.size() == 1 &&
+                method->getReturnType() == value::ValueType::VOID)
+            {
+                hasStartMethod = true;
+                break;
             }
         }
 
@@ -116,22 +111,18 @@ namespace validation
             throw TypeException(oss.str(), location);
         }
 
-        // Check 5: Must have onDestroy(): void method
+        // Check 5: Must have onDestroy(): void method (own or inherited)
         bool hasDestroyMethod = false;
 
-        auto destroyIt = instanceMethods.find("onDestroy");
-        if (destroyIt != instanceMethods.end())
+        for (const auto& method : classDefinition->getAllInstanceMethodOverloadsInHierarchy("onDestroy"))
         {
-            for (const auto& method : destroyIt->second)
-            {
-                const auto& params = method->getParameters();
+            const auto& params = method->getParameters();
 
-                if (params.size() == 1 &&
-                    method->getReturnType() == value::ValueType::VOID)
-                {
-                    hasDestroyMethod = true;
-                    break;
-                }
+            if (params.size() == 1 &&
+                method->getReturnType() == value::ValueType::VOID)
+            {
+                hasDestroyMethod = true;
+                break;
             }
         }
 
