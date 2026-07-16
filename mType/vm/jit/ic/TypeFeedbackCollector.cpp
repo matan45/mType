@@ -20,11 +20,13 @@ namespace vm::jit::ic
         return ObservedType::MIXED;
     }
 
-    void TypeFeedbackCollector::recordBinaryOp(size_t instructionOffset,
+    void TypeFeedbackCollector::recordBinaryOp(bytecode::ProgramId programId,
+                                                size_t instructionOffset,
                                                 const value::Value& left,
                                                 const value::Value& right)
     {
-        TypeFeedback& feedback = icTable.getTypeFeedback(instructionOffset);
+        TypeFeedback& feedback = icTable.getTypeFeedback(
+            programId, instructionOffset);
 
         if (feedback.specialized) return; // Already specialized, stop profiling
 
@@ -51,11 +53,13 @@ namespace vm::jit::ic
         ++feedback.executionCount;
     }
 
-    bool TypeFeedbackCollector::shouldSpecialize(size_t instructionOffset) const
+    bool TypeFeedbackCollector::shouldSpecialize(
+        bytecode::ProgramId programId, size_t instructionOffset) const
     {
-        if (!icTable.hasTypeFeedback(instructionOffset)) return false;
+        if (!icTable.hasTypeFeedback(programId, instructionOffset)) return false;
 
-        const TypeFeedback& feedback = const_cast<InlineCacheTable&>(icTable).getTypeFeedback(instructionOffset);
+        const TypeFeedback& feedback = const_cast<InlineCacheTable&>(icTable)
+            .getTypeFeedback(programId, instructionOffset);
         if (feedback.specialized) return false;
         if (feedback.executionCount < SPECIALIZATION_THRESHOLD) return false;
 
@@ -66,14 +70,16 @@ namespace vm::jit::ic
                feedback.rightType != ObservedType::MIXED;
     }
 
-    std::pair<ObservedType, ObservedType> TypeFeedbackCollector::getDominantTypes(size_t instructionOffset) const
+    std::pair<ObservedType, ObservedType> TypeFeedbackCollector::getDominantTypes(
+        bytecode::ProgramId programId, size_t instructionOffset) const
     {
-        if (!icTable.hasTypeFeedback(instructionOffset))
+        if (!icTable.hasTypeFeedback(programId, instructionOffset))
         {
             return {ObservedType::NONE, ObservedType::NONE};
         }
 
-        const TypeFeedback& feedback = const_cast<InlineCacheTable&>(icTable).getTypeFeedback(instructionOffset);
+        const TypeFeedback& feedback = const_cast<InlineCacheTable&>(icTable)
+            .getTypeFeedback(programId, instructionOffset);
         return {feedback.leftType, feedback.rightType};
     }
 }

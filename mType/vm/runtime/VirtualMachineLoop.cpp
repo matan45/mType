@@ -144,6 +144,7 @@ namespace vm::runtime
         // Use executionCtx->program for instruction fetch so cross-library calls
         // (which switch executionCtx->program to a library) fetch from the correct bytecode.
         auto& currentProgram = executionCtx->program;
+        ActiveExecutionCodeView activeCode;
 
         // MYT-??? Step 5: hoist the try/catch out of the per-iteration dispatch
         // loop. MSVC SEH has measurable per-try setup cost; on exception-free
@@ -156,8 +157,17 @@ namespace vm::runtime
         {
             try
             {
-                while (instructionPointer < currentProgram->getInstructionCount())
+                while (true)
                 {
+                    // Refresh after any CALL/RETURN/exception-unwind program
+                    // switch, validate the IP against the cached span once,
+                    // then use an unchecked indexed instruction fetch.
+                    activeCode.refresh(currentProgram);
+                    if (!activeCode.contains(instructionPointer))
+                    {
+                        break;
+                    }
+
                     // Check for pending rejection from an awaited promise.
                     // Set by the catch_ callback when a suspended task resumes
                     // after rejection.
@@ -177,13 +187,19 @@ namespace vm::runtime
                     if (++instructionsSinceGC >= gc::config::GC_CHECK_INTERVAL)
                     {
                         instructionsSinceGC = 0;
-                        gc::GC::maybeCollect();
+                        // An interpreter can be re-entered by a helper while an
+                        // outer native JIT frame is still live. That frame's
+                        // boxed/local Values are not published GC roots, so
+                        // defer collection until the outer generated frame has
+                        // returned. GC pressure remains pending in the tracker.
+                        if (jitNativeDepth == 0)
+                            gc::GC::maybeCollect();
                         debugActive = isDebugActive();
                         profilerFull = vm::profiler::ProfilerHookHelper::isProfilingEnabled()
                                        && vm::profiler::ProfilerContext::getInstance().isFullMode();
                     }
 
-                    const auto& instr = currentProgram->getInstruction(instructionPointer);
+                    const auto& instr = activeCode.fetchUnchecked(instructionPointer);
 
                     // Pending-exception suppression on RETURN inside a finally
                     // block (Java/C# semantics: a return inside finally

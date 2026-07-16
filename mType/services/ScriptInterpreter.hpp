@@ -189,7 +189,5 @@ namespace services
         void enableDebugging();
         void disableDebugging();
 
-        // Internal API for updating bytecode program reference (used by BytecodeService)
-        void setCurrentBytecodeProgram(const vm::bytecode::BytecodeProgram* program);
     };
 }

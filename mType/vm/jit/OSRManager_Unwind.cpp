@@ -3,6 +3,7 @@
 #include <iostream>
 #include <typeinfo>
 #include "JitHelpers.hpp"
+#include "ScopedJitNativeDepth.hpp"
 #include "guards/DeoptimizationHandler.hpp"
 #include "../runtime/VirtualMachine.hpp"
 #include "../../value/ValueShim.hpp"
@@ -39,7 +40,10 @@ namespace vm::jit
 
         try
         {
-            func(&jitCtx);
+            {
+                ScopedJitNativeDepth nativeFrame(vm);
+                func(&jitCtx);
+            }
 
             // MYT-254: any std::exception thrown by a JIT helper (e.g. a
             // missing receiver-kind branch in jit_call_method) is caught at
@@ -149,7 +153,7 @@ namespace vm::jit
             size_t stackIdx = localBase + i;
             if (stackIdx < context.stackManager->size())
             {
-                context.stackManager->getStack()[stackIdx] = result.updatedLocals[i];
+                context.stackManager->set(stackIdx, result.updatedLocals[i]);
             }
         }
 

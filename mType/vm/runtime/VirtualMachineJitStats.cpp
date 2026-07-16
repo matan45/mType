@@ -37,14 +37,17 @@ namespace vm::runtime
         std::cout << "Function Profiling:\n";
         if (!jitProfiler) return;
 
-        std::cout << "  Hot threshold:          " << jitProfiler->getHotThreshold() << " calls\n";
+        std::cout << "  Hot base threshold:     " << jitProfiler->getHotThreshold() << " calls\n";
         const auto& hotFuncs = jitProfiler->getHotFunctions();
         std::cout << "  Hot functions:          " << hotFuncs.size() << "\n";
-        for (const auto& name : hotFuncs)
+        for (const auto& function : hotFuncs)
         {
-            uint32_t calls = jitProfiler->getInvocationCount(name);
-            bool compiled = jitCodeCache && jitCodeCache->contains(name);
-            std::cout << "    - " << name << " (" << calls << " calls)"
+            uint32_t calls = jitProfiler->getInvocationCount(function);
+            bool compiled = jitCodeCache && jitCodeCache->contains(function);
+            std::cout << "    - " << function.name
+                      << " [program " << function.programId.value << "] ("
+                      << calls << " calls, threshold "
+                      << jitProfiler->getEffectiveThreshold(function) << ")"
                       << (compiled ? " [compiled]" : " [bailout]") << "\n";
         }
     }
@@ -56,6 +59,14 @@ namespace vm::runtime
         {
             std::cout << "  Successful compiles:    " << jitCompiler->getCompileCount() << "\n";
             std::cout << "  Bailouts:               " << jitCompiler->getBailoutCount() << "\n";
+            std::cout << "  Compile time:           "
+                      << (static_cast<double>(jitCompiler->getCompileTimeNs()) / 1'000'000.0)
+                      << " ms\n";
+            std::cout << "  Generated code bytes:   "
+                      << jitCompiler->getGeneratedCodeBytes() << "\n";
+            std::cout << "  Reserved frame bytes:   "
+                      << jitCompiler->getReservedFrameBytes() << " total, "
+                      << jitCompiler->getPeakReservedFrameBytes() << " peak\n";
             auto printOpcodeBailouts = [](const char* label,
                                           const std::array<uint64_t, 256>& counts)
             {
@@ -90,7 +101,13 @@ namespace vm::runtime
             std::cout << "  Self direct calls:      " << jitCompiler->getSelfDirectCalls() << "\n";
         }
         if (jitCodeCache)
+        {
             std::cout << "  Cached functions:       " << jitCodeCache->size() << "\n";
+            std::cout << "  Live code bytes:        " << jitCodeCache->byteSize()
+                      << " / " << jitCodeCache->byteBudget() << "\n";
+            std::cout << "  Code-budget rejects:    "
+                      << jitCodeCache->getBudgetRejectCount() << "\n";
+        }
     }
 
     void VirtualMachine::printJitFieldIcStats() const
@@ -159,7 +176,7 @@ namespace vm::runtime
             if (profile.osrCompiled) compiled++;
             if (profile.osrFailed) failed++;
         }
-        std::cout << "  OSR threshold:          " << loopProfiler.getOsrThreshold() << " iterations\n";
+        std::cout << "  OSR base threshold:     " << loopProfiler.getOsrThreshold() << " iterations\n";
         std::cout << "  Loops profiled:         " << profiles.size() << "\n";
         std::cout << "  OSR compiled:           " << compiled << "\n";
         std::cout << "  OSR failed:             " << failed << "\n";
@@ -174,9 +191,12 @@ namespace vm::runtime
         for (const auto& [id, profile] : profiles)
         {
             if (!profile.osrFailed) continue;
-            std::cout << "    - offset 0x" << std::hex << id.jumpBackOffset
+            std::cout << "    - program " << id.programId.value
+                      << ", offset 0x" << std::hex << id.jumpBackOffset
                       << std::dec << ": "
-                      << jit::osrBailoutReasonName(profile.bailoutReason);
+                      << jit::osrBailoutReasonName(profile.bailoutReason)
+                      << " after " << profile.iterationCount
+                      << "/" << profile.effectiveThreshold << " iterations";
             if (profile.bailoutReason == jit::OSRBailoutReason::UNSUPPORTED_OPCODE ||
                 profile.bailoutReason == jit::OSRBailoutReason::CODEGEN_FAILURE)
             {

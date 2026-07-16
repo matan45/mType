@@ -19,11 +19,14 @@
 #include "IntrusivePtr.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <utility>
 
 namespace value
 {
+    class Value;
+
     enum class BridgeKind : uint8_t
     {
         STD_STRING,
@@ -37,6 +40,28 @@ namespace value
         FLAT_MULTI_OBJECT_ARRAY,
         PROMISE
     };
+
+    // The value layer is also used by the language server, which deliberately
+    // does not link the runtime GC.  These optional observers let the GC attach
+    // at runtime without introducing a core -> extensions link dependency.
+    using HeapValueRegistrationObserver =
+        void (*)(BridgeKind kind, const std::shared_ptr<void>& object);
+    using HeapReferenceMutationObserver =
+        void (*)(void* owner, const Value* oldValue, const Value* newValue);
+    using HeapRawReferenceRemovalObserver = void (*)(void* target);
+
+    void setHeapValueRegistrationObserver(HeapValueRegistrationObserver observer) noexcept;
+    void setHeapReferenceMutationObserver(HeapReferenceMutationObserver observer) noexcept;
+    void setHeapRawReferenceRemovalObserver(
+        HeapRawReferenceRemovalObserver observer) noexcept;
+    void notifyHeapValueRegistration(
+        BridgeKind kind,
+        const std::shared_ptr<void>& object);
+    void notifyHeapReferenceMutation(
+        void* owner,
+        const Value* oldValue,
+        const Value* newValue);
+    void notifyHeapRawReferenceRemoval(void* target);
 
     class BridgeBase : public RefCounted
     {

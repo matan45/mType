@@ -127,7 +127,7 @@ namespace vm::jit
         Gp bBase = cc.new_gp64();
         cc.mov(bBase, s.boxedBase);
         Gp bCount = cc.new_gp64();
-        cc.mov(bCount, static_cast<int64_t>(JitEmissionState::MAX_OP_STACK));
+        cc.mov(bCount, static_cast<int64_t>(s.operandStackCapacity));
         InvokeNode* cleanBoxed;
         cc.invoke(Out(cleanBoxed), reinterpret_cast<uint64_t>(jit_locals_cleanup),
                   FuncSignature::build<void, value::Value*, size_t>());
@@ -140,7 +140,8 @@ namespace vm::jit
         // monostate (zero-inited by setupCompilationFrame), so destroy is a
         // cheap no-op there — but any slot written by an inlined callee must
         // be destroyed to avoid shared_ptr leaks.
-        cc.mov(lCount, static_cast<int64_t>(s.localCount + JitEmissionState::INLINE_LOCALS_SLACK));
+        cc.mov(lCount, static_cast<int64_t>(
+            s.localCount + s.inlineLocalsCapacity));
         InvokeNode* cleanLocals;
         cc.invoke(Out(cleanLocals), reinterpret_cast<uint64_t>(jit_locals_cleanup),
                   FuncSignature::build<void, value::Value*, size_t>());

@@ -12,7 +12,7 @@ From the repo root:
 bin\mType\Release\x64\mType.exe --benchmark
 ```
 
-This runs the 48-script canonical suite with 1 warmup + 3 measured iterations,
+This runs the 64-script canonical suite with 1 warmup + 3 measured iterations,
 JIT on, and prints a human-readable table.
 
 ## Flags
@@ -42,16 +42,26 @@ parse -> bytecode compile -> optimize -> execute
 - `exec (VM)`: `ExecutionStats::executionTime`, the inner VM loop only.
 - `instructions` / `calls`: first measured iteration counters.
 - `string-pool` / `array-pool`: process-singleton deltas across the iteration.
-- `jit`: with `--jit-stats`, reports compiles, bailouts, cache size, OSR counts,
+- `bridge-arena` / `object-pool`: bridge-slot and object-instance allocation,
+  reuse, return, and discard deltas.
+- `gc`: collections, detected cycles, collected objects, tracked allocations,
+  suspects, and total collection time attributable to the iteration.
+- `jit/code-cache`: compile latency, generated and live native-code bytes, code-cache
+  budget rejections, and total/peak reserved JIT frame bytes.
+- `jit diagnostics`: with `--jit-stats`, reports compiles, bailouts, cache size, OSR counts,
   hot functions, failed loops, and opcode-level bailout counts.
 
 Across measured iterations the harness reports min / median / mean / stddev of
-wall-clock. Min is the canonical comparison number because noise is usually
-one-sided upward.
+wall-clock. Use the median for A/B decisions; require at least seven measured
+samples per candidate, a 3% delta, and Welch's two-sided `p < 0.05` before
+treating a change as a performance result. For build-to-build comparisons,
+interleave separate process runs when practical to reduce drift. The minimum
+remains useful for spotting one-sided system noise but is not the acceptance
+statistic.
 
 ## Coverage Notes
 
-The canonical suite is fixed in `BenchmarkRunner.cpp`; adding a `.mt` file does
+The canonical suite is fixed in `BenchmarkRunner_Internal.hpp`; adding a `.mt` file does
 not automatically add it to `--benchmark`. Add new deterministic scripts there
 and register them in `IntegrationTestSuite.cpp` with a sibling `.expected`.
 

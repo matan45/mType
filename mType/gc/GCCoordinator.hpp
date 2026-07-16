@@ -2,8 +2,11 @@
 
 #include <memory>
 #include <cstddef>
+#include <cstdint>
 #include <atomic>
 #include <functional>
+#include <mutex>
+#include <unordered_map>
 #include <vector>
 #include "GCTracker.hpp"
 #include "SuspectBuffer.hpp"
@@ -33,6 +36,7 @@ namespace gc
     public:
         // Function to collect root set from VM
         using RootCollector = std::function<std::vector<void*>()>;
+        using RootCollectorId = uint64_t;
 
         // Function to visit references from an object
         using ReferenceVisitor = std::function<void(void* object, std::function<void(void*)> callback)>;
@@ -50,9 +54,18 @@ namespace gc
         size_t consecutiveEmptyCollections = 0;
         size_t currentAllocationThreshold = config::ALLOCATION_THRESHOLD;
         size_t currentSuspectThreshold = config::SUSPECT_THRESHOLD;
+        bool collectionRetryPending = false;
+
+        // Serializes tracker/suspect mutation with cycle detection. Reference
+        // notifications caused by the collector's own cycle breaking are
+        // suppressed on that thread, so this lock need not be recursive.
+        // Root callbacks run before this lock is held.
+        mutable std::mutex stateMutex;
 
         // Callbacks for VM integration
-        RootCollector rootCollector;
+        mutable std::mutex rootCollectorsMutex;
+        std::unordered_map<RootCollectorId, RootCollector> rootCollectors;
+        RootCollectorId legacyRootCollectorId = 0;
 
     public:
         GCCoordinator();
@@ -60,14 +73,29 @@ namespace gc
 
         // Configuration
         void setRootCollector(RootCollector collector);
+        RootCollectorId addRootCollector(RootCollector collector);
+        void removeRootCollector(RootCollectorId id);
+        size_t getRootCollectorCount() const;
         void setReferenceVisitor(ReferenceVisitor visitor);
 
         // Object lifecycle hooks
         template<typename T>
         void onAllocation(std::shared_ptr<T> object, config::GCObjectType type)
         {
-            GCTracker::getInstance().registerObject(object, type);
-            stats.recordAllocation();
+            std::lock_guard lock(stateMutex);
+            if (GCTracker::getInstance().registerObject(object, type))
+            {
+                // A pooled address can still be present in the suspect set
+                // for its expired prior occupant.
+                suspects->removeSuspect(object.get());
+                stats.recordAllocation();
+                stats.synchronizeTrackedObjects(
+                    GCTracker::getInstance().getTotalTrackedObjects());
+                // A freshly registered object may already contain captures or
+                // fields. Buffer it once so cycles assembled during construction
+                // do not depend on a later overwrite barrier to become visible.
+                bufferSuspectUnlocked(object.get());
+            }
         }
 
         void onDeallocation(void* object);
@@ -93,6 +121,7 @@ namespace gc
         void reset();
 
     private:
+        void bufferSuspectUnlocked(void* object);
         void performCollection();
         bool shouldCollect() const;
         void updateAdaptiveBackoff(size_t objectsCollected);

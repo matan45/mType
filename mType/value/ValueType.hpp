@@ -385,6 +385,43 @@ namespace value
     inline bool isValueObject(const Value& v) noexcept { return v.tag() == ValueType::VALUE_OBJECT; }
     inline bool isLambda(const Value& v) noexcept { return v.tag() == ValueType::LAMBDA; }
     inline bool isPromise(const Value& v) noexcept { return v.tag() == ValueType::PROMISE; }
+    inline bool isGCManagedReference(const Value& v) noexcept
+    {
+        switch (v.tag())
+        {
+        case ValueType::OBJECT:
+        case ValueType::ARRAY:
+        case ValueType::LAMBDA:
+        case ValueType::PROMISE:
+            return true;
+        default:
+            return false;
+        }
+    }
+    inline void notifyHeapValueRemovalForGC(const Value& v) noexcept
+    {
+        if (!isGCManagedReference(v)) return;
+        try
+        {
+            notifyHeapReferenceMutation(nullptr, &v, nullptr);
+        }
+        catch (...)
+        {
+            // Destructors and pool deleters must remain noexcept. An allocation
+            // failure while buffering a suspect cannot be recovered here.
+        }
+    }
+    inline void notifyRawHeapRemovalForGC(void* target) noexcept
+    {
+        if (!target) return;
+        try
+        {
+            notifyHeapRawReferenceRemoval(target);
+        }
+        catch (...)
+        {
+        }
+    }
     // Inline resolved-Promise<Int> form. Holds the resolved int in payload
     // with no heap allocation. Distinct from isPromise so that consumers
     // expecting a real heap PromiseValue (debugger, GC, callback machinery)

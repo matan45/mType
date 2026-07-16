@@ -22,9 +22,24 @@ namespace vm::runtime
      * Supports parent frame references for nested closures
      */
     struct SharedStackFrame {
-        std::vector<value::Value> locals;  // Local variables in this frame
+        // Public for hot read/traversal paths; runtime writes must use setLocal
+        // so replacement edges reach the cycle collector.
+        std::vector<value::Value> locals;
         std::unordered_map<std::string, size_t> nameToSlot;  // Map variable names to slots
         std::shared_ptr<SharedStackFrame> parentFrame;  // Parent frame for nested closures
+
+        ~SharedStackFrame()
+        {
+            notifyReferenceRemovalsForGC();
+        }
+
+        void notifyReferenceRemovalsForGC() const noexcept
+        {
+            for (const auto& local : locals)
+            {
+                value::notifyHeapValueRemovalForGC(local);
+            }
+        }
 
         value::Value getLocal(size_t slot) const {
             if (slot < locals.size()) {
@@ -59,6 +74,13 @@ namespace vm::runtime
             if (slot >= locals.size()) {
                 locals.resize(slot + 1, std::monostate{});  // sentinel for uninitialized slots
             }
+            const auto& oldValue = locals[slot];
+            if (value::isGCManagedReference(oldValue) ||
+                value::isGCManagedReference(value))
+            {
+                value::notifyHeapReferenceMutation(
+                    nullptr, &oldValue, &value);
+            }
             locals[slot] = value;
         }
 
@@ -86,6 +108,10 @@ namespace vm::runtime
      * Uses reference capture - captured variables are accessed from shared frame at invocation time
      */
     struct BytecodeLambda {
+        // Process-local identity of the bytecode domain that owns the
+        // instruction offset and function-name handle below. The lambda does
+        // not own that program; invocation must reject it after replacement.
+        vm::bytecode::ProgramId owningProgramId{};
         size_t instructionPointer;  // Where the lambda code starts
         size_t parameterCount;      // Number of parameters
         std::shared_ptr<SharedStackFrame> capturedFrame;  // Shared frame containing captured variables
@@ -99,6 +125,11 @@ namespace vm::runtime
         // copied as 4 bytes per invocation instead of per-invocation
         // std::string copy.
         vm::bytecode::FunctionNameHandle functionName{ vm::bytecode::INVALID_FN_HANDLE };
+
+        ~BytecodeLambda()
+        {
+            value::notifyRawHeapRemovalForGC(capturedThis.get());
+        }
     };
 
     /**

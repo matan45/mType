@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <iostream>
 #include "BytecodeExecutor.hpp"
+#include "BytecodeProgramBinding.hpp"
 #include "ImportManager.hpp"
 #include "OptimizationService.hpp"
 #include "ScriptAPI.hpp"
@@ -47,6 +48,7 @@ namespace services
         Parser parser(lexer, std::move(importManager));
         auto ast = parser.parseProgram();
 
+        BytecodeProgramBinding::clearCurrent(vm, scriptAPI);
         environment->setImportManager(importMgrPtr);
         importMgrPtr->resolveAllImports(ast.get());
 
@@ -95,6 +97,7 @@ namespace services
         Parser parser(lexer, std::move(importManager));
         auto ast = parser.parseProgram();
 
+        BytecodeProgramBinding::clearCurrent(vm, scriptAPI);
         environment->setImportManager(importMgrPtr);
         importMgrPtr->resolveAllImports(ast.get());
 
@@ -118,7 +121,9 @@ namespace services
         std::cout << "  Classes: " << program.getClasses().size() << "\n";
     }
 
-    void BytecodeService::runCompiledBytecode(const std::string& bytecodeFile)
+    void BytecodeService::runCompiledBytecode(
+        const std::string& bytecodeFile,
+        std::unique_ptr<vm::bytecode::BytecodeProgram>& owner)
     {
         using namespace vm::bytecode;
         using namespace vm::runtime;
@@ -135,38 +140,23 @@ namespace services
         std::cout << "  Classes: " << program.getClasses().size() << "\n";
         std::cout << "\nExecuting bytecode...\n\n";
 
-        registerAnnotationsFromMetadata(program.getAnnotationDeclarations());
-        registerClassesFromMetadata(program.getClasses());
-        registerInterfacesFromMetadata(program.getInterfaces());
-
-        if (scriptAPI)
-        {
-            scriptAPI->setBytecodeProgram(&program);
-        }
-
-        try
-        {
-            BytecodeExecutor::executeProgram(vm, program);
-        }
-        catch (...)
-        {
-            // Clear program reference before rethrowing so the dangling
-            // pointer doesn't outlive `program`.
-            if (scriptAPI)
-            {
-                scriptAPI->setBytecodeProgram(nullptr);
-            }
-            throw;
-        }
-
-        if (scriptAPI)
-        {
-            scriptAPI->setBytecodeProgram(nullptr);
-        }
+        auto replacement =
+            std::make_unique<BytecodeProgram>(std::move(program));
+        // Class publication can replace ClassDefinition objects referenced by
+        // JIT/IC state. Invalidate that state first while the old owner lives.
+        BytecodeProgramBinding::clearCurrent(vm, scriptAPI);
+        registerAnnotationsFromMetadata(
+            replacement->getAnnotationDeclarations());
+        registerClassesFromMetadata(replacement->getClasses());
+        registerInterfacesFromMetadata(replacement->getInterfaces());
+        BytecodeProgramBinding::replace(
+            vm, scriptAPI, owner, std::move(replacement));
+        BytecodeExecutor::executeProgram(vm, *owner);
     }
 
-    std::unique_ptr<vm::bytecode::BytecodeProgram> BytecodeService::loadCompiledBytecodeWithoutExecuting(
-        const std::string& bytecodeFile)
+    void BytecodeService::loadCompiledBytecodeWithoutExecuting(
+        const std::string& bytecodeFile,
+        std::unique_ptr<vm::bytecode::BytecodeProgram>& owner)
     {
         using namespace vm::bytecode;
 
@@ -190,66 +180,46 @@ namespace services
             : std::make_unique<BytecodeProgram>(BytecodeProgram::deserialize(inFile));
         inFile.close();
 
+        BytecodeProgramBinding::clearCurrent(vm, scriptAPI);
         registerAnnotationsFromMetadata(program->getAnnotationDeclarations());
         registerClassesFromMetadata(program->getClasses());
         registerInterfacesFromMetadata(program->getInterfaces());
 
-        if (vm)
-        {
-            vm->setProgram(program.get());
-        }
-
-        if (scriptAPI)
-        {
-            scriptAPI->setBytecodeProgram(program.get());
-        }
-
-        return program;
+        BytecodeProgramBinding::replace(
+            vm, scriptAPI, owner, std::move(program));
     }
 
-    std::unique_ptr<vm::bytecode::BytecodeProgram> BytecodeService::runFromProgram(
-        vm::bytecode::BytecodeProgram program)
+    void BytecodeService::runFromProgram(
+        vm::bytecode::BytecodeProgram program,
+        std::unique_ptr<vm::bytecode::BytecodeProgram>& owner)
     {
         auto result = std::make_unique<vm::bytecode::BytecodeProgram>(std::move(program));
 
+        BytecodeProgramBinding::clearCurrent(vm, scriptAPI);
         registerAnnotationsFromMetadata(result->getAnnotationDeclarations());
         registerClassesFromMetadata(result->getClasses());
         registerInterfacesFromMetadata(result->getInterfaces());
 
-        if (vm)
-        {
-            vm->setProgram(result.get());
-        }
-        if (scriptAPI)
-        {
-            scriptAPI->setBytecodeProgram(result.get());
-        }
+        BytecodeProgramBinding::replace(
+            vm, scriptAPI, owner, std::move(result));
 
-        // Execute the bytecode (registers functions and runs top-level code).
-        BytecodeExecutor::executeProgram(vm, *result);
-
-        return result;
+        // Execute only after the caller's durable owner and both raw bindings
+        // agree, so completion, failure, or suspension cannot expose a local.
+        BytecodeExecutor::executeProgram(vm, *owner);
     }
 
-    std::unique_ptr<vm::bytecode::BytecodeProgram> BytecodeService::loadFromProgram(
-        vm::bytecode::BytecodeProgram program)
+    void BytecodeService::loadFromProgram(
+        vm::bytecode::BytecodeProgram program,
+        std::unique_ptr<vm::bytecode::BytecodeProgram>& owner)
     {
         auto result = std::make_unique<vm::bytecode::BytecodeProgram>(std::move(program));
 
+        BytecodeProgramBinding::clearCurrent(vm, scriptAPI);
         registerAnnotationsFromMetadata(result->getAnnotationDeclarations());
         registerClassesFromMetadata(result->getClasses());
         registerInterfacesFromMetadata(result->getInterfaces());
 
-        if (vm)
-        {
-            vm->setProgram(result.get());
-        }
-
-        if (scriptAPI)
-        {
-            scriptAPI->setBytecodeProgram(result.get());
-        }
-
-        return result;
+        BytecodeProgramBinding::replace(
+            vm, scriptAPI, owner, std::move(result));
     }
 }

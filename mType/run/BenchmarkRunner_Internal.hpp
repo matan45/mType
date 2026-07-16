@@ -199,6 +199,13 @@ namespace detail
         std::size_t compileCount = 0;
         std::size_t bailoutCount = 0;
         std::size_t cachedFunctions = 0;
+        std::uint64_t compileTimeNs = 0;
+        std::uint64_t generatedCodeBytes = 0;
+        std::uint64_t reservedFrameBytes = 0;
+        std::size_t peakReservedFrameBytes = 0;
+        std::size_t liveCodeBytes = 0;
+        std::size_t codeByteBudget = 0;
+        std::size_t codeBudgetRejects = 0;
         std::size_t loopsProfiled = 0;
         std::size_t osrCompiled = 0;
         std::size_t osrFailed = 0;
@@ -218,6 +225,23 @@ namespace detail
         std::size_t stringPoolHits = 0;
         std::size_t arrayPoolAllocs = 0;
         std::size_t arrayPoolHits = 0;
+        std::uint64_t bridgeArenaHits = 0;
+        std::uint64_t bridgeArenaMisses = 0;
+        std::uint64_t bridgeArenaDiscards = 0;
+        std::size_t bridgeArenaCachedSlots = 0;
+        std::size_t objectPoolAllocs = 0;
+        std::size_t objectPoolHits = 0;
+        std::size_t objectPoolMisses = 0;
+        std::size_t objectPoolReturns = 0;
+        std::size_t objectPoolDiscards = 0;
+        std::size_t objectPoolCurrentSize = 0;
+        std::size_t gcCollections = 0;
+        std::size_t gcCyclesDetected = 0;
+        std::size_t gcObjectsCollected = 0;
+        std::size_t gcAllocations = 0;
+        std::size_t gcSuspectsAdded = 0;
+        std::size_t gcCollectionTimeUs = 0;
+        std::size_t gcTrackedAfter = 0;
         JitSample jit{};
     };
 

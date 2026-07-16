@@ -4,7 +4,6 @@
 #include "guards/DeoptimizationHandler.hpp"
 #include "../../value/ValueShim.hpp"
 #include "../../value/AsyncPromiseValue.hpp"
-#include "../../gc/GC.hpp"
 #include "../../value/ObjectInstance.hpp"
 #include "../../value/ValueObject.hpp"
 #include "../../value/StringPool.hpp"
@@ -102,9 +101,14 @@ namespace vm::jit
         {
             // Reached only when the inline polling counter emitted by JIT
             // JUMP_BACK / tail-call crosses gc::config::GC_CHECK_INTERVAL.
-            // Reset the counter here, not on the hot emitted path.
+            // Reset the counter here, not on the hot emitted path. Collection
+            // is deliberately deferred until generated code returns: the
+            // native frame's boxed/local Value arrays are not published to
+            // VirtualMachine::collectGCRoots(), so collecting here can mistake
+            // a bridge-shared JIT local for an internal cycle edge and clear a
+            // reachable object. Allocation/suspect pressure remains pending;
+            // the interpreter's next owner-frame poll performs the collection.
             g_jit_gc_poll_counter = 0;
-            gc::GC::maybeCollect();
         }
 
         double jit_unbox_float(const value::Value* val)

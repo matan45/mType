@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <unordered_map>
+#include <vector>
 #include "LoopProfiler.hpp"
 #include "OSRState.hpp"
 #include "JitCodeCache.hpp"
@@ -31,19 +32,42 @@ namespace vm::jit
                     vm::runtime::ExecutionContext& context,
                     vm::runtime::VirtualMachine& vm,
                     JitCompiler& compiler,
-                    JitCodeCache& codeCache);
+                    JitCodeCache& codeCache,
+                    size_t approximateLoopSpan = 0);
 
         const OSRResult& getLastResult() const { return lastResult; }
 
         LoopProfiler& getLoopProfiler() { return loopProfiler; }
         const LoopProfiler& getLoopProfiler() const { return loopProfiler; }
 
+        // Drop all loop profiles and native entry pointers. Must run before
+        // JitCodeCache::clear() during VM rebuild so osrCache never retains
+        // executable addresses that the code cache has released.
+        void reset();
+
     private:
         LoopProfiler loopProfiler;
         OSRResult lastResult;
 
-        // Cache of compiled OSR loops: jumpBackOffset -> compiled code
-        std::unordered_map<size_t, OSRLoopFunction> osrCache;
+        struct ProgramOSRCache
+        {
+            std::vector<OSRLoopFunction> byJumpBackOffset;
+        };
+
+        // Compiled OSR entries use the same program-qualified dense layout as
+        // loop profiles. The active-program pointer removes ProgramId hashing
+        // from repeated back-edges in the common single-program execution run.
+        std::unordered_map<bytecode::ProgramId, std::unique_ptr<ProgramOSRCache>,
+                           bytecode::ProgramIdHash> osrCache;
+        bytecode::ProgramId activeCacheProgramId{};
+        ProgramOSRCache* activeCacheProgram = nullptr;
+
+        ProgramOSRCache& selectCacheProgram(bytecode::ProgramId programId);
+        OSRLoopFunction findCachedLoop(bytecode::ProgramId programId,
+                                       size_t jumpBackOffset);
+        void cacheLoop(bytecode::ProgramId programId,
+                       size_t jumpBackOffset,
+                       OSRLoopFunction entry);
 
         // Analyze loop structure and build OSR state from current interpreter
         // state. Returns OSRBailoutReason::NONE on success, or the specific

@@ -58,6 +58,7 @@ namespace vm::jit
         emitValueDestroy(s, receiverIdx);
         popType(s);
         s.stackDepth--;
+        if (!checkOpStackHeadroom(s)) return true;
 
         Gp dest = cc.new_gp64();
         cc.lea(dest, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));
@@ -84,6 +85,7 @@ namespace vm::jit
         emitValueDestroy(s, receiverIdx);
         popType(s);
         s.stackDepth--;
+        if (!checkOpStackHeadroom(s)) return true;
 
         Gp dest = cc.new_gp64();
         cc.lea(dest, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));
@@ -124,6 +126,7 @@ namespace vm::jit
         emitValueDestroy(s, receiverIdx);
         popType(s);
         s.stackDepth--;
+        if (!checkOpStackHeadroom(s)) return true;
 
         Gp dest = cc.new_gp64();
         cc.lea(dest, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));

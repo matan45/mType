@@ -166,16 +166,16 @@ namespace vm::runtime
 
             while (context.stackManager->size() < stackPos)
             {
-                context.stackManager->getStack().push_back(std::monostate{});
+                context.stackManager->push(std::monostate{});
             }
 
             if (stackPos >= context.stackManager->size())
             {
-                context.stackManager->getStack().push_back(val);
+                context.stackManager->push(val);
             }
             else
             {
-                (*context.stackManager)[stackPos] = val;
+                context.stackManager->set(stackPos, val);
             }
 
             // Mirror into an existing SharedStackFrame for closure reference semantics.
@@ -302,7 +302,7 @@ namespace vm::runtime
                 if (curSize >= 2 && stackPos < curSize - 1)
                 {
                     const auto& tosRef = context.stackManager->peekRef(0);
-                    (*context.stackManager)[stackPos] = tosRef;
+                    context.stackManager->set(stackPos, tosRef);
                     if (!context.callStack.empty() && context.callStack.back().sharedFrame)
                     {
                         context.callStack.back().sharedFrame->setLocal(slot, tosRef);
@@ -343,15 +343,15 @@ namespace vm::runtime
 
             while (context.stackManager->size() < stackPos)
             {
-                context.stackManager->getStack().push_back(std::monostate{});
+                context.stackManager->push(std::monostate{});
             }
             if (stackPos >= context.stackManager->size())
             {
-                context.stackManager->getStack().push_back(val);
+                context.stackManager->push(val);
             }
             else
             {
-                (*context.stackManager)[stackPos] = val;
+                context.stackManager->set(stackPos, val);
             }
 
             // Mirror into an existing SharedStackFrame.
@@ -623,15 +623,15 @@ namespace vm::runtime
 
             while (context.stackManager->size() < stackPos)
             {
-                context.stackManager->getStack().push_back(std::monostate{});
+                context.stackManager->push(std::monostate{});
             }
             if (stackPos >= context.stackManager->size())
             {
-                context.stackManager->getStack().push_back(val);
+                context.stackManager->push(val);
             }
             else
             {
-                (*context.stackManager)[stackPos] = val;
+                context.stackManager->set(stackPos, val);
             }
 
             // Mirror into an existing SharedStackFrame. Creating one here would

@@ -292,6 +292,40 @@ namespace value
 
     public:
 
+        ~SparseMultiArray() override
+        {
+            try
+            {
+                visitValuesForGC([](const Value& value) {
+                    notifyHeapValueRemovalForGC(value);
+                });
+            }
+            catch (...)
+            {
+            }
+            notifyRawHeapRemovalForGC(parent_.get());
+        }
+
+        void clearReferencesForGC() {
+            denseData_.clear();
+            sparseData_.clear();
+            clearSubArrayCache();
+            this->clearBaseReferencesForGC();
+        }
+
+        void visitValuesForGC(
+            const std::function<void(const Value&)>& callback) const
+        {
+            callback(defaultValue_);
+            if (parent_) return;
+            for (const auto& value : denseData_) callback(value);
+            for (const auto& [index, value] : sparseData_)
+            {
+                (void)index;
+                callback(value);
+            }
+        }
+
         /**
          * @brief Get element at multi-dimensional index
          */
@@ -398,6 +432,8 @@ namespace value
                         throw std::out_of_range("Index exceeds array bounds");
                     }
 
+                    this->notifyReferenceMutationForGC(
+                        denseStorage[effectiveIndex], value);
                     bool wasDefault = valuesEqual(denseStorage[effectiveIndex], defaultValue_);
                     denseStorage[effectiveIndex] = value;
 
@@ -426,6 +462,8 @@ namespace value
                     auto& sparseStorage = getSparseDataStorage();
                     auto it = sparseStorage.find(effectiveIndex);
                     bool exists = (it != sparseStorage.end());
+                    const Value& oldValue = exists ? it->second : defaultValue_;
+                    this->notifyReferenceMutationForGC(oldValue, value);
 
                     if (isDefault)
                     {
@@ -596,7 +634,14 @@ namespace value
                 throw std::logic_error("Cannot reset a view array");
             }
 
-            defaultValue_ = newDefaultValue;
+            Value replacement = newDefaultValue;
+            visitValuesForGC([](const Value& oldValue) {
+                notifyHeapValueRemovalForGC(oldValue);
+            });
+            if (isGCManagedReference(replacement)) {
+                notifyHeapReferenceMutation(this, nullptr, &replacement);
+            }
+            defaultValue_ = replacement;
             nonDefaultCount_ = 0;
             totalAccesses_ = 0;
             sparseAccesses_ = 0;

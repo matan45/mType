@@ -142,17 +142,20 @@ namespace vm::runtime
         case OpCode::PROFILE_ENTER:
             if (jitEnabled && jitProfiler && !callStack.empty())
             {
-                // MYT-197: resolve the frame's handle to the owning program's
-                // interned name. JitProfiler + JitCompiler still key on
-                // std::string (cold path — PROFILE_ENTER only fires while
-                // tiering up).
+                // Resolve the frame handle through its owning program. The
+                // metadata lookup is O(1) and supplies immutable bytecode size
+                // to the adaptive warm-up policy; the function name remains
+                // available for the cold compile path.
                 const auto& frame = callStack.back();
                 const bytecode::BytecodeProgram* framePrg =
                     (frame.programIndex < loadedPrograms.size())
                         ? loadedPrograms[frame.programIndex]
                         : program;
                 const std::string& funcName = framePrg->getFrameName(frame.functionName);
-                bool justBecameHot = jitProfiler->recordEntry(funcName);
+                const auto* funcMeta = framePrg->getFunctionMeta(frame.functionName);
+                bool justBecameHot = jitProfiler->recordEntry(
+                    framePrg->getProgramId(), funcName,
+                    funcMeta ? funcMeta->instructionCount : 0);
                 if (justBecameHot && jitCompiler && jitCodeCache)
                 {
                     // MYT-314: compile against framePrg (the program owning

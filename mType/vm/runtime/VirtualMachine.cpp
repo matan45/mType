@@ -66,14 +66,39 @@ namespace vm::runtime
         // Wire up root collector so GC can scan VM stack and call frames.
         if (auto* coordinator = gc::GC::get())
         {
-            coordinator->setRootCollector([this]() { return collectGCRoots(); });
+            gcRootCollectorState = std::make_shared<GCRootCollectorState>();
+            gcRootCollectorState->vm = this;
+            gcRootCollectorId = coordinator->addRootCollector(
+                [state = std::weak_ptr<GCRootCollectorState>(gcRootCollectorState)]() {
+                    auto locked = state.lock();
+                    if (!locked) return std::vector<void*>{};
+                    std::lock_guard guard(locked->mutex);
+                    return locked->vm
+                        ? locked->vm->collectGCRoots()
+                        : std::vector<void*>{};
+                });
         }
 
         // Executors are initialized in execute() once a program is bound,
         // because ExecutionContext requires a valid program pointer.
     }
 
-    VirtualMachine::~VirtualMachine() = default;
+    VirtualMachine::~VirtualMachine()
+    {
+        // Deregister before member destruction so a collection can never call
+        // collectGCRoots() through a dangling VM pointer. Collector IDs are
+        // process-unique, so shutdown/reinitialization cannot remove another
+        // VM's registration accidentally.
+        if (gcRootCollectorState)
+        {
+            std::lock_guard guard(gcRootCollectorState->mutex);
+            gcRootCollectorState->vm = nullptr;
+        }
+        if (auto* coordinator = gc::GC::get())
+        {
+            coordinator->removeRootCollector(gcRootCollectorId);
+        }
+    }
 
     void VirtualMachine::setPendingTypeArgs(std::unordered_map<std::string, std::string> bindings)
     {
@@ -114,11 +139,30 @@ namespace vm::runtime
             inlineCacheTable = std::make_unique<jit::ic::InlineCacheTable>();
             typeFeedbackCollector = std::make_unique<jit::ic::TypeFeedbackCollector>(*inlineCacheTable);
         }
+        if (enabled && inlineCacheTable && program)
+        {
+            inlineCacheTable->registerProgram(
+                program->getProgramId(), program->getInstructionCount());
+        }
     }
 
     value::Value VirtualMachine::execute(const bytecode::BytecodeProgram& bytecodeProgram)
     {
-        program = &bytecodeProgram;
+        // Direct VM clients do not necessarily pre-bind through a service.
+        // Retire a different prior execution generation while its caller-owned
+        // program is still required to be alive, then synchronize the main,
+        // ExecutionContext, and loadedPrograms[0] pointers in one operation.
+        if (program && program != &bytecodeProgram)
+        {
+            prepareForProgramReplacement();
+            reset();
+        }
+        setProgram(&bytecodeProgram);
+        if (inlineCacheTable)
+        {
+            inlineCacheTable->registerProgram(
+                program->getProgramId(), program->getInstructionCount());
+        }
 
         if (savedState.has_value())
         {
@@ -246,10 +290,12 @@ namespace vm::runtime
             const size_t targetDepth = savedCallStack.size();
             bool debugActive = isDebugActive();
             auto& currentProgram = executionCtx->program;
+            ActiveExecutionCodeView activeCode;
 
             while (callStack.size() > targetDepth)
             {
-                if (instructionPointer >= currentProgram->getInstructionCount())
+                activeCode.refresh(currentProgram);
+                if (!activeCode.contains(instructionPointer))
                 {
                     break;
                 }
@@ -258,7 +304,7 @@ namespace vm::runtime
                     break;
                 }
 
-                const auto& instr = currentProgram->getInstruction(instructionPointer);
+                const auto& instr = activeCode.fetchUnchecked(instructionPointer);
                 if (debugActive)
                 {
                     debugPauseIfNeeded();

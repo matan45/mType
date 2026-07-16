@@ -1,11 +1,15 @@
 #include "JitCompiler.hpp"
 #include "JitCompiler_OSR_Internal.hpp"
+#include <algorithm>
+#include <chrono>
 #include <asmjit/x86.h>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <unordered_set>
 #include "JitEmissionState.hpp"
 #include "JitHelpers.hpp"
+#include "analysis/JitFrameAnalysis.hpp"
 #include "codegen/OSREntryCodegen.hpp"
 #include "../bytecode/OpCode.hpp"
 
@@ -23,15 +27,40 @@ namespace vm::jit
         Gp progPtr;
         bool usesBoxedTypes;
         size_t localStride;
+        size_t operandStackCapacity;
+        size_t inlineLocalsCapacity;
+        size_t reservedBytes;
         std::unordered_map<size_t, SlotType> localTypes;
     };
 
-    static OSRFrame setupOSRFrame(Compiler& cc,
+    namespace
+    {
+        class OSRCompileTimer
+        {
+        public:
+            explicit OSRCompileTimer(uint64_t& totalNs)
+                : totalNs(totalNs), started(std::chrono::steady_clock::now()) {}
+
+            ~OSRCompileTimer()
+            {
+                totalNs += static_cast<uint64_t>(
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(
+                        std::chrono::steady_clock::now() - started).count());
+            }
+
+        private:
+            uint64_t& totalNs;
+            std::chrono::steady_clock::time_point started;
+        };
+    }
+
+    static std::optional<OSRFrame> setupOSRFrame(Compiler& cc,
                                    const bytecode::BytecodeProgram& program,
                                    const std::vector<LocalSlotInfo>& localSlotInfos,
                                    size_t localCount,
                                    size_t loopStartOffset, size_t loopEndOffset,
-                                   Gp ctxPtr)
+                                   Gp ctxPtr,
+                                   ic::TypeFeedbackCollector* typeFeedback)
     {
         // MYT-251: use the single source of truth in JitEmissionState (was
         // a local 64 here that could silently drift from the emitters' bound
@@ -42,7 +71,6 @@ namespace vm::jit
         // to be MYT-321's unary-INT-on-boxed-slot bug; pure operand-stack
         // overflow is still a real cc.new_stack overrun failure mode this
         // budget continues to defend against.
-        constexpr size_t MAX_OP_STACK = JitEmissionState::MAX_OP_STACK;
         constexpr size_t valueSize = sizeof(value::Value);
 
         bool usesBoxedTypes = scanOpcodesForBoxedTypes(program, loopStartOffset, loopEndOffset + 1);
@@ -91,23 +119,31 @@ namespace vm::jit
 
         const size_t localStride = usesBoxedTypes ? valueSize : 8;
 
-        // MYT-163: reserve INLINE_LOCALS_SLACK slots so CALL_METHOD sites
-        // inside an OSR'd loop body can speculatively inline. Mirrors the
-        // equivalent widening in setupCompilationFrame.
-        const size_t reservedLocals = localCount + JitEmissionState::INLINE_LOCALS_SLACK;
+        const auto frameAnalysis = analysis::analyzeOSRFrame(
+            program, loopStartOffset, loopEndOffset, localCount,
+            typeFeedback, usesBoxedTypes,
+            JitEmissionState::INLINE_LOCALS_SLACK);
+        const auto layout = analysis::makeFrameLayoutPlan(
+            frameAnalysis, JitEmissionState::MAX_OP_STACK,
+            JitEmissionState::INLINE_LOCALS_SLACK);
+        if (!layout.valid) return std::nullopt;
+
+        const size_t reservedLocals = localCount + layout.inlineLocalSlots;
 
         Mem localsArea = cc.new_stack(static_cast<uint32_t>(reservedLocals * localStride), 8);
         Gp localsBase = cc.new_gp64("localsBase");
         cc.lea(localsBase, localsArea);
 
-        Mem stackArea = cc.new_stack(MAX_OP_STACK * 8, 8);
+        Mem stackArea = cc.new_stack(
+            static_cast<uint32_t>(layout.operandStackSlots * 8), 8);
         Gp stackBase = cc.new_gp64("stackBase");
         cc.lea(stackBase, stackArea);
 
         Gp boxedBase = cc.new_gp64("boxedBase");
         if (usesBoxedTypes)
         {
-            Mem boxedArea = cc.new_stack(static_cast<uint32_t>(MAX_OP_STACK * valueSize), 8);
+            Mem boxedArea = cc.new_stack(static_cast<uint32_t>(
+                layout.operandStackSlots * valueSize), 8);
             cc.lea(boxedBase, boxedArea);
         }
 
@@ -116,10 +152,17 @@ namespace vm::jit
             cc.mov(progPtr, reinterpret_cast<uint64_t>(&program));
 
         if (usesBoxedTypes)
-            emitMemoryInit(cc, localsBase, reservedLocals, boxedBase, MAX_OP_STACK);
+            emitMemoryInit(cc, localsBase, reservedLocals, boxedBase,
+                           layout.operandStackSlots);
 
-        return {localsBase, stackBase, boxedBase, progPtr,
-                usesBoxedTypes, localStride, {}};
+        const size_t reservedBytes = reservedLocals * localStride
+            + layout.operandStackSlots * 8
+            + (usesBoxedTypes
+                ? layout.operandStackSlots * valueSize : 0);
+        return OSRFrame{localsBase, stackBase, boxedBase, progPtr,
+                usesBoxedTypes, localStride,
+                layout.operandStackSlots, layout.inlineLocalSlots,
+                reservedBytes, {}};
     }
 
     static void emitOSRPrologue(Compiler& cc, const OSRFrame& frame, Gp ctxPtr,
@@ -262,6 +305,8 @@ namespace vm::jit
         s.inlineFieldSetICMisses = inlineFieldSetICMisses;
         s.inlineDecisions = inlineDecisions;
         s.codeCache = codeCache;
+        s.operandStackCapacity = frame.operandStackCapacity;
+        s.inlineLocalsCapacity = frame.inlineLocalsCapacity;
         // MYT-251: explicit OSR-context signal. Replaces the
         // currentCompilingFn.empty() heuristic at OSR-emit sites (e.g.
         // tryEmitInlinedMethodCall's gate). currentCompilingFn remains empty
@@ -344,6 +389,8 @@ namespace vm::jit
                                       OSRBailoutReason* outReason,
                                       uint8_t* outOffendingOpcode)
     {
+        // OSR code embeds program-owned metadata and helper pointers.
+        program.pinRuntimeAddress();
         // MYT-148: helper to record bailout reason + opcode for the caller
         // (OSRManager) to attach to the LoopProfile.
         auto reportBailout = [&](OSRBailoutReason reason, uint8_t opcode = 0)
@@ -353,7 +400,7 @@ namespace vm::jit
         };
 
         std::string osrKey = "osr@" + std::to_string(jumpBackOffset);
-        if (codeCache.contains(osrKey))
+        if (codeCache.contains(program.getProgramId(), osrKey))
             return true;
 
         OpCode offendingOpcode{};
@@ -375,6 +422,8 @@ namespace vm::jit
             return false;
         }
 
+        OSRCompileTimer compileTimer(compileTimeNs);
+
         CodeHolder code;
         code.init(codeCache.getRuntime().environment());
         Compiler cc(&code);
@@ -383,8 +432,16 @@ namespace vm::jit
         Gp ctxPtr = cc.new_gp64("ctx");
         func->set_arg(0, ctxPtr);
 
-        auto frame = setupOSRFrame(cc, program, localSlotInfos, localCount,
-                                   loopStartOffset, loopEndOffset, ctxPtr);
+        auto frameResult = setupOSRFrame(
+            cc, program, localSlotInfos, localCount,
+            loopStartOffset, loopEndOffset, ctxPtr, typeFeedback);
+        if (!frameResult)
+        {
+            bailoutCount++;
+            reportBailout(OSRBailoutReason::CODEGEN_FAILURE);
+            return false;
+        }
+        auto& frame = *frameResult;
 
         OSRBailoutReason bodyReason = OSRBailoutReason::NONE;
         uint8_t bodyOpcode = 0;
@@ -405,8 +462,10 @@ namespace vm::jit
         }
 
         cc.end_func();
-        if (!finalizeAndStore(cc, code, codeCache, osrKey,
-                              compileCount, bailoutCount))
+        if (!finalizeAndStore(cc, code, codeCache, program.getProgramId(),
+                              osrKey,
+                              compileCount, bailoutCount,
+                              generatedCodeBytes))
         {
             // Emission succeeded per-opcode but asmjit rejected the IR at
             // finalize/add time — report a distinct reason so --jit-stats
@@ -414,6 +473,9 @@ namespace vm::jit
             reportBailout(OSRBailoutReason::FINALIZE_FAILURE);
             return false;
         }
+        reservedFrameBytes += frame.reservedBytes;
+        peakReservedFrameBytes = std::max(
+            peakReservedFrameBytes, frame.reservedBytes);
         return true;
     }
 }

@@ -2,6 +2,7 @@
 #include "ObjectArrayBase.hpp"
 #include "../../FlatMultiArray.hpp"
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -73,6 +74,11 @@ namespace arrays {
  */
 class FlatMultiObjectArray : public ObjectArrayBase, public std::enable_shared_from_this<FlatMultiObjectArray> {
 public:
+    ~FlatMultiObjectArray() override
+    {
+        ::value::notifyRawHeapRemovalForGC(parent_.get());
+    }
+
     /**
      * @brief Construct multi-dimensional object array
      * @param classDef Shared class definition for all instances
@@ -192,6 +198,13 @@ public:
      */
     MultiDimMemoryStats getMemoryStats() const;
 
+    // GC-only graph access. These avoid materializing temporary
+    // ObjectInstances while the collector walks SoA storage.
+    void visitValuesForGC(
+        const std::function<void(const ::value::Value&)>& callback) const;
+    void clearReferencesForGC();
+    FlatMultiObjectArray* getParentForGC() const noexcept { return parent_.get(); }
+
 private:
     // Field-oriented storage inherited from ObjectArrayBase:
     // - classDefinition_
@@ -220,6 +233,10 @@ private:
      */
     bool isView() const {
         return parent_ != nullptr;
+    }
+
+    FlatMultiObjectArray* gcOwner() noexcept {
+        return isView() ? parent_->gcOwner() : this;
     }
 
     /**

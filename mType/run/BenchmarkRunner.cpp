@@ -11,6 +11,8 @@
 #include "../vm/jit/LoopProfiler.hpp"
 #include "../value/StringPool.hpp"
 #include "../value/ArrayPool.hpp"
+#include "../value/BridgeArena.hpp"
+#include "../value/ObjectInstancePool.hpp"
 #include "../gc/GC.hpp"
 #include "../lexer/Lexer.hpp"
 #include "../token/TokenType.hpp"
@@ -35,6 +37,42 @@ namespace
     using detail::JitSample;
     using detail::IterationSample;
     using detail::ScriptResult;
+
+    struct GcCounterSnapshot
+    {
+        std::size_t collections = 0;
+        std::size_t cyclesDetected = 0;
+        std::size_t objectsCollected = 0;
+        std::size_t allocations = 0;
+        std::size_t suspectsAdded = 0;
+        std::size_t collectionTimeUs = 0;
+        std::size_t trackedObjects = 0;
+    };
+
+    GcCounterSnapshot captureGcCounters()
+    {
+        GcCounterSnapshot snapshot{};
+        const auto* stats = gc::GC::getStats();
+        if (!stats) return snapshot;
+
+        snapshot.collections = stats->totalCollections.load();
+        snapshot.cyclesDetected = stats->cyclesDetected.load();
+        snapshot.objectsCollected = stats->objectsCollected.load();
+        snapshot.allocations = stats->totalAllocations.load();
+        snapshot.suspectsAdded = stats->suspectsAdded.load();
+        snapshot.collectionTimeUs = stats->totalCollectionTimeUs.load();
+        snapshot.trackedObjects = stats->currentTrackedObjects.load();
+        return snapshot;
+    }
+
+    template<typename T>
+    T monotonicDelta(T after, T before)
+    {
+        // Test isolation and explicit GC resets can restart a process-global
+        // counter between snapshots. In that case the post-reset value is the
+        // complete contribution of this iteration.
+        return after >= before ? after - before : after;
+    }
 
     // Walks CWD upward up to 8 levels looking for `mType/tests/testFiles/benchmarks`.
     std::string locateBenchmarksDir()
@@ -66,6 +104,10 @@ namespace
         {
             out.compileCount = compiler->getCompileCount();
             out.bailoutCount = compiler->getBailoutCount();
+            out.compileTimeNs = compiler->getCompileTimeNs();
+            out.generatedCodeBytes = compiler->getGeneratedCodeBytes();
+            out.reservedFrameBytes = compiler->getReservedFrameBytes();
+            out.peakReservedFrameBytes = compiler->getPeakReservedFrameBytes();
             out.inlineFieldICHits = compiler->getInlineFieldICHits();
             out.inlineFieldICMisses = compiler->getInlineFieldICMisses();
             out.functionBailoutOpcodes = compiler->getFunctionBailoutOpcodes();
@@ -74,18 +116,21 @@ namespace
         if (auto* cache = vm.getJitCodeCache())
         {
             out.cachedFunctions = cache->size();
+            out.liveCodeBytes = cache->byteSize();
+            out.codeByteBudget = cache->byteBudget();
+            out.codeBudgetRejects = cache->getBudgetRejectCount();
         }
         if (auto* profiler = vm.getJitProfiler())
         {
             const auto& hot = profiler->getHotFunctions();
             out.hotFunctions.reserve(hot.size());
             auto* cache = vm.getJitCodeCache();
-            for (const auto& name : hot)
+            for (const auto& function : hot)
             {
                 JitHotFunc hf;
-                hf.name = name;
-                hf.calls = profiler->getInvocationCount(name);
-                hf.compiled = cache && cache->contains(name);
+                hf.name = function.name;
+                hf.calls = profiler->getInvocationCount(function);
+                hf.compiled = cache && cache->contains(function);
                 out.hotFunctions.push_back(std::move(hf));
             }
         }
@@ -117,6 +162,9 @@ namespace
 
         const auto stringPoolBefore = value::StringPool::getInstance().getStats();
         const auto arrayPoolBefore = value::ArrayPool::getInstance().getGlobalStats();
+        const auto bridgeArenaBefore = value::BridgeArena::getInstance().getStats();
+        const auto objectPoolBefore = value::ObjectInstancePool::getInstance().getGlobalStats();
+        const auto gcBefore = captureGcCounters();
 
         services::ScriptInterpreter interpreter(constants::ExecutionMode::BYTECODE_VM);
         interpreter.getVM()->setJitEnabled(jitEnabled);
@@ -150,11 +198,34 @@ namespace
 
         const auto stringPoolAfter = value::StringPool::getInstance().getStats();
         const auto arrayPoolAfter = value::ArrayPool::getInstance().getGlobalStats();
+        const auto bridgeArenaAfter = value::BridgeArena::getInstance().getStats();
+        const auto objectPoolAfter = value::ObjectInstancePool::getInstance().getGlobalStats();
+        const auto gcAfter = captureGcCounters();
 
         sample.stringPoolRequests = stringPoolAfter.totalRequests - stringPoolBefore.totalRequests;
         sample.stringPoolHits = stringPoolAfter.poolHits - stringPoolBefore.poolHits;
         sample.arrayPoolAllocs = arrayPoolAfter.totalAllocations - arrayPoolBefore.totalAllocations;
         sample.arrayPoolHits = arrayPoolAfter.poolHits - arrayPoolBefore.poolHits;
+        sample.bridgeArenaHits = monotonicDelta(bridgeArenaAfter.hits, bridgeArenaBefore.hits);
+        sample.bridgeArenaMisses = monotonicDelta(bridgeArenaAfter.misses, bridgeArenaBefore.misses);
+        sample.bridgeArenaDiscards = monotonicDelta(bridgeArenaAfter.discards, bridgeArenaBefore.discards);
+        sample.bridgeArenaCachedSlots = bridgeArenaAfter.cachedSlots;
+        sample.objectPoolAllocs = monotonicDelta(objectPoolAfter.totalAllocations,
+                                                 objectPoolBefore.totalAllocations);
+        sample.objectPoolHits = monotonicDelta(objectPoolAfter.poolHits, objectPoolBefore.poolHits);
+        sample.objectPoolMisses = monotonicDelta(objectPoolAfter.poolMisses, objectPoolBefore.poolMisses);
+        sample.objectPoolReturns = monotonicDelta(objectPoolAfter.poolReturns, objectPoolBefore.poolReturns);
+        sample.objectPoolDiscards = monotonicDelta(objectPoolAfter.poolDiscards,
+                                                   objectPoolBefore.poolDiscards);
+        sample.objectPoolCurrentSize = objectPoolAfter.currentPoolSize;
+        sample.gcCollections = monotonicDelta(gcAfter.collections, gcBefore.collections);
+        sample.gcCyclesDetected = monotonicDelta(gcAfter.cyclesDetected, gcBefore.cyclesDetected);
+        sample.gcObjectsCollected = monotonicDelta(gcAfter.objectsCollected, gcBefore.objectsCollected);
+        sample.gcAllocations = monotonicDelta(gcAfter.allocations, gcBefore.allocations);
+        sample.gcSuspectsAdded = monotonicDelta(gcAfter.suspectsAdded, gcBefore.suspectsAdded);
+        sample.gcCollectionTimeUs = monotonicDelta(gcAfter.collectionTimeUs,
+                                                   gcBefore.collectionTimeUs);
+        sample.gcTrackedAfter = gcAfter.trackedObjects;
 
         return sample;
     }

@@ -11,6 +11,7 @@
 #include "ImportResolver.hpp"
 #include "../optimizer/passes/annotation_folding/AnnotationConstantResolver.hpp"
 #include "BytecodeService.hpp"
+#include "BytecodeProgramBinding.hpp"
 #include "ScriptAPI.hpp"
 #include "ExecutionStrategy.hpp"
 #include "BytecodeExecutionStrategy.hpp"
@@ -73,6 +74,16 @@ namespace services
     {
         net::NetNatives::cleanup();
         project::mtclib::LibraryNatives::cleanup();
+
+        // Tear down every raw BytecodeProgram binding while both possible
+        // owners (the execution strategy and cachedBytecodeProgram) are still
+        // alive. BytecodeExecutionStrategy clears its active program's JIT/IC
+        // domain before releasing it; the explicit pass also covers loader-
+        // supplied cached programs when the strategy has never executed.
+        executionStrategy.reset();
+        BytecodeProgramBinding::release(
+            vm, scriptAPI.get(), cachedBytecodeProgram);
+        BytecodeProgramBinding::clearCurrent(vm, scriptAPI.get());
 
         cleanupRegistries();
     }
@@ -211,6 +222,12 @@ namespace services
 
     value::Value ScriptInterpreter::executeScriptAST(std::unique_ptr<ast::ASTNode> ast)
     {
+        // Import resolution and compilation publish new registry definitions.
+        // Invalidate the previous program generation before either phase can
+        // replace metadata retained by JIT/IC state. The old owner remains
+        // alive in its strategy/cached slot until the later commit.
+        BytecodeProgramBinding::clearCurrent(vm, scriptAPI.get());
+
         // IMPORTANT: resolve all imports BEFORE optimization, so the
         // optimizer sees imported code.
         importResolver->resolveImports(ast.get());
@@ -245,21 +262,17 @@ namespace services
 
     void ScriptInterpreter::resetForRebuild()
     {
+        // JIT code, ICs, execution frames, and ScriptAPI retain raw pointers
+        // into the current program and its environment definitions. Clear and
+        // unbind them while every program owner is still alive, then release
+        // the cached loader-owned program, and only then rebuild definitions.
+        BytecodeProgramBinding::clearCurrent(vm, scriptAPI.get());
+        BytecodeProgramBinding::release(
+            vm, scriptAPI.get(), cachedBytecodeProgram);
+
         if (environment)
         {
             environment->resetForRebuild();
-        }
-
-        cachedBytecodeProgram.reset();
-
-        if (vm)
-        {
-            vm->reset();
-        }
-
-        if (scriptAPI)
-        {
-            scriptAPI->setBytecodeProgram(nullptr);
         }
     }
 
@@ -305,6 +318,9 @@ namespace services
             auto [ast, importManager] = parseScriptFile(filename);
             environment->setImportManager(importManager.get());
 
+            BytecodeProgramBinding::clearCurrent(
+                vm, scriptAPI.get());
+
             // IMPORTANT: resolve all imports BEFORE compilation so
             // imported classes are included in the bytecode.
             importResolver->resolveImports(ast.get());
@@ -314,18 +330,12 @@ namespace services
             // so any top-level code in the script doesn't run.
             if (compiler)
             {
-                cachedBytecodeProgram = std::make_unique<vm::bytecode::BytecodeProgram>(compiler->compile(ast.get()));
-
-                // Wire program reference into VM + ScriptAPI for later C++
-                // API calls (createObject, invokeMethod, etc.).
-                if (vm)
-                {
-                    vm->setProgram(cachedBytecodeProgram.get());
-                }
-                if (scriptAPI)
-                {
-                    scriptAPI->setBytecodeProgram(cachedBytecodeProgram.get());
-                }
+                auto replacement =
+                    std::make_unique<vm::bytecode::BytecodeProgram>(
+                        compiler->compile(ast.get()));
+                BytecodeProgramBinding::replace(
+                    vm, scriptAPI.get(), cachedBytecodeProgram,
+                    std::move(replacement));
                 runCachedStaticInitializers();
             }
         }
@@ -379,11 +389,4 @@ namespace services
         }
     }
 
-    void ScriptInterpreter::setCurrentBytecodeProgram(const vm::bytecode::BytecodeProgram* program)
-    {
-        if (scriptAPI)
-        {
-            scriptAPI->setBytecodeProgram(program);
-        }
-    }
 }

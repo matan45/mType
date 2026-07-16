@@ -13,6 +13,7 @@ namespace vm::jit
     void emitLoadLocal(JitEmissionState& s, size_t slot,
                        bool hasForcedType, SlotType forcedType)
     {
+        if (!checkOpStackHeadroom(s)) return;
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
         // MYT-163: remap the bytecode's logical slot into the caller's frame
@@ -82,15 +83,24 @@ namespace vm::jit
         }
         else
         {
-            // MYT-211: load to a fresh virtreg, write to stack memory via
-            // publishGpHint. With caching disabled, publishGpHint just emits
-            // cc.mov(Mem, reg) — same generated code as the previous inline
-            // form. The indirection lets a future cache layer record the
-            // virtreg without changing this site.
-            Gp tmp = cc.new_gp64();
-            cc.mov(tmp, Mem(s.localsBase, static_cast<int32_t>(physSlot * 8)));
             s.slotTypes.push_back(lt);
-            publishGpHint(s, s.stackDepth, tmp);
+            if (lt == SlotType::FLOAT)
+            {
+                // Publish FLOAT locals in the register class consumed by
+                // arithmetic and comparisons. A GP hint forced the next
+                // FLOAT operation through stack memory.
+                Vec tmp = cc.new_xmm();
+                cc.movsd(tmp, Mem(s.localsBase,
+                                  static_cast<int32_t>(physSlot * 8)));
+                publishXmmHint(s, s.stackDepth, tmp, /*dirty=*/true);
+            }
+            else
+            {
+                Gp tmp = cc.new_gp64();
+                cc.mov(tmp, Mem(s.localsBase,
+                                static_cast<int32_t>(physSlot * 8)));
+                publishGpHint(s, s.stackDepth, tmp);
+            }
             s.stackDepth++;
             return;
         }
@@ -101,6 +111,11 @@ namespace vm::jit
     void emitStoreLocal(JitEmissionState& s, size_t slot,
                         bool hasForcedType, SlotType forcedType)
     {
+        if (s.stackDepth <= 0 || s.slotTypes.empty())
+        {
+            s.compileFailed = true;
+            return;
+        }
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
         SlotType tt = topType(s);
@@ -154,11 +169,20 @@ namespace vm::jit
         }
         else
         {
-            // MYT-211: consume + republish. Now safe in boxed mode after
-            // publishGpHint was fixed to always write to stackBase.
-            Gp val = consumeGpHint(s, s.stackDepth - 1);
-            cc.mov(Mem(s.localsBase, static_cast<int32_t>(physSlot * 8)), val);
-            publishGpHint(s, s.stackDepth - 1, val);
+            if (storedType == SlotType::FLOAT)
+            {
+                Vec val = consumeXmmHint(s, s.stackDepth - 1);
+                cc.movsd(Mem(s.localsBase,
+                             static_cast<int32_t>(physSlot * 8)), val);
+                publishXmmHint(s, s.stackDepth - 1, val, /*dirty=*/true);
+            }
+            else
+            {
+                Gp val = consumeGpHint(s, s.stackDepth - 1);
+                cc.mov(Mem(s.localsBase,
+                           static_cast<int32_t>(physSlot * 8)), val);
+                publishGpHint(s, s.stackDepth - 1, val);
+            }
         }
         s.localTypes[physSlot] = storedType;
         s.arrayInfoCache.erase(static_cast<int>(physSlot + 10000));
@@ -236,7 +260,7 @@ namespace vm::jit
         auto& cc = s.cc;
         uint32_t nameIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
         // operand[1] is the type-name index (currently unused at JIT level).
-        uint8_t isFinal = (instr.numOperands() >= 3 && instr.inlineOperands[2] != 0) ? 1 : 0;
+        uint8_t isFinal = (instr.numOperands() >= 3 && instr.operandAt(2) != 0) ? 1 : 0;
 
         SlotType valType = topType(s);
         Gp valAddr = emitGetBoxedValueAddr(s, s.stackDepth - 1, valType);

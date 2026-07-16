@@ -34,6 +34,11 @@ namespace runtimeTypes::global
         {
         }
 
+        ~VariableDefinition()
+        {
+            notifyHeapValueRemovalForGC(value);
+        }
+
         const ValueType& getType() const;
 
         void setType(const ValueType& t);

@@ -134,6 +134,13 @@ namespace mType
                 // MYT-378: already in fallback -> store the full Value at the root slot.
                 if (isHeterogeneous())
                 {
+                    const auto oldValue = heteroStore()->get(effectiveIndex);
+                    if (::value::isGCManagedReference(oldValue) ||
+                        ::value::isGCManagedReference(value))
+                    {
+                        ::value::notifyHeapReferenceMutation(
+                            gcOwner(), &oldValue, &value);
+                    }
                     heteroStore()->set(effectiveIndex, value);
                     return;
                 }
@@ -144,11 +151,55 @@ namespace mType
                 if (!canStoreExact(value))
                 {
                     convertToHeterogeneous();
+                    const auto oldValue = heteroStore()->get(effectiveIndex);
+                    if (::value::isGCManagedReference(oldValue) ||
+                        ::value::isGCManagedReference(value))
+                    {
+                        ::value::notifyHeapReferenceMutation(
+                            gcOwner(), &oldValue, &value);
+                    }
                     heteroStore()->set(effectiveIndex, value);
                     return;
                 }
 
                 decomposeInstance(effectiveIndex, ::value::asObject(value));
+            }
+
+            void FlatMultiObjectArray::visitValuesForGC(
+                const std::function<void(const ::value::Value&)>& callback) const
+            {
+                // A view owns only its parent edge. The root owns all physical
+                // element storage and is reached through that edge.
+                if (isView()) return;
+
+                if (isHeterogeneous())
+                {
+                    hetero_->visitValuesForGC(callback);
+                    return;
+                }
+
+                for (const auto& [_, fieldArray] : getFieldArraysStorage())
+                {
+                    if (!fieldArray) continue;
+                    for (size_t i = 0; i < totalSize_; ++i)
+                    {
+                        const auto value = fieldArray->get(i);
+                        callback(value);
+                    }
+                }
+            }
+
+            void FlatMultiObjectArray::clearReferencesForGC()
+            {
+                parent_.reset();
+                if (hetero_)
+                {
+                    hetero_->clearReferencesForGC();
+                }
+                for (auto& [_, fieldArray] : fieldArrays_)
+                {
+                    if (fieldArray) fieldArray->clear();
+                }
             }
 
             void FlatMultiObjectArray::set(const std::vector<size_t>& indices, const ::value::Value& value)

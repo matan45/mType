@@ -10,7 +10,9 @@ namespace vm::jit
     // GC safepoint polling counter. JIT-emitted code (JUMP_BACK back-edge,
     // self-recursive tail call) inlines the inc + threshold check and only
     // invokes jit_gc_safepoint() once per gc::config::GC_CHECK_INTERVAL
-    // crossings.
+    // crossings. The helper resets polling state but defers collection until
+    // generated frames (whose boxed/local Values are not published GC roots)
+    // have returned.
     //
     // THREADING INVARIANT: plain size_t, not thread_local / not std::atomic.
     // This is load-bearing on the VM being single-threaded — async/await in

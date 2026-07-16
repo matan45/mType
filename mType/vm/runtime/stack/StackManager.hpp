@@ -22,7 +22,7 @@ namespace vm::runtime
     {
     public:
         StackManager() { stack.reserve(256); }
-        ~StackManager() = default;
+        ~StackManager() { clear(); }
 
         // === Stack operations (inline hot path) ===
         inline void push(const value::Value& value) {
@@ -34,6 +34,7 @@ namespace vm::runtime
 
         inline value::Value pop() {
             checkStackUnderflow(1);
+            notifyRemoval(stack.back());
             value::Value val = std::move(stack.back());
             stack.pop_back();
             return val;
@@ -61,6 +62,7 @@ namespace vm::runtime
         // single popped operand.
         inline void replaceTop(value::Value v) {
             checkStackUnderflow(1);
+            notifyRemoval(stack.back());
             stack.back() = std::move(v);
         }
 
@@ -69,6 +71,8 @@ namespace vm::runtime
         // once instead of three times. Used by binary ops (handleAdd, ...).
         inline void binaryReplaceTop(value::Value v) {
             checkStackUnderflow(2);
+            notifyRemoval(stack.back());
+            notifyRemoval(stack[stack.size() - 2]);
             stack.pop_back();
             stack.back() = std::move(v);
         }
@@ -76,6 +80,7 @@ namespace vm::runtime
         inline void popN(size_t count) {
             checkStackUnderflow(count);
             for (size_t i = 0; i < count; ++i) {
+                notifyRemoval(stack.back());
                 stack.pop_back();
             }
         }
@@ -83,16 +88,27 @@ namespace vm::runtime
         // === Stack state (inline) ===
         inline size_t size() const { return stack.size(); }
         inline bool empty() const { return stack.empty(); }
-        inline void clear() { stack.clear(); }
+        inline void clear() {
+            for (const auto& slot : stack) notifyRemoval(slot);
+            stack.clear();
+        }
         inline void reserve(size_t capacity) { stack.reserve(capacity); }
 
         // === Direct access ===
         inline value::Value& operator[](size_t index) { return stack[index]; }
         inline const value::Value& operator[](size_t index) const { return stack[index]; }
 
+        inline void set(size_t index, value::Value v) {
+            notifyRemoval(stack[index]);
+            stack[index] = std::move(v);
+        }
+
         inline std::vector<value::Value>& getStack() { return stack; }
         inline const std::vector<value::Value>& getStack() const { return stack; }
-        inline void setStack(const std::vector<value::Value>& newStack) { stack = newStack; }
+        inline void setStack(const std::vector<value::Value>& newStack) {
+            for (const auto& slot : stack) notifyRemoval(slot);
+            stack = newStack;
+        }
 
         // Stack size manipulation (for call frames) — out of line; cold path.
         void resize(size_t newSize);
@@ -105,6 +121,10 @@ namespace vm::runtime
             if (stack.size() < required) {
                 throwStackUnderflow(required);
             }
+        }
+
+        static inline void notifyRemoval(const value::Value& removed) noexcept {
+            value::notifyHeapValueRemovalForGC(removed);
         }
 
         // Out-of-line so the inline checkStackUnderflow stays tiny and the

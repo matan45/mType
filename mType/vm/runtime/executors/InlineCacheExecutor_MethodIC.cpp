@@ -336,7 +336,8 @@ namespace vm::runtime
         if (vm) {
             if (auto* codeCache = vm->getJitCodeCache()) {
                 entry.cachedJit = reinterpret_cast<const void*>(
-                    codeCache->lookup(entry.qualifiedName));
+                    codeCache->lookup(
+                        entry.program->getProgramId(), entry.qualifiedName));
             }
         }
         // MYT-183: re-fetch cache reference immediately before the write.
@@ -344,7 +345,8 @@ namespace vm::runtime
         // been invalidated by nested CALL_METHODs that inserted into the same
         // methodCaches map and triggered rehash. Cheap: one hash lookup on
         // the slow path, which we already are on.
-        MethodInlineCache& freshCache = icTable.getMethodIC(icKey);
+        MethodInlineCache& freshCache = icTable.getMethodIC(
+            context.program->getProgramId(), icKey);
         const ICState prevState = freshCache.state;
         bool added = freshCache.addEntry(entry);
         const bool transitionedToMega =
@@ -411,7 +413,8 @@ namespace vm::runtime
             return;
         }
 
-        MethodInlineCache& cache = icTable.getMethodIC(context.instructionPointer);
+        MethodInlineCache& cache = icTable.getMethodIC(
+            context.program->getProgramId(), context.instructionPointer);
         size_t argCount = instr.inlineOperands[1];
 
         // Stack layout: ... object arg0 arg1 ... argN-1. Object is at peek(argCount).

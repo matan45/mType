@@ -19,6 +19,7 @@ namespace runtimeTypes::global
 
     void VariableDefinition::setValue(const Value& v)
     {
+        notifyHeapValueRemovalForGC(value);
         value = v;
     }
 

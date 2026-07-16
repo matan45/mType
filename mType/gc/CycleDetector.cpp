@@ -1,4 +1,5 @@
 #include "CycleDetector.hpp"
+#include "GCNotificationSuppression.hpp"
 #include <cstddef>
 #include <cstdint>
 #include "WriteBarrier.hpp"
@@ -35,21 +36,19 @@ namespace gc
 
         // Extract suspects before processing
         auto suspectList = suspects.extractSuspects();
-
-        // Phase 1: Mark potential cycle roots
-        auto unprocessed = markRoots(suspectList);
-
-        if (shouldAbort())
+        if (suspectList.empty())
         {
-            // Re-insert unprocessed suspects so they aren't lost
-            for (void* obj : unprocessed)
-            {
-                suspects.addSuspect(obj);
-            }
-            result.completed = false;
             result.duration = std::chrono::duration_cast<std::chrono::microseconds>(
                 std::chrono::steady_clock::now() - startTime);
             return result;
+        }
+
+        // Phase 1: Mark potential cycle roots
+        markRoots(suspectList);
+
+        if (shouldAbort())
+        {
+            return abortCollection(suspectList);
         }
 
         // Phase 2: Scan from roots
@@ -57,14 +56,16 @@ namespace gc
 
         if (shouldAbort())
         {
-            result.completed = false;
-            result.duration = std::chrono::duration_cast<std::chrono::microseconds>(
-                std::chrono::steady_clock::now() - startTime);
-            return result;
+            return abortCollection(suspectList);
         }
 
         // Phase 3: Collect garbage
         collectRoots();
+
+        if (shouldAbort())
+        {
+            return abortCollection(suspectList);
+        }
 
         result.objectsScanned = visited.size();
         result.objectsCollected = toFree.size();
@@ -96,19 +97,28 @@ namespace gc
             }
         }
 
-        // Now clear all fields - ONLY on objects we successfully locked
-        // This prevents use-after-free on already-destroyed objects
-        for (const auto& [obj, sharedPtr] : liveRefs)
         {
-            GCObjectHeader* header = tracker.getHeader(obj);
-            if (header)
-            {
-                breakReferences(obj, header->type);
-            }
-        }
+            // Clearing a tracked object may synchronously destroy an untracked
+            // closure frame or a nested container. Their ordinary teardown
+            // barriers are mutator bookkeeping, not new mutations, and would
+            // otherwise re-enter the coordinator while collection is locked.
+            ScopedReferenceNotificationSuppression suppressNotifications;
 
-        // liveRefs goes out of scope here, allowing objects to be destroyed
-        liveRefs.clear();
+            // Now clear all fields - ONLY on objects we successfully locked
+            // This prevents use-after-free on already-destroyed objects
+            for (const auto& [obj, sharedPtr] : liveRefs)
+            {
+                GCObjectHeader* header = tracker.getHeader(obj);
+                if (header)
+                {
+                    breakReferences(obj, header->type);
+                }
+            }
+
+            // Keep suppression active while the collector-owned strong
+            // references are released and destructors cascade.
+            liveRefs.clear();
+        }
 
         // Unregister remaining objects (those we managed to lock above)
         // Note: Objects whose weak_ptrs expired were already unregistered above
@@ -124,24 +134,12 @@ namespace gc
         return result;
     }
 
-    std::vector<void*> CycleDetector::markRoots(const std::vector<void*>& suspectList)
+    void CycleDetector::markRoots(const std::vector<void*>& suspectList)
     {
-        std::vector<void*> unprocessed;
-        size_t i = 0;
-
-        for (; i < suspectList.size(); ++i)
+        for (void* obj : suspectList)
         {
-            if (shouldAbort())
-            {
-                // Collect remaining unprocessed suspects
-                for (size_t j = i; j < suspectList.size(); ++j)
-                {
-                    unprocessed.push_back(suspectList[j]);
-                }
-                return unprocessed;
-            }
+            if (shouldAbort()) return;
 
-            void* obj = suspectList[i];
             GCObjectHeader* header = tracker.getHeader(obj);
             if (!header) continue;
 
@@ -157,17 +155,12 @@ namespace gc
             }
         }
 
-        // Mark external roots as black (definitely reachable)
-        for (void* obj : externalRoots)
-        {
-            GCObjectHeader* header = tracker.getHeader(obj);
-            if (header)
-            {
-                scanBlack(obj);
-            }
-        }
-
-        return unprocessed;
+        // External roots are authoritative even when their tracker header was
+        // already BLACK before this collection. scanBlack intentionally skips
+        // an already-BLACK node, so use a color-independent traversal here to
+        // preserve GRAY descendants reached through Value bridge aliases whose
+        // logical edges are not reflected by weak_ptr::use_count().
+        preserveExternalReachability();
     }
 
     void CycleDetector::scanRoots()
@@ -201,8 +194,9 @@ namespace gc
         std::stack<void*> workStack;
         workStack.push(object);
 
-        while (!workStack.empty() && workStack.size() < config::MAX_TRAVERSAL_DEPTH)
+        while (!workStack.empty())
         {
+            if (shouldAbort()) return;
             void* current = workStack.top();
             workStack.pop();
 
@@ -218,6 +212,7 @@ namespace gc
 
                 // Decrement virtual refcount of all children and queue them
                 forEachReference(current, [this, &workStack](void* child) {
+                    if (shouldAbort()) return;
                     if (!child) return;
 
                     GCObjectHeader* childHeader = tracker.getHeader(child);
@@ -238,8 +233,9 @@ namespace gc
         std::stack<void*> workStack;
         workStack.push(object);
 
-        while (!workStack.empty() && workStack.size() < config::MAX_TRAVERSAL_DEPTH)
+        while (!workStack.empty())
         {
+            if (shouldAbort()) return;
             void* current = workStack.top();
             workStack.pop();
 
@@ -260,7 +256,8 @@ namespace gc
                     // Object is only reachable through the cycle - mark as garbage
                     header->color = config::ObjectColor::WHITE;
 
-                    forEachReference(current, [&workStack](void* child) {
+                    forEachReference(current, [this, &workStack](void* child) {
+                        if (shouldAbort()) return;
                         if (!child) return;
                         workStack.push(child);
                     });
@@ -276,8 +273,9 @@ namespace gc
         std::stack<void*> workStack;
         workStack.push(object);
 
-        while (!workStack.empty() && workStack.size() < config::MAX_TRAVERSAL_DEPTH)
+        while (!workStack.empty())
         {
+            if (shouldAbort()) return;
             void* current = workStack.top();
             workStack.pop();
 
@@ -291,6 +289,7 @@ namespace gc
                 header->color = config::ObjectColor::BLACK;
 
                 forEachReference(current, [this, &workStack](void* child) {
+                    if (shouldAbort()) return;
                     if (!child) return;
 
                     GCObjectHeader* childHeader = tracker.getHeader(child);
@@ -308,6 +307,32 @@ namespace gc
         }
     }
 
+    void CycleDetector::preserveExternalReachability()
+    {
+        std::stack<void*> workStack;
+        std::unordered_set<void*> traversed;
+        for (void* root : externalRoots)
+        {
+            if (root) workStack.push(root);
+        }
+
+        while (!workStack.empty())
+        {
+            if (shouldAbort()) return;
+            void* current = workStack.top();
+            workStack.pop();
+            if (!current || !traversed.insert(current).second) continue;
+
+            GCObjectHeader* header = tracker.getHeader(current);
+            if (!header) continue;
+            header->color = config::ObjectColor::BLACK;
+
+            forEachReference(current, [this, &workStack](void* child) {
+                if (child && tracker.getHeader(child)) workStack.push(child);
+            });
+        }
+    }
+
     void CycleDetector::collectWhite(void* object)
     {
         if (!object) return;
@@ -315,8 +340,9 @@ namespace gc
         std::stack<void*> workStack;
         workStack.push(object);
 
-        while (!workStack.empty() && workStack.size() < config::MAX_TRAVERSAL_DEPTH)
+        while (!workStack.empty())
         {
+            if (shouldAbort()) return;
             void* current = workStack.top();
             workStack.pop();
 
@@ -330,7 +356,8 @@ namespace gc
                 header->color = config::ObjectColor::BLACK;
                 header->cycleCount++;
 
-                forEachReference(current, [&workStack](void* child) {
+                forEachReference(current, [this, &workStack](void* child) {
+                    if (shouldAbort()) return;
                     if (!child) return;
                     workStack.push(child);
                 });
@@ -358,6 +385,46 @@ namespace gc
     {
         auto elapsed = std::chrono::steady_clock::now() - startTime;
         return elapsed >= timeLimit;
+    }
+
+    CollectionResult CycleDetector::abortCollection(
+        const std::vector<void*>& candidateRoots)
+    {
+        // No references have been broken yet. Roll all transient traversal
+        // state back, then make every still-live extracted candidate eligible
+        // for the next collection. In particular, buffered must agree with
+        // actual SuspectBuffer membership or future decrements are lost.
+        toFree.clear();
+        tracker.forEachTrackedObject([](
+            void*, GCObjectHeader& header, long currentRefCount) {
+            header.virtualRefCount = static_cast<int32_t>(currentRefCount);
+            if (header.color == config::ObjectColor::GRAY ||
+                header.color == config::ObjectColor::WHITE)
+            {
+                header.color = config::ObjectColor::BLACK;
+            }
+        });
+
+        for (void* root : candidateRoots)
+        {
+            GCObjectHeader* header = tracker.getHeader(root);
+            if (!header) continue;
+            if (!tracker.isObjectAlive(root))
+            {
+                header->buffered = false;
+                continue;
+            }
+            header->color = config::ObjectColor::PURPLE;
+            header->buffered = true;
+            suspects.addSuspect(root);
+        }
+
+        CollectionResult result;
+        result.objectsScanned = visited.size();
+        result.completed = false;
+        result.duration = std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::steady_clock::now() - startTime);
+        return result;
     }
 
     void CycleDetector::resetState()

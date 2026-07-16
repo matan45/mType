@@ -6,6 +6,7 @@
 #include <memory>
 #include <algorithm>
 #include <climits>
+#include <functional>
 #include <stdexcept>
 
 namespace value
@@ -123,6 +124,34 @@ namespace value
 
     public:
 
+        ~FlatMultiArray() override
+        {
+            try
+            {
+                visitValuesForGC([](const Value& value) {
+                    notifyHeapValueRemovalForGC(value);
+                });
+            }
+            catch (...)
+            {
+            }
+            notifyRawHeapRemovalForGC(parent_.get());
+        }
+
+        void clearReferencesForGC() {
+            data_.clear();
+            clearSubArrayCache();
+            this->clearBaseReferencesForGC();
+        }
+
+        void visitValuesForGC(
+            const std::function<void(const Value&)>& callback) const
+        {
+            callback(defaultValue_);
+            if (parent_) return;
+            for (const auto& value : data_) callback(value);
+        }
+
         /**
          * @brief Get element at multi-dimensional index
          * @param indices Vector of indices [i1, i2, i3, ...]
@@ -161,6 +190,8 @@ namespace value
             if (effectiveIndex >= dataStorage.size()) {
                 throw std::out_of_range("Calculated index exceeds array bounds");
             }
+            this->notifyReferenceMutationForGC(
+                dataStorage[effectiveIndex], value);
             dataStorage[effectiveIndex] = value;
         }
 
@@ -199,6 +230,8 @@ namespace value
             if (effectiveIndex >= dataStorage.size()) {
                 throw std::out_of_range("Effective index exceeds storage bounds");
             }
+            this->notifyReferenceMutationForGC(
+                dataStorage[effectiveIndex], value);
             dataStorage[effectiveIndex] = value;
         }
 
@@ -267,7 +300,14 @@ namespace value
             if (isView()) {
                 throw std::logic_error("Cannot reset a view array");
             }
-            defaultValue_ = newDefaultValue;
+            Value replacement = newDefaultValue;
+            visitValuesForGC([](const Value& oldValue) {
+                notifyHeapValueRemovalForGC(oldValue);
+            });
+            if (isGCManagedReference(replacement)) {
+                notifyHeapReferenceMutation(this, nullptr, &replacement);
+            }
+            defaultValue_ = replacement;
             std::fill(data_.begin(), data_.end(), defaultValue_);
             // Drop any cached sub-view: a pool-reissued array must not hand
             // out a sub-view that the prior tenant may still hold.

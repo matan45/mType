@@ -127,19 +127,21 @@ namespace vm::bytecode
     void BytecodeProgram::writeInstructions(std::ostream& out) const {
         size_t count = instructions.size();
         out.write(reinterpret_cast<const char*>(&count), sizeof(count));
-        for (const auto& instr : instructions) {
-            out.write(reinterpret_cast<const char*>(&instr.opcode), sizeof(instr.opcode));
+        for (size_t instructionOffset = 0;
+             instructionOffset < instructions.size(); ++instructionOffset) {
+            const auto& instr = instructions[instructionOffset];
+            const OpCode semanticOpcode = semanticOpcodeAt(instructionOffset);
+            out.write(reinterpret_cast<const char*>(&semanticOpcode), sizeof(semanticOpcode));
             out.write(reinterpret_cast<const char*>(&instr.flags), sizeof(instr.flags));
-            size_t opCount = instr.numOperands();
+            size_t opCount = semanticOperandCountAt(instructionOffset);
             out.write(reinterpret_cast<const char*>(&opCount), sizeof(opCount));
-            size_t inline_n = opCount < 3 ? opCount : 3;
-            if (inline_n > 0) {
-                out.write(reinterpret_cast<const char*>(instr.inlineOperands),
-                         inline_n * sizeof(uint64_t));
-            }
-            if (opCount > 3) {
-                out.write(reinterpret_cast<const char*>(instr.overflow.get()),
-                         (opCount - 3) * sizeof(uint64_t));
+            // Instruction's tagged in-memory layout is deliberately not its
+            // wire format. Emit the same flat operand sequence used by v14
+            // and earlier so existing .mtc files remain compatible.
+            for (size_t operandIndex = 0; operandIndex < opCount; ++operandIndex) {
+                const uint64_t operand = semanticOperandAt(
+                    instructionOffset, operandIndex);
+                out.write(reinterpret_cast<const char*>(&operand), sizeof(operand));
             }
         }
     }

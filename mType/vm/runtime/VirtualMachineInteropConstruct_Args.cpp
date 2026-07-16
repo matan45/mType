@@ -31,7 +31,10 @@ namespace vm::runtime
 
         try
         {
-            if (!program)
+            const auto* lambdaProgram = executionCtx && executionCtx->program
+                ? executionCtx->program
+                : program;
+            if (!lambdaProgram)
             {
                 throw errors::RuntimeException(
                     "No program loaded - cannot invoke lambda in bytecode mode without compiled bytecode");
@@ -40,6 +43,27 @@ namespace vm::runtime
             if (!lambda)
             {
                 throw errors::NullPointerException("Cannot invoke null lambda");
+            }
+
+            if (lambda->owningProgramId.value == 0
+                || lambda->owningProgramId != lambdaProgram->getProgramId())
+            {
+                throw errors::RuntimeException(
+                    "Cannot invoke lambda after its owning bytecode program "
+                    "was replaced or unloaded");
+            }
+            if (lambda->instructionPointer
+                >= lambdaProgram->getInstructionCount())
+            {
+                throw errors::RuntimeException(
+                    "Cannot invoke lambda with an invalid bytecode entry point");
+            }
+            if (lambda->functionName != bytecode::INVALID_FN_HANDLE
+                && !lambdaProgram->getFunctionMeta(lambda->functionName))
+            {
+                throw errors::RuntimeException(
+                    "Cannot invoke lambda whose function metadata no longer "
+                    "resolves in its owning bytecode program");
             }
 
             size_t paramCount = lambda->parameterCount;
@@ -58,7 +82,7 @@ namespace vm::runtime
             }
 
             CallFrame frame;
-            frame.returnAddress = program->getInstructionCount();
+            frame.returnAddress = lambdaProgram->getInstructionCount();
             frame.frameBase = frameBase;
             frame.localBase = frameBase;
             // MYT-197: copy the lambda's 4-byte handle; fall back to an
@@ -69,11 +93,19 @@ namespace vm::runtime
                 std::string fallback = lambda->creatingClassName.empty()
                     ? "<lambda>"
                     : lambda->creatingClassName + "::<lambda>";
-                frame.functionName = program->internFrameName(fallback);
+                frame.functionName = lambdaProgram->internFrameName(fallback);
             }
             frame.thisInstance = lambda->capturedThis;
             frame.definingClassName = lambda->creatingClassName;
             frame.originatingLambda = lambda;
+            for (size_t index = 0; index < loadedPrograms.size(); ++index)
+            {
+                if (loadedPrograms[index] == lambdaProgram)
+                {
+                    frame.programIndex = index;
+                    break;
+                }
+            }
 
             pushCallFrame(std::move(frame));
             stats.functionCalls++;
@@ -103,7 +135,8 @@ namespace vm::runtime
                 }
             }
 
-            auto* lambdaMetadata = program->getFunctionMeta(lambda->functionName);
+            auto* lambdaMetadata =
+                lambdaProgram->getFunctionMeta(lambda->functionName);
             if (lambdaMetadata)
             {
                 size_t pushedSlots = argCount + lambda->capturedSlots.size();
@@ -136,15 +169,17 @@ namespace vm::runtime
             {
                 // executionCtx->program so cross-library calls fetch the correct bytecode.
                 auto& lambdaCurrentProgram = executionCtx->program;
+                ActiveExecutionCodeView activeCode;
                 size_t targetDepth = savedCallStack.size();
                 // VK-1378: debug hook in the interop loop so breakpoints inside
                 // engine-invoked lambda callbacks pause too.
                 bool debugActive = isDebugActive();
                 while (callStack.size() > targetDepth)
                 {
-                    if (instructionPointer >= lambdaCurrentProgram->getInstructionCount())
+                    activeCode.refresh(lambdaCurrentProgram);
+                    if (!activeCode.contains(instructionPointer))
                         break;
-                    const auto& instr = lambdaCurrentProgram->getInstruction(instructionPointer);
+                    const auto& instr = activeCode.fetchUnchecked(instructionPointer);
                     if (debugActive)
                     {
                         debugPauseIfNeeded();

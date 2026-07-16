@@ -53,11 +53,17 @@ namespace runtimeTypes::klass
         {
         }
 
+        ~FieldDefinition()
+        {
+            notifyHeapValueRemovalForGC(value);
+        }
+
         const ValueType& getType() const { return type; }
         void setType(const ValueType& t) { type = t; }
 
         const Value& getValue() const { return value; }
         void setValue(const Value& v) {
+            notifyHeapValueRemovalForGC(value);
             value = v;
             if (isFinalField) {
                 isInitializedField = true; // Mark as initialized when setting a final field

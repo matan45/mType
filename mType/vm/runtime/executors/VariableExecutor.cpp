@@ -217,7 +217,7 @@ namespace vm::runtime
         bool isFinal = false;
         if (instr.numOperands() >= 3)
         {
-            isFinal = (instr.inlineOperands[2] != 0);
+            isFinal = (instr.operandAt(2) != 0);
         }
 
         auto varDef = std::make_shared<runtimeTypes::global::VariableDefinition>(

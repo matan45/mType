@@ -114,6 +114,10 @@ namespace gc
      */
     void visitPromiseReferences(void* object, std::function<void(void*)> callback);
 
+    void visitFlatMultiObjectArrayReferences(
+        void* object,
+        std::function<void(void*)> callback);
+
     /**
      * @brief Combined reference visitor
      *

@@ -133,18 +133,21 @@ namespace services
 
     void ScriptInterpreter::runCompiledBytecode(const std::string& bytecodeFile)
     {
-        bytecodeService->runCompiledBytecode(bytecodeFile);
+        bytecodeService->runCompiledBytecode(
+            bytecodeFile, cachedBytecodeProgram);
     }
 
     void ScriptInterpreter::loadCompiledBytecode(const std::string& bytecodeFile)
     {
-        cachedBytecodeProgram = bytecodeService->loadCompiledBytecodeWithoutExecuting(bytecodeFile);
+        bytecodeService->loadCompiledBytecodeWithoutExecuting(
+            bytecodeFile, cachedBytecodeProgram);
         runCachedStaticInitializers();
     }
 
     void ScriptInterpreter::loadFromProgram(vm::bytecode::BytecodeProgram program, bool runStaticInitializers)
     {
-        cachedBytecodeProgram = bytecodeService->loadFromProgram(std::move(program));
+        bytecodeService->loadFromProgram(
+            std::move(program), cachedBytecodeProgram);
         if (runStaticInitializers)
         {
             runCachedStaticInitializers();
@@ -153,9 +156,8 @@ namespace services
 
     void ScriptInterpreter::runFromProgram(vm::bytecode::BytecodeProgram program)
     {
-        // Load + execute an already-deserialized bytecode program; the
-        // cached unique_ptr keeps it alive past the call.
-        cachedBytecodeProgram = bytecodeService->runFromProgram(std::move(program));
+        bytecodeService->runFromProgram(
+            std::move(program), cachedBytecodeProgram);
     }
 
     void ScriptInterpreter::loadLibrary(const std::string& mtcLibPath)

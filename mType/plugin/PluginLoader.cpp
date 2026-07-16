@@ -295,7 +295,7 @@ namespace plugin
             for (const auto& name : names)
             {
                 const auto h = prog->internFrameName(name);
-                vm->invalidateInlinedFunctionCallers(h);
+                vm->invalidateInlinedFunctionCallers(*prog, h);
             }
         }
     }

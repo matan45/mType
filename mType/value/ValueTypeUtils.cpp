@@ -10,12 +10,67 @@
 #include "../value/ObjectInstance.hpp"
 #include "PromiseValue.hpp"
 #include "BridgeArena.hpp"
+#include <atomic>
 #include <cassert>
 // BytecodeLambda lives in mtype-vm; the bridge ctor below needs the complete
 // type, so this include crosses the mtype-core → mtype-vm layer.
 #include "../vm/runtime/context/ExecutionContext.hpp"
 
 namespace value {
+
+    namespace
+    {
+        std::atomic<HeapValueRegistrationObserver> heapValueRegistrationObserver{nullptr};
+        std::atomic<HeapReferenceMutationObserver> heapReferenceMutationObserver{nullptr};
+        std::atomic<HeapRawReferenceRemovalObserver> heapRawReferenceRemovalObserver{nullptr};
+    }
+
+    void setHeapValueRegistrationObserver(HeapValueRegistrationObserver observer) noexcept
+    {
+        heapValueRegistrationObserver.store(observer, std::memory_order_release);
+    }
+
+    void setHeapReferenceMutationObserver(HeapReferenceMutationObserver observer) noexcept
+    {
+        heapReferenceMutationObserver.store(observer, std::memory_order_release);
+    }
+
+    void setHeapRawReferenceRemovalObserver(
+        HeapRawReferenceRemovalObserver observer) noexcept
+    {
+        heapRawReferenceRemovalObserver.store(observer, std::memory_order_release);
+    }
+
+    void notifyHeapValueRegistration(
+        BridgeKind kind,
+        const std::shared_ptr<void>& object)
+    {
+        if (!object) return;
+        if (auto observer = heapValueRegistrationObserver.load(std::memory_order_acquire))
+        {
+            observer(kind, object);
+        }
+    }
+
+    void notifyHeapReferenceMutation(
+        void* owner,
+        const Value* oldValue,
+        const Value* newValue)
+    {
+        if (auto observer = heapReferenceMutationObserver.load(std::memory_order_acquire))
+        {
+            observer(owner, oldValue, newValue);
+        }
+    }
+
+    void notifyHeapRawReferenceRemoval(void* target)
+    {
+        if (!target) return;
+        if (auto observer = heapRawReferenceRemovalObserver.load(std::memory_order_acquire))
+        {
+            observer(target);
+        }
+    }
 
     // Tagged Value exposes its ValueType directly; Promise folds to OBJECT
     // for call-site compatibility with the pre-migration variant semantics.
@@ -78,12 +133,19 @@ namespace value {
             b->retain();
             return b;
         }
+
+        template <BridgeKind K, typename T>
+        BridgeBase* makeTrackedBridge(std::shared_ptr<T> object)
+        {
+            notifyHeapValueRegistration(K, std::static_pointer_cast<void>(object));
+            return makeBridge<K>(std::move(object));
+        }
     }
 
     Value::Value(const std::shared_ptr<runtimeTypes::klass::ObjectInstance>& p)
-        : tag_(ValueType::OBJECT) { payload_.ptr = makeBridge<BridgeKind::OBJECT_INSTANCE>(p); }
+        : tag_(ValueType::OBJECT) { payload_.ptr = makeTrackedBridge<BridgeKind::OBJECT_INSTANCE>(p); }
     Value::Value(std::shared_ptr<runtimeTypes::klass::ObjectInstance>&& p)
-        : tag_(ValueType::OBJECT) { payload_.ptr = makeBridge<BridgeKind::OBJECT_INSTANCE>(std::move(p)); }
+        : tag_(ValueType::OBJECT) { payload_.ptr = makeTrackedBridge<BridgeKind::OBJECT_INSTANCE>(std::move(p)); }
 
     Value::Value(const std::shared_ptr<ValueObject>& p)
         : tag_(ValueType::VALUE_OBJECT) { payload_.ptr = makeBridge<BridgeKind::VALUE_OBJECT>(p); }
@@ -91,34 +153,34 @@ namespace value {
         : tag_(ValueType::VALUE_OBJECT) { payload_.ptr = makeBridge<BridgeKind::VALUE_OBJECT>(std::move(p)); }
 
     Value::Value(const std::shared_ptr<NativeArray>& p)
-        : tag_(ValueType::ARRAY) { payload_.ptr = makeBridge<BridgeKind::NATIVE_ARRAY>(p); }
+        : tag_(ValueType::ARRAY) { payload_.ptr = makeTrackedBridge<BridgeKind::NATIVE_ARRAY>(p); }
     Value::Value(std::shared_ptr<NativeArray>&& p)
-        : tag_(ValueType::ARRAY) { payload_.ptr = makeBridge<BridgeKind::NATIVE_ARRAY>(std::move(p)); }
+        : tag_(ValueType::ARRAY) { payload_.ptr = makeTrackedBridge<BridgeKind::NATIVE_ARRAY>(std::move(p)); }
 
     Value::Value(const std::shared_ptr<FlatMultiArray>& p)
-        : tag_(ValueType::ARRAY) { payload_.ptr = makeBridge<BridgeKind::FLAT_MULTI_ARRAY>(p); }
+        : tag_(ValueType::ARRAY) { payload_.ptr = makeTrackedBridge<BridgeKind::FLAT_MULTI_ARRAY>(p); }
     Value::Value(std::shared_ptr<FlatMultiArray>&& p)
-        : tag_(ValueType::ARRAY) { payload_.ptr = makeBridge<BridgeKind::FLAT_MULTI_ARRAY>(std::move(p)); }
+        : tag_(ValueType::ARRAY) { payload_.ptr = makeTrackedBridge<BridgeKind::FLAT_MULTI_ARRAY>(std::move(p)); }
 
     Value::Value(const std::shared_ptr<SparseMultiArray>& p)
-        : tag_(ValueType::ARRAY) { payload_.ptr = makeBridge<BridgeKind::SPARSE_MULTI_ARRAY>(p); }
+        : tag_(ValueType::ARRAY) { payload_.ptr = makeTrackedBridge<BridgeKind::SPARSE_MULTI_ARRAY>(p); }
     Value::Value(std::shared_ptr<SparseMultiArray>&& p)
-        : tag_(ValueType::ARRAY) { payload_.ptr = makeBridge<BridgeKind::SPARSE_MULTI_ARRAY>(std::move(p)); }
+        : tag_(ValueType::ARRAY) { payload_.ptr = makeTrackedBridge<BridgeKind::SPARSE_MULTI_ARRAY>(std::move(p)); }
 
     Value::Value(const std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>& p)
-        : tag_(ValueType::ARRAY) { payload_.ptr = makeBridge<BridgeKind::FLAT_MULTI_OBJECT_ARRAY>(p); }
+        : tag_(ValueType::ARRAY) { payload_.ptr = makeTrackedBridge<BridgeKind::FLAT_MULTI_OBJECT_ARRAY>(p); }
     Value::Value(std::shared_ptr<mType::value::arrays::FlatMultiObjectArray>&& p)
-        : tag_(ValueType::ARRAY) { payload_.ptr = makeBridge<BridgeKind::FLAT_MULTI_OBJECT_ARRAY>(std::move(p)); }
+        : tag_(ValueType::ARRAY) { payload_.ptr = makeTrackedBridge<BridgeKind::FLAT_MULTI_OBJECT_ARRAY>(std::move(p)); }
 
     Value::Value(const std::shared_ptr<vm::runtime::BytecodeLambda>& p)
-        : tag_(ValueType::LAMBDA) { payload_.ptr = makeBridge<BridgeKind::BYTECODE_LAMBDA>(p); }
+        : tag_(ValueType::LAMBDA) { payload_.ptr = makeTrackedBridge<BridgeKind::BYTECODE_LAMBDA>(p); }
     Value::Value(std::shared_ptr<vm::runtime::BytecodeLambda>&& p)
-        : tag_(ValueType::LAMBDA) { payload_.ptr = makeBridge<BridgeKind::BYTECODE_LAMBDA>(std::move(p)); }
+        : tag_(ValueType::LAMBDA) { payload_.ptr = makeTrackedBridge<BridgeKind::BYTECODE_LAMBDA>(std::move(p)); }
 
     Value::Value(const std::shared_ptr<PromiseValue>& p)
-        : tag_(ValueType::PROMISE) { payload_.ptr = makeBridge<BridgeKind::PROMISE>(p); }
+        : tag_(ValueType::PROMISE) { payload_.ptr = makeTrackedBridge<BridgeKind::PROMISE>(p); }
     Value::Value(std::shared_ptr<PromiseValue>&& p)
-        : tag_(ValueType::PROMISE) { payload_.ptr = makeBridge<BridgeKind::PROMISE>(std::move(p)); }
+        : tag_(ValueType::PROMISE) { payload_.ptr = makeTrackedBridge<BridgeKind::PROMISE>(std::move(p)); }
 
     Value::Value(const std::string& s)
         : tag_(ValueType::STRING) { payload_.ptr = makeBridge<BridgeKind::STD_STRING, std::string>(s); }

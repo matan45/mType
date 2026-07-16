@@ -69,8 +69,8 @@ namespace vm::jit::detail
         cc.bind(done);
 
         emitValueDestroy(s, s.stackDepth - 2);
-
         s.stackDepth -= 2;
+        if (!checkOpStackHeadroom(s)) return true;
         cc.mov(Mem(s.stackBase, s.stackDepth * 8), result);
         s.slotTypes.push_back(SlotType::INT);
         s.stackDepth++;
@@ -179,6 +179,7 @@ namespace vm::jit::detail
         cc.mov(Mem(s.stackBase, (s.stackDepth - 2) * 8), unboxed);
 
         s.stackDepth -= 2;
+        if (!checkOpStackHeadroom(s)) return true;
         s.slotTypes.push_back(SlotType::BOXED);
         s.stackDepth++;
         return true;
@@ -229,6 +230,7 @@ namespace vm::jit::detail
     static bool emitArrayLengthLocal(JitEmissionState& s,
                                      const bytecode::BytecodeProgram::Instruction& instr)
     {
+        if (!checkOpStackHeadroom(s)) return true;
         auto& cc = s.cc;
         size_t localSlot = instr.inlineOperands[0];
 
@@ -295,11 +297,11 @@ namespace vm::jit::detail
         slowInv->set_arg(0, arrAddr);
         slowInv->set_arg(1, idx);
         slowInv->set_ret(0, result);
-
         cc.bind(done);
 
         // No emitValueDestroy — array stays in locals.
         s.stackDepth--;
+        if (!checkOpStackHeadroom(s)) return true;
         cc.mov(Mem(s.stackBase, s.stackDepth * 8), result);
         s.slotTypes.push_back(SlotType::INT);
         s.stackDepth++;

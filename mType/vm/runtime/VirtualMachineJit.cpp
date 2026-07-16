@@ -1,5 +1,6 @@
 #include "VirtualMachine.hpp"
 #include <cstddef>
+#include "../jit/ScopedJitNativeDepth.hpp"
 #include "../../errors/RuntimeException.hpp"
 #include "../../errors/UserException.hpp"
 #include "utils/ExceptionHandler.hpp"
@@ -85,21 +86,23 @@ namespace vm::runtime
         // This function runs its own interpreter loop on the native C++
         // stack so it contributes to native recursion depth. Caller has
         // already pushed the frame and set instructionPointer.
-        ++jitNativeDepth;
+        jit::ScopedJitNativeDepth nativeFrame(*this);
 
         // Use executionCtx->program so cross-library calls fetch from the
         // correct bytecode. Re-read each iteration via the reference so an
         // executor that switches program (e.g. cross-library CALL) is
         // honoured by the next instruction fetch.
         auto& jitCurrentProgram = executionCtx->program;
+        ActiveExecutionCodeView activeCode;
         while (callStack.size() > savedCallStackDepth)
         {
-            if (instructionPointer >= jitCurrentProgram->getInstructionCount())
+            activeCode.refresh(jitCurrentProgram);
+            if (!activeCode.contains(instructionPointer))
             {
                 break;
             }
 
-            const auto& instr = jitCurrentProgram->getInstruction(instructionPointer);
+            const auto& instr = activeCode.fetchUnchecked(instructionPointer);
 
             try
             {
@@ -112,7 +115,6 @@ namespace vm::runtime
                 {
                     continue;
                 }
-                --jitNativeDepth;
                 restoreJitMiniInterpretState(savedIP, savedCallStackDepth,
                                               savedStackSize, savedProgram,
                                               switchedProgram);
@@ -120,7 +122,6 @@ namespace vm::runtime
             }
             catch (...)
             {
-                --jitNativeDepth;
                 restoreJitMiniInterpretState(savedIP, savedCallStackDepth,
                                               savedStackSize, savedProgram,
                                               switchedProgram);
@@ -129,8 +130,6 @@ namespace vm::runtime
 
             instructionPointer++;
         }
-
-        --jitNativeDepth;
 
         value::Value result = std::monostate{};
         if (stackManager->size() > savedStackSize)

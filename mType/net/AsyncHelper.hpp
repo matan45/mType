@@ -7,7 +7,6 @@
 #include <iostream>
 #include <memory>
 #include <string>
-#include <thread>
 #include <exception>
 
 namespace net
@@ -38,34 +37,13 @@ namespace net
             }
         }
 
-        inline void settleOnLoopOrInline(::runtime::EventLoop* loop,
-                                         const std::shared_ptr<value::AsyncPromiseValue>& promise,
-                                         const value::Value& v,
-                                         bool resolve,
-                                         const std::string& rejectMsg)
-        {
-            if (loop)
-            {
-                if (resolve)
-                {
-                    loop->post([promise, v]() { settleResolve(promise, v); });
-                }
-                else
-                {
-                    loop->post([promise, rejectMsg]() { settleReject(promise, rejectMsg); });
-                }
-            }
-            else
-            {
-                if (resolve) settleResolve(promise, v);
-                else settleReject(promise, rejectMsg);
-            }
-        }
     }
 
     // Spawn a worker thread that performs `work()`, then posts the result back
     // to the event loop where it resolves/rejects the returned promise on the
-    // VM thread. `convert` turns the worker's typed result into a value::Value.
+    // VM thread. The worker crosses the boundary with T / std::string only;
+    // `convert` and Promise settlement both run after EventLoop::tick() drains
+    // the completion on the owner thread.
     //
     // If `work()` throws, the exception's what() is used as the rejection
     // reason. Callers should prefix the message with "dns:", "timeout:", or
@@ -77,19 +55,64 @@ namespace net
         std::function<value::Value(T)> convert)
     {
         auto promise = std::make_shared<value::AsyncPromiseValue>();
+        if (!eventLoop)
+        {
+            detail::settleReject(promise, "async operation requires an EventLoop");
+            return promise;
+        }
 
-        std::thread([promise, eventLoop, work = std::move(work), convert = std::move(convert)]() {
+        std::weak_ptr<value::AsyncPromiseValue> weakPromise = promise;
+        auto postHandle = eventLoop->getPostHandle();
+
+        const bool launched = eventLoop->launchWorker(
+            [weakPromise, postHandle, work = std::move(work),
+             convert = std::move(convert)]() mutable {
             try
             {
                 T result = work();
-                value::Value v = convert(std::move(result));
-                detail::settleOnLoopOrInline(eventLoop, promise, v, /*resolve=*/true, {});
+                postHandle.post(
+                    [weakPromise, result = std::move(result),
+                     convert = std::move(convert)]() mutable {
+                        auto lockedPromise = weakPromise.lock();
+                        if (!lockedPromise) return;
+                        try
+                        {
+                            value::Value value = convert(std::move(result));
+                            detail::settleResolve(lockedPromise, value);
+                        }
+                        catch (const std::exception& exception)
+                        {
+                            detail::settleReject(lockedPromise, exception.what());
+                        }
+                        catch (...)
+                        {
+                            detail::settleReject(
+                                lockedPromise, "unknown async conversion error");
+                        }
+                    });
             }
             catch (const std::exception& e)
             {
-                detail::settleOnLoopOrInline(eventLoop, promise, {}, /*resolve=*/false, e.what());
+                const std::string error = e.what();
+                postHandle.post([weakPromise, error]() {
+                    if (auto lockedPromise = weakPromise.lock())
+                        detail::settleReject(lockedPromise, error);
+                });
             }
-        }).detach();
+            catch (...)
+            {
+                postHandle.post([weakPromise]() {
+                    if (auto lockedPromise = weakPromise.lock())
+                        detail::settleReject(
+                            lockedPromise, "unknown async worker error");
+                });
+            }
+        });
+
+        if (!launched)
+        {
+            detail::settleReject(promise, "EventLoop is shutting down");
+        }
 
         return promise;
     }
@@ -100,19 +123,50 @@ namespace net
         std::function<void()> work)
     {
         auto promise = std::make_shared<value::AsyncPromiseValue>();
+        if (!eventLoop)
+        {
+            detail::settleReject(promise, "async operation requires an EventLoop");
+            return promise;
+        }
 
-        std::thread([promise, eventLoop, work = std::move(work)]() {
+        std::weak_ptr<value::AsyncPromiseValue> weakPromise = promise;
+        auto postHandle = eventLoop->getPostHandle();
+
+        const bool launched = eventLoop->launchWorker(
+            [weakPromise, postHandle, work = std::move(work)]() mutable {
             try
             {
                 work();
-                value::Value v = nullptr;
-                detail::settleOnLoopOrInline(eventLoop, promise, v, /*resolve=*/true, {});
+                postHandle.post([weakPromise]() {
+                    if (auto lockedPromise = weakPromise.lock())
+                    {
+                        value::Value value = nullptr;
+                        detail::settleResolve(lockedPromise, value);
+                    }
+                });
             }
             catch (const std::exception& e)
             {
-                detail::settleOnLoopOrInline(eventLoop, promise, {}, /*resolve=*/false, e.what());
+                const std::string error = e.what();
+                postHandle.post([weakPromise, error]() {
+                    if (auto lockedPromise = weakPromise.lock())
+                        detail::settleReject(lockedPromise, error);
+                });
             }
-        }).detach();
+            catch (...)
+            {
+                postHandle.post([weakPromise]() {
+                    if (auto lockedPromise = weakPromise.lock())
+                        detail::settleReject(
+                            lockedPromise, "unknown async worker error");
+                });
+            }
+        });
+
+        if (!launched)
+        {
+            detail::settleReject(promise, "EventLoop is shutting down");
+        }
 
         return promise;
     }

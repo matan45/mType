@@ -1,4 +1,5 @@
 #include "GCCoordinator.hpp"
+#include "GCNotificationSuppression.hpp"
 #include <chrono>
 #include <cstddef>
 #include <algorithm>
@@ -6,6 +7,11 @@
 
 namespace gc
 {
+    namespace
+    {
+        std::atomic<GCCoordinator::RootCollectorId> nextRootCollectorId{1};
+    }
+
     GCCoordinator::GCCoordinator()
         : suspects(std::make_unique<SuspectBuffer>())
         , detector(std::make_unique<CycleDetector>(GCTracker::getInstance(), *suspects))
@@ -23,17 +29,51 @@ namespace gc
 
     void GCCoordinator::setRootCollector(RootCollector collector)
     {
-        rootCollector = std::move(collector);
+        std::lock_guard lock(rootCollectorsMutex);
+        if (legacyRootCollectorId != 0)
+        {
+            rootCollectors.erase(legacyRootCollectorId);
+            legacyRootCollectorId = 0;
+        }
+        if (collector)
+        {
+            legacyRootCollectorId = nextRootCollectorId.fetch_add(1);
+            rootCollectors.emplace(legacyRootCollectorId, std::move(collector));
+        }
+    }
+
+    GCCoordinator::RootCollectorId GCCoordinator::addRootCollector(RootCollector collector)
+    {
+        if (!collector) return 0;
+        const RootCollectorId id = nextRootCollectorId.fetch_add(1);
+        std::lock_guard lock(rootCollectorsMutex);
+        rootCollectors.emplace(id, std::move(collector));
+        return id;
+    }
+
+    void GCCoordinator::removeRootCollector(RootCollectorId id)
+    {
+        if (id == 0) return;
+        std::lock_guard lock(rootCollectorsMutex);
+        rootCollectors.erase(id);
+    }
+
+    size_t GCCoordinator::getRootCollectorCount() const
+    {
+        std::lock_guard lock(rootCollectorsMutex);
+        return rootCollectors.size();
     }
 
     void GCCoordinator::setReferenceVisitor(ReferenceVisitor visitor)
     {
+        std::lock_guard lock(stateMutex);
         detector->setReferenceVisitor(std::move(visitor));
     }
 
     void GCCoordinator::onDeallocation(void* object)
     {
         if (!object) return;
+        std::lock_guard lock(stateMutex);
 
         // Remove from suspect buffer if present
         suspects->removeSuspect(object);
@@ -42,12 +82,19 @@ namespace gc
         GCTracker::getInstance().unregisterObject(object);
 
         stats.recordDeallocation();
+        stats.synchronizeTrackedObjects(
+            GCTracker::getInstance().getTotalTrackedObjects());
     }
 
     void GCCoordinator::onRefCountDecrement(void* object)
     {
-        if (!object || !enabled.load()) return;
+        if (!object || !enabled.load() || areReferenceNotificationsSuppressed()) return;
+        std::lock_guard lock(stateMutex);
+        bufferSuspectUnlocked(object);
+    }
 
+    void GCCoordinator::bufferSuspectUnlocked(void* object)
+    {
         // Mark object as potential cycle root (purple)
         GCObjectHeader* header = GCTracker::getInstance().getHeader(object);
         if (header)
@@ -83,6 +130,9 @@ namespace gc
 
     bool GCCoordinator::shouldCollect() const
     {
+        std::lock_guard lock(stateMutex);
+        if (collectionRetryPending) return true;
+
         // Check allocation threshold (adaptive — scales with heap size and backoff)
         if (GCTracker::getInstance().getAllocationCount() >= currentAllocationThreshold)
         {
@@ -115,11 +165,30 @@ namespace gc
         } guard(collectionInProgress);
 
         // Collect roots from VM
-        std::vector<void*> roots;
-        if (rootCollector)
+        std::vector<RootCollector> collectorSnapshot;
         {
-            roots = rootCollector();
+            std::lock_guard lock(rootCollectorsMutex);
+            collectorSnapshot.reserve(rootCollectors.size());
+            for (const auto& [_, collector] : rootCollectors)
+            {
+                collectorSnapshot.push_back(collector);
+            }
         }
+
+        // User/VM callbacks are deliberately invoked after releasing the
+        // registry lock. A collector may destroy a VM or otherwise mutate the
+        // registration set while roots are being assembled.
+        std::vector<void*> roots;
+        for (const auto& collector : collectorSnapshot)
+        {
+            auto collectorRoots = collector();
+            roots.insert(roots.end(), collectorRoots.begin(), collectorRoots.end());
+        }
+
+        // CycleDetector keeps raw header pointers while traversing. Freeze
+        // tracker registration and write-barrier bookkeeping for that phase.
+        // A full concurrent mutator gate remains a separate heap-level concern.
+        std::lock_guard stateLock(stateMutex);
         detector->setExternalRoots(roots);
 
         // Run cycle detection
@@ -135,13 +204,26 @@ namespace gc
             result.completed
         );
 
-        updateAdaptiveBackoff(result.objectsCollected);
+        if (result.completed)
+        {
+            collectionRetryPending = false;
+            updateAdaptiveBackoff(result.objectsCollected);
 
-        // Reset allocation count
-        GCTracker::getInstance().resetAllocationCount();
+            // Only a completed pass consumes the allocation pressure that
+            // triggered it. Aborted passes retain it for the retry.
+            GCTracker::getInstance().resetAllocationCount();
+        }
+        else
+        {
+            collectionRetryPending = true;
+        }
 
         // Cleanup dead objects (shared_ptr expired)
         GCTracker::getInstance().cleanupDeadObjects();
+        // CycleDetector and dead-weak cleanup unregister directly from the
+        // tracker. Reconcile this exposed gauge to its authoritative count.
+        stats.synchronizeTrackedObjects(
+            GCTracker::getInstance().getTotalTrackedObjects());
     }
 
     void GCCoordinator::updateAdaptiveBackoff(size_t objectsCollected)
@@ -186,6 +268,8 @@ namespace gc
             // Spin wait
         }
 
+        std::lock_guard lock(stateMutex);
+
         // Clear suspect buffer
         suspects->clear();
 
@@ -203,5 +287,6 @@ namespace gc
         consecutiveEmptyCollections = 0;
         currentAllocationThreshold = config::ALLOCATION_THRESHOLD;
         currentSuspectThreshold = config::SUSPECT_THRESHOLD;
+        collectionRetryPending = false;
     }
 }

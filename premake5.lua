@@ -1,3 +1,40 @@
+newoption {
+   trigger = "release-optimization",
+   value = "MODE",
+   description = "Enable one opt-in Release optimization experiment",
+   category = "Performance Experiments",
+   allowed = {
+      { "lto", "Enable link-time optimization" },
+      { "pgo-instrument", "Build an MSVC PGO-instrumented mType executable" },
+      { "pgo-optimize", "Build mType using previously collected MSVC PGO data" },
+   },
+}
+
+local releaseOptimizationMode = _OPTIONS["release-optimization"]
+local isPgoMode = releaseOptimizationMode == "pgo-instrument"
+   or releaseOptimizationMode == "pgo-optimize"
+
+-- MSVC's /GENPROFILE and /USEPROFILE are Visual Studio linker features. Fail
+-- at generation time instead of silently producing an ordinary non-PGO build.
+if isPgoMode and _ACTION ~= nil and not string.match(_ACTION, "^vs") then
+   error("--release-optimization=" .. releaseOptimizationMode
+      .. " requires a Visual Studio action (for example, vs2022)")
+end
+
+local function configureMTypePgoLink()
+   if releaseOptimizationMode == "pgo-instrument" then
+      filter { "system:windows", "action:vs*", "configurations:Release" }
+         -- EXACT makes collection thread-safe. Keep the database beside the
+         -- executable so training data has one stable, discoverable home.
+         linkoptions { '/GENPROFILE:EXACT,PGD="$(OutDir)mType.pgd"' }
+   elseif releaseOptimizationMode == "pgo-optimize" then
+      filter { "system:windows", "action:vs*", "configurations:Release" }
+         linkoptions { '/USEPROFILE:PGD="$(OutDir)mType.pgd"' }
+   end
+
+   filter {}
+end
+
 workspace "Interpreter"
    configurations { "Debug", "Release" }
    platforms { "x64" }
@@ -48,6 +85,14 @@ function commonConfig()
    filter "configurations:Release"
       defines { "NDEBUG" }
       optimize "On"
+
+   -- No option is selected by default. LTO is also the common prerequisite
+   -- for both phases of MSVC PGO, so all linked mType modules are compiled
+   -- consistently with whole-program optimization in those experiment modes.
+   if releaseOptimizationMode ~= nil then
+      filter "configurations:Release"
+         linktimeoptimization "On"
+   end
 
    filter {}
 end
@@ -363,6 +408,7 @@ project "mType"
    kind "ConsoleApp"
    location "mType"
    commonConfig()
+   configureMTypePgoLink()
 
    includedirs { "vendor/asmjit" }
    defines { "ASMJIT_STATIC" }

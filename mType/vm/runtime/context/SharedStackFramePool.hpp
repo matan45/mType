@@ -74,6 +74,7 @@ namespace vm::runtime
             {
                 if (!p) return;
                 // Reset state but keep container capacities for reuse.
+                p->notifyReferenceRemovalsForGC();
                 if (p->locals.capacity() > LOCALS_KEEP_THRESHOLD)
                 {
                     p->locals = std::vector<::value::Value>{};

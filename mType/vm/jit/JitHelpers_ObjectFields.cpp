@@ -199,7 +199,8 @@ namespace vm::jit
 
         if (ctx->icTable)
         {
-            FieldInlineCache& cache = ctx->icTable->getFieldIC(bytecodeOffset);
+            FieldInlineCache& cache = ctx->icTable->getFieldIC(
+                ctx->program->getProgramId(), bytecodeOffset);
             if (cache.state == ICState::MONOMORPHIC ||
                 cache.state == ICState::POLYMORPHIC)
             {
@@ -227,7 +228,8 @@ namespace vm::jit
 
         if (ctx->icTable && fieldIndex != SIZE_MAX)
         {
-            FieldInlineCache& cache = ctx->icTable->getFieldIC(bytecodeOffset);
+            FieldInlineCache& cache = ctx->icTable->getFieldIC(
+                ctx->program->getProgramId(), bytecodeOffset);
             if (cache.state != ICState::MEGAMORPHIC)
                 cache.addEntry(classDef, fieldIndex);
         }
@@ -247,7 +249,8 @@ namespace vm::jit
         if (!ctx->icTable)
             return false;
 
-        FieldInlineCache& cache = ctx->icTable->getFieldIC(bytecodeOffset);
+        FieldInlineCache& cache = ctx->icTable->getFieldIC(
+            ctx->program->getProgramId(), bytecodeOffset);
 
         if (cache.state == ICState::MONOMORPHIC ||
             cache.state == ICState::POLYMORPHIC)
@@ -345,7 +348,8 @@ namespace vm::jit
         if (!ctx->icTable)
             return false;
 
-        FieldInlineCache& cache = ctx->icTable->getFieldIC(bytecodeOffset);
+        FieldInlineCache& cache = ctx->icTable->getFieldIC(
+            ctx->program->getProgramId(), bytecodeOffset);
 
         if (cache.state == ICState::MONOMORPHIC ||
             cache.state == ICState::POLYMORPHIC)

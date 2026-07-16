@@ -16,7 +16,7 @@ namespace vm::runtime
         // operand[2] = argument count
         const std::string& currentClassName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         const std::string& methodName = context.program->getConstantPool().getString(instr.inlineOperands[1]);
-        size_t argCount = instr.inlineOperands[2];
+        size_t argCount = instr.operandAt(2);
 
         // MYT-196: small-buffer-optimized args buffer.
         value::SmallArgsBuffer args(argCount);

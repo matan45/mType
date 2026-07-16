@@ -112,9 +112,11 @@ namespace vm::jit
     {
         if (!s.typeFeedback) return false;
         if (!s.usesBoxedTypes) return false;
-        if (!s.typeFeedback->getICTable().hasMethodIC(s.currentIP)) return false;
+        if (!s.typeFeedback->getICTable().hasMethodIC(
+                s.program.getProgramId(), s.currentIP)) return false;
 
-        auto& cache = s.typeFeedback->getICTable().getMethodIC(s.currentIP);
+        auto& cache = s.typeFeedback->getICTable().getMethodIC(
+            s.program.getProgramId(), s.currentIP);
         if (cache.state != ic::ICState::MONOMORPHIC || cache.entryCount != 1)
             return false;
 

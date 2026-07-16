@@ -1,10 +1,15 @@
 #include "JitCompiler.hpp"
+#include <algorithm>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include "JitEmissionState.hpp"
 #include "JitHelpers.hpp"
+#include "analysis/JitFrameAnalysis.hpp"
 #include <asmjit/x86.h>
 
 namespace vm::jit
@@ -24,7 +29,28 @@ namespace vm::jit
             bool usesBoxedTypes;
             size_t localCount;
             size_t localStride;
+            size_t operandStackCapacity;
+            size_t inlineLocalsCapacity;
+            size_t reservedBytes;
             std::unordered_map<size_t, SlotType> localTypes;
+        };
+
+        class CompileTimer
+        {
+        public:
+            explicit CompileTimer(uint64_t& totalNs)
+                : totalNs(totalNs), started(std::chrono::steady_clock::now()) {}
+
+            ~CompileTimer()
+            {
+                totalNs += static_cast<uint64_t>(
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(
+                        std::chrono::steady_clock::now() - started).count());
+            }
+
+        private:
+            uint64_t& totalNs;
+            std::chrono::steady_clock::time_point started;
         };
 
         // Replaces the previous 7 by-pointer counter params on emitFunctionBody.
@@ -151,15 +177,12 @@ namespace vm::jit
             }
         }
 
-        CompilationFrame setupCompilationFrame(
+        std::optional<CompilationFrame> setupCompilationFrame(
             Compiler& cc, const bytecode::BytecodeProgram& program,
             const bytecode::BytecodeProgram::FunctionMetadata& funcMeta,
-            size_t localCount)
+            size_t localCount,
+            ic::TypeFeedbackCollector* typeFeedback)
         {
-            // MYT-251: use the single source of truth in JitEmissionState so
-            // all three setup paths (here, OSR, and the emitters' bounds
-            // checks) share one value.
-            constexpr size_t MAX_OP_STACK = JitEmissionState::MAX_OP_STACK;
             constexpr size_t valueSize = sizeof(value::Value);
 
             size_t scanEnd = funcMeta.startOffset + funcMeta.instructionCount;
@@ -186,23 +209,33 @@ namespace vm::jit
 
             const size_t localStride = usesBoxedTypes ? valueSize : 8;
 
-            // MYT-163: reserve INLINE_LOCALS_SLACK extra slots so
-            // tryEmitInlinedMethodCall can stage a callee's locals window
-            // without re-allocating the frame.
-            const size_t reservedLocals = localCount + JitEmissionState::INLINE_LOCALS_SLACK;
+            const auto frameAnalysis = analysis::analyzeFunctionFrame(
+                program, funcMeta, typeFeedback, usesBoxedTypes,
+                JitEmissionState::INLINE_LOCALS_SLACK);
+            const auto layout = analysis::makeFrameLayoutPlan(
+                frameAnalysis, JitEmissionState::MAX_OP_STACK,
+                JitEmissionState::INLINE_LOCALS_SLACK);
+            if (!layout.valid) return std::nullopt;
+
+            // Only reserve callee-local windows that the current IC and
+            // inline-eligibility snapshot can actually paste. Ambiguous CFGs
+            // retain the historical 96-slot fallback via makeFrameLayoutPlan.
+            const size_t reservedLocals = localCount + layout.inlineLocalSlots;
 
             Mem localsArea = cc.new_stack(static_cast<uint32_t>(reservedLocals * localStride), 8);
             Gp localsBase = cc.new_gp64("localsBase");
             cc.lea(localsBase, localsArea);
 
-            Mem stackArea = cc.new_stack(MAX_OP_STACK * 8, 8);
+            Mem stackArea = cc.new_stack(
+                static_cast<uint32_t>(layout.operandStackSlots * 8), 8);
             Gp stackBase = cc.new_gp64("stackBase");
             cc.lea(stackBase, stackArea);
 
             Gp boxedBase = cc.new_gp64("boxedBase");
             if (usesBoxedTypes)
             {
-                Mem boxedArea = cc.new_stack(static_cast<uint32_t>(MAX_OP_STACK * valueSize), 8);
+                Mem boxedArea = cc.new_stack(static_cast<uint32_t>(
+                    layout.operandStackSlots * valueSize), 8);
                 cc.lea(boxedBase, boxedArea);
             }
 
@@ -214,11 +247,19 @@ namespace vm::jit
             // slack) so an inlined callee's locals area starts in a clean
             // state — no destructor calls on uninitialised shared_ptr bytes.
             if (usesBoxedTypes)
-                emitMemoryInit(cc, localsBase, reservedLocals, boxedBase, MAX_OP_STACK);
+                emitMemoryInit(cc, localsBase, reservedLocals, boxedBase,
+                               layout.operandStackSlots);
 
+            const size_t reservedBytes = reservedLocals * localStride
+                + layout.operandStackSlots * 8
+                + (usesBoxedTypes
+                    ? layout.operandStackSlots * valueSize : 0);
             std::unordered_map<size_t, SlotType> localTypes;
-            return {localsBase, stackBase, boxedBase, progPtr,
-                    usesBoxedTypes, localCount, localStride, std::move(localTypes)};
+            return CompilationFrame{localsBase, stackBase, boxedBase, progPtr,
+                    usesBoxedTypes, localCount, localStride,
+                    layout.operandStackSlots, layout.inlineLocalSlots,
+                    reservedBytes,
+                    std::move(localTypes)};
         }
 
         void emitCodegenLoop(JitEmissionState& s,
@@ -297,6 +338,8 @@ namespace vm::jit
             s.tailCallsOptimized = metrics.tailCallsOptimized;
             s.selfDirectCalls = metrics.selfDirectCalls;
             s.codeCache = codeCache;  // MYT-315: fresh JIT lookup at compile time
+            s.operandStackCapacity = frame.operandStackCapacity;
+            s.inlineLocalsCapacity = frame.inlineLocalsCapacity;
 
             // MYT-207: expose the FuncNode's entry label so non-tail self-
             // recursive CALL sites can `cc.invoke(label, sig)` directly,
@@ -358,7 +401,9 @@ namespace vm::jit
                                JitCodeCache& codeCache,
                                ic::TypeFeedbackCollector* typeFeedback)
     {
-        if (codeCache.contains(functionName))
+        // Generated code and IC metadata retain this exact program address.
+        program.pinRuntimeAddress();
+        if (codeCache.contains(program.getProgramId(), functionName))
             return true;
 
         const auto* funcMeta = program.getFunction(functionName);
@@ -385,6 +430,8 @@ namespace vm::jit
             return false;
         }
 
+        CompileTimer compileTimer(compileTimeNs);
+
         CodeHolder code;
         code.init(codeCache.getRuntime().environment());
         Compiler cc(&code);
@@ -393,7 +440,14 @@ namespace vm::jit
         Gp ctxPtr = cc.new_gp64("ctx");
         func->set_arg(0, ctxPtr);
 
-        auto frame = setupCompilationFrame(cc, program, *funcMeta, localCount);
+        auto frameResult = setupCompilationFrame(
+            cc, program, *funcMeta, localCount, typeFeedback);
+        if (!frameResult)
+        {
+            bailoutCount++;
+            return false;
+        }
+        auto& frame = *frameResult;
 
         JitCompileMetrics metrics{
             &inlineFieldICHits, &inlineFieldICMisses,
@@ -410,21 +464,28 @@ namespace vm::jit
         }
 
         cc.end_func();
-        if (!finalizeAndStore(cc, code, codeCache, functionName,
-                              compileCount, bailoutCount))
+        if (!finalizeAndStore(cc, code, codeCache, program.getProgramId(),
+                              functionName,
+                              compileCount, bailoutCount,
+                              generatedCodeBytes))
             return false;
+
+        reservedFrameBytes += frame.reservedBytes;
+        peakReservedFrameBytes = std::max(
+            peakReservedFrameBytes, frame.reservedBytes);
 
         // Phase 2: populate the index-keyed fast-path slot so
         // jit_call_function_fast can skip the name-hashmap lookup. Using
         // `functionName` as-is — it's the same key the cache already stores
         // under (matches VirtualMachine::executeCallFastWithJit's lookup via
         // funcMeta->mangledName).
-        JitFunction fn = codeCache.lookup(functionName);
+        JitFunction fn = codeCache.lookup(program.getProgramId(), functionName);
         size_t funcIndex = program.getFunctionIndex(functionName);
         if (fn && funcIndex != SIZE_MAX)
         {
             auto frameName = program.internFrameName(functionName);
-            codeCache.storeByIndex(funcIndex, fn, frameName);
+            codeCache.storeByIndex(
+                program.getProgramId(), funcIndex, fn, frameName);
         }
         return true;
     }

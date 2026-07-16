@@ -31,6 +31,9 @@
     <Filter Include="vm\jit">
       <UniqueIdentifier>{9EC4EF22-8A66-1AF9-7321-2E4D5F62A149}</UniqueIdentifier>
     </Filter>
+    <Filter Include="vm\jit\analysis">
+      <UniqueIdentifier>{3166ED5A-9DF1-5A1F-A602-DE13120DB71F}</UniqueIdentifier>
+    </Filter>
     <Filter Include="vm\jit\codegen">
       <UniqueIdentifier>{A26C54FC-8E3A-4802-77CE-B828633B2467}</UniqueIdentifier>
     </Filter>
@@ -396,6 +399,9 @@
     <ClInclude Include="vm\jit\JitHelpers_Objects.hpp">
       <Filter>vm\jit</Filter>
     </ClInclude>
+    <ClInclude Include="vm\jit\JitIdentity.hpp">
+      <Filter>vm\jit</Filter>
+    </ClInclude>
     <ClInclude Include="vm\jit\JitProfiler.hpp">
       <Filter>vm\jit</Filter>
     </ClInclude>
@@ -408,8 +414,17 @@
     <ClInclude Include="vm\jit\OSRState.hpp">
       <Filter>vm\jit</Filter>
     </ClInclude>
+    <ClInclude Include="vm\jit\ScopedJitNativeDepth.hpp">
+      <Filter>vm\jit</Filter>
+    </ClInclude>
     <ClInclude Include="vm\jit\SlotType.hpp">
       <Filter>vm\jit</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\jit\analysis\JitFrameAnalysis.hpp">
+      <Filter>vm\jit\analysis</Filter>
+    </ClInclude>
+    <ClInclude Include="vm\jit\analysis\JitFrameAnalysis_Internal.hpp">
+      <Filter>vm\jit\analysis</Filter>
     </ClInclude>
     <ClInclude Include="vm\jit\codegen\OSREntryCodegen.hpp">
       <Filter>vm\jit\codegen</Filter>
@@ -769,6 +784,21 @@
     </ClCompile>
     <ClCompile Include="vm\jit\OSRManager_Unwind.cpp">
       <Filter>vm\jit</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\analysis\JitFrameAnalysis_Control.cpp">
+      <Filter>vm\jit\analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\analysis\JitFrameAnalysis_Core.cpp">
+      <Filter>vm\jit\analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\analysis\JitFrameAnalysis_Inlining.cpp">
+      <Filter>vm\jit\analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\analysis\JitFrameAnalysis_Objects.cpp">
+      <Filter>vm\jit\analysis</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\jit\analysis\JitFrameAnalysis_Scalar.cpp">
+      <Filter>vm\jit\analysis</Filter>
     </ClCompile>
     <ClCompile Include="vm\jit\codegen\OSREntryCodegen.cpp">
       <Filter>vm\jit\codegen</Filter>

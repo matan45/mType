@@ -105,6 +105,9 @@
     <ClInclude Include="vm\bytecode\OpCode.hpp">
       <Filter>vm\bytecode</Filter>
     </ClInclude>
+    <ClInclude Include="vm\bytecode\ProgramIdentity.hpp">
+      <Filter>vm\bytecode</Filter>
+    </ClInclude>
     <ClInclude Include="vm\compiler\BytecodeCompiler.hpp">
       <Filter>vm\compiler</Filter>
     </ClInclude>
@@ -440,6 +443,9 @@
     <ClCompile Include="runtime\EventLoop.cpp">
       <Filter>runtime</Filter>
     </ClCompile>
+    <ClCompile Include="runtime\EventLoop_Concurrency.cpp">
+      <Filter>runtime</Filter>
+    </ClCompile>
     <ClCompile Include="vm\MethodSignature.cpp">
       <Filter>vm</Filter>
     </ClCompile>
@@ -450,6 +456,9 @@
       <Filter>vm\bytecode</Filter>
     </ClCompile>
     <ClCompile Include="vm\bytecode\BytecodeProgram_Edit.cpp">
+      <Filter>vm\bytecode</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\bytecode\BytecodeProgram_Lifecycle.cpp">
       <Filter>vm\bytecode</Filter>
     </ClCompile>
     <ClCompile Include="vm\bytecode\BytecodeProgram_SerializeRead.cpp">
@@ -819,6 +828,9 @@
       <Filter>vm\runtime</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\VirtualMachineLoop.cpp">
+      <Filter>vm\runtime</Filter>
+    </ClCompile>
+    <ClCompile Include="vm\runtime\VirtualMachineProgramLifetime.cpp">
       <Filter>vm\runtime</Filter>
     </ClCompile>
     <ClCompile Include="vm\runtime\VirtualMachine_Lifecycle.cpp">

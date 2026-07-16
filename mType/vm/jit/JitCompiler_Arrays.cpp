@@ -54,7 +54,7 @@ namespace vm::jit
         uint32_t typeIndex      = static_cast<uint32_t>(instr.inlineOperands[0]);
         uint32_t totalDims      = static_cast<uint32_t>(instr.inlineOperands[1]);
         uint32_t specifiedDims  = instr.numOperands() > 2
-                                   ? static_cast<uint32_t>(instr.inlineOperands[2])
+                                   ? static_cast<uint32_t>(instr.operandAt(2))
                                    : totalDims;
 
         // emitBoxCallArgs takes the top `specifiedDims` slots in order and
@@ -63,6 +63,7 @@ namespace vm::jit
         // Pop the size slots (all primitive INT — emitPopAndDestroyArgs is a
         // no-op for unboxed slots apart from decrementing stackDepth).
         emitPopAndDestroyArgs(s, specifiedDims);
+        if (!checkOpStackHeadroom(s)) return true;
 
         Gp dest = cc.new_gp64();
         cc.lea(dest, Mem(s.boxedBase, static_cast<int32_t>(s.stackDepth * valueSize)));

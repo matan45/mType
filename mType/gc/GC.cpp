@@ -1,7 +1,75 @@
 #include "GC.hpp"
+#include "../value/ObjectInstance.hpp"
 
 namespace gc
 {
+    namespace
+    {
+        void observeHeapValue(
+            value::BridgeKind kind,
+            const std::shared_ptr<void>& object)
+        {
+            config::GCObjectType type = config::GCObjectType::UNKNOWN;
+            switch (kind)
+            {
+            case value::BridgeKind::OBJECT_INSTANCE:
+                std::static_pointer_cast<runtimeTypes::klass::ObjectInstance>(object)
+                    ->registerWithGC();
+                return;
+            case value::BridgeKind::BYTECODE_LAMBDA:
+                type = config::GCObjectType::BYTECODE_LAMBDA;
+                break;
+            case value::BridgeKind::NATIVE_ARRAY:
+                type = config::GCObjectType::NATIVE_ARRAY;
+                break;
+            case value::BridgeKind::FLAT_MULTI_ARRAY:
+                type = config::GCObjectType::FLAT_MULTI_ARRAY;
+                break;
+            case value::BridgeKind::SPARSE_MULTI_ARRAY:
+                type = config::GCObjectType::SPARSE_MULTI_ARRAY;
+                break;
+            case value::BridgeKind::FLAT_MULTI_OBJECT_ARRAY:
+                type = config::GCObjectType::FLAT_MULTI_OBJECT_ARRAY;
+                break;
+            case value::BridgeKind::PROMISE:
+                type = config::GCObjectType::PROMISE_VALUE;
+                break;
+            default:
+                return;
+            }
+            GC::registerAllocation(object, type);
+        }
+
+        void observeReferenceMutation(
+            void* owner,
+            const value::Value* oldValue,
+            const value::Value* newValue)
+        {
+            void* oldTarget = oldValue ? extractPointer(*oldValue) : nullptr;
+            void* newTarget = newValue ? extractPointer(*newValue) : nullptr;
+            if (oldTarget && oldTarget != newTarget)
+            {
+                GC::onRefCountDecrement(oldTarget);
+            }
+            if (owner && newTarget)
+            {
+                GC::onRefCountDecrement(owner);
+            }
+            else if (!owner && newTarget)
+            {
+                // SharedStackFrame has no independently tracked owner. Marking
+                // the new target is conservative and still reaches a cycle
+                // closed through the lambda that owns the frame.
+                GC::onRefCountDecrement(newTarget);
+            }
+        }
+
+        void observeRawReferenceRemoval(void* target)
+        {
+            GC::onRefCountDecrement(target);
+        }
+    }
+
     // Static member initialization
     std::unique_ptr<GCCoordinator> GC::coordinator = nullptr;
     bool GC::initialized = false;
@@ -22,6 +90,10 @@ namespace gc
                 }
             });
 
+            value::setHeapValueRegistrationObserver(&observeHeapValue);
+            value::setHeapReferenceMutationObserver(&observeReferenceMutation);
+            value::setHeapRawReferenceRemovalObserver(&observeRawReferenceRemoval);
+
             initialized = true;
         }
     }
@@ -31,6 +103,9 @@ namespace gc
        
         if (initialized)
         {
+            value::setHeapRawReferenceRemovalObserver(nullptr);
+            value::setHeapReferenceMutationObserver(nullptr);
+            value::setHeapValueRegistrationObserver(nullptr);
             coordinator.reset();
             GCTracker::destroyInstance();
             initialized = false;

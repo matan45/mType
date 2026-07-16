@@ -17,6 +17,7 @@ namespace vm::jit
     static bool emitPushStringOpImpl(JitEmissionState& s,
                                       const bytecode::BytecodeProgram::Instruction& instr)
     {
+        if (!checkOpStackHeadroom(s)) return true;
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
         uint32_t constIndex = static_cast<uint32_t>(instr.inlineOperands[0]);
@@ -123,9 +124,11 @@ namespace vm::jit
         if (disableInlineFieldGet) return false;
 
         auto& icTable = s.typeFeedback->getICTable();
-        if (!icTable.hasFieldIC(s.currentIP)) return false;
+        if (!icTable.hasFieldIC(
+                s.program.getProgramId(), s.currentIP)) return false;
 
-        auto& cache = icTable.getFieldIC(s.currentIP);
+        auto& cache = icTable.getFieldIC(
+            s.program.getProgramId(), s.currentIP);
         if (cache.state != ic::ICState::MONOMORPHIC) return false;
         if (cache.entryCount == 0) return false;
 
@@ -311,9 +314,11 @@ namespace vm::jit
         if (disableInlineFieldSet) return false;
 
         auto& icTable = s.typeFeedback->getICTable();
-        if (!icTable.hasFieldIC(s.currentIP)) return false;
+        if (!icTable.hasFieldIC(
+                s.program.getProgramId(), s.currentIP)) return false;
 
-        auto& cache = icTable.getFieldIC(s.currentIP);
+        auto& cache = icTable.getFieldIC(
+            s.program.getProgramId(), s.currentIP);
         if (cache.state != ic::ICState::MONOMORPHIC) return false;
         if (cache.entryCount == 0) return false;
 

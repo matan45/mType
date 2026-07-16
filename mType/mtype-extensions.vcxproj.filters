@@ -117,6 +117,9 @@
     <ClInclude Include="gc\GCCoordinator.hpp">
       <Filter>gc</Filter>
     </ClInclude>
+    <ClInclude Include="gc\GCNotificationSuppression.hpp">
+      <Filter>gc</Filter>
+    </ClInclude>
     <ClInclude Include="gc\GCStats.hpp">
       <Filter>gc</Filter>
     </ClInclude>
@@ -277,6 +280,9 @@
       <Filter>services</Filter>
     </ClInclude>
     <ClInclude Include="services\BytecodeOptimizationService.hpp">
+      <Filter>services</Filter>
+    </ClInclude>
+    <ClInclude Include="services\BytecodeProgramBinding.hpp">
       <Filter>services</Filter>
     </ClInclude>
     <ClInclude Include="services\BytecodeService.hpp">
@@ -570,6 +576,9 @@
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="services\BytecodeOptimizationService.cpp">
+      <Filter>services</Filter>
+    </ClCompile>
+    <ClCompile Include="services\BytecodeProgramBinding.cpp">
       <Filter>services</Filter>
     </ClCompile>
     <ClCompile Include="services\BytecodeService.cpp">

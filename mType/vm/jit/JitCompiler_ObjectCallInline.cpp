@@ -4,14 +4,15 @@
 #include "JitCompiler.hpp"
 #include "JitCodeCache.hpp"
 #include "JitHelpers.hpp"
+#include "analysis/JitFrameAnalysis.hpp"
 #include "../bytecode/OpCode.hpp"
 #include "../optimization/InlineAnalysis.hpp"
-#include "../optimization/analysis/DataFlowAnalyzer.hpp"
 #include "../../environment/registry/ClassDefinition.hpp"
 #include <asmjit/x86.h>
 #include <cstddef>
 #include <cstdint>
 #include <deque>
+#include <limits>
 #include <string>
 
 namespace vm::jit
@@ -20,53 +21,23 @@ namespace vm::jit
     using namespace asmjit::x86;
     using OpCode = bytecode::OpCode;
 
-    // Walk the callee's bytecode and return the peak operand-stack depth it
-    // reaches starting from depth 0. Inline guards in the method/function
-    // inliners use this to reject candidates whose caller_depth + callee_peak
-    // would exceed MAX_OP_STACK and overrun cc.new_stack — that overrun trips
-    // the /GS-cookie fastfail. For known opcodes we use
-    // DataFlowAnalyzer::calculateStackEffect; for opcodes it doesn't classify
-    // (CALL_METHOD, CALL_FAST, NEW_INSTANCE, lambda invokes, iterator ops) we
-    // default to a conservative net +1. Throws inside the body return
-    // MAX_OP_STACK+1 so every caller rejects the candidate cleanly.
+    // Prove the callee's typed CFG and return its peak operand-stack depth.
+    // Inline guards reject candidates whose caller depth plus this peak would
+    // exceed the current frame's analyzed allocation. An unproven body returns
+    // capacity+1 so every caller declines the candidate cleanly.
     size_t computeCalleePeakOperandStack(
-        const bytecode::BytecodeProgram& program,
+        const JitEmissionState& state,
         const bytecode::BytecodeProgram::FunctionMetadata& callee)
     {
-        try
-        {
-            using DFA = optimization::analysis::DataFlowAnalyzer;
-            int depth = 0;
-            int peak  = 0;
-            const size_t end = callee.startOffset + callee.instructionCount;
-            for (size_t ip = callee.startOffset; ip < end; ++ip)
-            {
-                const auto& instr = program.getInstruction(ip);
-                DFA::StackEffect e = DFA::calculateStackEffect(instr.opcode);
-                int net = e.netEffect;
-                if (e.consumed == 0 && e.produced == 0
-                    && instr.opcode != bytecode::OpCode::NOP
-                    && instr.opcode != bytecode::OpCode::JUMP
-                    && instr.opcode != bytecode::OpCode::JUMP_BACK
-                    && instr.opcode != bytecode::OpCode::LINE
-                    && instr.opcode != bytecode::OpCode::SOURCE_FILE
-                    && instr.opcode != bytecode::OpCode::LOOP_START
-                    && instr.opcode != bytecode::OpCode::LOOP_END
-                    && instr.opcode != bytecode::OpCode::SWAP
-                    && instr.opcode != bytecode::OpCode::RETURN)
-                {
-                    net = 1;
-                }
-                depth += net;
-                if (depth < 0) depth = 0;
-                if (depth > peak) peak = depth;
-            }
-            return static_cast<size_t>(peak);
-        }
-        catch (...)
-        {
-            return JitEmissionState::MAX_OP_STACK + 1;
-        }
+        const auto result = analysis::analyzeInlinedCalleeFrame(
+            state.program, callee, state.typeFeedback,
+            state.usesBoxedTypes, state.currentCompilingFn,
+            state.isOSRCompilation, state.inlineStack.size() + 1,
+            state.inlineLocalsCapacity);
+        if (result.proven()) return result.operandStackPeak;
+        return state.operandStackCapacity == std::numeric_limits<size_t>::max()
+            ? state.operandStackCapacity
+            : state.operandStackCapacity + 1;
     }
 
     void emitBoxCallArgs(JitEmissionState& s, size_t argCount, size_t destStartSlot)
@@ -129,6 +100,10 @@ namespace vm::jit
         s.localTypes     = snap.localTypes;
         s.arrayInfoCache = snap.arrayInfoCache;
         s.currentIP      = snap.currentIP;
+        // A restore switches code-generation to a different runtime path.
+        // Path-local virtregs cannot be reused unless they dominate both
+        // paths; memory is the canonical join representation.
+        invalidateAllHints(s);
     }
 
     void normalizeInlineReturnJoinState(JitEmissionState& s,
@@ -140,6 +115,7 @@ namespace vm::jit
         s.slotTypes.push_back(SlotType::BOXED);
         s.currentIP = callSiteIP;
         s.arrayInfoCache.clear();
+        invalidateAllHints(s);
     }
 
     // Stable storage for inlined-callee class names so the const char* baked
@@ -182,6 +158,10 @@ namespace vm::jit
     {
         (void)stackBaselineIdx;
         auto& cc = s.cc;
+
+        // The owner-class helper and the pasted body form a helper boundary.
+        // Keep argument/live-prefix stack memory canonical before entering it.
+        flushAllHints(s);
 
         // Push the callee's owner class onto ctx->inlinedCallingClassNames so
         // private/protected field-access checks inside the inlined body are
@@ -246,6 +226,7 @@ namespace vm::jit
         // emitted at compile time; only one runs per execution because
         // RETURN_VALUE jumps to endLabel before this fall-through is reached.
         {
+            flushAllHints(s);
             InvokeNode* pop = nullptr;
             cc.invoke(Out(pop),
                       reinterpret_cast<uint64_t>(jit_pop_inlined_class),
@@ -293,6 +274,11 @@ namespace vm::jit
             return false;
         }
         if (callee->parameterCount != argCount)
+        {
+            recordDecision(optimization::InlineDecision::UNKNOWN_SHAPE);
+            return false;
+        }
+        if (callee->localCount < callee->parameterCount)
         {
             recordDecision(optimization::InlineDecision::UNKNOWN_SHAPE);
             return false;
@@ -368,6 +354,11 @@ namespace vm::jit
             recordDecision(optimization::InlineDecision::UNKNOWN_SHAPE);
             return false;
         }
+        if (callee->localCount < callee->parameterCount)
+        {
+            recordDecision(optimization::InlineDecision::UNKNOWN_SHAPE);
+            return false;
+        }
 
         auto decision = optimization::checkFunctionInlineEligibility(
             s.program, *callee, s.currentCompilingFn, s.inlineStack.size());
@@ -375,24 +366,56 @@ namespace vm::jit
         if (decision != optimization::InlineDecision::INLINE)
             return false;
 
-        const size_t localsBaseSlot = s.inlineStack.empty()
-            ? s.localCount
-            : s.inlineStack.back().localsBaseSlot
-              + s.inlineStack.back().calleeMeta->localCount;
-        if (localsBaseSlot + callee->localCount
-            > s.localCount + JitEmissionState::INLINE_LOCALS_SLACK)
+        size_t localsBaseSlot = s.localCount;
+        if (!s.inlineStack.empty())
+        {
+            const auto& parent = s.inlineStack.back();
+            if (parent.localsBaseSlot > std::numeric_limits<size_t>::max()
+                    - parent.calleeMeta->localCount)
+            {
+                recordDecision(optimization::InlineDecision::CALLEE_TOO_BIG);
+                return false;
+            }
+            localsBaseSlot =
+                parent.localsBaseSlot + parent.calleeMeta->localCount;
+        }
+        if (s.localCount > std::numeric_limits<size_t>::max()
+                - s.inlineLocalsCapacity)
+        {
+            recordDecision(optimization::InlineDecision::CALLEE_TOO_BIG);
+            return false;
+        }
+        const size_t inlineLocalLimit =
+            s.localCount + s.inlineLocalsCapacity;
+        if (localsBaseSlot > inlineLocalLimit ||
+            callee->localCount > inlineLocalLimit - localsBaseSlot)
         {
             recordDecision(optimization::InlineDecision::CALLEE_TOO_BIG);
             return false;
         }
 
-        const size_t calleePeak = computeCalleePeakOperandStack(s.program, *callee);
-        if (static_cast<size_t>(s.stackDepth) + calleePeak
-            > JitEmissionState::MAX_OP_STACK)
+        const size_t calleePeak = computeCalleePeakOperandStack(s, *callee);
+        if (s.stackDepth < 0)
         {
             recordDecision(optimization::InlineDecision::CALLEE_TOO_BIG);
             return false;
         }
+        const size_t callerDepth = static_cast<size_t>(s.stackDepth);
+        if (callerDepth > s.operandStackCapacity || argCount > callerDepth)
+        {
+            recordDecision(optimization::InlineDecision::CALLEE_TOO_BIG);
+            return false;
+        }
+        const size_t calleeStackBase = callerDepth - argCount;
+        if (calleePeak > s.operandStackCapacity - calleeStackBase)
+        {
+            recordDecision(optimization::InlineDecision::CALLEE_TOO_BIG);
+            return false;
+        }
+
+        // emitInlineLocalCopy reads stackBase and may invoke box/unbox helpers.
+        // Start inline emission from a memory-coherent, hint-free state.
+        flushAllHints(s);
 
         auto& cc = s.cc;
         Label endLabel = cc.new_label();
@@ -450,6 +473,7 @@ namespace vm::jit
 
         cc.jmp(endLabel);
         cc.bind(endLabel);
+        invalidateAllHints(s);
 
         s.stackDepth = firstArgStackIdx + 1;
         s.slotTypes.resize(static_cast<size_t>(firstArgStackIdx));
@@ -464,7 +488,9 @@ namespace vm::jit
             && !s.currentCompilingFn.empty()
             && s.codeCache)
         {
-            s.codeCache->registerInlineEdge(calleeHandle, s.currentCompilingFn);
+            s.codeCache->registerInlineEdge(
+                s.program.getProgramId(), calleeHandle,
+                FunctionId{s.program.getProgramId(), s.currentCompilingFn});
         }
         return true;
     }

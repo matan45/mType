@@ -51,6 +51,10 @@ namespace services
 
         // Update bytecode program reference (for bytecode mode)
         void setBytecodeProgram(const vm::bytecode::BytecodeProgram* bytecodeProgram);
+        const vm::bytecode::BytecodeProgram* getBytecodeProgram() const noexcept
+        {
+            return program;
+        }
 
         // Function calling
         value::Value callFunction(const std::string& functionName,

@@ -14,6 +14,24 @@ namespace vm::runtime
     void ObjectExecutor::invokeLambdaMethod(std::shared_ptr<BytecodeLambda> lambda,
                                            std::span<const value::Value> args,
                                            const std::string& methodName) {
+        if (!lambda || lambda->owningProgramId.value == 0
+            || lambda->owningProgramId != context.program->getProgramId()) {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Cannot invoke lambda after its owning bytecode program "
+                "was replaced or unloaded");
+        }
+        if (lambda->instructionPointer == 0
+            || lambda->instructionPointer >= context.program->getInstructionCount()) {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Cannot invoke lambda with an invalid bytecode entry point");
+        }
+        if (lambda->functionName != bytecode::INVALID_FN_HANDLE
+            && !context.program->getFunctionMeta(lambda->functionName)) {
+            utils::ErrorLocationHelper::throwRuntimeError(context,
+                "Cannot invoke lambda whose function metadata no longer "
+                "resolves in its owning bytecode program");
+        }
+
         size_t lambdaStart = lambda->instructionPointer;
         size_t paramCount = lambda->parameterCount;
 
@@ -41,6 +59,9 @@ namespace vm::runtime
         frame.thisInstance = lambda->capturedThis;
         frame.originatingLambda = lambda;
         frame.definingClassName = lambda->creatingClassName;
+        if (!context.callStack.empty()) {
+            frame.programIndex = context.callStack.back().programIndex;
+        }
 
         context.pushCallFrame(std::move(frame));
 

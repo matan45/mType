@@ -13,15 +13,18 @@ namespace vm::jit::ic
         explicit TypeFeedbackCollector(InlineCacheTable& table);
 
         // Record observed types for a binary operation at the given bytecode offset
-        void recordBinaryOp(size_t instructionOffset,
+        void recordBinaryOp(bytecode::ProgramId programId,
+                            size_t instructionOffset,
                             const value::Value& left,
                             const value::Value& right);
 
         // Check if a site should be specialized (consistent types seen >= threshold)
-        bool shouldSpecialize(size_t instructionOffset) const;
+        bool shouldSpecialize(bytecode::ProgramId programId,
+                              size_t instructionOffset) const;
 
         // Get the dominant type pair for a site
-        std::pair<ObservedType, ObservedType> getDominantTypes(size_t instructionOffset) const;
+        std::pair<ObservedType, ObservedType> getDominantTypes(
+            bytecode::ProgramId programId, size_t instructionOffset) const;
 
         // MYT-163: IC-table accessor used by JIT-emit-time speculative inlining
         // (tryEmitInlinedMethodCall reads MethodInlineCache state to decide

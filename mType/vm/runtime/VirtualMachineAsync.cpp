@@ -96,12 +96,19 @@ namespace vm::runtime
         }
 
         std::weak_ptr<VirtualMachine> weakVM = weak_from_this();
+        const uint64_t generation =
+            programGeneration.load(std::memory_order_acquire);
         auto taskId = this->currentTaskId;
 
-        asyncPromise->then([weakVM, taskId](value::Value resolvedValue)
+        asyncPromise->then([weakVM, taskId, generation](value::Value resolvedValue)
         {
             if (auto vm = weakVM.lock())
             {
+                if (vm->programGeneration.load(std::memory_order_acquire)
+                    != generation)
+                {
+                    return;
+                }
                 if (vm->savedState.has_value())
                 {
                     vm->savedState->stack.push_back(resolvedValue);
@@ -115,10 +122,16 @@ namespace vm::runtime
             }
         });
 
-        asyncPromise->catch_([weakVM, taskId, promise](std::string error)
+        asyncPromise->catch_(
+            [weakVM, taskId, promise, generation](std::string error)
         {
             if (auto vm = weakVM.lock())
             {
+                if (vm->programGeneration.load(std::memory_order_acquire)
+                    != generation)
+                {
+                    return;
+                }
                 vm->pendingAwaitRejection = PendingAwaitRejection{
                     promise->getExceptionValue(),
                     promise->getExceptionTypeName(),
@@ -175,6 +188,7 @@ namespace vm::runtime
         inInteropAsyncMode = true;
 
         auto& currentProgram = executionCtx->program;
+        ActiveExecutionCodeView activeCode;
         size_t targetDepth = restoreCallStack.size();
 
         auto restoreOuter = [&]() {
@@ -199,10 +213,11 @@ namespace vm::runtime
 
             while (callStack.size() > targetDepth)
             {
-                if (instructionPointer >= currentProgram->getInstructionCount())
+                activeCode.refresh(currentProgram);
+                if (!activeCode.contains(instructionPointer))
                     break;
 
-                const auto& instr = currentProgram->getInstruction(instructionPointer);
+                const auto& instr = activeCode.fetchUnchecked(instructionPointer);
                 try
                 {
                     executeInstruction(instr);
@@ -260,13 +275,21 @@ namespace vm::runtime
                 restoreOuter();
 
                 std::weak_ptr<VirtualMachine> weakSelf = weak_from_this();
+                const uint64_t generation =
+                    programGeneration.load(std::memory_order_acquire);
 
                 auto resumeContinuation =
                     [weakSelf, outerPromise, frameBase, innerIP, innerCallStack,
-                     innerFinally, innerStackTail](value::Value resolvedValue) mutable
+                     innerFinally, innerStackTail,
+                     generation](value::Value resolvedValue) mutable
                 {
                     auto self = weakSelf.lock();
                     if (!self) return;
+                    if (self->programGeneration.load(std::memory_order_acquire)
+                        != generation)
+                    {
+                        return;
+                    }
 
                     // Snapshot the VM's state at continuation entry, restore the
                     // inner state, push the awaited result, drive the body. On
@@ -289,10 +312,16 @@ namespace vm::runtime
 
                 auto rejectContinuation =
                     [weakSelf, outerPromise, frameBase, innerIP, innerCallStack,
-                     innerFinally, innerStackTail, awaited](std::string error) mutable
+                     innerFinally, innerStackTail, awaited,
+                     generation](std::string error) mutable
                 {
                     auto self = weakSelf.lock();
                     if (!self) return;
+                    if (self->programGeneration.load(std::memory_order_acquire)
+                        != generation)
+                    {
+                        return;
+                    }
 
                     size_t snapIP = self->instructionPointer;
                     auto snapCallStack = self->callStack;

@@ -23,15 +23,12 @@ namespace vm::jit
         size_t currentIP;
     };
 
-    // Defined in JitCompiler_ObjectCallInline.cpp. Walks the callee bytecode
-    // and returns the peak operand-stack depth. Inline guards use this to
-    // reject candidates whose caller_depth + callee_peak would exceed
-    // MAX_OP_STACK and overrun cc.new_stack. Conservative +1 net push for
-    // opcodes DataFlowAnalyzer doesn't classify (CALL_METHOD, NEW_INSTANCE,
-    // iterator ops, etc.). Returns MAX_OP_STACK+1 on internal failure so
-    // every caller rejects the candidate cleanly.
+    // Defined in JitCompiler_ObjectCallInline.cpp. Proves the callee's typed
+    // CFG and returns its peak operand-stack depth. Inline guards compare it
+    // with the current frame's analyzed allocation. Unproven bodies return
+    // capacity+1 so every caller declines the candidate cleanly.
     size_t computeCalleePeakOperandStack(
-        const bytecode::BytecodeProgram& program,
+        const JitEmissionState& state,
         const bytecode::BytecodeProgram::FunctionMetadata& callee);
 
     // Defined in JitCompiler_ObjectCallInline.cpp. Shared bytecode-paste loop;

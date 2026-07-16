@@ -31,6 +31,18 @@ namespace vm::jit
         for (size_t ip = meta.startOffset; ip < endOffset; ++ip)
         {
             const auto& instr = program.getInstruction(ip);
+            // Function-level AWAIT cannot currently reconstruct the native
+            // frame at the suspension bytecode. The old fallback restarted
+            // the function from its entry, which repeated any externally
+            // visible effects executed before the await. OSR has an explicit
+            // interpreter-state snapshot, but ordinary function compilation
+            // does not. Keep AWAIT functions in bytecode until typed frame
+            // states/deopt snapshots can resume at the exact bytecode PC.
+            if (instr.opcode == OpCode::AWAIT)
+            {
+                if (outOpcode) *outOpcode = instr.opcode;
+                return false;
+            }
             if (supported.find(static_cast<uint8_t>(instr.opcode)) == supported.end())
             {
                 if (outOpcode) *outOpcode = instr.opcode;

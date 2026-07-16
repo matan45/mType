@@ -35,7 +35,7 @@ namespace vm::jit
         else if (instr.opcode == OpCode::MUL_FLOAT) cc.mulsd(left, right);
         else cc.divsd(left, right);
         s.slotTypes.push_back(SlotType::FLOAT);
-        publishXmmHint(s, s.stackDepth - 1, left, /*dirty=*/false);
+        publishXmmHint(s, s.stackDepth - 1, left, /*dirty=*/true);
         return true;
     }
 }

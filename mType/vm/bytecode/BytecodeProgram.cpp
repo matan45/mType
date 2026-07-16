@@ -1,6 +1,7 @@
 #include "BytecodeProgram.hpp"
 #include <cstddef>
 #include <stdexcept>
+#include <utility>
 
 namespace vm::bytecode
 {
@@ -34,46 +35,82 @@ namespace vm::bytecode
     {
         inlineOperands[0] = other.inlineOperands[0];
         inlineOperands[1] = other.inlineOperands[1];
-        inlineOperands[2] = other.inlineOperands[2];
         if (other.operandCount > 3) {
-            size_t n = static_cast<size_t>(other.operandCount) - 3;
-            overflow = std::make_unique<uint64_t[]>(n);
-            for (size_t i = 0; i < n; ++i) overflow[i] = other.overflow[i];
+            size_t n = static_cast<size_t>(other.operandCount) - 2;
+            auto* data = new uint64_t[n];
+            for (size_t i = 0; i < n; ++i) data[i] = other.overflowData()[i];
+            setOverflowData(data);
+        } else {
+            inlineOperands[2] = other.inlineOperands[2];
         }
+    }
+
+    BytecodeProgram::Instruction::Instruction(Instruction&& other) noexcept
+        : opcode(other.opcode), flags(other.flags), operandCount(other.operandCount)
+    {
+        inlineOperands[0] = other.inlineOperands[0];
+        inlineOperands[1] = other.inlineOperands[1];
+        inlineOperands[2] = other.inlineOperands[2];
+        other.operandCount = 0;
+        other.inlineOperands[2] = 0;
     }
 
     BytecodeProgram::Instruction& BytecodeProgram::Instruction::operator=(const Instruction& other)
     {
         if (this == &other) return *this;
+        // Allocate and copy before touching this instruction. If allocation
+        // fails, `*this` retains its original valid tagged-overflow state.
+        Instruction replacement(other);
+        *this = std::move(replacement);
+        return *this;
+    }
+
+    BytecodeProgram::Instruction& BytecodeProgram::Instruction::operator=(
+        Instruction&& other) noexcept
+    {
+        if (this == &other) return *this;
+        releaseOverflow();
         opcode = other.opcode;
         flags = other.flags;
         operandCount = other.operandCount;
         inlineOperands[0] = other.inlineOperands[0];
         inlineOperands[1] = other.inlineOperands[1];
         inlineOperands[2] = other.inlineOperands[2];
-        if (other.operandCount > 3) {
-            size_t n = static_cast<size_t>(other.operandCount) - 3;
-            overflow = std::make_unique<uint64_t[]>(n);
-            for (size_t i = 0; i < n; ++i) overflow[i] = other.overflow[i];
-        } else {
-            overflow.reset();
-        }
+        other.operandCount = 0;
+        other.inlineOperands[2] = 0;
         return *this;
     }
 
     void BytecodeProgram::Instruction::loadOperands(const uint64_t* src, size_t count)
     {
-        operandCount = static_cast<uint8_t>(count);
-        size_t inline_n = count < 3 ? count : 3;
-        for (size_t i = 0; i < inline_n; ++i) inlineOperands[i] = src[i];
-        // Zero unused inline slots so disassembly / debug dumps don't show stale data.
-        for (size_t i = inline_n; i < 3; ++i) inlineOperands[i] = 0;
+        if (count > UINT8_MAX)
+            throw std::length_error("bytecode instruction has more than 255 operands");
+
+        // Snapshot/allocate the complete replacement before releasing the
+        // current overflow buffer. Besides providing the strong exception
+        // guarantee, this permits callers to reload from a range that aliases
+        // the instruction's current inline or overflow storage.
+        const uint64_t first = count > 0 ? src[0] : 0;
+        const uint64_t second = count > 1 ? src[1] : 0;
+        uint64_t third = 0;
+        std::unique_ptr<uint64_t[]> overflow;
         if (count > 3) {
-            size_t overflow_n = count - 3;
-            overflow = std::make_unique<uint64_t[]>(overflow_n);
-            for (size_t i = 0; i < overflow_n; ++i) overflow[i] = src[i + 3];
+            const size_t overflowCount = count - 2;
+            overflow = std::make_unique<uint64_t[]>(overflowCount);
+            for (size_t i = 0; i < overflowCount; ++i)
+                overflow[i] = src[i + 2];
+        } else if (count > 2) {
+            third = src[2];
+        }
+
+        releaseOverflow();
+        operandCount = static_cast<uint8_t>(count);
+        inlineOperands[0] = first;
+        inlineOperands[1] = second;
+        if (count > 3) {
+            setOverflowData(overflow.release());
         } else {
-            overflow.reset();
+            inlineOperands[2] = third;
         }
     }
 
@@ -111,10 +148,6 @@ namespace vm::bytecode
     const std::string& BytecodeProgram::ConstantPool::getString(size_t index) const {
         return strings.at(index);
     }
-
-    // === BytecodeProgram ===
-
-    BytecodeProgram::BytecodeProgram() : entryPoint(0) {}
 
     namespace
     {
@@ -257,8 +290,8 @@ namespace vm::bytecode
     const uint64_t* BytecodeProgram::materializeStableOperandSlice(
         const Instruction& instr, size_t start, size_t count) const
     {
-        // Operands are split inline/overflow at index 3, so a slice may straddle
-        // the boundary. Always copy into a stable heap-owned buffer for the JIT
+        // Variadic operands use tagged slot-2 overflow storage, so a slice may
+        // straddle the boundary. Always copy into a stable heap-owned buffer for the JIT
         // immediate. std::list node addresses (and the inner vector's data()
         // pointer, since we don't grow the vector after emplace_back) remain
         // stable across subsequent slice materializations.

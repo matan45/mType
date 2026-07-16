@@ -1,3 +1,4 @@
 === Pending Await Suspend (JIT-warmed) ===
 sum=20100
+sideEffects=200
 OK

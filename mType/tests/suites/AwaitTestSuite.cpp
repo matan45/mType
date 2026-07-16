@@ -1,5 +1,103 @@
 #include "AwaitTestSuite.hpp"
 #include "../../constants/ExecutionMode.hpp"
+#include "../../net/AsyncHelper.hpp"
+#include "../../runtime/EventLoop.hpp"
+
+#include <cstdint>
+#include <stdexcept>
+#include <string>
+#include <thread>
+
+namespace
+{
+    void requireAsyncInvariant(bool condition, const std::string& message)
+    {
+        if (!condition) throw std::runtime_error(message);
+    }
+
+    runtime::EventLoopPostHandle exerciseShutdownSettlementRace()
+    {
+        runtime::EventLoop loop;
+        const auto ownerThread = std::this_thread::get_id();
+        auto postHandle = loop.getPostHandle();
+        bool converterRanOnOwner = false;
+        bool callbackRanOnOwner = false;
+
+        auto promise = net::runAsync<std::thread::id>(
+            &loop,
+            []() { return std::this_thread::get_id(); },
+            [ownerThread, &converterRanOnOwner](
+                std::thread::id workerThread) -> value::Value {
+                converterRanOnOwner = workerThread != ownerThread &&
+                    std::this_thread::get_id() == ownerThread;
+                return static_cast<int64_t>(7);
+            });
+        promise->then([ownerThread, &callbackRanOnOwner](value::Value) {
+            callbackRanOnOwner = std::this_thread::get_id() == ownerThread;
+        });
+
+        // Exercise the completion-post/shutdown race directly. shutdown()
+        // must join the worker and drain its completion on this thread.
+        loop.shutdown();
+        requireAsyncInvariant(promise->isFulfilled(),
+            "shutdown abandoned an owned async completion");
+        requireAsyncInvariant(converterRanOnOwner,
+            "async Value conversion did not run on the EventLoop owner");
+        requireAsyncInvariant(callbackRanOnOwner,
+            "Promise settlement callback did not run on the EventLoop owner");
+
+        const auto result = promise->getValue();
+        requireAsyncInvariant(value::isInt(result) && value::asInt(result) == 7,
+            "async owner-thread conversion produced the wrong value");
+        requireAsyncInvariant(!postHandle.post([]() {}),
+            "shutdown accepted a callback after closing its post queue");
+        return postHandle;
+    }
+
+    void verifyAsyncShutdownSettlesOnOwner(services::ScriptInterpreter&)
+    {
+        auto expiredHandle = exerciseShutdownSettlementRace();
+        requireAsyncInvariant(
+            !expiredHandle.post([]() {}),
+            "post handle remained usable after EventLoop destruction");
+    }
+
+    void verifyCancelAllInvalidatesPostingGeneration(
+        services::ScriptInterpreter&)
+    {
+        runtime::EventLoop loop;
+        auto staleHandle = loop.getPostHandle();
+        bool cancelledCallbackRan = false;
+        bool freshCallbackRan = false;
+
+        requireAsyncInvariant(
+            staleHandle.post([&cancelledCallbackRan]() {
+                cancelledCallbackRan = true;
+            }),
+            "current-generation post handle rejected a callback");
+
+        loop.cancelAll();
+
+        requireAsyncInvariant(
+            !cancelledCallbackRan,
+            "cancelAll executed rather than discarded a stale callback");
+        requireAsyncInvariant(
+            !staleHandle.post([]() {}),
+            "cancelAll did not invalidate the retired posting generation");
+
+        auto freshHandle = loop.getPostHandle();
+        requireAsyncInvariant(
+            freshHandle.post([&freshCallbackRan]() {
+                freshCallbackRan = true;
+            }),
+            "cancelAll left the reusable EventLoop unable to accept work");
+
+        (void)loop.tick();
+        requireAsyncInvariant(
+            freshCallbackRan,
+            "fresh-generation callback was not drained after cancelAll");
+    }
+}
 
 namespace tests::testSuite
 {
@@ -227,6 +325,12 @@ namespace tests::testSuite
                         passPath + "asyncSequentialAwaitsSameTick.mt");
         addOutputVerificationTest("Async Parallel Rejection Fanout",
                         passPath + "asyncParallelRejectionFanout.mt");
+        addInterpreterCallbackTest(
+            "Async Worker Settlement Is Owner-Thread Confined", "",
+            verifyAsyncShutdownSettlesOnOwner);
+        addInterpreterCallbackTest(
+            "EventLoop Cancel Invalidates Posting Generation", "",
+            verifyCancelAllInvalidatesPostingGeneration);
 
         // MYT-265: Script-level pending promises. These force executeAwait()
         // through the event-loop suspend/resume branch instead of the

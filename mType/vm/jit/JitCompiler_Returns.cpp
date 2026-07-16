@@ -117,8 +117,17 @@ namespace vm::jit
 
     void emitReturnValueOp(JitEmissionState& s, const ExitHandler& onExit)
     {
+        if (s.stackDepth <= 0 || s.slotTypes.empty())
+        {
+            s.compileFailed = true;
+            return;
+        }
         if (onExit)
         {
+            // OSR and inline exits both read stackBase before invoking their
+            // hand-off helpers. Materialize the top value while its original
+            // stack index is still live, then clear path-local register hints.
+            flushAllHints(s);
             // MYT-185/186/187: snapshot the popped slot type so inline onExit
             // handlers can choose the correct box/unbox direction when
             // materializing the return value at endLabel.
@@ -158,6 +167,7 @@ namespace vm::jit
     void emitCallReturnValue(JitEmissionState& s,
                               const std::string& returnType, bool isPrimReturn)
     {
+        if (!checkOpStackHeadroom(s)) return;
         // MYT-211: return-value plumbing crosses helper invokes; flush.
         flushAllHints(s);
         auto& cc = s.cc;

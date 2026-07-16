@@ -17,6 +17,53 @@ namespace vm::jit
     OSRManager::OSRManager() {}
     OSRManager::~OSRManager() {}
 
+    void OSRManager::reset()
+    {
+        osrCache.clear();
+        activeCacheProgramId = {};
+        activeCacheProgram = nullptr;
+        loopProfiler.reset();
+        lastResult = OSRResult{};
+    }
+
+    OSRManager::ProgramOSRCache& OSRManager::selectCacheProgram(
+        bytecode::ProgramId programId)
+    {
+        if (activeCacheProgram && activeCacheProgramId == programId)
+        {
+            return *activeCacheProgram;
+        }
+
+        auto [it, inserted] = osrCache.try_emplace(programId);
+        (void)inserted;
+        if (!it->second) it->second = std::make_unique<ProgramOSRCache>();
+        activeCacheProgramId = programId;
+        activeCacheProgram = it->second.get();
+        return *activeCacheProgram;
+    }
+
+    OSRLoopFunction OSRManager::findCachedLoop(
+        bytecode::ProgramId programId,
+        size_t jumpBackOffset)
+    {
+        auto& programCache = selectCacheProgram(programId);
+        return jumpBackOffset < programCache.byJumpBackOffset.size()
+            ? programCache.byJumpBackOffset[jumpBackOffset]
+            : nullptr;
+    }
+
+    void OSRManager::cacheLoop(bytecode::ProgramId programId,
+                               size_t jumpBackOffset,
+                               OSRLoopFunction entry)
+    {
+        auto& programCache = selectCacheProgram(programId);
+        if (jumpBackOffset >= programCache.byJumpBackOffset.size())
+        {
+            programCache.byJumpBackOffset.resize(jumpBackOffset + 1, nullptr);
+        }
+        programCache.byJumpBackOffset[jumpBackOffset] = entry;
+    }
+
     bool OSRManager::compileAndCacheLoop(OSRState& state,
                                           size_t jumpBackOffset,
                                           const bytecode::BytecodeProgram& program,
@@ -76,7 +123,7 @@ namespace vm::jit
             return false;
         }
 
-        auto fn = codeCache.lookup(osrKey);
+        auto fn = codeCache.lookup(program.getProgramId(), osrKey);
         if (!fn)
         {
             // compileLoopOSR claimed success but the cache doesn't have the
@@ -85,7 +132,7 @@ namespace vm::jit
             return false;
         }
 
-        osrCache[jumpBackOffset] = fn;
+        cacheLoop(program.getProgramId(), jumpBackOffset, fn);
         return true;
     }
 
@@ -94,7 +141,8 @@ namespace vm::jit
                              vm::runtime::ExecutionContext& context,
                              vm::runtime::VirtualMachine& vm,
                              JitCompiler& compiler,
-                             JitCodeCache& codeCache)
+                             JitCodeCache& codeCache,
+                             size_t approximateLoopSpan)
     {
         // MYT-248/249/250 bisect knob (MTYPE_DISABLE_OSR) removed — the
         // underlying cc.new_stack overrun in OSR-emitted asmjit code was
@@ -110,19 +158,19 @@ namespace vm::jit
         // and fix the underlying overrun rather than reintroducing the kill
         // switch.
 
-        LoopId loopId{jumpBackOffset};
+        LoopId loopId{program.getProgramId(), jumpBackOffset};
 
-        auto cacheIt = osrCache.find(jumpBackOffset);
-        if (cacheIt != osrCache.end())
+        if (auto cachedLoop = findCachedLoop(loopId.programId,
+                                             loopId.jumpBackOffset))
         {
             OSRState state;
             if (captureState(state, jumpBackOffset, program, context) != OSRBailoutReason::NONE)
                 return false;
-            return executeOSRLoop(cacheIt->second, state, program, context, vm, codeCache);
+            return executeOSRLoop(cachedLoop, state, program, context, vm, codeCache);
         }
 
         // Profile — returns true only on exact threshold crossing.
-        if (!loopProfiler.recordIteration(loopId))
+        if (!loopProfiler.recordIteration(loopId, approximateLoopSpan))
         {
             return false;
         }
@@ -153,7 +201,10 @@ namespace vm::jit
         }
 
         loopProfiler.markCompiled(loopId);
-        bool ok = executeOSRLoop(osrCache[jumpBackOffset], state, program, context, vm, codeCache);
+        auto compiledLoop = findCachedLoop(loopId.programId,
+                                           loopId.jumpBackOffset);
+        bool ok = compiledLoop
+            && executeOSRLoop(compiledLoop, state, program, context, vm, codeCache);
         return ok;
     }
 

@@ -58,6 +58,11 @@ namespace vm::optimization
         INLINE_VALUE_REQUIRES_MATERIALISATION,
         CALLEE_NATIVE,
         CALLEE_NOT_FOUND,
+        // Method-IC metadata is meaningful only in the BytecodeProgram that
+        // owns it. Inlining a library-program entry through the caller's
+        // instruction stream would paste unrelated bytecode at the same
+        // offsets, so cross-program callees must stay on the dispatch path.
+        CROSS_PROGRAM_CALLEE,
         // MYT-185: emitted for callee bodies containing opcodes the JIT
         // inliner's codegen loop does not handle (e.g. STRING_BUILD). The
         // slow-path generic dispatch honours these opcodes via the interpreter

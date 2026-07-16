@@ -237,6 +237,7 @@ namespace vm::jit
     static bool emitPushOps(JitEmissionState& s,
                              const bytecode::BytecodeProgram::Instruction& instr)
     {
+        if (!checkOpStackHeadroom(s)) return true;
         auto& cc = s.cc;
         switch (instr.opcode)
         {
@@ -245,13 +246,14 @@ namespace vm::jit
                 if (instr.inlineOperands[0] >= s.program.getConstantPool().integers.size())
                 { s.compileFailed = true; return true; }
                 int64_t val = s.program.getConstantPool().getInteger(instr.inlineOperands[0]);
-                // MYT-211: publish a constant hint so downstream consumers
-                // (cc.cmp imm, imm-folded shifts, etc.) can fold the literal
-                // without going through memory. We still write the value to
-                // memory so non-hint-aware consumers stay correct.
-                Gp tmp = cc.new_gp64();
-                cc.mov(tmp, val);
-                cc.mov(Mem(s.stackBase, s.stackDepth * 8), tmp);
+                // MYT-211: unboxed literals remain virtual until consumed or
+                // flushed at a helper/control-flow boundary.
+                if (s.usesBoxedTypes)
+                {
+                    Gp tmp = cc.new_gp64();
+                    cc.mov(tmp, val);
+                    cc.mov(Mem(s.stackBase, s.stackDepth * 8), tmp);
+                }
                 s.slotTypes.push_back(SlotType::INT);
                 publishConstHint(s, s.stackDepth, val);
                 s.stackDepth++;
@@ -264,19 +266,24 @@ namespace vm::jit
                 double dval = s.program.getConstantPool().getFloat(instr.inlineOperands[0]);
                 uint64_t bits;
                 std::memcpy(&bits, &dval, sizeof(bits));
-                Gp tmp = cc.new_gp64();
-                cc.mov(tmp, static_cast<int64_t>(bits));
-                cc.mov(Mem(s.stackBase, s.stackDepth * 8), tmp);
+                Gp bitsReg = cc.new_gp64();
+                cc.mov(bitsReg, static_cast<int64_t>(bits));
+                Vec valueReg = cc.new_xmm();
+                cc.movq(valueReg, bitsReg);
                 s.slotTypes.push_back(SlotType::FLOAT);
+                publishXmmHint(s, s.stackDepth, valueReg, /*dirty=*/true);
                 s.stackDepth++;
                 return true;
             }
             case OpCode::PUSH_BOOL:
             {
                 int64_t val = (instr.inlineOperands[0] != 0) ? 1 : 0;
-                Gp tmp = cc.new_gp64();
-                cc.mov(tmp, val);
-                cc.mov(Mem(s.stackBase, s.stackDepth * 8), tmp);
+                if (s.usesBoxedTypes)
+                {
+                    Gp tmp = cc.new_gp64();
+                    cc.mov(tmp, val);
+                    cc.mov(Mem(s.stackBase, s.stackDepth * 8), tmp);
+                }
                 s.slotTypes.push_back(SlotType::BOOL);
                 publishConstHint(s, s.stackDepth, val);
                 s.stackDepth++;
@@ -297,7 +304,6 @@ namespace vm::jit
                 }
                 else
                 {
-                    cc.mov(qword_ptr(s.stackBase, s.stackDepth * 8), 0);
                     s.slotTypes.push_back(SlotType::INT);
                     publishConstHint(s, s.stackDepth, 0);
                 }
@@ -309,6 +315,12 @@ namespace vm::jit
 
     static bool emitDupOp(JitEmissionState& s)
     {
+        if (s.stackDepth <= 0 || s.slotTypes.empty())
+        {
+            s.compileFailed = true;
+            return true;
+        }
+        if (!checkOpStackHeadroom(s)) return true;
         // MYT-211: DUP isn't on the hot benchmark path. Flushing keeps the
         // existing memory-based logic exact and correct for any prior hint.
         flushAllHints(s);
@@ -340,6 +352,11 @@ namespace vm::jit
 
     static bool emitSwapOp(JitEmissionState& s)
     {
+        if (s.stackDepth < 2 || s.slotTypes.size() < 2)
+        {
+            s.compileFailed = true;
+            return true;
+        }
         // MYT-211: SWAP isn't a hot path; flush for correctness.
         flushAllHints(s);
         auto& cc = s.cc;
@@ -401,6 +418,11 @@ namespace vm::jit
 
             case OpCode::POP:
             {
+                if (s.stackDepth <= 0 || s.slotTypes.empty())
+                {
+                    s.compileFailed = true;
+                    return true;
+                }
                 SlotType pt = popType(s);
                 s.stackDepth--;
                 // MYT-211: drop the popped slot's hint without flushing — the

@@ -1,213 +1,195 @@
 #include "AsyncPromiseValue.hpp"
 #include <cstddef>
 #include <iostream>
+#include <optional>
+
+namespace
+{
+    template<typename Callback, typename Invoker>
+    void invokeCallbacks(
+        std::vector<Callback>& callbacks,
+        Invoker&& invoke,
+        const char* callbackKind,
+        std::vector<std::string>& errors)
+    {
+        for (auto& callback : callbacks)
+        {
+            try
+            {
+                invoke(callback);
+            }
+            catch (const std::exception& exception)
+            {
+                errors.push_back(
+                    "Error in " + std::string(callbackKind) +
+                    " callback: " + exception.what());
+            }
+        }
+    }
+
+    void logCallbackErrors(const std::vector<std::string>& errors)
+    {
+        for (const auto& error : errors)
+        {
+            std::cerr << "AsyncPromiseValue: " << error << std::endl;
+        }
+    }
+}
+
 namespace value
 {
     void AsyncPromiseValue::then(std::function<void(Value)> callback)
     {
-        std::lock_guard<std::mutex> lock(callbackMutex);
-
-        if (isFulfilled())
+        std::optional<Value> settledValue;
         {
-            // Already resolved - execute immediately
-            callback(getValue());
+            std::lock_guard<std::mutex> lock(callbackMutex);
+            const PromiseState currentState = getState();
+            if (currentState == PromiseState::FULFILLED)
+            {
+                settledValue = getValue();
+            }
+            else if (currentState == PromiseState::PENDING)
+            {
+                thenCallbacks.push_back(std::move(callback));
+                return;
+            }
         }
-        else
+
+        // Never invoke user code while callbackMutex is held. In particular,
+        // the callback may register another callback on this same promise.
+        if (settledValue)
         {
-            // Store for later execution
-            thenCallbacks.push_back(callback);
+            callback(*settledValue);
         }
     }
 
     void AsyncPromiseValue::catch_(std::function<void(std::string)> callback)
     {
-        std::lock_guard<std::mutex> lock(callbackMutex);
-
-        if (isRejected())
+        std::optional<std::string> settledError;
         {
-            // Already rejected - execute immediately
-            callback(getError());
+            std::lock_guard<std::mutex> lock(callbackMutex);
+            const PromiseState currentState = getState();
+            if (currentState == PromiseState::REJECTED)
+            {
+                settledError = getError();
+            }
+            else if (currentState == PromiseState::PENDING)
+            {
+                catchCallbacks.push_back(std::move(callback));
+                return;
+            }
         }
-        else
+
+        if (settledError)
         {
-            // Store for later execution
-            catchCallbacks.push_back(callback);
+            callback(*settledError);
         }
     }
 
     void AsyncPromiseValue::finally(std::function<void()> callback)
     {
-        std::lock_guard<std::mutex> lock(callbackMutex);
-
-        if (isFulfilled() || isRejected())
+        bool runNow = false;
         {
-            // Already settled - execute immediately
-            callback();
+            std::lock_guard<std::mutex> lock(callbackMutex);
+            runNow = getState() != PromiseState::PENDING;
+            if (!runNow)
+            {
+                finallyCallbacks.push_back(std::move(callback));
+                return;
+            }
         }
-        else
+
+        if (runNow)
         {
-            // Store for later execution
-            finallyCallbacks.push_back(callback);
+            callback();
         }
     }
 
     void AsyncPromiseValue::resolve(const Value& val)
     {
-        // Local storage for errors to log outside the lock
+        std::vector<std::function<void(Value)>> callbacks;
+        std::vector<std::function<void()>> finalizers;
         std::vector<std::string> errorsToLog;
 
         {
             std::lock_guard<std::mutex> lock(callbackMutex);
-
-            // Call parent resolve() which validates state
             PromiseValue::resolve(val);
-
-            // Execute all .then() callbacks
-            for (auto& callback : thenCallbacks)
-            {
-                try
-                {
-                    callback(val);
-                }
-                catch (const std::exception& e)
-                {
-                    std::string errorMsg = "Error in .then() callback: " + std::string(e.what());
-                    callbackErrors.push_back(errorMsg);
-                    errorsToLog.push_back(errorMsg);
-                }
-            }
-
-            // Execute .finally() callbacks
-            for (auto& callback : finallyCallbacks)
-            {
-                try
-                {
-                    callback();
-                }
-                catch (const std::exception& e)
-                {
-                    std::string errorMsg = "Error in .finally() callback: " + std::string(e.what());
-                    callbackErrors.push_back(errorMsg);
-                    errorsToLog.push_back(errorMsg);
-                }
-            }
-
-            // Clear callbacks after execution
-            thenCallbacks.clear();
-            finallyCallbacks.clear();
+            callbacks.swap(thenCallbacks);
+            finalizers.swap(finallyCallbacks);
+            catchCallbacks.clear();
         }
 
-        // Log errors outside the lock to avoid I/O under lock
-        for (const auto& error : errorsToLog)
+        invokeCallbacks(callbacks, [&val](auto& callback) { callback(val); },
+                        ".then()", errorsToLog);
+        invokeCallbacks(finalizers, [](auto& callback) { callback(); },
+                        ".finally()", errorsToLog);
+
+        if (!errorsToLog.empty())
         {
-            std::cerr << "AsyncPromiseValue: " << error << std::endl;
+            std::lock_guard<std::mutex> lock(callbackMutex);
+            callbackErrors.insert(
+                callbackErrors.end(), errorsToLog.begin(), errorsToLog.end());
         }
+
+        logCallbackErrors(errorsToLog);
     }
 
     void AsyncPromiseValue::reject(const std::string& error)
     {
-        // Local storage for errors to log outside the lock
+        std::vector<std::function<void(std::string)>> callbacks;
+        std::vector<std::function<void()>> finalizers;
         std::vector<std::string> errorsToLog;
 
         {
             std::lock_guard<std::mutex> lock(callbackMutex);
-
-            // Call parent reject() which validates state
             PromiseValue::reject(error);
-
-            // Execute all .catch() callbacks
-            for (auto& callback : catchCallbacks)
-            {
-                try
-                {
-                    callback(error);
-                }
-                catch (const std::exception& e)
-                {
-                    std::string errorMsg = "Error in .catch() callback: " + std::string(e.what());
-                    callbackErrors.push_back(errorMsg);
-                    errorsToLog.push_back(errorMsg);
-                }
-            }
-
-            // Execute .finally() callbacks
-            for (auto& callback : finallyCallbacks)
-            {
-                try
-                {
-                    callback();
-                }
-                catch (const std::exception& e)
-                {
-                    std::string errorMsg = "Error in .finally() callback: " + std::string(e.what());
-                    callbackErrors.push_back(errorMsg);
-                    errorsToLog.push_back(errorMsg);
-                }
-            }
-
-            // Clear callbacks after execution
-            catchCallbacks.clear();
-            finallyCallbacks.clear();
+            callbacks.swap(catchCallbacks);
+            finalizers.swap(finallyCallbacks);
+            thenCallbacks.clear();
         }
 
-        // Log errors outside the lock to avoid I/O under lock
-        for (const auto& error : errorsToLog)
+        invokeCallbacks(callbacks, [&error](auto& callback) { callback(error); },
+                        ".catch()", errorsToLog);
+        invokeCallbacks(finalizers, [](auto& callback) { callback(); },
+                        ".finally()", errorsToLog);
+
+        if (!errorsToLog.empty())
         {
-            std::cerr << "AsyncPromiseValue: " << error << std::endl;
+            std::lock_guard<std::mutex> lock(callbackMutex);
+            callbackErrors.insert(
+                callbackErrors.end(), errorsToLog.begin(), errorsToLog.end());
         }
+
+        logCallbackErrors(errorsToLog);
     }
 
     void AsyncPromiseValue::rejectWithException(const Value& exceptionVal, const std::string& typeName, const std::string& error)
     {
-        // Local storage for errors to log outside the lock
+        std::vector<std::function<void(std::string)>> callbacks;
+        std::vector<std::function<void()>> finalizers;
         std::vector<std::string> errorsToLog;
 
         {
             std::lock_guard<std::mutex> lock(callbackMutex);
-
-            // Call parent rejectWithException() which validates state and stores exception
             PromiseValue::rejectWithException(exceptionVal, typeName, error);
-
-            // Execute all .catch() callbacks
-            for (auto& callback : catchCallbacks)
-            {
-                try
-                {
-                    callback(error);
-                }
-                catch (const std::exception& e)
-                {
-                    std::string errorMsg = "Error in .catch() callback: " + std::string(e.what());
-                    callbackErrors.push_back(errorMsg);
-                    errorsToLog.push_back(errorMsg);
-                }
-            }
-
-            // Execute .finally() callbacks
-            for (auto& callback : finallyCallbacks)
-            {
-                try
-                {
-                    callback();
-                }
-                catch (const std::exception& e)
-                {
-                    std::string errorMsg = "Error in .finally() callback: " + std::string(e.what());
-                    callbackErrors.push_back(errorMsg);
-                    errorsToLog.push_back(errorMsg);
-                }
-            }
-
-            // Clear callbacks after execution
-            catchCallbacks.clear();
-            finallyCallbacks.clear();
+            callbacks.swap(catchCallbacks);
+            finalizers.swap(finallyCallbacks);
+            thenCallbacks.clear();
         }
 
-        // Log errors outside the lock to avoid I/O under lock
-        for (const auto& error : errorsToLog)
+        invokeCallbacks(callbacks, [&error](auto& callback) { callback(error); },
+                        ".catch()", errorsToLog);
+        invokeCallbacks(finalizers, [](auto& callback) { callback(); },
+                        ".finally()", errorsToLog);
+
+        if (!errorsToLog.empty())
         {
-            std::cerr << "AsyncPromiseValue: " << error << std::endl;
+            std::lock_guard<std::mutex> lock(callbackMutex);
+            callbackErrors.insert(
+                callbackErrors.end(), errorsToLog.begin(), errorsToLog.end());
         }
+
+        logCallbackErrors(errorsToLog);
     }
 
     std::shared_ptr<AsyncPromiseValue> AsyncPromiseValue::chain(

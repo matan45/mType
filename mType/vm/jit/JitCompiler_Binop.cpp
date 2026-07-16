@@ -190,8 +190,8 @@ namespace vm::jit
         }
 
         emitCmpPrimitive(s, kind, result, lType, rType);
-        // MYT-211: write the boolean result via publishGpHint (always writes
-        // stackBase). Same final memory state as the original cc.mov.
+        // MYT-211: retain the boolean result as a GP stack hint. The hint is
+        // materialized at the next helper/control-flow/label boundary.
         s.slotTypes.push_back(SlotType::BOOL);
         publishGpHint(s, s.stackDepth - 1, result);
     }

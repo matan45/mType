@@ -1,4 +1,7 @@
 #include "BytecodeOptimizationTestSuite.hpp"
+#include "BytecodeProgramLifecycleTests.hpp"
+#include "BytecodeProgramBindingTests.hpp"
+#include "BytecodeRuntimeOptimizationTests.hpp"
 
 #include "../../vm/bytecode/BytecodeProgram.hpp"
 #include "../../vm/bytecode/OpCode.hpp"
@@ -164,7 +167,8 @@ namespace tests::testSuite
                 program.emit(OpCode::ARRAY_GET);
                 program.emit(OpCode::STORE_LOCAL, 0);
 
-                auto cfg = vm::optimization::BytecodeOptimizationConfig::noOptimization();
+                auto cfg =
+                    vm::optimization::BytecodeOptimizationConfig::noOptimization();
                 cfg.setLocalArrayFusion(true);
                 vm::optimization::BytecodeOptimizer optimizer(cfg);
                 auto result = optimizer.optimize(program);
@@ -243,8 +247,8 @@ namespace tests::testSuite
 
                 optimizePeephole(program);
 
-                requireSinglePushInt(program, std::numeric_limits<int64_t>::min(),
-                    "INT64_MIN / -1");
+                requireSinglePushInt(program,
+                    std::numeric_limits<int64_t>::min(), "INT64_MIN / -1");
             });
 
         addCallbackTest("Peephole folds INT64_MIN modulo -1 without host UB",
@@ -278,5 +282,9 @@ namespace tests::testSuite
                 require(program.getInstruction(1).opcode == OpCode::NEG,
                     "second instruction should remain NEG");
             });
+
+        registerBytecodeProgramLifecycleTests(*this);
+        registerBytecodeProgramBindingTests(*this);
+        registerBytecodeRuntimeOptimizationTests(*this);
     }
 }

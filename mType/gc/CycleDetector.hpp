@@ -76,8 +76,7 @@ namespace gc
 
     private:
         // Bacon algorithm phases
-        // markRoots returns any unprocessed suspects (on abort) for re-insertion
-        std::vector<void*> markRoots(const std::vector<void*>& suspectList);
+        void markRoots(const std::vector<void*>& suspectList);
         void scanRoots();
         void collectRoots();
 
@@ -85,11 +84,14 @@ namespace gc
         void markGray(void* object);
         void scan(void* object);
         void scanBlack(void* object);
+        void preserveExternalReachability();
         void collectWhite(void* object);
 
         // Helpers
         void forEachReference(void* object, std::function<void(void*)> callback);
         bool shouldAbort() const;
+        CollectionResult abortCollection(
+            const std::vector<void*>& candidateRoots);
         void resetState();
 
         // External roots (from VM stack, globals, etc.)

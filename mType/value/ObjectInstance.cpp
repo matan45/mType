@@ -9,6 +9,11 @@
 namespace runtimeTypes::klass
 {
 
+    ObjectInstance::~ObjectInstance()
+    {
+        notifyReferenceRemovalsForGC();
+    }
+
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4413)  // offsetof on non-standard-layout (enable_shared_from_this base)
@@ -32,6 +37,7 @@ namespace runtimeTypes::klass
 
     void ObjectInstance::resetForRecycle()
     {
+        notifyReferenceRemovalsForGC();
         // unordered_map::clear() destroys nodes (releasing Value bridges)
         // but keeps the bucket array.
         fieldValues.clear();
@@ -110,13 +116,10 @@ namespace runtimeTypes::klass
 
         if (field) {
             if (field->isStatic()) {
-                Value oldValue = field->getValue();
-                void* oldPtr = gc::extractPointer(oldValue);
-                void* newPtr = gc::extractPointer(value);
-                if (oldPtr != nullptr && oldPtr != newPtr)
-                {
-                    gc::GC::onRefCountDecrement(oldPtr);
-                }
+                // FieldDefinition owns the static Value slot and applies its
+                // teardown barrier in setValue().  Duplicating it here paid a
+                // second coordinator lock/suspect lookup for every heap-valued
+                // static write without changing the resulting suspect set.
                 field->setValue(value);
             } else {
                 size_t idx = classDefinition->getFieldIndex(fieldName);

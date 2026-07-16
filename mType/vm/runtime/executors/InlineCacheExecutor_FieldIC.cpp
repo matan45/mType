@@ -15,7 +15,8 @@ namespace vm::runtime
             utils::ErrorLocationHelper::throwRuntimeError(context, "GET_FIELD requires operand");
         }
 
-        FieldInlineCache& cache = icTable.getFieldIC(context.instructionPointer);
+        FieldInlineCache& cache = icTable.getFieldIC(
+            context.program->getProgramId(), context.instructionPointer);
 
         value::Value objectValue = context.stackManager->pop();
 
@@ -115,7 +116,8 @@ namespace vm::runtime
             utils::ErrorLocationHelper::throwRuntimeError(context, "SET_FIELD requires operand");
         }
 
-        FieldInlineCache& cache = icTable.getFieldIC(context.instructionPointer);
+        FieldInlineCache& cache = icTable.getFieldIC(
+            context.program->getProgramId(), context.instructionPointer);
 
         const std::string& fieldName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         value::Value newValue = context.stackManager->pop();
@@ -197,7 +199,8 @@ namespace vm::runtime
     {
         using namespace vm::jit::ic;
 
-        FieldInlineCache& cache = icTable.getFieldIC(context.instructionPointer);
+        FieldInlineCache& cache = icTable.getFieldIC(
+            context.program->getProgramId(), context.instructionPointer);
 
         const std::string& fieldName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         value::Value newValue = context.stackManager->pop();
@@ -267,7 +270,8 @@ namespace vm::runtime
         auto* instance = value::asObjectInstanceRaw(objectValue);
         auto* classDef = instance->getClassDefinitionRaw();
 
-        FieldInlineCache& cache = icTable.getFieldIC(context.instructionPointer);
+        FieldInlineCache& cache = icTable.getFieldIC(
+            context.program->getProgramId(), context.instructionPointer);
 
         if (cache.state == ICState::MONOMORPHIC || cache.state == ICState::POLYMORPHIC)
         {
@@ -336,7 +340,8 @@ namespace vm::runtime
 
         // Only promote once the IC has settled to a single shape. POLY sites
         // are a future CACHED_POLY variant (out of MVP scope).
-        FieldInlineCache& cache = icTable.getFieldIC(ip);
+        FieldInlineCache& cache = icTable.getFieldIC(
+            context.program->getProgramId(), ip);
         if (cache.state != ICState::MONOMORPHIC) return;
 
         auto& state = context.getOrCreateCachedState(ip);

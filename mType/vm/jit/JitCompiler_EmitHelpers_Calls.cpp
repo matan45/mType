@@ -40,6 +40,7 @@ namespace vm::jit
                              const bytecode::BytecodeProgram::FunctionMetadata& callee,
                              bool materialiseValueReceiver)
     {
+        flushAllHints(s);
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
         static_assert(valueSize % 8 == 0,
@@ -217,6 +218,7 @@ namespace vm::jit
     void emitInlineReturnMaterialize(JitEmissionState& s, int receiverStackIdx,
                                      SlotType returnSlotType)
     {
+        flushAllHints(s);
         auto& cc = s.cc;
         constexpr size_t valueSize = JitEmissionState::VALUE_SIZE;
 
@@ -278,6 +280,7 @@ namespace vm::jit
     void emitInlineLocalDestroy(JitEmissionState& s, size_t localsBaseSlot,
                                 const bytecode::BytecodeProgram::FunctionMetadata& callee)
     {
+        flushAllHints(s);
         auto& cc = s.cc;
         const size_t total = callee.parameterCount;
         for (size_t i = 0; i < total; ++i)
@@ -308,14 +311,29 @@ namespace vm::jit
     }
 
     bool finalizeAndStore(Compiler& cc, CodeHolder& code,
-                          JitCodeCache& codeCache, const std::string& key,
-                          size_t& compileCount, size_t& bailoutCount)
+                          JitCodeCache& codeCache,
+                          bytecode::ProgramId programId,
+                          const std::string& key,
+                          size_t& compileCount, size_t& bailoutCount,
+                          uint64_t& generatedCodeBytes)
     {
         Error err = cc.finalize();
         if (err != Error::kOk)
         {
             std::cerr << "[JIT] finalize failed for '" << key << "': "
                       << DebugUtils::error_as_string(err) << "\n";
+            bailoutCount++;
+            return false;
+        }
+
+        const size_t codeBytes = code.code_size();
+        if (!codeCache.canReserve(codeBytes))
+        {
+            std::cerr << "[JIT] code cache budget exceeded for '" << key
+                      << "' (" << codeBytes << " bytes requested, "
+                      << codeCache.byteSize() << "/" << codeCache.byteBudget()
+                      << " bytes live)\n";
+            codeCache.recordBudgetReject();
             bailoutCount++;
             return false;
         }
@@ -330,7 +348,14 @@ namespace vm::jit
             return false;
         }
 
-        codeCache.store(key, fn);
+        if (!codeCache.store(programId, key, fn, codeBytes))
+        {
+            std::cerr << "[JIT] duplicate code-cache entry for '" << key
+                      << "'; coordinated invalidation is required before recompiling\n";
+            bailoutCount++;
+            return false;
+        }
+        generatedCodeBytes += codeBytes;
         compileCount++;
         return true;
     }

@@ -249,6 +249,14 @@ namespace vm::optimization
         if (!entry.shape || !entry.funcMetadata)
             return InlineDecision::UNKNOWN_SHAPE;
 
+        // FunctionMetadata::startOffset/instructionCount index the owning
+        // program's instruction stream. The bytecode inliner currently emits
+        // only from `program`, so accepting a library-program entry here would
+        // splice unrelated caller instructions into the native body.
+        // A null owner is equally unsafe: require positive ownership proof.
+        if (entry.program != &program)
+            return InlineDecision::CROSS_PROGRAM_CALLEE;
+
         const auto* callee = static_cast<const BytecodeProgram::FunctionMetadata*>(
             entry.funcMetadata);
 
@@ -370,6 +378,7 @@ namespace vm::optimization
             case InlineDecision::INLINE_VALUE_REQUIRES_MATERIALISATION: return "INLINE_VALUE_REQUIRES_MATERIALISATION";
             case InlineDecision::CALLEE_NATIVE:              return "CALLEE_NATIVE";
             case InlineDecision::CALLEE_NOT_FOUND:           return "CALLEE_NOT_FOUND";
+            case InlineDecision::CROSS_PROGRAM_CALLEE:       return "CROSS_PROGRAM_CALLEE";
             case InlineDecision::HAS_UNSUPPORTED_OPCODE:     return "HAS_UNSUPPORTED_OPCODE";
         }
         return "UNKNOWN";

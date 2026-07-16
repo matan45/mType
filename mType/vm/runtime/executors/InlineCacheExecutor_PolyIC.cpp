@@ -32,7 +32,8 @@ namespace vm::runtime
             if (existing->polyCachedDeoptCount >= 1) return;
         }
 
-        MethodInlineCache& cache = icTable.getMethodIC(ip);
+        MethodInlineCache& cache = icTable.getMethodIC(
+            context.program->getProgramId(), ip);
         if (cache.state != ICState::POLYMORPHIC) return;
 
         // All-or-nothing per-entry guards. A site with ANY ValueObject /

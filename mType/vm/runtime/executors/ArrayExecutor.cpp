@@ -48,7 +48,8 @@ namespace vm::runtime
         const std::string& elementTypeName = context.program->getConstantPool().getString(instr.inlineOperands[0]);
         // Compiler emits: [typeIndex, dimensionCount (total), specifiedDimensions]
         size_t totalDimensions = instr.inlineOperands[1];
-        size_t specifiedDimensions = instr.numOperands() > 2 ? instr.inlineOperands[2] : totalDimensions;
+        size_t specifiedDimensions = instr.numOperands() > 2
+            ? instr.operandAt(2) : totalDimensions;
 
         // Pop dimension sizes from stack (in reverse order - last dimension first)
         std::vector<int64_t> dimensions;

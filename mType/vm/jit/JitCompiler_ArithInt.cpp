@@ -15,6 +15,12 @@ namespace vm::jit
 
     namespace
     {
+        bool fitsSignedImm32(int64_t value)
+        {
+            return value >= std::numeric_limits<int32_t>::min() &&
+                   value <= std::numeric_limits<int32_t>::max();
+        }
+
         bool emitSimpleIntArithOps(JitEmissionState& s,
                                     const bytecode::BytecodeProgram::Instruction& instr)
         {
@@ -29,15 +35,40 @@ namespace vm::jit
             SlotType lType = popType(s);
             emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT);
             emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
-            // MYT-211: reg-reg arith + memory store via publishGpHint.
-            Gp right = consumeGpHint(s, s.stackDepth);
+            int64_t rightConstant = 0;
+            const bool hasConstant =
+                consumeIntConstantHint(s, s.stackDepth, rightConstant);
             Gp left = consumeGpHint(s, s.stackDepth - 1);
-            switch (instr.opcode)
+            if (hasConstant && fitsSignedImm32(rightConstant))
             {
-                case OpCode::ADD_INT: cc.add(left, right); break;
-                case OpCode::SUB_INT: cc.sub(left, right); break;
-                case OpCode::MUL_INT: cc.imul(left, right); break;
-                default: break;
+                const Imm immediate(rightConstant);
+                switch (instr.opcode)
+                {
+                    case OpCode::ADD_INT: cc.add(left, immediate); break;
+                    case OpCode::SUB_INT: cc.sub(left, immediate); break;
+                    case OpCode::MUL_INT: cc.imul(left, left, immediate); break;
+                    default: break;
+                }
+            }
+            else
+            {
+                Gp right;
+                if (hasConstant)
+                {
+                    right = cc.new_gp64();
+                    cc.mov(right, rightConstant);
+                }
+                else
+                {
+                    right = consumeGpHint(s, s.stackDepth);
+                }
+                switch (instr.opcode)
+                {
+                    case OpCode::ADD_INT: cc.add(left, right); break;
+                    case OpCode::SUB_INT: cc.sub(left, right); break;
+                    case OpCode::MUL_INT: cc.imul(left, right); break;
+                    default: break;
+                }
             }
             s.slotTypes.push_back(SlotType::INT);
             publishGpHint(s, s.stackDepth - 1, left);
@@ -46,7 +77,9 @@ namespace vm::jit
 
         bool emitDivIntOp(JitEmissionState& s)
         {
-            // MYT-211: reg-based DIV with publish at end.
+            // DIV contains a helper-call slow path and internal labels, so it
+            // is a write-back boundary for all incoming hints.
+            flushAllHints(s);
             auto& cc = s.cc;
             s.stackDepth--;
             SlotType rType = popType(s);
@@ -128,16 +161,40 @@ namespace vm::jit
             emitEnsureUnboxed(s, s.stackDepth, rType, SlotType::INT);
             emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
 
-            Gp right = cc.new_gp64();
-            Gp left = cc.new_gp64();
-            cc.mov(right, Mem(s.stackBase, s.stackDepth * 8));
-            cc.mov(left, Mem(s.stackBase, (s.stackDepth - 1) * 8));
-            switch (opcode)
+            int64_t rightConstant = 0;
+            const bool hasConstant =
+                consumeIntConstantHint(s, s.stackDepth, rightConstant);
+            Gp left = consumeGpHint(s, s.stackDepth - 1);
+            if (hasConstant && fitsSignedImm32(rightConstant))
             {
-                case OpCode::BITWISE_AND_OP: cc.and_(left, right); break;
-                case OpCode::BITWISE_OR_OP:  cc.or_(left, right); break;
-                case OpCode::BITWISE_XOR_OP: cc.xor_(left, right); break;
-                default: break;
+                const Imm immediate(rightConstant);
+                switch (opcode)
+                {
+                    case OpCode::BITWISE_AND_OP: cc.and_(left, immediate); break;
+                    case OpCode::BITWISE_OR_OP:  cc.or_(left, immediate); break;
+                    case OpCode::BITWISE_XOR_OP: cc.xor_(left, immediate); break;
+                    default: break;
+                }
+            }
+            else
+            {
+                Gp right;
+                if (hasConstant)
+                {
+                    right = cc.new_gp64();
+                    cc.mov(right, rightConstant);
+                }
+                else
+                {
+                    right = consumeGpHint(s, s.stackDepth);
+                }
+                switch (opcode)
+                {
+                    case OpCode::BITWISE_AND_OP: cc.and_(left, right); break;
+                    case OpCode::BITWISE_OR_OP:  cc.or_(left, right); break;
+                    case OpCode::BITWISE_XOR_OP: cc.xor_(left, right); break;
+                    default: break;
+                }
             }
             s.slotTypes.push_back(SlotType::INT);
             publishGpHint(s, s.stackDepth - 1, left);
@@ -190,6 +247,9 @@ namespace vm::jit
                 return true;
             }
 
+            // The dynamic range-error path invokes a C++ helper. Materialize
+            // all live stack values before crossing that boundary.
+            flushAllHints(s);
             Gp count = consumeGpHint(s, s.stackDepth);
             Gp left = consumeGpHint(s, s.stackDepth - 1);
 

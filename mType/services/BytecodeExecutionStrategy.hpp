@@ -29,16 +29,21 @@ namespace services
         std::shared_ptr<vm::runtime::VirtualMachine> vm;
         ImportResolver* importResolver;
         ScriptAPI* scriptAPI;  // For updating bytecode program reference
+        // The VM, ScriptAPI, ICs, and native code retain raw pointers into the
+        // active program. Keep it alive until a coordinated runtime reset and
+        // unbind has completed.
+        std::unique_ptr<vm::bytecode::BytecodeProgram> activeProgram;
 
         // Helper for executing compiled bytecode program
         value::Value executeBytecodeProgram(const vm::bytecode::BytecodeProgram& program);
+        void releaseActiveProgram();
 
     public:
         BytecodeExecutionStrategy(vm::compiler::BytecodeCompiler* comp,
                                  std::shared_ptr<vm::runtime::VirtualMachine> virtualMachine,
                                  ImportResolver* resolver,
                                  ScriptAPI* api = nullptr);
-        ~BytecodeExecutionStrategy() override = default;
+        ~BytecodeExecutionStrategy() override;
 
         value::Value execute(ast::ASTNode* ast) override;
     };

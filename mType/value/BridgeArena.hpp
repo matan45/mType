@@ -24,7 +24,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <new>
-#include <vector>
 
 namespace value
 {
@@ -55,10 +54,10 @@ namespace value
         void* acquireSlot(BridgeKind k, size_t /*bytes*/) noexcept
         {
             auto& bucket = buckets_[static_cast<size_t>(k)];
-            if (!bucket.slots.empty())
+            if (bucket.count != 0)
             {
-                void* mem = bucket.slots.back();
-                bucket.slots.pop_back();
+                void* mem = bucket.slots[--bucket.count];
+                bucket.slots[bucket.count] = nullptr;
                 --stats_.cachedSlots;
                 ++stats_.hits;
                 return mem;
@@ -71,9 +70,9 @@ namespace value
         {
             if (!mem) return;
             auto& bucket = buckets_[static_cast<size_t>(k)];
-            if (bucket.slots.size() < bucket.cap)
+            if (bucket.count < bucket.cap)
             {
-                bucket.slots.push_back(mem);
+                bucket.slots[bucket.count++] = mem;
                 ++stats_.cachedSlots;
                 return;
             }
@@ -85,11 +84,12 @@ namespace value
         {
             for (auto& bucket : buckets_)
             {
-                for (void* mem : bucket.slots)
+                for (size_t i = 0; i < bucket.count; ++i)
                 {
-                    freeAligned(mem);
+                    freeAligned(bucket.slots[i]);
+                    bucket.slots[i] = nullptr;
                 }
-                bucket.slots.clear();
+                bucket.count = 0;
             }
             stats_.cachedSlots = 0;
             ++stats_.resets;
@@ -100,7 +100,8 @@ namespace value
     private:
         struct Bucket
         {
-            std::vector<void*> slots;
+            std::array<void*, HOT_CAP> slots{};
+            size_t count = 0;
             size_t cap = COLD_CAP;
         };
 

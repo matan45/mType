@@ -1,8 +1,13 @@
 #pragma once
+
+#include <cstddef>
+#include <cstdint>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
-#include <cstdint>
+
+#include "JitIdentity.hpp"
 
 namespace vm::jit
 {
@@ -15,28 +20,41 @@ namespace vm::jit
     public:
         explicit JitProfiler(uint32_t hotThreshold = 100);
 
-        // Record a function entry — returns true if function just became hot
-        bool recordEntry(const std::string& functionName);
+        // Record a function entry - returns true if function just became hot.
+        // A zero body size preserves the configured threshold exactly. This
+        // keeps custom-threshold callers source-compatible while allowing the
+        // VM to tier larger, higher-work invocations modestly earlier.
+        bool recordEntry(bytecode::ProgramId programId,
+                         std::string_view functionName,
+                         size_t bytecodeBodySize = 0);
 
-        // Check if a function has reached the hot threshold
-        bool isHot(const std::string& functionName) const;
+        // Check if a function has reached its effective hot threshold.
+        bool isHot(const FunctionId& function) const;
 
-        // Get the invocation count for a function
-        uint32_t getInvocationCount(const std::string& functionName) const;
+        uint32_t getInvocationCount(const FunctionId& function) const;
+        uint32_t getEffectiveThreshold(const FunctionId& function,
+                                       size_t bytecodeBodySize = 0) const;
 
-        // Get all functions that have been marked as hot
-        const std::vector<std::string>& getHotFunctions() const;
+        // Public for telemetry and focused policy tests. A zero size returns
+        // the configured base threshold.
+        uint32_t thresholdForBodySize(size_t bytecodeBodySize) const noexcept;
 
-        // Reset profiling data
+        const std::vector<FunctionId>& getHotFunctions() const;
         void reset();
 
-        // Get/set the hot threshold
         uint32_t getHotThreshold() const { return hotThreshold; }
         void setHotThreshold(uint32_t threshold) { hotThreshold = threshold; }
 
     private:
+        struct FunctionProfile
+        {
+            uint32_t invocationCount = 0;
+            uint32_t effectiveThreshold = 0;
+        };
+
         uint32_t hotThreshold;
-        std::unordered_map<std::string, uint32_t> invocationCounts;
-        std::vector<std::string> hotFunctions;
+        std::unordered_map<FunctionId, FunctionProfile,
+                           FunctionIdHash, FunctionIdEqual> invocationProfiles;
+        std::vector<FunctionId> hotFunctions;
     };
 }

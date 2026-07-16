@@ -50,16 +50,15 @@ namespace vm::jit
     // which left the asmjit register allocator no liberty to coalesce adjacent
     // ops — every arithmetic instruction round-tripped through L1. A SlotHint
     // records that a stack slot's current value is also live in a virtreg so
-    // the next consumer can skip the memory load. When `dirty == true` the
-    // memory at the slot is stale relative to the register; the consumer must
-    // either consume from the register or flushSlot(...) before reading
-    // memory directly. When `isConstant == true`, the slot holds a known
+    // the next consumer can skip the memory load. In the unboxed pipeline,
+    // producers leave the slot dirty and defer its stack-memory write until a
+    // control-flow/helper boundary. The consumer must therefore either use
+    // the hint or call flushSlot(...) before reading memory directly. When
+    // `isConstant == true`, the slot holds a known
     // immediate value (PUSH_INT / PUSH_BOOL); shift-range checks and other
-    // peephole folds key off this. Hints are only published in the !boxed
-    // path (s.usesBoxedTypes == false) — the boxed value-stack pipeline is
-    // unchanged. Non-hint-aware emitters call flushAllHints(s) at entry to
-    // make memory coherent, so they continue to read Mem(stackBase, ...)
-    // exactly as before.
+    // peephole folds key off this. Only the unboxed path publishes dirty
+    // hints; boxed hints remain memory-coherent. Non-hint-aware emitters call
+    // flushAllHints(s) at entry before reading Mem(stackBase, ...).
     struct SlotHint
     {
         asmjit::x86::Gp gp;            // Gp virtreg, valid when valid && !isXmm
@@ -235,17 +234,26 @@ namespace vm::jit
         // setupCompilationFrame. Step 3 plumbs in the peak-scan guards on
         // function-level inlining; step 4 removes the workaround and lets
         // OSR-emitted bodies inline again.
+        // Hard safety ceiling retained for malformed/ambiguous bytecode and
+        // for declining an oversized inline candidate. Normal frames use the
+        // typed CFG planner's per-frame capacity below.
         static constexpr size_t MAX_OP_STACK = 256;
         static constexpr size_t VALUE_SIZE = sizeof(value::Value);
 
-        // MYT-251 step 2: see MAX_OP_STACK comment.
+        // Historical conservative fallback for pasted callee-local windows.
         static constexpr size_t INLINE_LOCALS_SLACK = 96;
+
+        // Actual AsmJit allocation sizes for this compilation. The hard-cap
+        // defaults preserve conservative behavior for isolated emitter tests
+        // that construct JitEmissionState directly.
+        size_t operandStackCapacity = MAX_OP_STACK;
+        size_t inlineLocalsCapacity = INLINE_LOCALS_SLACK;
     };
 
     // MYT-251: bounds-check stackDepth bumps in JIT emit. Belt-and-suspenders
     // against the bug class fixed by MYT-248/249/250 — if a future emit path
-    // would push past MAX_OP_STACK, mark compileFailed so the JIT bails
-    // cleanly instead of emitting code that overrun cc.new_stack at runtime.
+    // would push past the analyzed frame allocation, mark compileFailed so the
+    // JIT bails cleanly instead of overrunning cc.new_stack at runtime.
     // Out-of-bounds writes into the asmjit-allocated frame trip MSVC /GS
     // instrumentation and surface as __fastfail; this guard prevents the
     // operand-stack class of that overrun. MYT-184's separate /GS report
@@ -257,8 +265,15 @@ namespace vm::jit
     // bailing an inline candidate).
     inline bool checkOpStackHeadroom(JitEmissionState& s, int additionalPushes = 1)
     {
-        if (static_cast<size_t>(s.stackDepth) + additionalPushes
-            > JitEmissionState::MAX_OP_STACK)
+        if (s.stackDepth < 0 || additionalPushes < 0)
+        {
+            s.compileFailed = true;
+            return false;
+        }
+        const size_t depth = static_cast<size_t>(s.stackDepth);
+        const size_t pushes = static_cast<size_t>(additionalPushes);
+        if (depth > s.operandStackCapacity ||
+            pushes > s.operandStackCapacity - depth)
         {
             s.compileFailed = true;
             return false;
@@ -286,6 +301,8 @@ namespace vm::jit
     // still cached.
     asmjit::x86::Gp consumeGpHint(JitEmissionState& s, int stackIdx);
     asmjit::x86::Vec consumeXmmHint(JitEmissionState& s, int stackIdx);
+    bool consumeIntConstantHint(JitEmissionState& s, int stackIdx,
+                                int64_t& value);
     void flushSlot(JitEmissionState& s, int stackIdx);
     void flushAllHints(JitEmissionState& s);
     void invalidateAllHints(JitEmissionState& s);
@@ -395,6 +412,9 @@ namespace vm::jit
                         asmjit::x86::Gp boxedBase, size_t boxedCount);
 
     bool finalizeAndStore(asmjit::x86::Compiler& cc, asmjit::CodeHolder& code,
-                          JitCodeCache& codeCache, const std::string& key,
-                          size_t& compileCount, size_t& bailoutCount);
+                          JitCodeCache& codeCache,
+                          bytecode::ProgramId programId,
+                          const std::string& key,
+                          size_t& compileCount, size_t& bailoutCount,
+                          uint64_t& generatedCodeBytes);
 }

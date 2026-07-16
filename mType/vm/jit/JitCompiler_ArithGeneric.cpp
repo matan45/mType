@@ -48,9 +48,11 @@ namespace vm::jit
             };
             const bool eitherStringy = isNonNumericBoxed(lType) || isNonNumericBoxed(rType);
             bool feedbackSaysNumeric = false;
-            if (s.typeFeedback && s.typeFeedback->shouldSpecialize(s.currentIP))
+            if (s.typeFeedback && s.typeFeedback->shouldSpecialize(
+                    s.program.getProgramId(), s.currentIP))
             {
-                auto [lt, rt] = s.typeFeedback->getDominantTypes(s.currentIP);
+                auto [lt, rt] = s.typeFeedback->getDominantTypes(
+                    s.program.getProgramId(), s.currentIP);
                 feedbackSaysNumeric =
                     (lt == ic::ObservedType::INT || lt == ic::ObservedType::FLOAT) &&
                     (rt == ic::ObservedType::INT || rt == ic::ObservedType::FLOAT);
@@ -70,9 +72,11 @@ namespace vm::jit
             SlotType unboxTarget = (lType == SlotType::FLOAT || rType == SlotType::FLOAT)
                 ? SlotType::FLOAT : SlotType::INT;
             if (unboxTarget == SlotType::INT && isBoxedSlotType(lType) && isBoxedSlotType(rType)
-                && s.typeFeedback && s.typeFeedback->shouldSpecialize(s.currentIP))
+                && s.typeFeedback && s.typeFeedback->shouldSpecialize(
+                    s.program.getProgramId(), s.currentIP))
             {
-                auto [lt, rt] = s.typeFeedback->getDominantTypes(s.currentIP);
+                auto [lt, rt] = s.typeFeedback->getDominantTypes(
+                    s.program.getProgramId(), s.currentIP);
                 if (lt == ic::ObservedType::FLOAT || rt == ic::ObservedType::FLOAT)
                     unboxTarget = SlotType::FLOAT;
             }
@@ -136,9 +140,11 @@ namespace vm::jit
             SlotType unboxTarget = (lType == SlotType::FLOAT || rType == SlotType::FLOAT)
                 ? SlotType::FLOAT : SlotType::INT;
             if (unboxTarget == SlotType::INT && isBoxedSlotType(lType) && isBoxedSlotType(rType)
-                && s.typeFeedback && s.typeFeedback->shouldSpecialize(s.currentIP))
+                && s.typeFeedback && s.typeFeedback->shouldSpecialize(
+                    s.program.getProgramId(), s.currentIP))
             {
-                auto [lt, rt] = s.typeFeedback->getDominantTypes(s.currentIP);
+                auto [lt, rt] = s.typeFeedback->getDominantTypes(
+                    s.program.getProgramId(), s.currentIP);
                 if (lt == ic::ObservedType::FLOAT || rt == ic::ObservedType::FLOAT)
                     unboxTarget = SlotType::FLOAT;
             }

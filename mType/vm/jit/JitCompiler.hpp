@@ -27,7 +27,7 @@ namespace vm::jit
     // emitCallFastOp.)
     struct InlineDecisionCounters
     {
-        // Sized to match the InlineDecision enum. The enum currently has 17
+        // Sized to match the InlineDecision enum. The enum currently has 18
         // values (INLINE..HAS_UNSUPPORTED_OPCODE); kept loose at 32 so adding
         // a new reason in InlineAnalysis.hpp doesn't break this layout.
         static constexpr size_t SIZE = 32;
@@ -56,6 +56,10 @@ namespace vm::jit
 
         size_t getCompileCount() const { return compileCount; }
         size_t getBailoutCount() const { return bailoutCount; }
+        uint64_t getCompileTimeNs() const { return compileTimeNs; }
+        uint64_t getGeneratedCodeBytes() const { return generatedCodeBytes; }
+        uint64_t getReservedFrameBytes() const { return reservedFrameBytes; }
+        size_t getPeakReservedFrameBytes() const { return peakReservedFrameBytes; }
         const std::array<uint64_t, 256>& getFunctionBailoutOpcodes() const { return functionBailoutOpcodes; }
         const std::array<uint64_t, 256>& getOSRBailoutOpcodes() const { return osrBailoutOpcodes; }
 
@@ -131,6 +135,10 @@ namespace vm::jit
 
         size_t compileCount = 0;
         size_t bailoutCount = 0;
+        uint64_t compileTimeNs = 0;
+        uint64_t generatedCodeBytes = 0;
+        uint64_t reservedFrameBytes = 0;
+        size_t peakReservedFrameBytes = 0;
         std::array<uint64_t, 256> functionBailoutOpcodes = {};
         std::array<uint64_t, 256> osrBailoutOpcodes = {};
         uint64_t inlineFieldICHits = 0;

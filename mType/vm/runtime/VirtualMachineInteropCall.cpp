@@ -124,6 +124,7 @@ namespace vm::runtime
             {
                 // Use executionCtx->program so cross-library calls fetch from the correct bytecode
                 auto& currentProgram = executionCtx->program;
+                ActiveExecutionCodeView activeCode;
                 size_t targetDepth = savedCallStack.size();
                 // VK-1378: this mini-loop bypasses interpretLoop, so honour the
                 // debug hook here too — otherwise breakpoints in engine-invoked
@@ -131,11 +132,12 @@ namespace vm::runtime
                 bool debugActive = isDebugActive();
                 while (callStack.size() > targetDepth)
                 {
-                    if (instructionPointer >= currentProgram->getInstructionCount())
+                    activeCode.refresh(currentProgram);
+                    if (!activeCode.contains(instructionPointer))
                         break;
                     if (suspendedByAwait)
                         break;
-                    const auto& instr = currentProgram->getInstruction(instructionPointer);
+                    const auto& instr = activeCode.fetchUnchecked(instructionPointer);
                     if (debugActive)
                     {
                         debugPauseIfNeeded();
@@ -337,16 +339,18 @@ namespace vm::runtime
             {
                 // Use executionCtx->program so cross-library calls fetch from the correct bytecode
                 auto& currentProgram = executionCtx->program;
+                ActiveExecutionCodeView activeCode;
                 size_t targetDepth = savedCallStack.size();
                 // VK-1378: mirror invokeMethod — debug hook in the interop loop.
                 bool debugActive = isDebugActive();
                 while (callStack.size() > targetDepth)
                 {
-                    if (instructionPointer >= currentProgram->getInstructionCount())
+                    activeCode.refresh(currentProgram);
+                    if (!activeCode.contains(instructionPointer))
                         break;
                     if (suspendedByAwait)
                         break;
-                    const auto& instr = currentProgram->getInstruction(instructionPointer);
+                    const auto& instr = activeCode.fetchUnchecked(instructionPointer);
                     if (debugActive)
                     {
                         debugPauseIfNeeded();

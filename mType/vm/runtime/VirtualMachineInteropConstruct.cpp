@@ -227,15 +227,17 @@ namespace vm::runtime
             {
                 // executionCtx->program so cross-library calls fetch the correct bytecode.
                 auto& ctorCurrentProgram = executionCtx->program;
+                ActiveExecutionCodeView activeCode;
                 size_t targetDepth = savedCallStack.size();
                 // VK-1378: debug hook so breakpoints inside constructors invoked
                 // through interop (createObject) pause too.
                 bool debugActive = isDebugActive();
                 while (callStack.size() > targetDepth)
                 {
-                    if (instructionPointer >= ctorCurrentProgram->getInstructionCount())
+                    activeCode.refresh(ctorCurrentProgram);
+                    if (!activeCode.contains(instructionPointer))
                         break;
-                    const auto& instr = ctorCurrentProgram->getInstruction(instructionPointer);
+                    const auto& instr = activeCode.fetchUnchecked(instructionPointer);
                     if (debugActive)
                     {
                         debugPauseIfNeeded();

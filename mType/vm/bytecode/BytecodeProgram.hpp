@@ -5,6 +5,8 @@
 #include <deque>
 #include <list>
 #include <memory>
+#include <span>
+#include <stdexcept>
 #include <vector>
 #include <string>
 #include <string_view>
@@ -13,6 +15,7 @@
 #include <iosfwd>
 #include "OpCode.hpp"
 #include "ExceptionTable.hpp"
+#include "ProgramIdentity.hpp"
 #include "../../errors/SourceLocation.hpp"
 #include "../../value/ValueType.hpp"
 #include "../../environment/registry/NativeDelegate.hpp"
@@ -107,23 +110,22 @@ namespace vm::bytecode
         //
         // Replaces the prior `std::vector<uint64_t> operands` (24-byte vector
         // header + per-instruction heap allocation for any non-empty operand
-        // list) with three inline operand slots plus a heap overflow array
-        // used only when the operand count exceeds 3.
+        // list) with three 64-bit storage slots. Up to three logical operands
+        // are inline; variadic instructions repurpose slot 2 as ownership of
+        // a compact overflow buffer containing logical operands [2..N].
         //
-        // Operand storage rule (SPLIT layout):
-        //   operands[0..min(2,count-1)] always live in inlineOperands[].
-        //   operands[3..count-1] (when present) live in overflow[0..count-4].
+        // Operand storage rule (TAGGED_SLOT_2 layout):
+        //   count <= 3: operands[0..2] live in inlineOperands[0..2].
+        //   count > 3: operands[0..1] are inline and slot 2 stores a pointer
+        //              to operands[2..count-1].
         //
-        // This means `inlineOperands[K]` for K in [0,2] is ALWAYS the correct
-        // value regardless of total operand count — the hot-path callers
-        // (LOAD_LOCAL, JUMP, PUSH_INT, ...) access operands [0..2] directly
-        // with no branch. Variadic opcodes (LAMBDA, BIND_TYPE_ARGS,
-        // NEW_OBJECT_WITH_FIELDS) use operandAt(K) for K >= 3, which dispatches
-        // to overflow[K-3].
+        // Hot one/two-operand opcodes keep branch-free direct reads. All
+        // logical operand-2 reads use operandAt(2), which selects inline or
+        // overflow storage from operandCount.
         //
-        // Operand-count audit across the codebase: 99.2% of accesses target
-        // operands[0..2] and become direct inline-array reads with zero
-        // overhead vs. the old vector pointer-chase.
+        // The 32-byte result places two instructions in one 64-byte cache line
+        // and reduces instruction-stream footprint by 20% from the prior 40B
+        // split layout.
         struct Instruction
         {
             OpCode   opcode;                       // 1B
@@ -131,9 +133,10 @@ namespace vm::bytecode
             uint8_t  operandCount = 0;             // 1B (total operands; 0..255)
             uint8_t  _reserved1 = 0;               // 1B padding
             uint32_t _reserved2 = 0;               // 4B padding (alignment)
-            uint64_t inlineOperands[3] = {0, 0, 0};// 24B (operands[0..2])
-            std::unique_ptr<uint64_t[]> overflow;  // 8B (operands[3..]; null iff count <= 3)
-            // total: 40 bytes
+            // For operandCount > 3, slot 2 owns a pointer (encoded as an
+            // integer) to logical operands [2..N]. This keeps the common
+            // instruction footprint at 32 bytes without changing .mtc.
+            uint64_t inlineOperands[3] = {0, 0, 0};
 
             Instruction();
             Instruction(OpCode op);
@@ -142,32 +145,34 @@ namespace vm::bytecode
             Instruction(OpCode op, std::vector<uint64_t> ops);
 
             Instruction(const Instruction& other);
-            Instruction(Instruction&& other) noexcept = default;
+            Instruction(Instruction&& other) noexcept;
             Instruction& operator=(const Instruction& other);
-            Instruction& operator=(Instruction&& other) noexcept = default;
-            ~Instruction() = default;
+            Instruction& operator=(Instruction&& other) noexcept;
+            ~Instruction() { releaseOverflow(); }
 
             // === Read access ===
             bool hasOperands() const noexcept { return operandCount > 0; }
             size_t numOperands() const noexcept { return operandCount; }
 
-            // Generic read; handles inline/overflow split.
-            // For K in [0,2] callers should prefer `inlineOperands[K]` directly.
+            // Generic read; handles the tagged slot-2 split.
             uint64_t operandAt(size_t i) const noexcept {
-                return i < 3 ? inlineOperands[i] : overflow[i - 3];
+                if (i < 2 || operandCount <= 3) return inlineOperands[i];
+                return overflowData()[i - 2];
             }
 
             // === Mutation ===
             void clearOperands() noexcept {
+                releaseOverflow();
                 operandCount = 0;
-                overflow.reset();
             }
 
             // Replace operands with a single value (fusion / IC promotion paths).
             void setSingleOperand(uint64_t v) noexcept {
+                releaseOverflow();
                 operandCount = 1;
                 inlineOperands[0] = v;
-                overflow.reset();
+                inlineOperands[1] = 0;
+                inlineOperands[2] = 0;
             }
 
             // Mutate operand[0] in place. Used by jump patching (target rewrite)
@@ -177,17 +182,42 @@ namespace vm::bytecode
             }
 
             void setOperandAt(size_t i, uint64_t v) noexcept {
-                if (i < 3) {
+                if (i < 2 || operandCount <= 3) {
                     inlineOperands[i] = v;
                 } else {
-                    overflow[i - 3] = v;
+                    overflowData()[i - 2] = v;
                 }
             }
 
             // Load `count` operands from a contiguous source buffer (deserialize
             // path). Allocates overflow only if count > 3.
             void loadOperands(const uint64_t* src, size_t count);
+
+        private:
+            uint64_t* overflowData() noexcept {
+                return reinterpret_cast<uint64_t*>(
+                    static_cast<uintptr_t>(inlineOperands[2]));
+            }
+            const uint64_t* overflowData() const noexcept {
+                return reinterpret_cast<const uint64_t*>(
+                    static_cast<uintptr_t>(inlineOperands[2]));
+            }
+            void setOverflowData(uint64_t* data) noexcept {
+                inlineOperands[2] = static_cast<uint64_t>(
+                    reinterpret_cast<uintptr_t>(data));
+            }
+            void releaseOverflow() noexcept {
+                if (operandCount > 3) delete[] overflowData();
+                inlineOperands[2] = 0;
+            }
         };
+
+        static_assert(sizeof(uintptr_t) <= sizeof(uint64_t),
+                      "Instruction overflow pointer must fit in slot 2");
+        static_assert(sizeof(Instruction) == 32,
+                      "Instruction layout exceeds the interpreter I-cache budget");
+
+        using ExecutionCodeView = std::span<const Instruction>;
 
         struct ConstantPool
         {
@@ -386,6 +416,12 @@ namespace vm::bytecode
         };
 
     private:
+        ProgramIdentity identity;
+        // Once external runtime/JIT state has retained this object's address,
+        // relocating or replacing it would leave VM program pointers, method
+        // IC entries, and native-code immediates targeting the old object.
+        // Pinning is intentionally irreversible for the object's lifetime.
+        mutable bool runtimeAddressPinned = false;
         std::vector<Instruction> instructions;
         ConstantPool constantPool;
         std::unordered_map<std::string, FunctionMetadata> functions;
@@ -412,7 +448,12 @@ namespace vm::bytecode
         void buildFusionUnsafeTargets() const;
         void invalidateFusionUnsafeTargets() const { fusionUnsafeTargetsBuilt = false; fusionUnsafeTargets.clear(); }
 
-        mutable std::unordered_map<size_t, CachedInstructionState> cachedStates;
+        static constexpr uint32_t INVALID_CACHED_STATE_INDEX = UINT32_MAX;
+        // Four bytes per instruction select a lazily-created, stable cache
+        // record. This removes the IP hash from quickened opcode dispatch
+        // without paying sizeof(CachedInstructionState) for cold sites.
+        mutable std::vector<uint32_t> cachedStateIndices;
+        mutable std::deque<CachedInstructionState> cachedStates;
 
     public:
         // MYT-TBD (box/unbox perf): per-classIndex cache for the primitive-
@@ -472,8 +513,29 @@ namespace vm::bytecode
         // returned pointers on reallocation.
         mutable std::list<std::vector<uint64_t>> jitStableSlotPool;
 
+        static ProgramIdentity takeMovableIdentity(BytecodeProgram& other);
+
     public:
         BytecodeProgram();
+        BytecodeProgram(const BytecodeProgram& other);
+        BytecodeProgram(BytecodeProgram&& other);
+        BytecodeProgram& operator=(const BytecodeProgram& other);
+        BytecodeProgram& operator=(BytecodeProgram&& other);
+
+        // Stable for this in-memory program's lifetime and intentionally not
+        // part of the serialized .mtc format. Copies receive a fresh id;
+        // cold moves retain the source program's id. Moving a runtime-pinned
+        // program throws before changing either object.
+        ProgramId getProgramId() const noexcept { return identity.get(); }
+
+        // Establish the runtime address-stability contract. Core pointer
+        // owners (VM, ScriptAPI, JIT compiler) call this before retaining or
+        // embedding `this`. A pinned program remains copy-constructible as a
+        // cold semantic clone, but cannot be moved or assigned over.
+        void pinRuntimeAddress() const noexcept { runtimeAddressPinned = true; }
+        bool isRuntimeAddressPinned() const noexcept {
+            return runtimeAddressPinned;
+        }
 
         // Materialize a stable, heap-owned copy of operand slice
         // [start, start+count) drawn from `instr` and return a pointer that
@@ -505,14 +567,38 @@ namespace vm::bytecode
         const std::vector<Instruction>& getInstructions() const;
         size_t getInstructionCount() const;
 
+        // Immutable runtime view over the validated instruction stream.
+        // Compiler/deserializer validation completes before execution, and
+        // the instruction-vector shape must remain fixed while a VM is using
+        // this view. Runtime quickening may still rewrite existing Instruction
+        // objects in place; those updates remain visible through the span.
+        [[nodiscard]] ExecutionCodeView getExecutionCodeView() const noexcept
+        {
+            return ExecutionCodeView(instructions.data(), instructions.size());
+        }
+
         CachedInstructionState& getOrCreateCachedState(size_t ip) const
         {
-            return cachedStates[ip];
+            if (ip >= cachedStateIndices.size())
+            {
+                cachedStateIndices.resize(ip + 1, INVALID_CACHED_STATE_INDEX);
+            }
+            auto& index = cachedStateIndices[ip];
+            if (index == INVALID_CACHED_STATE_INDEX)
+            {
+                if (cachedStates.size() >= static_cast<size_t>(UINT32_MAX))
+                    throw std::length_error("bytecode cached-state index exceeds uint32_t");
+                index = static_cast<uint32_t>(cachedStates.size());
+                cachedStates.emplace_back();
+            }
+            return cachedStates[index];
         }
         const CachedInstructionState* findCachedState(size_t ip) const
         {
-            auto it = cachedStates.find(ip);
-            return it == cachedStates.end() ? nullptr : &it->second;
+            if (ip >= cachedStateIndices.size()) return nullptr;
+            const uint32_t index = cachedStateIndices[ip];
+            return index == INVALID_CACHED_STATE_INDEX
+                ? nullptr : &cachedStates[index];
         }
 
         // Plugin unload hook: zero every populated cachedNativeFunc slot.
@@ -524,7 +610,7 @@ namespace vm::bytecode
         // (cachedFuncMetadata, method-IC entries, etc.) are preserved.
         void clearNativeCacheSlots() const
         {
-            for (auto& [ip, state] : cachedStates)
+            for (auto& state : cachedStates)
             {
                 state.cachedNativeFunc = ::environment::registry::NativeDelegate{};
             }
@@ -544,7 +630,7 @@ namespace vm::bytecode
         void clearCachedJitFnPtrFor(const void* evictedJit) const
         {
             if (!evictedJit) return;
-            for (auto& [ip, state] : cachedStates)
+            for (auto& state : cachedStates)
             {
                 if (state.cachedJitFnPtr == evictedJit) state.cachedJitFnPtr = nullptr;
             }
@@ -625,6 +711,20 @@ namespace vm::bytecode
         static BytecodeProgram deserialize(std::istream& in);
 
     private:
+        // Return the cold, portable form of an instruction. The interpreter
+        // quickens and fuses the live instruction vector in place, but those
+        // opcodes depend on process-local side tables and must not cross a
+        // BytecodeProgram copy or the .mtc boundary.
+        OpCode semanticOpcodeAt(size_t offset) const;
+        size_t semanticOperandCountAt(size_t offset) const;
+        uint64_t semanticOperandAt(size_t offset, size_t operandIndex) const;
+        const CachedInstructionState& requireRuntimeFusionState(
+            size_t fusedOffset) const;
+
+        void copySemanticInstructionsFrom(const BytecodeProgram& other);
+        void rebuildFrameNameIndexes();
+        void rebindMovedSelfPointers(const BytecodeProgram* oldAddress);
+
         void writeConstantPool(std::ostream& out) const;
         void readConstantPool(std::istream& in);
         void writeInstructions(std::ostream& out) const;

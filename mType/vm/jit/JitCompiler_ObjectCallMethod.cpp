@@ -12,6 +12,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <unordered_map>
 #include <vector>
 
@@ -138,26 +139,42 @@ namespace vm::jit
         // Arg count must match the callee's parameter count (including the
         // implicit `this`). Otherwise fall through to the generic path.
         if (callee->parameterCount != argCount + 1) return false;
+        if (callee->localCount < callee->parameterCount) return false;
 
         // Locals base stacks for nested inlining. At depth 0 we start past
         // the caller's own locals; at depth 1 we start past the outer inline
         // frame's locals window. Bail cleanly if the cumulative window would
-        // overflow INLINE_LOCALS_SLACK.
-        const size_t localsBaseSlot = s.inlineStack.empty()
-            ? s.localCount
-            : s.inlineStack.back().localsBaseSlot
-              + s.inlineStack.back().calleeMeta->localCount;
-        if (localsBaseSlot + callee->localCount
-            > s.localCount + JitEmissionState::INLINE_LOCALS_SLACK)
+        // overflow this compilation's analyzed inline-local allocation.
+        size_t localsBaseSlot = s.localCount;
+        if (!s.inlineStack.empty())
+        {
+            const auto& parent = s.inlineStack.back();
+            if (parent.localsBaseSlot > std::numeric_limits<size_t>::max()
+                    - parent.calleeMeta->localCount)
+                return false;
+            localsBaseSlot =
+                parent.localsBaseSlot + parent.calleeMeta->localCount;
+        }
+        if (s.localCount > std::numeric_limits<size_t>::max()
+                - s.inlineLocalsCapacity)
+            return false;
+        const size_t inlineLocalLimit =
+            s.localCount + s.inlineLocalsCapacity;
+        if (localsBaseSlot > inlineLocalLimit ||
+            callee->localCount > inlineLocalLimit - localsBaseSlot)
             return false;
 
-        // Peak-operand-stack guard. Reject candidates whose caller_depth +
-        // callee_peak would exceed MAX_OP_STACK and overrun cc.new_stack
-        // (trips /GS-cookie fastfail).
+        // Peak-operand-stack guard. Reject candidates whose caller depth plus
+        // callee peak would exceed this compilation's analyzed allocation.
         {
-            const size_t calleePeak = computeCalleePeakOperandStack(s.program, *callee);
-            if (static_cast<size_t>(s.stackDepth) + calleePeak
-                > JitEmissionState::MAX_OP_STACK)
+            const size_t calleePeak = computeCalleePeakOperandStack(s, *callee);
+            if (s.stackDepth < 0) return false;
+            const size_t callerDepth = static_cast<size_t>(s.stackDepth);
+            if (callerDepth > s.operandStackCapacity ||
+                argCount >= callerDepth)
+                return false;
+            const size_t calleeStackBase = callerDepth - argCount - 1;
+            if (calleePeak > s.operandStackCapacity - calleeStackBase)
                 return false;
         }
 
@@ -321,24 +338,40 @@ namespace vm::jit
             const auto* callee = static_cast<const bytecode::BytecodeProgram::FunctionMetadata*>(
                 cache.entries[i].funcMetadata);
             if (callee->parameterCount != argCount + 1) return false;
+            if (callee->localCount < callee->parameterCount) return false;
             if (!isInlineableArm(perEntryDecisions[i]))
                 continue;
             if (callee->localCount > maxLocalCount)
                 maxLocalCount = callee->localCount;
-            const size_t p = computeCalleePeakOperandStack(s.program, *callee);
+            const size_t p = computeCalleePeakOperandStack(s, *callee);
             if (p > maxCalleePeak) maxCalleePeak = p;
         }
 
-        const size_t localsBaseSlot = s.inlineStack.empty()
-            ? s.localCount
-            : s.inlineStack.back().localsBaseSlot
-              + s.inlineStack.back().calleeMeta->localCount;
-        if (localsBaseSlot + maxLocalCount
-            > s.localCount + JitEmissionState::INLINE_LOCALS_SLACK)
+        size_t localsBaseSlot = s.localCount;
+        if (!s.inlineStack.empty())
+        {
+            const auto& parent = s.inlineStack.back();
+            if (parent.localsBaseSlot > std::numeric_limits<size_t>::max()
+                    - parent.calleeMeta->localCount)
+                return false;
+            localsBaseSlot =
+                parent.localsBaseSlot + parent.calleeMeta->localCount;
+        }
+        if (s.localCount > std::numeric_limits<size_t>::max()
+                - s.inlineLocalsCapacity)
+            return false;
+        const size_t inlineLocalLimit =
+            s.localCount + s.inlineLocalsCapacity;
+        if (localsBaseSlot > inlineLocalLimit ||
+            maxLocalCount > inlineLocalLimit - localsBaseSlot)
             return false;
 
-        if (static_cast<size_t>(s.stackDepth) + maxCalleePeak
-            > JitEmissionState::MAX_OP_STACK)
+        if (s.stackDepth < 0) return false;
+        const size_t callerDepth = static_cast<size_t>(s.stackDepth);
+        if (callerDepth > s.operandStackCapacity || argCount >= callerDepth)
+            return false;
+        const size_t calleeStackBase = callerDepth - argCount - 1;
+        if (maxCalleePeak > s.operandStackCapacity - calleeStackBase)
             return false;
 
 #ifndef NDEBUG
@@ -533,9 +566,11 @@ namespace vm::jit
     {
         if (!s.typeFeedback) return false;
         auto& icTable = s.typeFeedback->getICTable();
-        if (!icTable.hasMethodIC(s.currentIP)) return false;
+        if (!icTable.hasMethodIC(
+                s.program.getProgramId(), s.currentIP)) return false;
 
-        auto& cache = icTable.getMethodIC(s.currentIP);
+        auto& cache = icTable.getMethodIC(
+            s.program.getProgramId(), s.currentIP);
         // Per-entry decisions. Default-init to INLINE so unused slots
         // (entryCount < IC_MAX_POLYMORPHIC_ENTRIES) and the MONO path (single
         // entry, decision implicit in the top-level return) don't carry
@@ -581,7 +616,8 @@ namespace vm::jit
         if (entry.cachedJit) return entry.cachedJit;
         if (!s.codeCache) return nullptr;
         return reinterpret_cast<const void*>(
-            s.codeCache->lookup(entry.qualifiedName));
+            s.codeCache->lookup(
+                entry.program->getProgramId(), entry.qualifiedName));
     }
 
     // Shared by tryEmitDirectMethodCall and the POLY inliner's rejected-arm
@@ -647,9 +683,11 @@ namespace vm::jit
     {
         if (!s.typeFeedback) return false;
         auto& icTable = s.typeFeedback->getICTable();
-        if (!icTable.hasMethodIC(s.currentIP)) return false;
+        if (!icTable.hasMethodIC(
+                s.program.getProgramId(), s.currentIP)) return false;
 
-        auto& cache = icTable.getMethodIC(s.currentIP);
+        auto& cache = icTable.getMethodIC(
+            s.program.getProgramId(), s.currentIP);
         if (cache.state != ic::ICState::MONOMORPHIC &&
             cache.state != ic::ICState::POLYMORPHIC)
             return false;

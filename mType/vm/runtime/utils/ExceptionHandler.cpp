@@ -207,10 +207,7 @@ namespace vm::runtime::utils
             return; // Nothing to clean up
         }
 
-        while (stackManager->size() > targetFrameBase)
-        {
-            stackManager->getStack().pop_back();
-        }
+        stackManager->resize(targetFrameBase);
     }
 
     const bytecode::ExceptionTable* ExceptionHandler::getExceptionTable() const

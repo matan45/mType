@@ -1,5 +1,8 @@
 #include "LoopProfiler.hpp"
 
+#include <algorithm>
+#include <limits>
+
 namespace vm::jit
 {
     const char* osrBailoutReasonName(OSRBailoutReason r)
@@ -21,20 +24,89 @@ namespace vm::jit
 
     LoopProfiler::LoopProfiler(uint32_t osrThreshold)
         : osrThreshold(osrThreshold)
-    {}
-
-    bool LoopProfiler::recordIteration(const LoopId& loopId)
     {
-        auto& profile = profiles[loopId];
+    }
+
+    uint32_t LoopProfiler::thresholdForLoopSpan(
+        size_t approximateLoopSpan) const noexcept
+    {
+        // Keep existing behaviour for missing/small spans. Larger loops spend
+        // more interpreter work per back-edge, so discount at most 25% from
+        // the base threshold. The cap is intentionally conservative: loop
+        // size is only a proxy for both execution cost and compile cost.
+        if (approximateLoopSpan == 0 || approximateLoopSpan <= 16
+            || osrThreshold == 0)
+        {
+            return osrThreshold;
+        }
+
+        const uint64_t base = osrThreshold;
+        const uint64_t maxDiscount = base / 4;
+        const uint64_t extraBytecodes = approximateLoopSpan - 16;
+        const uint64_t discount = extraBytecodes >= 64
+            ? maxDiscount
+            : std::min<uint64_t>((extraBytecodes * base) / 256,
+                                 maxDiscount);
+        return static_cast<uint32_t>(base - discount);
+    }
+
+    LoopProfiler::ProgramProfiles& LoopProfiler::selectProgram(
+        bytecode::ProgramId programId)
+    {
+        if (activeProgram && activeProgramId == programId)
+        {
+            return *activeProgram;
+        }
+
+        auto [it, inserted] = programs.try_emplace(programId);
+        (void)inserted;
+        if (!it->second) it->second = std::make_unique<ProgramProfiles>();
+        activeProgramId = programId;
+        activeProgram = it->second.get();
+        return *activeProgram;
+    }
+
+    LoopProfile& LoopProfiler::ensureProfile(
+        ProgramProfiles& programProfiles,
+        size_t jumpBackOffset,
+        size_t approximateLoopSpan)
+    {
+        if (jumpBackOffset >= programProfiles.byJumpBackOffset.size())
+        {
+            programProfiles.byJumpBackOffset.resize(jumpBackOffset + 1);
+        }
+
+        auto& profile = programProfiles.byJumpBackOffset[jumpBackOffset];
+        if (!profile.observed)
+        {
+            profile.observed = true;
+            profile.effectiveThreshold =
+                thresholdForLoopSpan(approximateLoopSpan);
+            programProfiles.observedOffsets.push_back(jumpBackOffset);
+            ++observedProfileCount;
+        }
+        return profile;
+    }
+
+    bool LoopProfiler::recordIteration(const LoopId& loopId,
+                                       size_t approximateLoopSpan)
+    {
+        auto& programProfiles = selectProgram(loopId.programId);
+        auto& profile = ensureProfile(programProfiles,
+                                      loopId.jumpBackOffset,
+                                      approximateLoopSpan);
 
         if (profile.osrAttempted || profile.osrFailed)
         {
             return false;
         }
 
-        profile.iterationCount++;
+        if (profile.iterationCount != std::numeric_limits<uint32_t>::max())
+        {
+            ++profile.iterationCount;
+        }
 
-        if (profile.iterationCount == osrThreshold)
+        if (profile.iterationCount == profile.effectiveThreshold)
         {
             profile.osrAttempted = true;
             return true;
@@ -45,43 +117,80 @@ namespace vm::jit
 
     const LoopProfile* LoopProfiler::getProfile(const LoopId& loopId) const
     {
-        auto it = profiles.find(loopId);
-        if (it != profiles.end())
+        const ProgramProfiles* programProfiles = nullptr;
+        if (activeProgram && activeProgramId == loopId.programId)
         {
-            return &it->second;
+            programProfiles = activeProgram;
         }
-        return nullptr;
+        else
+        {
+            auto programIt = programs.find(loopId.programId);
+            if (programIt == programs.end()) return nullptr;
+            programProfiles = programIt->second.get();
+        }
+
+        if (loopId.jumpBackOffset >= programProfiles->byJumpBackOffset.size())
+        {
+            return nullptr;
+        }
+        const auto& profile =
+            programProfiles->byJumpBackOffset[loopId.jumpBackOffset];
+        return profile.observed ? &profile : nullptr;
     }
 
-    LoopProfile& LoopProfiler::getOrCreateProfile(const LoopId& loopId)
+    LoopProfile& LoopProfiler::getOrCreateProfile(
+        const LoopId& loopId,
+        size_t approximateLoopSpan)
     {
-        return profiles[loopId];
+        auto& programProfiles = selectProgram(loopId.programId);
+        return ensureProfile(programProfiles,
+                             loopId.jumpBackOffset,
+                             approximateLoopSpan);
     }
 
     void LoopProfiler::markCompiled(const LoopId& loopId)
     {
-        auto& profile = profiles[loopId];
+        auto& profile = getOrCreateProfile(loopId);
         profile.osrCompiled = true;
     }
 
     void LoopProfiler::markFailed(const LoopId& loopId,
-                                   OSRBailoutReason reason,
-                                   uint8_t offendingOpcode)
+                                  OSRBailoutReason reason,
+                                  uint8_t offendingOpcode)
     {
-        auto& profile = profiles[loopId];
+        auto& profile = getOrCreateProfile(loopId);
         profile.osrFailed = true;
-        // Preserve a more-specific earlier reason if one was already recorded
-        // and the new call is the generic CODEGEN_FAILURE fallback.
-        if (profile.bailoutReason == OSRBailoutReason::NONE ||
-            reason != OSRBailoutReason::CODEGEN_FAILURE)
+        if (profile.bailoutReason == OSRBailoutReason::NONE
+            || reason != OSRBailoutReason::CODEGEN_FAILURE)
         {
             profile.bailoutReason = reason;
             profile.offendingOpcode = offendingOpcode;
         }
     }
 
+    const LoopProfiler::ProfileMap& LoopProfiler::getProfiles() const
+    {
+        profileSnapshot.clear();
+        profileSnapshot.reserve(observedProfileCount);
+        for (const auto& [programId, programProfilesPtr] : programs)
+        {
+            const auto& programProfiles = *programProfilesPtr;
+            for (size_t offset : programProfiles.observedOffsets)
+            {
+                profileSnapshot.emplace(
+                    LoopId{programId, offset},
+                    programProfiles.byJumpBackOffset[offset]);
+            }
+        }
+        return profileSnapshot;
+    }
+
     void LoopProfiler::reset()
     {
-        profiles.clear();
+        programs.clear();
+        activeProgramId = {};
+        activeProgram = nullptr;
+        profileSnapshot.clear();
+        observedProfileCount = 0;
     }
 }

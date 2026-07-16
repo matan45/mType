@@ -1,9 +1,11 @@
 #pragma once
+#include <atomic>
 #include <vector>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <algorithm>
 #include <span>
@@ -111,8 +113,22 @@ namespace vm::runtime
         // Environment integration
         std::shared_ptr<environment::Environment> environment;
 
+        // Token owned by this VM in the process-wide GC root registry.  A
+        // numeric token keeps the VM header independent of the GC library.
+        uint64_t gcRootCollectorId = 0;
+        struct GCRootCollectorState
+        {
+            std::mutex mutex;
+            VirtualMachine* vm = nullptr;
+        };
+        std::shared_ptr<GCRootCollectorState> gcRootCollectorState;
+
         // Event loop integration (for async/await support)
         std::unique_ptr<::runtime::EventLoop> eventLoop;
+        // Incremented before a BytecodeProgram is retired. Promise callbacks
+        // capture this value and become no-ops once their bytecode generation
+        // is no longer current.
+        std::atomic<uint64_t> programGeneration{1};
         size_t currentTaskId;
         std::optional<VMState> savedState;  // For async resumption
         bool suspendedByAwait;  // Flag to indicate suspension by AWAIT instruction
@@ -154,6 +170,41 @@ namespace vm::runtime
         size_t pendingFinallyOffset;  // Offset of the finally block that has a pending exception (SIZE_MAX if none)
 
         // Execution context (persists across calls so executors don't hold dangling refs)
+        struct ActiveExecutionCodeView
+        {
+            const bytecode::BytecodeProgram* owner = nullptr;
+            bytecode::BytecodeProgram::ExecutionCodeView code{};
+
+            // CALL/RETURN and exception unwinding may switch the active
+            // BytecodeProgram. Refreshing is only a pointer comparison on the
+            // common path and rebuilds the span when that pointer changes.
+            void refresh(const bytecode::BytecodeProgram* activeProgram) noexcept
+            {
+                if (owner == activeProgram)
+                {
+                    return;
+                }
+
+                owner = activeProgram;
+                code = activeProgram
+                    ? activeProgram->getExecutionCodeView()
+                    : bytecode::BytecodeProgram::ExecutionCodeView{};
+            }
+
+            [[nodiscard]] bool contains(size_t offset) const noexcept
+            {
+                return offset < code.size();
+            }
+
+            // Call only after contains(offset). Indexing the span's raw data
+            // pointer is the deliberately unchecked interpreter hot fetch.
+            [[nodiscard]] const bytecode::BytecodeProgram::Instruction&
+            fetchUnchecked(size_t offset) const noexcept
+            {
+                return code.data()[offset];
+            }
+        };
+
         std::unique_ptr<ExecutionContext> executionCtx;
         void ensureExecutors();
 
@@ -268,6 +319,7 @@ namespace vm::runtime
 
         // Program management
         void setProgram(const bytecode::BytecodeProgram* prog) {
+            if (prog) prog->pinRuntimeAddress();
             // Only forget the OLD program's init state on swap. Library
             // entries in staticInitializedPrograms must survive a main-
             // program swap, otherwise loaded libraries get re-initialized
@@ -288,6 +340,7 @@ namespace vm::runtime
 
         // Multi-program support (library loading)
         void addLoadedProgram(const bytecode::BytecodeProgram* prog) {
+            if (prog) prog->pinRuntimeAddress();
             loadedPrograms.push_back(prog);
         }
         [[nodiscard]] bool removeLoadedProgram(const bytecode::BytecodeProgram* prog) {
@@ -327,6 +380,10 @@ namespace vm::runtime
         ::runtime::EventLoop* getEventLoop() const { return eventLoop.get(); }
         ::runtime::EventLoop* ensureEventLoop();  // Create EventLoop if it doesn't exist
         void setCurrentTaskId(size_t taskId) { currentTaskId = taskId; }
+        // Owner-thread coordination point used before a bound BytecodeProgram
+        // can be destroyed or replaced. Invalidates async continuations and
+        // cancels the reusable EventLoop generation without shutting it down.
+        void prepareForProgramReplacement();
 
         // State save/restore for async suspension
         VMState saveState() const;
@@ -395,6 +452,9 @@ namespace vm::runtime
         // BytecodeProgram::clearNativeCacheSlots — eager eviction, no
         // runtime check.
         void invalidateInlinedFunctionCallers(bytecode::FunctionNameHandle callee);
+        void invalidateInlinedFunctionCallers(
+            const bytecode::BytecodeProgram& calleeProgram,
+            bytecode::FunctionNameHandle callee);
 
         // Phase 6: Inline caching control
         void setICEnabled(bool enabled);

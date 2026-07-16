@@ -789,6 +789,15 @@
     <ClInclude Include="tests\suites\BytecodeOptimizationTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\BytecodeProgramBindingTests.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\BytecodeProgramLifecycleTests.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\BytecodeRuntimeOptimizationTests.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\CastTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
@@ -828,6 +837,9 @@
     <ClInclude Include="tests\suites\ExecutorIsolationTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
+    <ClInclude Include="tests\suites\GCRuntimeCorrectnessTests.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
     <ClInclude Include="tests\suites\GCTestSuite.hpp">
       <Filter>suites</Filter>
     </ClInclude>
@@ -844,6 +856,9 @@
       <Filter>suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\IteratorTestSuite.hpp">
+      <Filter>suites</Filter>
+    </ClInclude>
+    <ClInclude Include="tests\suites\JitFrameAnalysisTests.hpp">
       <Filter>suites</Filter>
     </ClInclude>
     <ClInclude Include="tests\suites\JsonTestSuite.hpp">
@@ -926,6 +941,15 @@
     <ClCompile Include="tests\suites\BytecodeOptimizationTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
+    <ClCompile Include="tests\suites\BytecodeProgramBindingTests.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\BytecodeProgramLifecycleTests.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\BytecodeRuntimeOptimizationTests.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
     <ClCompile Include="tests\suites\CastTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
@@ -965,6 +989,9 @@
     <ClCompile Include="tests\suites\ExecutorIsolationTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
+    <ClCompile Include="tests\suites\GCRuntimeCorrectnessTests.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
     <ClCompile Include="tests\suites\GCTestSuite.cpp">
       <Filter>suites</Filter>
     </ClCompile>
@@ -981,6 +1008,9 @@
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\IteratorTestSuite.cpp">
+      <Filter>suites</Filter>
+    </ClCompile>
+    <ClCompile Include="tests\suites\JitFrameAnalysisTests.cpp">
       <Filter>suites</Filter>
     </ClCompile>
     <ClCompile Include="tests\suites\JsonTestSuite.cpp">
@@ -1157,6 +1187,9 @@
       <Filter>testFiles\annotation\error</Filter>
     </None>
     <None Include="tests\testFiles\annotation\error\script_annotation_wrong_update_signature_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\error\script_inherited_missing_update_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
     <None Include="tests\testFiles\annotation\error\script_on_function_error.mt">
@@ -1535,6 +1568,12 @@
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\script_callmethod_test.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\script_inherited_lifecycle_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\script_inherited_lifecycle_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\script_native_string_compare_test.expected">
@@ -10770,6 +10809,9 @@
     </None>
     <None Include="tests\testFiles\interface\error\wrongReturnType.mt">
       <Filter>testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\hostInterfaceHierarchyFixture.mt">
+      <Filter>testFiles\interface</Filter>
     </None>
     <None Include="tests\testFiles\interface\pass\BaseInterfaces.mt">
       <Filter>testFiles\interface\pass</Filter>

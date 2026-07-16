@@ -165,6 +165,13 @@ namespace value
             return defaultValue_;
         }
 
+        Derived* getParentForGC() const noexcept { return parent_.get(); }
+
+        void clearBaseReferencesForGC() {
+            parent_.reset();
+            defaultValue_ = std::monostate{};
+        }
+
     protected:
         // Common helper methods
 
@@ -179,6 +186,21 @@ namespace value
          */
         bool isView() const {
             return parent_ != nullptr;
+        }
+
+        Derived* gcOwner() noexcept {
+            return isView() ? parent_->gcOwner() : static_cast<Derived*>(this);
+        }
+
+        void notifyReferenceMutationForGC(
+            const Value& oldValue,
+            const Value& newValue)
+        {
+            if (isGCManagedReference(oldValue) || isGCManagedReference(newValue))
+            {
+                notifyHeapReferenceMutation(
+                    gcOwner(), &oldValue, &newValue);
+            }
         }
 
         /**

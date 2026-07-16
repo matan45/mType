@@ -5,6 +5,7 @@
 #include <variant>
 #include <vector>
 #include "JitCodeCache.hpp"
+#include "ScopedJitNativeDepth.hpp"
 #include "guards/DeoptimizationHandler.hpp"
 #include "../bytecode/BytecodeProgram.hpp"
 #include "../runtime/VirtualMachine.hpp"
@@ -68,7 +69,6 @@ namespace vm::jit
         frame.functionName = frameName;
         frame.thisInstance = nullptr;
         ctx->vm->pushCallFrame(std::move(frame));
-        ctx->vm->incrementJitNativeDepth();
 
         JitContext nestedCtx{};
         nestedCtx.args = ctx->callArgs;
@@ -88,8 +88,10 @@ namespace vm::jit
         // for the asmjit frame). The deopt now propagates via the
         // pendingException field below; the prior catch (OSRDeoptException&)
         // wrapper is unreachable.
-        jitFn(&nestedCtx);
-        ctx->vm->decrementJitNativeDepth();
+        {
+            ScopedJitNativeDepth nativeFrame(*ctx->vm);
+            jitFn(&nestedCtx);
+        }
         ctx->vm->popCallStack();
 
         if (nestedCtx.pendingException)
@@ -110,7 +112,8 @@ namespace vm::jit
         if (!ctx->jitCodeCache || !ctx->vm)
             return false;
 
-        auto jitFn = ctx->jitCodeCache->lookup(funcName);
+        auto jitFn = ctx->jitCodeCache->lookup(
+            ctx->program->getProgramId(), funcName);
         if (!jitFn)
             return false;
 
@@ -229,8 +232,12 @@ namespace vm::jit
                     {
                         if (!directTarget && ctx->jitCodeCache)
                         {
+                            const auto* calleeProgram = cached->cachedProgram
+                                ? cached->cachedProgram : ctx->program;
                             directTarget = reinterpret_cast<void*>(
-                                ctx->jitCodeCache->lookup(funcName));
+                                ctx->jitCodeCache->lookup(
+                                    calleeProgram->getProgramId(),
+                                    funcName));
                             if (directTarget)
                             {
                                 ctx->program->getOrCreateCachedState(bytecodeOffset)
@@ -300,7 +307,8 @@ namespace vm::jit
             {
                 if (ctx->jitCodeCache)
                 {
-                    jitFnPtr = reinterpret_cast<void*>(ctx->jitCodeCache->lookup(funcName));
+                    jitFnPtr = reinterpret_cast<void*>(ctx->jitCodeCache->lookup(
+                        ctx->program->getProgramId(), funcName));
                 }
                 frameName = ctx->program->internFrameName(funcName);
             }
@@ -362,7 +370,8 @@ namespace vm::jit
             // compiled functions (e.g. fib/ack/gcd in recursive.mt).
             if (ctx->jitCodeCache)
             {
-                auto cached = ctx->jitCodeCache->lookupByIndex(funcIndex);
+                auto cached = ctx->jitCodeCache->lookupByIndex(
+                    ctx->program->getProgramId(), funcIndex);
                 if (cached.fn)
                 {
                     if (tryJitDispatchResolved(ctx, cached.fn,

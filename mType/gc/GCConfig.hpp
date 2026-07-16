@@ -17,8 +17,6 @@ namespace gc
 
         // Collection limits
         constexpr size_t MAX_CYCLE_DETECTION_TIME_MS = 50;   // Abort if taking too long
-        constexpr size_t MAX_OBJECTS_PER_CYCLE = 10000;     // Limit objects processed per cycle
-        constexpr size_t MAX_TRAVERSAL_DEPTH = 10000;       // Max depth for iterative traversal stack
 
         // Suspect buffer configuration
         constexpr size_t SUSPECT_BUFFER_INITIAL_SIZE = 256;
@@ -45,7 +43,8 @@ namespace gc
             NATIVE_ARRAY = 3,
             FLAT_MULTI_ARRAY = 4,
             SPARSE_MULTI_ARRAY = 5,
-            PROMISE_VALUE = 6
+            PROMISE_VALUE = 6,
+            FLAT_MULTI_OBJECT_ARRAY = 7
         };
     }
 }

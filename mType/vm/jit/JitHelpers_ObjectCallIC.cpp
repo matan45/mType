@@ -340,7 +340,8 @@ namespace vm::jit
                 return;
             }
 
-            ic::MethodInlineCache& cache = ctx->icTable->getMethodIC(bytecodeOffset);
+            ic::MethodInlineCache& cache = ctx->icTable->getMethodIC(
+                ctx->program->getProgramId(), bytecodeOffset);
 
             // Fast path: monomorphic / polymorphic / wide-tier shape match.
             // MEGAMORPHIC also consults the cache; lookup() walks the wide tier
@@ -383,7 +384,9 @@ namespace vm::jit
                         if (auto* codeCache = ctx->vm->getJitCodeCache())
                         {
                             directTarget = reinterpret_cast<const void*>(
-                                codeCache->lookup(entry->qualifiedName));
+                                codeCache->lookup(
+                                    entry->program->getProgramId(),
+                                    entry->qualifiedName));
                             if (directTarget)
                             {
                                 // Write back to the matching mutable entry so
@@ -481,7 +484,9 @@ namespace vm::jit
                         if (ctx->vm) {
                             if (auto* codeCache = ctx->vm->getJitCodeCache()) {
                                 entry.cachedJit = reinterpret_cast<const void*>(
-                                    codeCache->lookup(entry.qualifiedName));
+                                    codeCache->lookup(
+                                        entry.program->getProgramId(),
+                                        entry.qualifiedName));
                             }
                         }
                         // Re-fetch the cache reference immediately before the
@@ -489,7 +494,8 @@ namespace vm::jit
                         // may have inserted new entries and rehashed methodCaches;
                         // the captured reference is not pointer-stable across that.
                         ic::MethodInlineCache& freshCache =
-                            ctx->icTable->getMethodIC(bytecodeOffset);
+                            ctx->icTable->getMethodIC(
+                                ctx->program->getProgramId(), bytecodeOffset);
                         freshCache.addEntry(entry);
                     }
                 }

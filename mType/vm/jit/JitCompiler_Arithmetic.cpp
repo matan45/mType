@@ -2,6 +2,7 @@
 #include "JitCompiler_ControlFlow.hpp"
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include "JitEmissionState.hpp"
 #include "JitHelpers.hpp"
 #include "../bytecode/OpCode.hpp"
@@ -20,6 +21,15 @@ namespace vm::jit
                                    const bytecode::BytecodeProgram::Instruction& instr);
     bool emitLogicalOps(JitEmissionState& s,
                         const bytecode::BytecodeProgram::Instruction& instr);
+
+    namespace
+    {
+        bool fitsSignedImm32(int64_t value)
+        {
+            return value >= std::numeric_limits<int32_t>::min() &&
+                   value <= std::numeric_limits<int32_t>::max();
+        }
+    }
 
     // Defined in JitCompiler_ArithInvoke.cpp.
     bool emitInvokePrimitiveOps(JitEmissionState& s,
@@ -45,9 +55,39 @@ namespace vm::jit
             case OpCode::LOAD_LOAD_SUB_INT:
             case OpCode::LOAD_LOAD_MUL_INT:
             {
-                // MYT-202: compile-time fused LOAD_LOCAL s1 + LOAD_LOCAL s2 +
-                // {ADD,SUB,MUL}_INT. De-fuse at JIT time; the JIT machine-
-                // code output is the same as the unfused sequence.
+                // In an unboxed frame the fused opcode has a fixed INT shape,
+                // so lower it directly to two local loads and one ALU op.
+                // Boxed frames retain the generic path because their locals
+                // require Value unboxing and helper-call barriers.
+                if (!s.usesBoxedTypes)
+                {
+                    if (!checkOpStackHeadroom(s)) return true;
+                    auto& cc = s.cc;
+                    const size_t leftSlot =
+                        static_cast<size_t>(instr.inlineOperands[0]) +
+                        s.inlineLocalsBase;
+                    const size_t rightSlot =
+                        static_cast<size_t>(instr.inlineOperands[1]) +
+                        s.inlineLocalsBase;
+                    Gp left = cc.new_gp64();
+                    Gp right = cc.new_gp64();
+                    cc.mov(left, Mem(s.localsBase,
+                        static_cast<int32_t>(leftSlot * 8)));
+                    cc.mov(right, Mem(s.localsBase,
+                        static_cast<int32_t>(rightSlot * 8)));
+                    if (instr.opcode == OpCode::LOAD_LOAD_ADD_INT)
+                        cc.add(left, right);
+                    else if (instr.opcode == OpCode::LOAD_LOAD_SUB_INT)
+                        cc.sub(left, right);
+                    else
+                        cc.imul(left, right);
+
+                    s.slotTypes.push_back(SlotType::INT);
+                    publishGpHint(s, s.stackDepth, left);
+                    s.stackDepth++;
+                    return true;
+                }
+
                 bytecode::BytecodeProgram::Instruction load1(
                     OpCode::LOAD_LOCAL, instr.inlineOperands[0]);
                 bytecode::BytecodeProgram::Instruction load2(
@@ -111,11 +151,19 @@ namespace vm::jit
                 SlotType lType = popType(s);
                 emitEnsureUnboxed(s, s.stackDepth - 1, lType, SlotType::INT);
 
-                // MYT-211: reg-reg add of an immediate via consume+publish.
+                // x86-64 ADD sign-extends its immediate field. Avoid a
+                // temporary register exactly when the literal is encodable.
                 Gp left = consumeGpHint(s, s.stackDepth - 1);
-                Gp right = cc.new_gp64();
-                cc.mov(right, literal);
-                cc.add(left, right);
+                if (fitsSignedImm32(literal))
+                {
+                    cc.add(left, Imm(literal));
+                }
+                else
+                {
+                    Gp right = cc.new_gp64();
+                    cc.mov(right, literal);
+                    cc.add(left, right);
+                }
                 s.slotTypes.push_back(SlotType::INT);
                 publishGpHint(s, s.stackDepth - 1, left);
                 return true;

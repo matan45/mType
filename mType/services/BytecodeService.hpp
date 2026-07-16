@@ -88,16 +88,28 @@ namespace services
         void compileToFile(const std::string& sourceFile, const std::string& outputFile,
                           const ImportConfig& importConfig);
 
-        // Load and execute bytecode file
-        void runCompiledBytecode(const std::string& bytecodeFile);
+        // Load and execute bytecode while transferring it into the caller's
+        // durable owner before any VM/API raw binding is installed.
+        void runCompiledBytecode(
+            const std::string& bytecodeFile,
+            std::unique_ptr<vm::bytecode::BytecodeProgram>& owner);
 
-        // Load bytecode file and register classes without executing
-        std::unique_ptr<vm::bytecode::BytecodeProgram> loadCompiledBytecodeWithoutExecuting(const std::string& bytecodeFile);
+        // Load bytecode and publish its metadata through a coordinated owner
+        // replacement, without executing top-level instructions.
+        void loadCompiledBytecodeWithoutExecuting(
+            const std::string& bytecodeFile,
+            std::unique_ptr<vm::bytecode::BytecodeProgram>& owner);
 
-        // Load an already-deserialized bytecode program and register classes without executing
-        std::unique_ptr<vm::bytecode::BytecodeProgram> loadFromProgram(vm::bytecode::BytecodeProgram program);
+        // Publish an already-deserialized program through the same owner-aware
+        // path without executing it.
+        void loadFromProgram(
+            vm::bytecode::BytecodeProgram program,
+            std::unique_ptr<vm::bytecode::BytecodeProgram>& owner);
 
-        // Load and execute an already-deserialized bytecode program
-        std::unique_ptr<vm::bytecode::BytecodeProgram> runFromProgram(vm::bytecode::BytecodeProgram program);
+        // Load and execute an already-deserialized bytecode program through
+        // the same coordinated durable-owner replacement path.
+        void runFromProgram(
+            vm::bytecode::BytecodeProgram program,
+            std::unique_ptr<vm::bytecode::BytecodeProgram>& owner);
     };
 }

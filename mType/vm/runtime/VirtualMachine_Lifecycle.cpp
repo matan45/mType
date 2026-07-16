@@ -2,11 +2,29 @@
 #include <cstddef>
 #include <sstream>
 #include "../../errors/RuntimeException.hpp"
+#include "../../errors/UserException.hpp"
 #include "../../gc/GC.hpp"
+#include "../../runtime/EventLoop.hpp"
 #include "../../value/ObjectInstance.hpp"
 #include "../jit/JitCodeCache.hpp"
 #include "../jit/JitProfiler.hpp"
+#include "../jit/OSRManager.hpp"
 #include "../jit/ic/InlineCacheTable.hpp"
+
+namespace
+{
+    void appendStackObjectRoots(
+        std::vector<void*>& roots,
+        runtimeTypes::klass::ObjectInstance* instance)
+    {
+        if (!instance) return;
+        // Stack-promoted instances are intentionally not tracked. Their heap
+        // fields, rather than the borrowed instance address, are GC roots.
+        instance->visitReferences([&roots](void* reference) {
+            if (reference) roots.push_back(reference);
+        });
+    }
+}
 
 namespace vm::runtime
 {
@@ -273,13 +291,16 @@ namespace vm::runtime
         stats = ExecutionStats{};
 
         // MYT-A4: drop all JIT-side state that points at script-defined
-        // ClassDefinitions. ScriptInterpreter::resetForRebuild — the sole
-        // caller — also runs Environment::resetForRebuild → clearScriptDefinitions
-        // which frees those ClassDefinitions. IC entries (InlineCacheTable),
+        // ClassDefinitions. Rebuild and BytecodeExecutionStrategy program
+        // replacement both reset before freeing the old program; rebuild
+        // additionally clears script definitions. IC entries (InlineCacheTable),
         // cached compiled stubs (JitCodeCache), and feedback counters
         // (JitProfiler) all hold raw pointers into that lifetime. Without
         // this clear, the next compile-and-run with the same VM dispatches
         // through stale stubs and dereferences freed CDs (use-after-free).
+        // OSR owns non-owning JitFunction pointers into JitCodeCache. Clear
+        // those first so a rebuilt program can never observe released code.
+        if (osrManager) osrManager->reset();
         if (jitCodeCache) jitCodeCache->clear();
         if (jitProfiler)  jitProfiler->reset();
         if (inlineCacheTable) inlineCacheTable->clear();
@@ -288,8 +309,8 @@ namespace vm::runtime
         // within a single build (MYT-325: same class in main bytecode + a
         // sidecar .mtcLib). They hold stale BytecodeProgram* and synthetic
         // "<Class>::<static_init>$static" names from the program being torn
-        // down. resetForRebuild — the sole caller — frees that program and its
-        // ClassDefinitions, then recompiles fresh ones whose static int fields
+        // down. Rebuild/program-replacement callers free that program only
+        // after reset; rebuild then recompiles definitions whose static int fields
         // default to 0. Without clearing here, runStaticInitializers() skips
         // the re-run (name already seen) and constants like Mouse::RIGHT
         // silently read 0.
@@ -299,6 +320,16 @@ namespace vm::runtime
 
     std::vector<void*> VirtualMachine::collectGCRoots() const
     {
+        // Generated frames keep boxed operands and boxed locals in native
+        // stack storage that is not currently described by this root API.
+        // If an explicit/native callback forces collection while such a frame
+        // is live, conservatively root the tracked heap. Automatic polls are
+        // deferred, so this is only the fail-safe path.
+        if (jitNativeDepth != 0)
+        {
+            return gc::GCTracker::getInstance().getAllTrackedPointers();
+        }
+
         std::vector<void*> roots;
 
         const auto& stack = stackManager->getStack();
@@ -325,13 +356,13 @@ namespace vm::runtime
             // [0, stackObjectsCount) — entries beyond count are uninitialised.
             if (frame.thisInstanceRaw)
             {
-                roots.push_back(frame.thisInstanceRaw);
+                appendStackObjectRoots(roots, frame.thisInstanceRaw);
             }
             for (size_t i = 0; i < frame.stackObjectsCount; ++i)
             {
                 if (frame.stackObjects[i])
                 {
-                    roots.push_back(frame.stackObjects[i]);
+                    appendStackObjectRoots(roots, frame.stackObjects[i]);
                 }
             }
 
@@ -351,6 +382,95 @@ namespace vm::runtime
             {
                 roots.push_back(frame.originatingLambda.get());
             }
+        }
+
+        // Registry-owned Values are process-visible roots even when no copy is
+        // currently on the operand stack (globals and static fields).
+        if (environment)
+        {
+            if (auto variables = environment->getVariableManager())
+            {
+                for (const auto& name : variables->getAllVariableNames())
+                {
+                    if (auto variable = variables->findVariable(name))
+                    {
+                        if (void* ptr = gc::extractPointer(variable->getValue()))
+                            roots.push_back(ptr);
+                    }
+                }
+            }
+            if (auto classes = environment->getClassRegistry())
+            {
+                for (const auto& name : classes->getAllItemNames())
+                {
+                    auto classDefinition = classes->findClass(name);
+                    if (!classDefinition) continue;
+                    for (const auto& [_, field] : classDefinition->getStaticFields())
+                    {
+                        if (field)
+                        {
+                            if (void* ptr = gc::extractPointer(field->getValue()))
+                                roots.push_back(ptr);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Async suspension keeps a second stack/frame graph outside the live
+        // StackManager. These Values remain roots until restore/cancellation.
+        if (savedState)
+        {
+            for (const auto& val : savedState->stack)
+            {
+                if (void* ptr = gc::extractPointer(val)) roots.push_back(ptr);
+            }
+            for (const auto& frame : savedState->callStack)
+            {
+                if (frame.thisInstance) roots.push_back(frame.thisInstance.get());
+                if (frame.thisInstanceRaw)
+                    appendStackObjectRoots(roots, frame.thisInstanceRaw);
+                for (size_t i = 0; i < frame.stackObjectsCount; ++i)
+                {
+                    if (frame.stackObjects[i])
+                        appendStackObjectRoots(roots, frame.stackObjects[i]);
+                }
+                if (frame.sharedFrame)
+                {
+                    for (const auto& local : frame.sharedFrame->locals)
+                    {
+                        if (void* ptr = gc::extractPointer(local)) roots.push_back(ptr);
+                    }
+                }
+                if (frame.originatingLambda) roots.push_back(frame.originatingLambda.get());
+            }
+        }
+
+        if (pendingAwaitRejection)
+        {
+            if (void* ptr = gc::extractPointer(pendingAwaitRejection->exceptionValue))
+                roots.push_back(ptr);
+        }
+        if (interopPendingRejection)
+        {
+            if (void* ptr = gc::extractPointer(interopPendingRejection->exceptionValue))
+                roots.push_back(ptr);
+        }
+        if (interopAwaitedPromise) roots.push_back(interopAwaitedPromise.get());
+        if (pendingException)
+        {
+            if (void* ptr = gc::extractPointer(pendingException->getExceptionValue()))
+                roots.push_back(ptr);
+        }
+        if (eventLoop)
+        {
+            eventLoop->visitGCRoots(
+                [&roots](const value::Value& val) {
+                    if (void* ptr = gc::extractPointer(val)) roots.push_back(ptr);
+                },
+                [&roots](value::PromiseValue* promise) {
+                    if (promise) roots.push_back(promise);
+                });
         }
 
         return roots;

@@ -11,10 +11,16 @@ namespace vm::runtime
     // to fold into surrounding hot code.
 
     void StackManager::resize(size_t newSize) {
+        for (size_t i = newSize; i < stack.size(); ++i) {
+            notifyRemoval(stack[i]);
+        }
         stack.resize(newSize);
     }
 
     void StackManager::resize(size_t newSize, const value::Value& defaultValue) {
+        for (size_t i = newSize; i < stack.size(); ++i) {
+            notifyRemoval(stack[i]);
+        }
         stack.resize(newSize, defaultValue);
     }
 

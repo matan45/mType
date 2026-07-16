@@ -5,6 +5,7 @@
 #include "../../value/SmallArgsBuffer.hpp"
 #include "../jit/JitCodeCache.hpp"
 #include "../jit/JitContext.hpp"
+#include "../jit/ScopedJitNativeDepth.hpp"
 #include "../jit/guards/DeoptimizationHandler.hpp"
 #include "../jit/ic/InlineCacheTable.hpp"
 #include "../jit/ic/TypeFeedbackCollector.hpp"
@@ -48,18 +49,24 @@ namespace vm::runtime
     {
         if (!icEnabled || !typeFeedbackCollector || stackManager->size() < 2)
             return;
+        const auto* activeProgram = executionCtx ? executionCtx->program : program;
+        if (!activeProgram) return;
+        const auto programId = activeProgram->getProgramId();
 
         typeFeedbackCollector->recordBinaryOp(
-            instructionPointer, stackManager->peek(1), stackManager->peek(0));
+            programId, instructionPointer,
+            stackManager->peek(1), stackManager->peek(0));
 
-        if (!typeFeedbackCollector->shouldSpecialize(instructionPointer))
+        if (!typeFeedbackCollector->shouldSpecialize(programId, instructionPointer))
             return;
 
-        auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
+        auto [lt, rt] = typeFeedbackCollector->getDominantTypes(
+            programId, instructionPointer);
         if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT)
         {
             const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = intOpcode;
-            inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+            inlineCacheTable->getTypeFeedback(
+                programId, instructionPointer).specialized = true;
 
             // MYT-198: try to fuse ADD_INT with a preceding PUSH_INT into
             // ADD_INT_CONST. Only ADD_INT is covered by the fused opcode set
@@ -72,7 +79,8 @@ namespace vm::runtime
         else if (lt == jit::ic::ObservedType::FLOAT && rt == jit::ic::ObservedType::FLOAT)
         {
             const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = floatOpcode;
-            inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+            inlineCacheTable->getTypeFeedback(
+                programId, instructionPointer).specialized = true;
         }
     }
 
@@ -82,28 +90,34 @@ namespace vm::runtime
     {
         if (!icEnabled || !typeFeedbackCollector || stackManager->size() < 2)
             return;
+        const auto* activeProgram = executionCtx ? executionCtx->program : program;
+        if (!activeProgram) return;
+        const auto programId = activeProgram->getProgramId();
 
         // Sticky-demote gate. The TypeFeedback.specialized flag already
         // blocks re-entry via shouldSpecialize, but if any future demote
         // path clears it (mirroring MYT-173 CALL_METHOD_CACHED deopts), the
         // cachedDeoptCount check prevents oscillation on a site that has
         // already un-specialized once.
-        if (auto* existing = program->findCachedState(instructionPointer))
+        if (auto* existing = activeProgram->findCachedState(instructionPointer))
         {
             if (existing->cachedDeoptCount >= 1) return;
         }
 
         typeFeedbackCollector->recordBinaryOp(
-            instructionPointer, stackManager->peek(1), stackManager->peek(0));
+            programId, instructionPointer,
+            stackManager->peek(1), stackManager->peek(0));
 
-        if (!typeFeedbackCollector->shouldSpecialize(instructionPointer))
+        if (!typeFeedbackCollector->shouldSpecialize(programId, instructionPointer))
             return;
 
-        auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
+        auto [lt, rt] = typeFeedbackCollector->getDominantTypes(
+            programId, instructionPointer);
         if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT)
         {
             const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = intOpcode;
-            inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+            inlineCacheTable->getTypeFeedback(
+                programId, instructionPointer).specialized = true;
         }
     }
 
@@ -113,8 +127,11 @@ namespace vm::runtime
     {
         if (!icEnabled || !typeFeedbackCollector || stackManager->size() < 1)
             return;
+        const auto* activeProgram = executionCtx ? executionCtx->program : program;
+        if (!activeProgram) return;
+        const auto programId = activeProgram->getProgramId();
 
-        if (auto* existing = program->findCachedState(instructionPointer))
+        if (auto* existing = activeProgram->findCachedState(instructionPointer))
         {
             if (existing->cachedDeoptCount >= 1) return;
         }
@@ -123,16 +140,19 @@ namespace vm::runtime
         // collector only inspects tag, and duplicating avoids adding a
         // separate unary path for a one-operand promotion.
         const value::Value& tos = stackManager->peek(0);
-        typeFeedbackCollector->recordBinaryOp(instructionPointer, tos, tos);
+        typeFeedbackCollector->recordBinaryOp(
+            programId, instructionPointer, tos, tos);
 
-        if (!typeFeedbackCollector->shouldSpecialize(instructionPointer))
+        if (!typeFeedbackCollector->shouldSpecialize(programId, instructionPointer))
             return;
 
-        auto [lt, rt] = typeFeedbackCollector->getDominantTypes(instructionPointer);
+        auto [lt, rt] = typeFeedbackCollector->getDominantTypes(
+            programId, instructionPointer);
         if (lt == jit::ic::ObservedType::INT && rt == jit::ic::ObservedType::INT)
         {
             const_cast<bytecode::BytecodeProgram::Instruction&>(instr).opcode = intOpcode;
-            inlineCacheTable->getTypeFeedback(instructionPointer).specialized = true;
+            inlineCacheTable->getTypeFeedback(
+                programId, instructionPointer).specialized = true;
         }
     }
 
@@ -193,7 +213,8 @@ namespace vm::runtime
         {
             const auto* activeProgram = executionCtx ? executionCtx->program : program;
             std::string funcName = activeProgram->getConstantPool().getString(instr.inlineOperands[0]);
-            auto jitCode = jitCodeCache->lookup(funcName);
+            auto jitCode = jitCodeCache->lookup(
+                activeProgram->getProgramId(), funcName);
             if (jitCode)
             {
                 size_t argCount = instr.inlineOperands[1];
@@ -218,27 +239,22 @@ namespace vm::runtime
                 if (sepPos != std::string::npos)
                     jitCtx.callingClassName = funcName.substr(0, sepPos);
 
-                ++jitNativeDepth;
-                jitCode(&jitCtx);
-                --jitNativeDepth;
+                {
+                    jit::ScopedJitNativeDepth nativeFrame(*this);
+                    jitCode(&jitCtx);
+                }
 
-                // MYT-268: JIT-AWAIT deopt landed at the function-level
-                // boundary. The JIT body uses asmjit-private locals /
-                // operand-stack, so we can't materialize its mid-body state
-                // into the interpreter cleanly. Re-execute the call from
-                // scratch in the interpreter. Side-effect-free bodies re-
-                // execute cleanly; bodies with externally visible side
-                // effects before deopt may double-execute them — known v1
-                // limitation. isStashedOSRDeopt rethrows non-deopt
-                // exceptions to the VM loop unchanged.
+                // Function JITs with AWAIT are rejected until exact deopt
+                // frame states exist. Keep this sentinel check as a safety
+                // net for future emission paths that might violate the gate.
                 if (jitCtx.pendingException
                     && isStashedOSRDeopt(jitCtx.pendingException))
                 {
-                    for (size_t i = 0; i < args.size(); ++i)
-                        stackManager->push(args[i]);
-                    functionExecutor->handleCall(instr);
-                    stats.functionCalls++;
-                    return;
+                    // Ordinary function JIT frames have no deopt snapshot.
+                    // Restarting from bytecode entry would repeat all effects
+                    // before AWAIT, so fail closed if the canCompile() guard is
+                    // ever bypassed by a future emitter or inliner.
+                    std::rethrow_exception(jitCtx.pendingException);
                 }
 
                 if (jitCtx.hasReturnValue)
@@ -260,7 +276,8 @@ namespace vm::runtime
             const auto* activeProgram = executionCtx ? executionCtx->program : program;
             const auto* funcMeta = activeProgram->getFunctionByIndex(instr.inlineOperands[0]);
             if (funcMeta) {
-                auto jitCode = jitCodeCache->lookup(funcMeta->mangledName);
+                auto jitCode = jitCodeCache->lookup(
+                    activeProgram->getProgramId(), funcMeta->mangledName);
                 if (jitCode)
                 {
                     size_t argCount = instr.inlineOperands[1];
@@ -284,19 +301,16 @@ namespace vm::runtime
                     if (sepPos != std::string::npos)
                         jitCtx.callingClassName = funcMeta->name.substr(0, sepPos);
 
-                    ++jitNativeDepth;
-                    jitCode(&jitCtx);
-                    --jitNativeDepth;
+                    {
+                        jit::ScopedJitNativeDepth nativeFrame(*this);
+                        jitCode(&jitCtx);
+                    }
 
                     // MYT-268: see executeCallWithJit for rationale.
                     if (jitCtx.pendingException
                         && isStashedOSRDeopt(jitCtx.pendingException))
                     {
-                        for (size_t i = 0; i < args.size(); ++i)
-                            stackManager->push(args[i]);
-                        functionExecutor->handleCallFast(instr);
-                        stats.functionCalls++;
-                        return;
+                        std::rethrow_exception(jitCtx.pendingException);
                     }
 
                     if (jitCtx.hasReturnValue)
@@ -313,18 +327,26 @@ namespace vm::runtime
     void VirtualMachine::invalidateInlinedFunctionCallers(
         bytecode::FunctionNameHandle callee)
     {
+        if (program) invalidateInlinedFunctionCallers(*program, callee);
+    }
+
+    void VirtualMachine::invalidateInlinedFunctionCallers(
+        const bytecode::BytecodeProgram& calleeProgram,
+        bytecode::FunctionNameHandle callee)
+    {
         if (!jitCodeCache) return;
-        auto callers = jitCodeCache->invalidatedInlineCallersOf(callee);
+        auto callers = jitCodeCache->invalidatedInlineCallersOf(
+            calleeProgram.getProgramId(), callee);
         if (callers.empty()) return;
 
         auto* icTable = inlineCacheTable.get();
-        for (const auto& callerName : callers)
+        for (const auto& caller : callers)
         {
             // JitCodeCache::invalidate releases the native code memory and
             // returns the JitFunction pointer that was freed. The MYT-315
             // contract requires us to scrub every IC table that may hold
             // that pointer.
-            jit::JitFunction removed = jitCodeCache->invalidate(callerName);
+            jit::JitFunction removed = jitCodeCache->invalidate(caller);
             if (!removed) continue;
             const void* removedPtr = reinterpret_cast<const void*>(removed);
             if (icTable)

@@ -19,7 +19,7 @@ namespace vm::jit::guards
             size_t stackIdx = localBase + i;
             if (stackIdx < context.stackManager->size())
             {
-                context.stackManager->getStack()[stackIdx] = deoptState.locals[i];
+                context.stackManager->set(stackIdx, deoptState.locals[i]);
             }
         }
 

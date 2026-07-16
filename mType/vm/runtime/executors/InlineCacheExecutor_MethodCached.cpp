@@ -105,7 +105,8 @@ namespace vm::runtime
 
         // Only promote once the IC has settled to a single shape. POLY sites
         // are handled by CALL_METHOD_POLY_CACHED (MYT-203).
-        MethodInlineCache& cache = icTable.getMethodIC(ip);
+        MethodInlineCache& cache = icTable.getMethodIC(
+            context.program->getProgramId(), ip);
         if (cache.state != ICState::MONOMORPHIC) return;
 
         // MYT-201: writes go into the sparse side table.

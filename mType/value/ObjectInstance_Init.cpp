@@ -10,6 +10,19 @@
 
 namespace runtimeTypes::klass
 {
+    void ObjectInstance::notifyReferenceRemovalsForGC() const noexcept
+    {
+        try
+        {
+            visitReferences([](void* reference) {
+                value::notifyRawHeapRemovalForGC(reference);
+            });
+        }
+        catch (...)
+        {
+        }
+    }
+
     void ObjectInstance::loadFromValueObject(const value::ValueObject& src)
     {
         if (!classDefinition) return;

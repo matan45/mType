@@ -40,6 +40,8 @@ namespace runtimeTypes::klass
 
         std::unique_ptr<value::SpecializedCollectionStorage> specializedCollection_;
 
+        void notifyReferenceRemovalsForGC() const noexcept;
+
     public :
         ObjectInstance(std::shared_ptr<ClassDefinition> classDef)
             : classDefinition(classDef)
@@ -50,6 +52,8 @@ namespace runtimeTypes::klass
                 ensureFieldVector();
             }
         }
+
+        ~ObjectInstance();
 
         // Constructor with generic type bindings
         ObjectInstance(std::shared_ptr<ClassDefinition> classDef,

@@ -2,11 +2,16 @@
 
 #include "../value/ValueType.hpp"
 #include <cstddef>
+#include <cstdint>
+#include <atomic>
 #include <memory>
 #include <deque>
 #include <unordered_map>
 #include <functional>
 #include <chrono>
+#include <mutex>
+#include <thread>
+#include <vector>
 
 namespace vm::runtime {
     // Forward declarations
@@ -19,6 +24,42 @@ namespace value {
 }
 
 namespace runtime {
+
+    namespace detail {
+        struct EventLoopPostState {
+            mutable std::mutex mutex;
+            std::deque<std::function<void()>> callbacks;
+            uint64_t generation = 1;
+            bool accepting = true;
+        };
+    }
+
+    /**
+     * Thread-safe, lifetime-safe producer endpoint for EventLoop::post().
+     * A handle is bound to the event-loop generation in which it was created;
+     * cancelAll() invalidates old handles without leaving a raw EventLoop* on
+     * background threads.
+     */
+    class EventLoopPostHandle {
+    public:
+        EventLoopPostHandle() = default;
+
+        bool post(std::function<void()> callback) const;
+        explicit operator bool() const noexcept { return !state.expired(); }
+
+    private:
+        friend class EventLoop;
+
+        EventLoopPostHandle(
+            std::weak_ptr<detail::EventLoopPostState> state,
+            uint64_t generation) noexcept
+            : state(std::move(state)), generation(generation)
+        {
+        }
+
+        std::weak_ptr<detail::EventLoopPostState> state;
+        uint64_t generation = 0;
+    };
 
     /**
      * @brief State of an asynchronous task
@@ -107,7 +148,7 @@ namespace runtime {
      * for promises and resume when promises are fulfilled.
      *
      * Design:
-     * - Single-threaded (no thread safety overhead)
+     * - VM task state is single-owner-thread; producer posting is synchronized
      * - Cooperative (tasks must explicitly yield)
      * - Priority-based scheduling
      * - Supports delayed execution (setTimeout)
@@ -137,6 +178,17 @@ namespace runtime {
         // Age bonus = (wait_time_ms / agingInterval)
         // Default: 1 priority point per 100ms of waiting
         int agingInterval;
+
+        struct WorkerRecord {
+            std::thread thread;
+            std::shared_ptr<std::atomic<bool>> completed;
+            uint64_t generation = 0;
+        };
+
+        std::shared_ptr<detail::EventLoopPostState> postState;
+        std::thread::id ownerThread;
+        std::vector<WorkerRecord> workers;
+        bool shuttingDown;
 
     public:
         EventLoop();
@@ -206,10 +258,33 @@ namespace runtime {
         void stop();
 
         /**
+         * Invalidate all work belonging to the current program generation.
+         * Must be called on the event-loop owner thread. Old post handles stop
+         * accepting callbacks; owned workers are joined before task captures
+         * are released. The EventLoop remains reusable afterward.
+         */
+        void cancelAll();
+
+        /**
+         * Terminal shutdown. Joins owned workers and settles completions that
+         * they already posted on the owner thread before closing the queue.
+         */
+        void shutdown();
+
+        bool isOwnerThread() const noexcept;
+
+        /**
          * @brief Post a callback to run on next event loop iteration
          * Thread-safe - can be called from background threads
          */
         void post(std::function<void()> callback);
+
+        EventLoopPostHandle getPostHandle() const;
+
+        // Launch background transport work owned by this loop. The worker must
+        // not construct Value objects or touch VM state; it communicates back
+        // through a captured EventLoopPostHandle.
+        bool launchWorker(std::function<void()> worker);
 
         /**
          * @brief Get a task by ID
@@ -218,15 +293,23 @@ namespace runtime {
          */
         std::shared_ptr<Task> getTask(size_t taskId) const;
 
+        // Visit explicit task state without coupling the event loop to GC.
+        // Captures stored inside std::function remain opaque C++ ownership.
+        void visitGCRoots(
+            const std::function<void(const value::Value&)>& valueVisitor,
+            const std::function<void(value::PromiseValue*)>& promiseVisitor) const;
+
     private:
         void executeTask(std::shared_ptr<Task> task);
         void checkCompletedPromises();
         void moveReadyDelayedTasks();
         std::shared_ptr<Task> selectNextTask();
         void cleanupCompletedTasks();
-
-        // Queue of callbacks from background threads
-        std::deque<std::function<void()>> pendingCallbacks;
+        void requireOwnerThread(const char* operation) const;
+        void reapCompletedWorkers();
+        void joinWorkersThrough(uint64_t generation);
+        bool hasBackgroundWork() const;
+        std::deque<std::function<void()>> takePostedCallbacks();
     };
 
 } // namespace runtime

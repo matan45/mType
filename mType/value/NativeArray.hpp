@@ -227,6 +227,15 @@ namespace value
         }
 
     public:
+        ~NativeArray()
+        {
+            if (storage.index() != 0) return;
+            for (const auto& value : std::get<0>(storage))
+            {
+                notifyHeapValueRemovalForGC(value);
+            }
+        }
+
         explicit NativeArray(size_t size)
             : elementType(ValueType::VOID),
               elementTypeName("") {
@@ -305,6 +314,21 @@ namespace value
         // WARNING: Caller MUST ensure index < size() before calling
         // No bounds checking performed - undefined behavior if index out of bounds
         void setUnchecked(size_t index, const Value& value) {
+            if (storage.index() == 0) {
+                const auto& oldValue = std::get<0>(storage)[index];
+                if (isGCManagedReference(oldValue) || isGCManagedReference(value)) {
+                    notifyHeapReferenceMutation(this, &oldValue, &value);
+                }
+            } else if (storage.index() == 5 &&
+                       std::get<5>(storage)->canStoreExact(value)) {
+                // Exact-class SoA decomposition retains primitive field data,
+                // not the ObjectInstance identity, so it creates no GC edge.
+            } else if (isGCManagedReference(value)) {
+                // Primitive SIMD and exact-class SoA lanes cannot contain an
+                // old GC edge. A reference write may convert them to the
+                // heterogeneous Value lane, creating a new edge from owner.
+                notifyHeapReferenceMutation(this, nullptr, &value);
+            }
             switch (storage.index()) {
                 case 1: // SIMD_INT
                     if (value::isInt(value)) {
@@ -364,6 +388,13 @@ namespace value
         }
 
     public:
+
+        void clearReferencesForGC() {
+            if (storage.index() != 0) return;
+            for (auto& value : std::get<0>(storage)) {
+                if (isGCManagedReference(value)) value = std::monostate{};
+            }
+        }
 
         void set(size_t index, const Value& value) {
             // PERFORMANCE: Do bounds check once here, then use unchecked methods

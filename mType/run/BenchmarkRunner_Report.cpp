@@ -82,6 +82,12 @@ namespace
         std::cout << "    jit            compiled=" << j.compileCount
                   << " bailouts=" << j.bailoutCount
                   << " cached=" << j.cachedFunctions
+                  << " compile-ms=" << (static_cast<double>(j.compileTimeNs) / 1'000'000.0)
+                  << " generated-bytes=" << j.generatedCodeBytes
+                  << " live-bytes=" << j.liveCodeBytes
+                  << " frame-bytes-total=" << j.reservedFrameBytes
+                  << " frame-bytes-peak=" << j.peakReservedFrameBytes
+                  << " budget-rejects=" << j.codeBudgetRejects
                   << " osr-profiled=" << j.loopsProfiled
                   << " osr-compiled=" << j.osrCompiled
                   << " osr-failed=" << j.osrFailed
@@ -180,6 +186,23 @@ namespace
                   << " hits=" << first.stringPoolHits << "\n";
         std::cout << "    array-pool     alloc=" << first.arrayPoolAllocs
                   << " hits=" << first.arrayPoolHits << "\n";
+        std::cout << "    bridge-arena   hits=" << first.bridgeArenaHits
+                  << " misses=" << first.bridgeArenaMisses
+                  << " discards=" << first.bridgeArenaDiscards
+                  << " cached=" << first.bridgeArenaCachedSlots << "\n";
+        std::cout << "    object-pool    alloc=" << first.objectPoolAllocs
+                  << " hits=" << first.objectPoolHits
+                  << " misses=" << first.objectPoolMisses
+                  << " returns=" << first.objectPoolReturns
+                  << " discards=" << first.objectPoolDiscards
+                  << " cached=" << first.objectPoolCurrentSize << "\n";
+        std::cout << "    gc             collections=" << first.gcCollections
+                  << " cycles=" << first.gcCyclesDetected
+                  << " collected=" << first.gcObjectsCollected
+                  << " alloc=" << first.gcAllocations
+                  << " suspects=" << first.gcSuspectsAdded
+                  << " time-us=" << first.gcCollectionTimeUs
+                  << " tracked-after=" << first.gcTrackedAfter << "\n";
         printTextJit(first.jit);
         std::cout << "\n";
     }
@@ -241,6 +264,14 @@ namespace
                       << ", \"median\": " << formatMs(agg.medianMs)
                       << ", \"mean\": " << formatMs(agg.meanMs)
                       << ", \"stddev\": " << formatMs(agg.stddevMs) << " },\n";
+            std::cout << "      \"samples_ms\": [";
+            for (std::size_t sampleIndex = 0;
+                 sampleIndex < r.measured.size(); ++sampleIndex)
+            {
+                if (sampleIndex != 0) std::cout << ", ";
+                std::cout << formatMs(r.measured[sampleIndex].wallMs);
+            }
+            std::cout << "],\n";
             std::cout << "      \"exec_ms\": "
                       << formatMs(static_cast<double>(first.stats.executionTime.count()) / 1000.0) << ",\n";
             std::cout << "      \"instructions\": " << first.stats.instructionsExecuted << ",\n";
@@ -248,13 +279,37 @@ namespace
             std::cout << "      \"string_pool\": { \"requests\": " << first.stringPoolRequests
                       << ", \"hits\": " << first.stringPoolHits << " },\n";
             std::cout << "      \"array_pool\": { \"allocations\": " << first.arrayPoolAllocs
-                      << ", \"hits\": " << first.arrayPoolHits << " }";
+                      << ", \"hits\": " << first.arrayPoolHits << " },\n";
+            std::cout << "      \"bridge_arena\": { \"hits\": " << first.bridgeArenaHits
+                      << ", \"misses\": " << first.bridgeArenaMisses
+                      << ", \"discards\": " << first.bridgeArenaDiscards
+                      << ", \"cached_slots\": " << first.bridgeArenaCachedSlots << " },\n";
+            std::cout << "      \"object_pool\": { \"allocations\": " << first.objectPoolAllocs
+                      << ", \"hits\": " << first.objectPoolHits
+                      << ", \"misses\": " << first.objectPoolMisses
+                      << ", \"returns\": " << first.objectPoolReturns
+                      << ", \"discards\": " << first.objectPoolDiscards
+                      << ", \"cached_objects\": " << first.objectPoolCurrentSize << " },\n";
+            std::cout << "      \"gc\": { \"collections\": " << first.gcCollections
+                      << ", \"cycles_detected\": " << first.gcCyclesDetected
+                      << ", \"objects_collected\": " << first.gcObjectsCollected
+                      << ", \"allocations\": " << first.gcAllocations
+                      << ", \"suspects_added\": " << first.gcSuspectsAdded
+                      << ", \"collection_time_us\": " << first.gcCollectionTimeUs
+                      << ", \"tracked_after\": " << first.gcTrackedAfter << " }";
             if (first.jit.captured)
             {
                 std::cout << ",\n      \"jit\": {\n";
                 std::cout << "        \"compiled\": " << first.jit.compileCount << ",\n";
                 std::cout << "        \"bailouts\": " << first.jit.bailoutCount << ",\n";
                 std::cout << "        \"cached\": " << first.jit.cachedFunctions << ",\n";
+                std::cout << "        \"compile_time_ns\": " << first.jit.compileTimeNs << ",\n";
+                std::cout << "        \"generated_code_bytes\": " << first.jit.generatedCodeBytes << ",\n";
+                std::cout << "        \"live_code_bytes\": " << first.jit.liveCodeBytes << ",\n";
+                std::cout << "        \"code_byte_budget\": " << first.jit.codeByteBudget << ",\n";
+                std::cout << "        \"code_budget_rejects\": " << first.jit.codeBudgetRejects << ",\n";
+                std::cout << "        \"reserved_frame_bytes\": " << first.jit.reservedFrameBytes << ",\n";
+                std::cout << "        \"peak_reserved_frame_bytes\": " << first.jit.peakReservedFrameBytes << ",\n";
                 std::cout << "        \"osr_profiled\": " << first.jit.loopsProfiled << ",\n";
                 std::cout << "        \"osr_compiled\": " << first.jit.osrCompiled << ",\n";
                 std::cout << "        \"osr_failed\": " << first.jit.osrFailed << ",\n";

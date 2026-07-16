@@ -1,5 +1,6 @@
 #pragma once
 #include "ValueType.hpp"
+#include <array>
 #include <chrono>
 #include <condition_variable>
 
@@ -60,7 +61,11 @@ namespace value
         /**
          * @brief Virtual destructor for polymorphism
          */
-        virtual ~PromiseValue() = default;
+        virtual ~PromiseValue()
+        {
+            notifyHeapValueRemovalForGC(value);
+            notifyHeapValueRemovalForGC(exceptionValue);
+        }
 
         /**
          * @brief Get the current state of the promise
@@ -112,6 +117,10 @@ namespace value
                 state = PromiseState::FULFILLED;
                 value = val;
             }
+            if (isGCManagedReference(val))
+            {
+                notifyHeapReferenceMutation(this, nullptr, &val);
+            }
             // Notify all threads waiting on this promise (outside lock to avoid deadlock)
             cv.notify_all();
         }
@@ -161,6 +170,10 @@ namespace value
                 exceptionTypeName = typeName;
                 errorMessage = error;
             }
+            if (isGCManagedReference(exceptionVal))
+            {
+                notifyHeapReferenceMutation(this, nullptr, &exceptionVal);
+            }
             // Notify all threads waiting on this promise (outside lock to avoid deadlock)
             cv.notify_all();
         }
@@ -195,6 +208,17 @@ namespace value
         {
             std::lock_guard<std::mutex> lock(promiseMutex);
             return exceptionValue;
+        }
+
+        /**
+         * Snapshot both Value-bearing slots under one lock for GC traversal.
+         * The collector invokes arbitrary graph callbacks only after this
+         * method has released promiseMutex.
+         */
+        std::array<Value, 2> getReferencesForGC() const
+        {
+            std::lock_guard<std::mutex> lock(promiseMutex);
+            return {value, exceptionValue};
         }
 
         /**

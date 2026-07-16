@@ -1,7 +1,13 @@
 #pragma once
-#include <unordered_map>
+
 #include <cstddef>
+#include <cstdint>
+#include <deque>
+#include <memory>
+#include <unordered_map>
+#include <vector>
 #include "InlineCacheTypes.hpp"
+#include "../JitIdentity.hpp"
 
 namespace vm::jit::ic
 {
@@ -10,36 +16,65 @@ namespace vm::jit::ic
     public:
         InlineCacheTable() = default;
 
-        // Field IC access
-        FieldInlineCache& getFieldIC(size_t instructionOffset);
-        bool hasFieldIC(size_t instructionOffset) const;
+        // Pre-size the compact site-index table when a program is bound.
+        // Accessors also grow lazily so library/interop programs remain safe
+        // when first observed through a nested dispatch path.
+        void registerProgram(bytecode::ProgramId programId,
+                             size_t instructionCount);
 
-        // Method IC access
-        MethodInlineCache& getMethodIC(size_t instructionOffset);
-        bool hasMethodIC(size_t instructionOffset) const;
+        FieldInlineCache& getFieldIC(bytecode::ProgramId programId,
+                                     size_t instructionOffset);
+        bool hasFieldIC(bytecode::ProgramId programId,
+                        size_t instructionOffset) const;
 
-        // Type feedback access
-        TypeFeedback& getTypeFeedback(size_t instructionOffset);
-        bool hasTypeFeedback(size_t instructionOffset) const;
+        MethodInlineCache& getMethodIC(bytecode::ProgramId programId,
+                                       size_t instructionOffset);
+        bool hasMethodIC(bytecode::ProgramId programId,
+                         size_t instructionOffset) const;
 
-        // Invalidate all caches (e.g., on class redefinition)
+        TypeFeedback& getTypeFeedback(bytecode::ProgramId programId,
+                                      size_t instructionOffset);
+        bool hasTypeFeedback(bytecode::ProgramId programId,
+                             size_t instructionOffset) const;
+
         void invalidateAll();
 
-        // MYT-315: zero every MethodICEntry.cachedJit that points to `evictedJit`.
-        // Must be called whenever JitCodeCache::invalidate releases a
-        // JitFunction's native code page — failing to do so leaves IC entries
-        // holding dangling function pointers that the JIT direct-call emitter
-        // would call into. The argument is `const void*` because MethodICEntry
-        // stores the pointer opaquely; the caller passes the raw JitFunction
-        // value reinterpret-cast to `const void*`.
+        // Zero every MethodICEntry.cachedJit that points to evictedJit.
+        // Required before an invalidated native-code pointer can be reused.
         void clearCachedJitForFunction(const void* evictedJit);
 
-        // Clear everything
         void clear();
 
     private:
-        std::unordered_map<size_t, FieldInlineCache> fieldCaches;
-        std::unordered_map<size_t, MethodInlineCache> methodCaches;
-        std::unordered_map<size_t, TypeFeedback> typeFeedbackMap;
+        static constexpr uint32_t INVALID_CACHE_INDEX = UINT32_MAX;
+
+        struct SiteState
+        {
+            uint32_t fieldIndex = INVALID_CACHE_INDEX;
+            uint32_t methodIndex = INVALID_CACHE_INDEX;
+            uint32_t feedbackIndex = INVALID_CACHE_INDEX;
+        };
+
+        struct ProgramSiteCaches
+        {
+            std::vector<SiteState> sites;
+
+            // Deques keep cache references stable if a nested call discovers
+            // another site while its caller still holds the current entry.
+            std::deque<FieldInlineCache> fieldCaches;
+            std::deque<MethodInlineCache> methodCaches;
+            std::deque<TypeFeedback> typeFeedback;
+        };
+
+        ProgramSiteCaches& programCaches(bytecode::ProgramId programId,
+                                         size_t instructionOffset);
+        const ProgramSiteCaches* findProgramCaches(
+            bytecode::ProgramId programId) const;
+
+        std::unordered_map<bytecode::ProgramId,
+                           std::unique_ptr<ProgramSiteCaches>,
+                           bytecode::ProgramIdHash> programs;
+        mutable bytecode::ProgramId activeProgramId{};
+        mutable ProgramSiteCaches* activeProgram = nullptr;
     };
 }

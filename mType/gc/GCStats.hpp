@@ -92,6 +92,17 @@ namespace gc
             }
         }
 
+        void synchronizeTrackedObjects(size_t current)
+        {
+            currentTrackedObjects = current;
+            size_t peak = peakTrackedObjects.load();
+            while (current > peak &&
+                   !peakTrackedObjects.compare_exchange_weak(peak, current))
+            {
+                // Preserve a true high-water mark while correcting the gauge.
+            }
+        }
+
         double getAverageCollectionTimeMs() const
         {
             size_t collections = totalCollections.load();

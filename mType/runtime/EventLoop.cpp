@@ -14,19 +14,15 @@ namespace runtime
           , running(false)
           , shouldStop(false)
           , agingInterval(100) // Default: 1 priority point per 100ms
+          , postState(std::make_shared<detail::EventLoopPostState>())
+          , ownerThread(std::this_thread::get_id())
+          , shuttingDown(false)
     {
     }
 
     EventLoop::~EventLoop()
     {
-        stop();
-
-        // Clean up all remaining tasks to prevent memory leaks
-        allTasks.clear();
-        suspendedTasks.clear();
-        readyQueue.clear();
-        delayedTasks.clear();
-        pendingCallbacks.clear();
+        shutdown();
     }
 
     size_t EventLoop::scheduleTask(
@@ -110,8 +106,8 @@ namespace runtime
             callback = task->resumeCallback;
         }
 
-        // Execute callback outside queueMutex to prevent lock inversion
-        // (resolve path holds callbackMutex -> calls resumeTask -> would acquire queueMutex)
+        // Callback execution stays outside all event-loop queue operations;
+        // promise callbacks may synchronously schedule or resume another task.
         if (callback)
         {
             callback(resolvedValue);
@@ -179,17 +175,15 @@ namespace runtime
 
     bool EventLoop::tick()
     {
+        requireOwnerThread("tick");
+        if (shuttingDown) return false;
+        reapCompletedWorkers();
+
         // Process callbacks from background threads. Drain the queue under
         // the lock, then execute callbacks WITHOUT the lock held — callbacks
         // may legitimately call post() / scheduleTask() / resumeTask() (e.g.
-        // a promise resolution that resumes a suspended task), all of which
-        // lock queueMutex themselves. Holding the lock across callback
-        // execution would re-lock it on the same thread and trigger
-        // resource_deadlock_would_occur.
-        std::deque<std::function<void()>> drained;
-        {
-            drained.swap(pendingCallbacks);
-        }
+        // a promise resolution that resumes a suspended task).
+        auto drained = takePostedCallbacks();
         while (!drained.empty())
         {
             auto callback = std::move(drained.front());
@@ -209,7 +203,8 @@ namespace runtime
         if (!task)
         {
             // No tasks ready - check if we have suspended or delayed tasks
-            bool hasWork = !suspendedTasks.empty() || !delayedTasks.empty();
+            bool hasWork = !suspendedTasks.empty() || !delayedTasks.empty() ||
+                           hasBackgroundWork();
 
             if (hasWork)
             {
@@ -237,7 +232,7 @@ namespace runtime
 
     void EventLoop::post(std::function<void()> callback)
     {
-        pendingCallbacks.push_back(callback);
+        (void)getPostHandle().post(std::move(callback));
     }
 
     void EventLoop::executeTask(std::shared_ptr<Task> task)
@@ -296,9 +291,8 @@ namespace runtime
 
     void EventLoop::checkCompletedPromises()
     {
-        // Collect rejections under the lock, then invoke promise->reject() after
-        // release. reject() synchronously runs .then/.catch handlers, which may
-        // call post() / scheduleTask() and re-lock queueMutex on this thread.
+        // Collect rejections first, then invoke promise->reject(). reject()
+        // synchronously runs .then/.catch handlers, which may schedule work.
         std::vector<std::pair<std::shared_ptr<Task>, std::string>> rejectedTasks;
 
         {
@@ -418,6 +412,27 @@ namespace runtime
             return it->second;
         }
         return nullptr;
+    }
+
+    void EventLoop::visitGCRoots(
+        const std::function<void(const value::Value&)>& valueVisitor,
+        const std::function<void(value::PromiseValue*)>& promiseVisitor) const
+    {
+        for (const auto& [taskId, task] : allTasks)
+        {
+            (void)taskId;
+            if (!task) continue;
+            if (task->resultPromise) promiseVisitor(task->resultPromise.get());
+            if (task->waitingOn) promiseVisitor(task->waitingOn.get());
+            if (!task->snapshot) continue;
+
+            for (const auto& value : task->snapshot->stack) valueVisitor(value);
+            for (const auto& [name, value] : task->snapshot->locals)
+            {
+                (void)name;
+                valueVisitor(value);
+            }
+        }
     }
 
     void EventLoop::cleanupCompletedTasks()

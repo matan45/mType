@@ -6,6 +6,7 @@
 #include "../value/FlatMultiArray.hpp"
 #include "../value/SparseMultiArray.hpp"
 #include "../value/PromiseValue.hpp"
+#include "../value/arrays/object/FlatMultiObjectArray.hpp"
 
 namespace gc
 {
@@ -64,12 +65,11 @@ namespace gc
 
         auto* array = static_cast<value::NativeArray*>(object);
 
-        // Only visit if array can contain object references
-        if (array->getElementType() != value::ValueType::OBJECT &&
-            array->getElementType() != value::ValueType::VOID)
-        {
-            return;
-        }
+        // Exact-class SoA storage contains only primitive field columns (the
+        // ObjectArray constructor rejects reference-typed fields). Calling
+        // NativeArray::get() here would materialize fresh ObjectInstances and
+        // invent GC edges that are not present in the stored representation.
+        if (array->getObjectArrayData()) return;
 
         // Visit all elements
         size_t sz = array->size();
@@ -90,16 +90,18 @@ namespace gc
 
         auto* array = static_cast<value::FlatMultiArray*>(object);
 
-        size_t sz = array->totalSize();
-        for (size_t i = 0; i < sz; ++i)
+        if (auto* parent = array->getParentForGC())
         {
-            value::Value val = array->get(i);
+            callback(parent);
+        }
+
+        array->visitValuesForGC([&callback](const value::Value& val) {
             void* ptr = extractPointer(val);
             if (ptr)
             {
                 callback(ptr);
             }
-        }
+        });
     }
 
     void visitSparseMultiArrayReferences(void* object, std::function<void(void*)> callback)
@@ -108,16 +110,18 @@ namespace gc
 
         auto* array = static_cast<value::SparseMultiArray*>(object);
 
-        size_t sz = array->totalSize();
-        for (size_t i = 0; i < sz; ++i)
+        if (auto* parent = array->getParentForGC())
         {
-            value::Value val = array->get(i);
+            callback(parent);
+        }
+
+        array->visitValuesForGC([&callback](const value::Value& val) {
             void* ptr = extractPointer(val);
             if (ptr)
             {
                 callback(ptr);
             }
-        }
+        });
     }
 
     void visitPromiseReferences(void* object, std::function<void(void*)> callback)
@@ -126,27 +130,33 @@ namespace gc
 
         auto* promise = static_cast<value::PromiseValue*>(object);
 
-        // Visit resolved value if fulfilled
-        if (promise->isFulfilled())
+        for (const auto& value : promise->getReferencesForGC())
         {
-            value::Value val = promise->getValue();
-            void* ptr = extractPointer(val);
+            void* ptr = extractPointer(value);
             if (ptr)
             {
                 callback(ptr);
             }
         }
+    }
 
-        // Visit exception value if rejected
-        if (promise->isRejected())
+    void visitFlatMultiObjectArrayReferences(
+        void* object,
+        std::function<void(void*)> callback)
+    {
+        if (!object) return;
+        auto* array = static_cast<mType::value::arrays::FlatMultiObjectArray*>(object);
+        if (auto* parent = array->getParentForGC())
         {
-            value::Value exVal = promise->getExceptionValue();
-            void* ptr = extractPointer(exVal);
+            callback(parent);
+        }
+        array->visitValuesForGC([&callback](const value::Value& value) {
+            void* ptr = extractPointer(value);
             if (ptr)
             {
                 callback(ptr);
             }
-        }
+        });
     }
 
     void visitReferences(void* object, config::GCObjectType type, std::function<void(void*)> callback)
@@ -177,6 +187,10 @@ namespace gc
                 visitPromiseReferences(object, callback);
                 break;
 
+            case config::GCObjectType::FLAT_MULTI_OBJECT_ARRAY:
+                visitFlatMultiObjectArrayReferences(object, callback);
+                break;
+
             default:
                 break;
         }
@@ -199,44 +213,31 @@ namespace gc
             {
                 auto* lambda = static_cast<vm::runtime::BytecodeLambda*>(object);
                 lambda->capturedThis.reset();
-                if (lambda->capturedFrame)
-                {
-                    lambda->capturedFrame->locals.clear();
-                    lambda->capturedFrame->parentFrame.reset();
-                }
+                // The frame can be shared by other, live closures. The lambda
+                // owns only this shared_ptr edge, never the frame contents or
+                // parent chain.
+                lambda->capturedFrame.reset();
                 break;
             }
 
             case config::GCObjectType::NATIVE_ARRAY:
             {
                 auto* array = static_cast<value::NativeArray*>(object);
-                if (array->getElementType() == value::ValueType::OBJECT ||
-                    array->getElementType() == value::ValueType::VOID)
-                {
-                    size_t sz = array->size();
-                    for (size_t i = 0; i < sz; ++i)
-                    {
-                        array->set(i, value::Value{std::monostate{}});
-                    }
-                }
+                array->clearReferencesForGC();
                 break;
             }
 
             case config::GCObjectType::FLAT_MULTI_ARRAY:
             {
                 auto* array = static_cast<value::FlatMultiArray*>(object);
-                size_t sz = array->totalSize();
-                for (size_t i = 0; i < sz; ++i)
-                {
-                    array->set(i, std::monostate{});
-                }
+                array->clearReferencesForGC();
                 break;
             }
 
             case config::GCObjectType::SPARSE_MULTI_ARRAY:
             {
                 auto* array = static_cast<value::SparseMultiArray*>(object);
-                array->reset();
+                array->clearReferencesForGC();
                 break;
             }
 
@@ -244,6 +245,13 @@ namespace gc
             {
                 auto* promise = static_cast<value::PromiseValue*>(object);
                 promise->clearForGC();
+                break;
+            }
+
+            case config::GCObjectType::FLAT_MULTI_OBJECT_ARRAY:
+            {
+                auto* array = static_cast<mType::value::arrays::FlatMultiObjectArray*>(object);
+                array->clearReferencesForGC();
                 break;
             }
 

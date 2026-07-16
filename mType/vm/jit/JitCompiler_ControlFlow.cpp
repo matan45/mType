@@ -14,9 +14,14 @@ namespace vm::jit
 
     void emitInlineGcSafepoint(JitEmissionState& s)
     {
+        // The slow path crosses into C++ and collection can inspect the VM
+        // state. Make this helper a self-contained write-back boundary so a
+        // future caller cannot accidentally carry dirty stack hints through
+        // the safepoint.
+        flushAllHints(s);
         // Inline GC poll: bump g_jit_gc_poll_counter and only invoke
-        // jit_gc_safepoint (which resets the counter and calls
-        // GC::maybeCollect) when it crosses GC_CHECK_INTERVAL. Skips the
+        // jit_gc_safepoint (which resets the counter and defers collection
+        // until no native JIT frame is live) at GC_CHECK_INTERVAL. Skips the
         // ABI register-spill overhead of cc.invoke on the common path —
         // critical for tight loops where JUMP_BACK fires millions of times.
         auto& cc = s.cc;
@@ -167,8 +172,11 @@ namespace vm::jit
                 size_t target = instr.inlineOperands[0];
                 s.stackDepth--;
                 popType(s);
-                Gp cond = cc.new_gp64();
-                cc.mov(cond, Mem(s.stackBase, s.stackDepth * 8));
+                Gp cond = consumeGpHint(s, s.stackDepth);
+                // Both successors join a memory-coherent label state. The
+                // condition itself was popped; flush every other live hint
+                // before emitting the branch.
+                flushAllHints(s);
                 cc.test(cond, cond);
 
                 if (auto* lbl = findInlineJumpLabel(s, target))
@@ -194,8 +202,8 @@ namespace vm::jit
                 size_t target = instr.inlineOperands[0];
                 s.stackDepth--;
                 popType(s);
-                Gp cond = cc.new_gp64();
-                cc.mov(cond, Mem(s.stackBase, s.stackDepth * 8));
+                Gp cond = consumeGpHint(s, s.stackDepth);
+                flushAllHints(s);
                 cc.test(cond, cond);
 
                 if (auto* lbl = findInlineJumpLabel(s, target))

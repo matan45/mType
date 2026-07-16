@@ -22,12 +22,18 @@ namespace vm::runtime
             auto* codeCache = vm->getJitCodeCache();
             if (compiler && codeCache)
             {
+                const size_t approximateLoopSpan =
+                    instr.hasOperands()
+                        && context.instructionPointer >= instr.inlineOperands[0]
+                      ? context.instructionPointer - instr.inlineOperands[0] + 1
+                      : 0;
                 if (osrManager->tryOSR(context.instructionPointer,
                                         *context.program,
                                         context,
                                         *vm,
                                         *compiler,
-                                        *codeCache))
+                                        *codeCache,
+                                        approximateLoopSpan))
                 {
                     // OSR executed the loop natively and set instructionPointer
                     return;
@@ -81,7 +87,7 @@ namespace vm::runtime
             // Bulk truncation avoids per-element pop_back() overhead on the
             // hot return path (~2.76M returns in recursive.mt).
             if (context.stackManager->size() > frame.frameBase) {
-                context.stackManager->getStack().resize(frame.frameBase);
+                context.stackManager->resize(frame.frameBase);
             }
         }
     }

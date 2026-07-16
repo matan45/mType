@@ -38,11 +38,12 @@ namespace vm::runtime
             //                   parentNameIdx1, parentSlot1, ...]
             size_t lambdaStart = instr.inlineOperands[0];
             size_t paramCount = instr.inlineOperands[1];
-            size_t captureCount = instr.inlineOperands[2];
+            size_t captureCount = instr.operandAt(2);
             size_t funcNameIdx = instr.operandAt(4);
 
             // Create bytecode lambda
             auto lambda = std::make_shared<BytecodeLambda>();
+            lambda->owningProgramId = context.program->getProgramId();
             lambda->instructionPointer = lambdaStart;
             lambda->parameterCount = paramCount;
 

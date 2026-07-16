@@ -64,12 +64,12 @@ namespace gc
      * Uses a header map for metadata storage with minimal per-object overhead.
      *
      * THREADING MODEL:
-     * The GC runs synchronously on the VM execution thread. The mutex protects
-     * against concurrent allocations (e.g., during object creation while GC is
-     * iterating), but callers of getHeader() must be aware that the returned
-     * pointer is only valid while no other thread modifies the tracker's maps
-     * (e.g., via unregisterObject or cleanupDeadObjects). This is safe because
-     * cycle detection and collection run on the same thread that triggers them.
+     * The tracker is not internally synchronized; the atomic counters do not
+     * protect either map. GCCoordinator serializes runtime registration,
+     * mutation barriers, and CycleDetector traversal with its state mutex.
+     * Direct tracker access is therefore limited to that critical section or
+     * single-threaded diagnostics/tests. In particular, the pointer returned
+     * by getHeader() is invalidated by an uncoordinated map mutation.
      */
     class GCTracker
     {
@@ -89,13 +89,14 @@ namespace gc
 
         // Object registration
         template <typename T>
-        void registerObject(std::shared_ptr<T> obj, config::GCObjectType type)
+        bool registerObject(std::shared_ptr<T> obj, config::GCObjectType type)
         {
-            if (!obj) return;
+            if (!obj) return false;
 
             void* rawPtr = obj.get();
 
-            if (objectHeaders.find(rawPtr) == objectHeaders.end())
+            auto existing = objectHeaders.find(rawPtr);
+            if (existing == objectHeaders.end())
             {
                 GCObjectHeader header;
                 header.type = type;
@@ -105,7 +106,24 @@ namespace gc
                 weakReferences[rawPtr] = std::weak_ptr<void>(obj);
                 totalTrackedObjects++;
                 allocationCount++;
+                return true;
             }
+
+            // ObjectInstancePool may reuse an address before the next dead-
+            // weak cleanup pass. Refresh that slot for the new shared_ptr
+            // control block instead of mistaking it for the expired object.
+            auto weak = weakReferences.find(rawPtr);
+            if (weak == weakReferences.end() || weak->second.expired())
+            {
+                GCObjectHeader header;
+                header.type = type;
+                header.actualRefCount = static_cast<int32_t>(obj.use_count());
+                existing->second = header;
+                weakReferences[rawPtr] = std::weak_ptr<void>(obj);
+                allocationCount++;
+                return true;
+            }
+            return false;
         }
 
         void unregisterObject(void* rawPtr);
@@ -128,7 +146,7 @@ namespace gc
         {
             for (auto& [ptr, header] : objectHeaders)
             {
-                // Get current refcount while we hold the lock
+                // GCCoordinator's state mutex is the external traversal lock.
                 long refCount = 0;
                 auto it = weakReferences.find(ptr);
                 if (it != weakReferences.end())

@@ -69,12 +69,14 @@ namespace services
                          const vm::bytecode::BytecodeProgram* bytecodeProgram)
         : environment(env), vm(virtualMachine), program(bytecodeProgram)
     {
+        if (program) program->pinRuntimeAddress();
     }
 
     ScriptAPI::~ScriptAPI() = default;
 
     void ScriptAPI::setBytecodeProgram(const vm::bytecode::BytecodeProgram* bytecodeProgram)
     {
+        if (bytecodeProgram) bytecodeProgram->pinRuntimeAddress();
         program = bytecodeProgram;
     }
 

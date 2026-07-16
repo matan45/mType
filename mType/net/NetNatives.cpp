@@ -135,6 +135,18 @@ namespace net
             inst->setField("handle", static_cast<int64_t>(handle));
             return inst;
         }
+
+        ::runtime::EventLoop* requireEventLoop(
+            environment::NativeContext& ctx,
+            const char* functionName)
+        {
+            if (!ctx.vm)
+            {
+                throw errors::RuntimeException(
+                    std::string(functionName) + ": requires a VirtualMachine");
+            }
+            return ctx.vm->ensureEventLoop();
+        }
     }
 
     void NetNatives::registerAll(std::shared_ptr<environment::Environment> env)
@@ -203,8 +215,7 @@ namespace net
         int64_t     timeoutMs = extractInt(args[4], "__net_http_sendAsync");
 
         auto env = ctx.env;
-        auto vm  = ctx.vm;
-        ::runtime::EventLoop* loop = vm ? vm->getEventLoop() : nullptr;
+        auto* loop = requireEventLoop(ctx, "__net_http_sendAsync");
 
         HttpRequestData req;
         req.method    = method;
@@ -239,8 +250,7 @@ namespace net
         validateArgCount(args, 1, "__net_dns_resolveAsync");
         std::string host = extractString(args[0], "__net_dns_resolveAsync");
 
-        auto vm   = ctx.vm;
-        ::runtime::EventLoop* loop = vm ? vm->getEventLoop() : nullptr;
+        auto* loop = requireEventLoop(ctx, "__net_dns_resolveAsync");
 
         auto promise = runAsync<std::vector<std::string>>(
             loop,
@@ -300,8 +310,7 @@ namespace net
         int         handle = static_cast<int>(extractInt(args[0], "__net_socket_connectAsync"));
         std::string host   = extractString(args[1], "__net_socket_connectAsync");
         int64_t     port   = extractInt(args[2], "__net_socket_connectAsync");
-        auto vm = ctx.vm;
-        ::runtime::EventLoop* loop = vm ? vm->getEventLoop() : nullptr;
+        auto* loop = requireEventLoop(ctx, "__net_socket_connectAsync");
         auto promise = runAsyncVoid(loop, [handle, host, port]() {
             SocketRegistry::instance().getSocket(handle)->connect(host, static_cast<int>(port));
         });
@@ -314,8 +323,7 @@ namespace net
         validateArgCount(args, 2, "__net_socket_sendAsync");
         int         handle = static_cast<int>(extractInt(args[0], "__net_socket_sendAsync"));
         std::string data   = extractString(args[1], "__net_socket_sendAsync");
-        auto vm = ctx.vm;
-        ::runtime::EventLoop* loop = vm ? vm->getEventLoop() : nullptr;
+        auto* loop = requireEventLoop(ctx, "__net_socket_sendAsync");
         auto promise = runAsync<int>(loop, [handle, data]() {
             return SocketRegistry::instance().getSocket(handle)->send(data);
         }, [](int sent) -> value::Value { return static_cast<int64_t>(sent); });
@@ -328,8 +336,7 @@ namespace net
         validateArgCount(args, 2, "__net_socket_receiveAsync");
         int     handle   = static_cast<int>(extractInt(args[0], "__net_socket_receiveAsync"));
         int64_t maxBytes = extractInt(args[1], "__net_socket_receiveAsync");
-        auto vm = ctx.vm;
-        ::runtime::EventLoop* loop = vm ? vm->getEventLoop() : nullptr;
+        auto* loop = requireEventLoop(ctx, "__net_socket_receiveAsync");
         auto promise = runAsync<std::string>(loop, [handle, maxBytes]() {
             return SocketRegistry::instance().getSocket(handle)->recv(static_cast<int>(maxBytes));
         }, [](std::string s) -> value::Value { return s; });
@@ -382,12 +389,13 @@ namespace net
         int     handle = static_cast<int>(extractInt(args[0], "__net_tcpserver_listen"));
         int64_t port   = extractInt(args[1], "__net_tcpserver_listen");
         auto srv = SocketRegistry::instance().getServer(handle);
-        auto env = ctx.env;
-        auto vm  = ctx.vm;
-        ::runtime::EventLoop* loop = vm ? vm->getEventLoop() : nullptr;
+        auto vmPtr = ctx.vm;
+        auto* loop = requireEventLoop(ctx, "__net_tcpserver_listen");
+        auto postHandle = loop->getPostHandle();
+        std::weak_ptr<vm::runtime::VirtualMachine> weakVM = vmPtr;
 
         srv->start(static_cast<int>(port),
-            [env, vm, loop, handle](uintptr_t clientFd) {
+            [weakVM, postHandle, handle](uintptr_t clientFd) {
 #ifdef _WIN32
                 int clientHandle = SocketRegistry::instance().registerSocket(
                     std::make_shared<SocketImpl>(clientFd));
@@ -395,17 +403,33 @@ namespace net
                 int clientHandle = SocketRegistry::instance().registerSocket(
                     std::make_shared<SocketImpl>(static_cast<int>(clientFd)));
 #endif
-                if (loop) loop->post([env, vm, handle, clientHandle]() {
-                    auto cbs = getCallbacks(handle);
-                    if (cbs.hasOnConnection && vm)
-                        invokeCallback(vm.get(), cbs.onConnection,
-                                       makeTcpSocketInstance(*env, clientHandle));
-                });
+                const bool posted = postHandle.post(
+                    [weakVM, handle, clientHandle]() {
+                        auto vm = weakVM.lock();
+                        if (!vm)
+                        {
+                            SocketRegistry::instance().closeSocket(clientHandle);
+                            return;
+                        }
+                        auto env = vm->getEnvironment();
+                        auto cbs = getCallbacks(handle);
+                        if (cbs.hasOnConnection && env)
+                        {
+                            invokeCallback(
+                                vm.get(), cbs.onConnection,
+                                makeTcpSocketInstance(*env, clientHandle));
+                        }
+                    });
+                if (!posted)
+                    SocketRegistry::instance().closeSocket(clientHandle);
             },
-            [vm, loop, handle, env](const std::string& errMsg) {
-                if (loop) loop->post([vm, handle, errMsg, env]() {
+            [weakVM, postHandle, handle](const std::string& errMsg) {
+                postHandle.post([weakVM, handle, errMsg]() {
+                    auto vm = weakVM.lock();
+                    if (!vm) return;
+                    auto env = vm->getEnvironment();
                     auto cbs = getCallbacks(handle);
-                    if (cbs.hasOnError && vm)
+                    if (cbs.hasOnError && env)
                     {
                         auto classDef = env->findClass("NetworkException");
                         value::Value excArg = errMsg;
