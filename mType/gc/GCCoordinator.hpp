@@ -55,6 +55,7 @@ namespace gc
         size_t currentAllocationThreshold = config::ALLOCATION_THRESHOLD;
         size_t currentSuspectThreshold = config::SUSPECT_THRESHOLD;
         bool collectionRetryPending = false;
+        size_t consecutiveAbortedCollections = 0;
 
         // Serializes tracker/suspect mutation with cycle detection. Reference
         // notifications caused by the collector's own cycle breaking are

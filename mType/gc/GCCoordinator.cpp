@@ -191,9 +191,12 @@ namespace gc
         std::lock_guard stateLock(stateMutex);
         detector->setExternalRoots(roots);
 
-        // Run cycle detection
+        // Run cycle detection. Consecutive aborted passes double the budget
+        // so retries converge instead of repeating the same doomed scan.
+        const size_t escalation = std::min(consecutiveAbortedCollections,
+                                           config::MAX_BUDGET_ESCALATION_EXPONENT);
         auto result = detector->collectCycles(
-            std::chrono::milliseconds(config::MAX_CYCLE_DETECTION_TIME_MS)
+            std::chrono::milliseconds(config::MAX_CYCLE_DETECTION_TIME_MS << escalation)
         );
 
         // Record statistics
@@ -207,6 +210,7 @@ namespace gc
         if (result.completed)
         {
             collectionRetryPending = false;
+            consecutiveAbortedCollections = 0;
             updateAdaptiveBackoff(result.objectsCollected);
 
             // Only a completed pass consumes the allocation pressure that
@@ -216,6 +220,10 @@ namespace gc
         else
         {
             collectionRetryPending = true;
+            if (consecutiveAbortedCollections < config::MAX_BUDGET_ESCALATION_EXPONENT)
+            {
+                ++consecutiveAbortedCollections;
+            }
         }
 
         // Cleanup dead objects (shared_ptr expired)
@@ -288,5 +296,6 @@ namespace gc
         currentAllocationThreshold = config::ALLOCATION_THRESHOLD;
         currentSuspectThreshold = config::SUSPECT_THRESHOLD;
         collectionRetryPending = false;
+        consecutiveAbortedCollections = 0;
     }
 }

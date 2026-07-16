@@ -18,6 +18,13 @@ namespace gc
         // Collection limits
         constexpr size_t MAX_CYCLE_DETECTION_TIME_MS = 50;   // Abort if taking too long
 
+        // An aborted pass re-buffers every still-live candidate, so retrying
+        // with the same budget would repeat the identical doomed scan on every
+        // poll once the live graph outgrows it. Each consecutive abort doubles
+        // the budget (50ms << n) until a pass can complete; capped so the
+        // worst-case pause stays bounded (2^7 -> 6.4s).
+        constexpr size_t MAX_BUDGET_ESCALATION_EXPONENT = 7;
+
         // Suspect buffer configuration
         constexpr size_t SUSPECT_BUFFER_INITIAL_SIZE = 256;
         constexpr size_t SUSPECT_BUFFER_MAX_SIZE = 100000;
