@@ -13,6 +13,12 @@ struct FormattingOptions {
     bool insertFinalNewline = true;
 };
 
+/**
+ * Document formatter. It only changes whitespace between code tokens: string
+ * literals and comments are never rewritten, lines that start inside a
+ * multi-line string or block comment are kept as written, and formatting a
+ * second time changes nothing (MYT-443).
+ */
 class FormattingHandler {
 public:
     FormattingHandler() = default;
@@ -31,36 +37,19 @@ public:
     );
 
 private:
-    // Format a single line
-    std::string formatLine(
-        const std::string& line,
-        int indentLevel,
-        const FormattingOptions& options
-    );
+    struct FormattedLines {
+        std::vector<std::string> lines;
+        bool endsInsideStringOrComment = false;
+    };
 
-    // Calculate indent level based on braces
-    int calculateIndentLevel(const std::string& line, int currentIndent);
+    // Re-indent and space every line. Produces exactly one output line per
+    // input line, so range formatting (MYT-298) can take a slice of it.
+    FormattedLines formatLines(const std::vector<std::string>& lines,
+                               const FormattingOptions& options) const;
 
-    // Check if line should decrease indent (closing brace)
-    bool shouldDecreaseIndent(const std::string& line);
-
-    // Check if line should increase indent for next line (opening brace)
-    bool shouldIncreaseIndent(const std::string& line);
-
-    // Organize import statements (sort by depth, deduplicate)
-    std::string organizeImports(const std::string& content);
-
-    // Trim whitespace from line
-    std::string trim(const std::string& str);
-
-    // Add proper spacing around operators
-    std::string formatOperators(const std::string& line);
-
-    // Format function/class declarations
-    std::string formatDeclaration(const std::string& line);
-
-    // Create indentation string
-    std::string createIndent(int level, const FormattingOptions& options);
+    // Sort and de-duplicate the leading block of one-line import statements,
+    // followed by exactly one blank line.
+    std::vector<std::string> organizeImports(const std::vector<std::string>& lines) const;
 };
 
 } // namespace mtype::lsp

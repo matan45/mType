@@ -1,190 +1,170 @@
 #include "FormattingHandler.hpp"
-#include <sstream>
+#include "FormattingSpacingRules.hpp"
+#include "../utils/SourceSegmenter.hpp"
+
 #include <algorithm>
+#include <cctype>
 #include <regex>
+#include <string_view>
+#include <tuple>
 
 namespace mtype::lsp {
+
+namespace {
+
+using utils::LineScan;
+using utils::Region;
+using utils::SourceSegmenter;
+
+bool isBlankChar(char c) {
+    return c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\f' || c == '\v';
+}
+
+bool isWordChar(char c) {
+    return std::isalnum(static_cast<unsigned char>(c)) != 0 || c == '_';
+}
+
+bool isBlank(const std::string& text) {
+    return std::all_of(text.begin(), text.end(), isBlankChar);
+}
+
+std::string trimLeft(const std::string& text) {
+    std::size_t start = 0;
+    while (start < text.size() && isBlankChar(text[start])) ++start;
+    return text.substr(start);
+}
+
+std::string trimRight(std::string text) {
+    std::size_t end = text.size();
+    while (end > 0 && isBlankChar(text[end - 1])) --end;
+    text.resize(end);
+    return text;
+}
+
+// Split like std::getline: a final '\n' ends the last line instead of starting
+// an empty one. One trailing '\r' per line is dropped, so CRLF becomes LF.
+std::vector<std::string> splitLines(const std::string& content) {
+    std::vector<std::string> lines;
+    std::size_t start = 0;
+    while (start < content.size()) {
+        std::size_t newline = content.find('\n', start);
+        std::size_t end = newline == std::string::npos ? content.size() : newline;
+        std::string line = content.substr(start, end - start);
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        lines.push_back(std::move(line));
+        if (newline == std::string::npos) break;
+        start = newline + 1;
+    }
+    return lines;
+}
+
+std::string joinLines(const std::vector<std::string>& lines, bool finalNewline) {
+    std::string text;
+    for (std::size_t i = 0; i < lines.size(); ++i) {
+        if (i > 0) text += '\n';
+        text += lines[i];
+    }
+    if (finalNewline) text += '\n';
+    return text;
+}
+
+std::string createIndent(int level, const FormattingOptions& options) {
+    if (options.insertSpaces) {
+        return std::string(level * options.tabSize, ' ');
+    }
+    return std::string(level, '\t');
+}
+
+std::string formatLine(const std::string& line, const LineScan& scan, int indentLevel,
+                       const FormattingOptions& options) {
+    if (scan.startsIn == Region::Code && isBlank(line)) {
+        return "";
+    }
+    std::string text = FormattingSpacingRules::apply(line, scan);
+    // A line that starts inside a string literal or block comment keeps its
+    // leading whitespace: in a string it is part of the value, and comment
+    // bodies are the author's text.
+    if (scan.startsIn == Region::Code) {
+        text = createIndent(indentLevel, options) + trimLeft(text);
+    }
+    // Trailing spaces before a line break inside a string are part of it too.
+    if (options.trimTrailingWhitespace && scan.endsIn != Region::String) {
+        text = trimRight(std::move(text));
+    }
+    return text;
+}
+
+// A one-line `import ... ;` statement: whole-word keyword, entirely code, and
+// the `;` is its last code character. A multi-line `import {` is therefore
+// left in place instead of being separated from its continuation lines.
+bool isImportLine(const std::string& line, const LineScan& scan) {
+    if (scan.startsIn != Region::Code || scan.endsIn != Region::Code) {
+        return false;
+    }
+    constexpr std::string_view keyword = "import";
+    const std::string text = trimLeft(line);
+    if (text.compare(0, keyword.size(), keyword) != 0) {
+        return false;
+    }
+    if (text.size() > keyword.size() && isWordChar(text[keyword.size()])) {
+        return false;
+    }
+    return utils::lastCodeChar(line, scan) == ';';
+}
+
+std::string extractImportPath(const std::string& importLine) {
+    static const std::regex pathRegex(R"(from\s+["']([^"']+)["'])");
+    std::smatch match;
+    return std::regex_search(importLine, match, pathRegex) ? match[1].str() : std::string();
+}
+
+int countRelativeDepth(const std::string& path) {
+    int depth = 0;
+    for (std::size_t pos = path.find("../"); pos != std::string::npos; pos = path.find("../", pos + 3)) {
+        ++depth;
+    }
+    return depth;
+}
+
+// Shallower relative paths first, then by path, then by the full line, so the
+// order is total and a second format cannot reorder equal paths.
+void sortAndDedupImports(std::vector<std::string>& imports) {
+    auto key = [](const std::string& line) {
+        std::string path = extractImportPath(line);
+        int depth = countRelativeDepth(path);
+        return std::make_tuple(depth, std::move(path), line);
+    };
+    std::sort(imports.begin(), imports.end(),
+        [&](const std::string& a, const std::string& b) { return key(a) < key(b); });
+    imports.erase(std::unique(imports.begin(), imports.end()), imports.end());
+}
+
+} // namespace
 
 std::vector<TextEdit> FormattingHandler::formatDocument(
     const std::string& content,
     const FormattingOptions& options
 ) {
-    std::vector<TextEdit> edits;
+    const std::vector<std::string> originalLines = splitLines(content);
+    const FormattedLines formatted = formatLines(organizeImports(originalLines), options);
 
-    // Pre-process: organize imports before formatting
-    std::string organized = organizeImports(content);
+    // Keep a final newline the document already had. Add one only when asked,
+    // and never at the end of an unterminated string or comment, where it
+    // would become part of that literal's text.
+    const bool hadFinalNewline = !content.empty() && content.back() == '\n';
+    const bool finalNewline = !formatted.lines.empty()
+        && (hadFinalNewline || (options.insertFinalNewline && !formatted.endsInsideStringOrComment));
 
-    std::istringstream stream(organized);
-    std::string line;
-    std::ostringstream formattedContent;
-    int currentIndent = 0;
-    int lineNumber = 0;
-
-    while (std::getline(stream, line)) {
-        // Skip empty lines (just preserve them)
-        if (trim(line).empty()) {
-            formattedContent << "\n";
-            lineNumber++;
-            continue;
-        }
-
-        // Check if this line should decrease indent first (closing brace)
-        if (shouldDecreaseIndent(trim(line))) {
-            currentIndent = std::max(0, currentIndent - 1);
-        }
-
-        // Format the line with current indent
-        std::string formatted = formatLine(line, currentIndent, options);
-        formattedContent << formatted << "\n";
-
-        // Check if next line should increase indent (opening brace)
-        if (shouldIncreaseIndent(trim(line))) {
-            currentIndent++;
-        }
-
-        lineNumber++;
-    }
-
-    // Create a single edit that replaces entire document
+    // One edit replacing the whole ORIGINAL document. Its end must come from
+    // the original line count: organizeImports can add or remove lines, and a
+    // short range would leave the original tail behind, duplicating code.
     TextEdit edit;
     edit.range.start.line = 0;
     edit.range.start.character = 0;
-
-    // Calculate end position (last line, last character)
-    std::istringstream countStream(organized);
-    int totalLines = 0;
-    std::string lastLine;
-    while (std::getline(countStream, lastLine)) {
-        totalLines++;
-    }
-
-    edit.range.end.line = totalLines;
+    edit.range.end.line = static_cast<int>(originalLines.size());
     edit.range.end.character = 0;
-
-    std::string result = formattedContent.str();
-
-    // Remove trailing newline if content didn't have one
-    if (!organized.empty() && organized.back() != '\n' && !result.empty() && result.back() == '\n') {
-        result.pop_back();
-    }
-
-    // Trim trailing whitespace from each line if enabled
-    if (options.trimTrailingWhitespace) {
-        std::istringstream trimStream(result);
-        std::ostringstream trimmed;
-        std::string trimLine;
-        while (std::getline(trimStream, trimLine)) {
-            // Remove trailing spaces
-            size_t endPos = trimLine.find_last_not_of(" \t\r");
-            if (endPos != std::string::npos) {
-                trimmed << trimLine.substr(0, endPos + 1) << "\n";
-            } else {
-                trimmed << "\n";
-            }
-        }
-        result = trimmed.str();
-
-        // Remove trailing newline again if needed
-        if (!organized.empty() && organized.back() != '\n' && !result.empty() && result.back() == '\n') {
-            result.pop_back();
-        }
-    }
-
-    // Add final newline if enabled and missing
-    if (options.insertFinalNewline && !result.empty() && result.back() != '\n') {
-        result += '\n';
-    }
-
-    edit.newText = result;
-    edits.push_back(edit);
-
-    return edits;
-}
-
-std::string FormattingHandler::organizeImports(const std::string& content) {
-    std::istringstream stream(content);
-    std::string line;
-    std::vector<std::string> imports;
-    std::vector<std::string> nonImports;
-    bool inImportSection = true;
-
-    while (std::getline(stream, line)) {
-        std::string trimmed = trim(line);
-        if (inImportSection && trimmed.substr(0, 7) == "import ") {
-            imports.push_back(trimmed);
-        } else {
-            // The first non-empty, non-import line ends the import section.
-            // Blank lines between imports are tolerated.
-            if (!trimmed.empty()) {
-                inImportSection = false;
-            }
-            nonImports.push_back(line);
-        }
-    }
-
-    if (imports.empty()) {
-        return content;
-    }
-
-    // Extract the path from an import line for sorting
-    auto extractPath = [](const std::string& importLine) -> std::string {
-        // Match: from "path" or from 'path'
-        std::regex pathRegex(R"(from\s+["']([^"']+)["'])");
-        std::smatch match;
-        if (std::regex_search(importLine, match, pathRegex)) {
-            return match[1].str();
-        }
-        return "";
-    };
-
-    // Count relative depth (number of ../ segments)
-    auto countDepth = [](const std::string& path) -> int {
-        int depth = 0;
-        size_t pos = 0;
-        while ((pos = path.find("../", pos)) != std::string::npos) {
-            depth++;
-            pos += 3;
-        }
-        return depth;
-    };
-
-    // Sort imports by: (1) relative depth ascending, (2) path alphabetically
-    std::sort(imports.begin(), imports.end(),
-        [&](const std::string& a, const std::string& b) {
-            std::string pathA = extractPath(a);
-            std::string pathB = extractPath(b);
-            int depthA = countDepth(pathA);
-            int depthB = countDepth(pathB);
-            if (depthA != depthB) return depthA < depthB;
-            return pathA < pathB;
-        });
-
-    // Deduplicate
-    imports.erase(std::unique(imports.begin(), imports.end()), imports.end());
-
-    // Reassemble: sorted imports, blank separator, then rest
-    std::ostringstream result;
-    for (const auto& imp : imports) {
-        result << imp << "\n";
-    }
-
-    // Add blank line between imports and code if there is non-empty code
-    bool hasNonEmptyCode = false;
-    for (const auto& l : nonImports) {
-        if (!trim(l).empty()) { hasNonEmptyCode = true; break; }
-    }
-    if (hasNonEmptyCode) {
-        result << "\n";
-    }
-
-    for (size_t i = 0; i < nonImports.size(); i++) {
-        result << nonImports[i];
-        if (i + 1 < nonImports.size()) {
-            result << "\n";
-        }
-    }
-
-    return result.str();
+    edit.newText = joinLines(formatted.lines, finalNewline);
+    return {edit};
 }
 
 std::vector<TextEdit> FormattingHandler::formatRange(
@@ -197,130 +177,56 @@ std::vector<TextEdit> FormattingHandler::formatRange(
     return formatDocument(content, options);
 }
 
-std::string FormattingHandler::formatLine(
-    const std::string& line,
-    int indentLevel,
+FormattingHandler::FormattedLines FormattingHandler::formatLines(
+    const std::vector<std::string>& lines,
     const FormattingOptions& options
-) {
-    std::string trimmed = trim(line);
+) const {
+    FormattedLines result;
+    result.lines.reserve(lines.size());
+    SourceSegmenter segmenter;
+    int indent = 0;
 
-    if (trimmed.empty()) {
-        return "";
+    for (const auto& line : lines) {
+        const LineScan scan = segmenter.scanLine(line);
+        // Only braces that are code count, never ones inside strings or comments.
+        if (utils::firstCodeChar(line, scan) == '}') {
+            indent = std::max(0, indent - 1);
+        }
+        result.lines.push_back(formatLine(line, scan, indent, options));
+        if (utils::lastCodeChar(line, scan) == '{') {
+            ++indent;
+        }
     }
 
-    // Create indentation
-    std::string indent = createIndent(indentLevel, options);
-
-    // Format operators (add spaces around =, +, -, etc.)
-    trimmed = formatOperators(trimmed);
-
-    // Format declarations
-    trimmed = formatDeclaration(trimmed);
-
-    return indent + trimmed;
-}
-
-int FormattingHandler::calculateIndentLevel(const std::string& line, int currentIndent) {
-    std::string trimmed = trim(line);
-
-    if (shouldDecreaseIndent(trimmed)) {
-        return std::max(0, currentIndent - 1);
-    }
-
-    return currentIndent;
-}
-
-bool FormattingHandler::shouldDecreaseIndent(const std::string& line) {
-    std::string trimmed = trim(line);
-
-    // Lines starting with closing braces
-    if (!trimmed.empty() && trimmed[0] == '}') {
-        return true;
-    }
-
-    return false;
-}
-
-bool FormattingHandler::shouldIncreaseIndent(const std::string& line) {
-    std::string trimmed = trim(line);
-
-    // Lines ending with opening braces
-    if (!trimmed.empty() && trimmed.back() == '{') {
-        return true;
-    }
-
-    return false;
-}
-
-std::string FormattingHandler::trim(const std::string& str) {
-    size_t start = str.find_first_not_of(" \t\r\n");
-    if (start == std::string::npos) {
-        return "";
-    }
-
-    size_t end = str.find_last_not_of(" \t\r\n");
-    return str.substr(start, end - start + 1);
-}
-
-std::string FormattingHandler::formatOperators(const std::string& line) {
-    std::string result = line;
-
-    // Add spaces around binary operators: =, +, -, *, /, ==, !=, <=, >=, <, >
-    // But not in strings or after colons
-
-    // Simple implementation: add space before and after = if not already present
-    std::regex assignRegex(R"((\w)=(\w))");
-    result = std::regex_replace(result, assignRegex, "$1 = $2");
-
-    // Add space after commas
-    std::regex commaRegex(R"(,(\S))");
-    result = std::regex_replace(result, commaRegex, ", $1");
-
-    // Add space after colons (in type annotations), but never break the
-    // scope-resolution operator "::". Temporarily mask "::" with a sentinel
-    // so the single-colon regex below can't match either of its colons,
-    // then restore it after spacing.
-    const std::string scopeMask = "\x01SCOPE\x01";
-    result = std::regex_replace(result, std::regex("::"), scopeMask);
-
-    std::regex colonRegex(R"(:(\w))");
-    result = std::regex_replace(result, colonRegex, ": $1");
-
-    result = std::regex_replace(result, std::regex(scopeMask), "::");
-
-    // Strip any whitespace that may exist between "::" and the next token —
-    // covers both legacy artefacts ("Audio:: bufChord") and source code that
-    // was already written with stray whitespace after the scope operator.
-    result = std::regex_replace(result, std::regex(R"(::[ \t]+)"), "::");
-
+    result.endsInsideStringOrComment = segmenter.region() != Region::Code;
     return result;
 }
 
-std::string FormattingHandler::formatDeclaration(const std::string& line) {
-    std::string result = line;
+std::vector<std::string> FormattingHandler::organizeImports(const std::vector<std::string>& lines) const {
+    SourceSegmenter segmenter;
+    std::vector<std::string> imports;
+    std::size_t next = 0;
 
-    // Ensure space after keywords: class, interface, function, etc.
-    std::vector<std::string> keywords = {
-        "class", "interface", "function", "if", "else", "while",
-        "for", "foreach", "return", "new", "import", "from",
-        "public", "private", "protected", "static", "final",
-        "abstract", "async", "await"
-    };
-
-    for (const auto& keyword : keywords) {
-        std::regex keywordRegex("\\b" + keyword + "(\\S)");
-        result = std::regex_replace(result, keywordRegex, keyword + " $1");
+    // Blank lines inside the import block are dropped; the block ends at the
+    // first line that is not a one-line import.
+    for (; next < lines.size(); ++next) {
+        const LineScan scan = segmenter.scanLine(lines[next]);
+        if (isBlank(lines[next])) continue;
+        if (!isImportLine(lines[next], scan)) break;
+        // Normalize spacing first so de-duplication sees the final text.
+        imports.push_back(trimRight(trimLeft(FormattingSpacingRules::apply(lines[next], scan))));
     }
 
-    return result;
-}
-
-std::string FormattingHandler::createIndent(int level, const FormattingOptions& options) {
-    if (options.insertSpaces) {
-        return std::string(level * options.tabSize, ' ');
-    } else {
-        return std::string(level, '\t');
+    if (imports.empty()) {
+        return lines;
     }
+
+    sortAndDedupImports(imports);
+    if (next < lines.size()) {
+        imports.emplace_back();  // exactly one blank line between imports and code
+        imports.insert(imports.end(), lines.begin() + static_cast<std::ptrdiff_t>(next), lines.end());
+    }
+    return imports;
 }
 
 } // namespace mtype::lsp

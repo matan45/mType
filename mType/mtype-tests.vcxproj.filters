@@ -1159,6 +1159,9 @@
     <None Include="tests\testFiles\annotation\error\script_annotation_wrong_update_signature_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
+    <None Include="tests\testFiles\annotation\error\script_inherited_missing_update_error.mt">
+      <Filter>testFiles\annotation\error</Filter>
+    </None>
     <None Include="tests\testFiles\annotation\error\script_on_function_error.mt">
       <Filter>testFiles\annotation\error</Filter>
     </None>
@@ -1535,6 +1538,12 @@
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\script_callmethod_test.mt">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\script_inherited_lifecycle_pass.expected">
+      <Filter>testFiles\annotation\pass</Filter>
+    </None>
+    <None Include="tests\testFiles\annotation\pass\script_inherited_lifecycle_pass.mt">
       <Filter>testFiles\annotation\pass</Filter>
     </None>
     <None Include="tests\testFiles\annotation\pass\script_native_string_compare_test.expected">
@@ -10770,6 +10779,9 @@
     </None>
     <None Include="tests\testFiles\interface\error\wrongReturnType.mt">
       <Filter>testFiles\interface\error</Filter>
+    </None>
+    <None Include="tests\testFiles\interface\hostInterfaceHierarchyFixture.mt">
+      <Filter>testFiles\interface</Filter>
     </None>
     <None Include="tests\testFiles\interface\pass\BaseInterfaces.mt">
       <Filter>testFiles\interface\pass</Filter>

@@ -6,6 +6,7 @@
 #include "UriUtilsTestSuite.hpp"
 #include "LspDiagnosticConverterTestSuite.hpp"
 #include "FormattingHandlerTestSuite.hpp"
+#include "SourceSegmenterTestSuite.hpp"
 
 // Phase 2: Core component suites
 #include "DocumentManagerTestSuite.hpp"
@@ -38,6 +39,7 @@
 #include "MtFileWalkerTestSuite.hpp"
 #include "ProjectConfigProviderTestSuite.hpp"
 #include "ImportResolverTestSuite.hpp"
+#include "FormattingCorpusTestSuite.hpp"
 
 // Phase 6: Server smoke test
 #include "MTypeLanguageServerTestSuite.hpp"
@@ -75,6 +77,7 @@ int main(int argc, char* argv[]) {
     RUN_SUITE("uriutils", "UriUtils Tests", UriUtilsTestSuite)
     RUN_SUITE("diagnosticconverter", "LspDiagnosticConverter Tests", LspDiagnosticConverterTestSuite)
     RUN_SUITE("formatting", "FormattingHandler Tests", FormattingHandlerTestSuite)
+    RUN_SUITE("sourcesegmenter", "SourceSegmenter Tests", SourceSegmenterTestSuite)
 
     // Phase 2: Core components
     RUN_SUITE("documentmanager", "DocumentManager Tests", DocumentManagerTestSuite)
@@ -107,6 +110,7 @@ int main(int argc, char* argv[]) {
     RUN_SUITE("mtfilewalker", "MtFileWalker Tests", MtFileWalkerTestSuite)
     RUN_SUITE("projectconfig", "ProjectConfigProvider Tests", ProjectConfigProviderTestSuite)
     RUN_SUITE("importresolver", "ImportResolver Tests", ImportResolverTestSuite)
+    RUN_SUITE("formattingcorpus", "Formatting Corpus Tests", FormattingCorpusTestSuite)
 
     // Phase 6: Server smoke test
     RUN_SUITE("server", "MTypeLanguageServer Tests", MTypeLanguageServerTestSuite)
