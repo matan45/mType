@@ -127,6 +127,11 @@ private:
     void scheduleDebounced(const std::string& uri,
                            std::function<void(analysis::WorkspaceSymbolIndex&)> work);
 
+    // Supersede any task still waiting for `uri` without queuing a new one.
+    // didOpen calls it so a revert queued by a just-preceding didClose
+    // can't overwrite the reopened buffer (MYT-432).
+    void cancelDebounced(const std::string& uri);
+
     bool shouldExit_ = false;
 };
 

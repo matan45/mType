@@ -134,5 +134,18 @@ namespace UriUtils {
         return "file:///" + encoded;
     }
 
+    /**
+     * The one spelling the workspace index keys a file by: the URI rebuilt
+     * from its path. Clients spell the same file differently — VS Code
+     * sends `file:///c%3A/...` while the workspace scan derives
+     * `file:///c:/...` from the path — so every add and every drop goes
+     * through this form, or a reindex leaves a duplicate behind
+     * (MYT-426 / MYT-432). The drive letter keeps the case it was given.
+     */
+    inline std::string canonicalFileUri(const std::string& uri)
+    {
+        return filePathToUri(uriToFilePath(uri));
+    }
+
 } // namespace UriUtils
 } // namespace mtype::lsp

@@ -338,9 +338,9 @@ public value class Quaternion {
     }
 
     // Create rotation from one vector to another
-    public static function fromToRotation(Vec3f from, Vec3f to): Quaternion {
-        Vec3f fromNorm = from.normalize();
-        Vec3f toNorm = to.normalize();
+    public static function fromToRotation(Vec3f fromDir, Vec3f toDir): Quaternion {
+        Vec3f fromNorm = fromDir.normalize();
+        Vec3f toNorm = toDir.normalize();
 
         float d = fromNorm.dot(toNorm);
 

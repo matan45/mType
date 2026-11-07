@@ -429,10 +429,17 @@ namespace mtype::lsp
 
         // Keep the workspace symbol index in sync with the newly-parsed
         // document so the missing-import quick fix can surface symbols
-        // defined in files that have just been opened. Use the buffer
-        // overload so unsaved changes (LSP can reopen a dirty document)
-        // are visible to the index immediately.
-        if (workspaceIndex_) workspaceIndex_->reindexFile(uri, text);
+        // defined in files that have just been opened. The buffer is
+        // indexed directly so unsaved changes (LSP can reopen a dirty
+        // document) are visible immediately, and the index treats the
+        // file as owned by it: disk events leave it alone until close
+        // (MYT-432). Cancelling first stops a revert queued by a didClose
+        // moments ago from overwriting this buffer.
+        if (workspaceIndex_)
+        {
+            cancelDebounced(uri);
+            workspaceIndex_->openFile(uri, text);
+        }
     }
 
     void MTypeLanguageServer::handleDidChangeTextDocument(const json& params)
@@ -490,6 +497,12 @@ namespace mtype::lsp
         }).detach();
     }
 
+    void MTypeLanguageServer::cancelDebounced(const std::string& uri)
+    {
+        std::lock_guard<std::mutex> lock(reindexDebouncer_->mutex);
+        ++reindexDebouncer_->versions[uri];
+    }
+
     void MTypeLanguageServer::handleDidCloseTextDocument(const json& params)
     {
         std::string uri = params["textDocument"]["uri"];
@@ -523,6 +536,8 @@ namespace mtype::lsp
                 if (!workspaceIndex_ || !isMtFileUri(uri)) continue;
 
                 mtFilesChanged = true;
+                // Files open in the editor are skipped by the index itself:
+                // their buffer takes precedence over disk (MYT-432).
                 const int type = change.value("type", 2);
                 if (type == 3)
                 {

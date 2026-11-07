@@ -94,6 +94,26 @@ void UriUtilsTestSuite::registerTests(LspTestHarness& harness) {
         require(roundtrip == original,
             "Windows roundtrip should preserve the path, got '" + roundtrip + "'");
     });
+
+    // MYT-432 — the workspace index keys every file by one spelling, so a
+    // VS Code `c%3A` URI and the path-derived `c:` URI are the same entry.
+    harness.addTest("canonicalFileUri: encoded drive colon matches the path-derived form", []() {
+        const std::string fromVsCode = UriUtils::canonicalFileUri("file:///c%3A/ws/Foo.mt");
+        const std::string fromPath = UriUtils::filePathToUri("c:/ws/Foo.mt");
+        require(fromVsCode == fromPath,
+            "expected '" + fromPath + "', got '" + fromVsCode + "'");
+        require(fromVsCode == "file:///c:/ws/Foo.mt", "unexpected canonical form '" + fromVsCode + "'");
+    });
+
+    harness.addTest("canonicalFileUri: canonical URIs are unchanged", []() {
+        for (const std::string uri : {std::string("file:///C:/Users/foo/bar.mt"),
+                                      std::string("file:///home/user/file.mt"),
+                                      std::string("file:///C:/my%20project/test.mt"),
+                                      std::string("file:///lib/Foo.mt")}) {
+            const std::string canonical = UriUtils::canonicalFileUri(uri);
+            require(canonical == uri, "expected '" + uri + "' unchanged, got '" + canonical + "'");
+        }
+    });
 }
 
 } // namespace mtype::lsp::test

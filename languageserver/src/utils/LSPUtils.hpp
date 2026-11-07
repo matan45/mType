@@ -20,15 +20,16 @@ namespace mtype::lsp::utils
     // Pulled out of two identical anonymous-namespace copies in
     // RenameHandler.cpp + InlayHintHandler.cpp so a future fix
     // (e.g., a multi-byte bug) only has to be applied once.
-    inline std::string tokenText(const Document* doc, const token::Token& tok)
+    //
+    // The content overload serves callers that have source text but no
+    // Document, such as the workspace index parsing a closed file (MYT-432).
+    inline std::string tokenText(const std::string& content, const token::Token& tok)
     {
-        if (!doc) return {};
         int line = tok.location.getLine() - 1;
         int col = tok.location.getColumn() - 1;
         std::size_t len = tok.length;
         if (line < 0 || col < 0 || len == 0) return {};
 
-        const std::string& content = doc->content;
         std::size_t pos = 0;
         int currentLine = 0;
         while (currentLine < line && pos < content.size())
@@ -40,5 +41,11 @@ namespace mtype::lsp::utils
         std::size_t start = pos + static_cast<std::size_t>(col);
         if (start + len > content.size()) return {};
         return content.substr(start, len);
+    }
+
+    inline std::string tokenText(const Document* doc, const token::Token& tok)
+    {
+        if (!doc) return {};
+        return tokenText(doc->content, tok);
     }
 }

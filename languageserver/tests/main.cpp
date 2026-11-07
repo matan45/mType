@@ -11,6 +11,7 @@
 // Phase 2: Core component suites
 #include "DocumentManagerTestSuite.hpp"
 #include "WorkspaceSymbolIndexTestSuite.hpp"
+#include "TypeGraphTestSuite.hpp"
 
 // Phase 3: Handler suites
 #include "CompletionHandlerTestSuite.hpp"
@@ -85,6 +86,7 @@ int main(int argc, char* argv[]) {
     // Phase 2: Core components
     RUN_SUITE("documentmanager", "DocumentManager Tests", DocumentManagerTestSuite)
     RUN_SUITE("workspacesymbolindex", "WorkspaceSymbolIndex Tests", WorkspaceSymbolIndexTestSuite)
+    RUN_SUITE("typegraph", "TypeGraph Tests", TypeGraphTestSuite)
 
     // Phase 3: Handlers
     RUN_SUITE("completion", "CompletionHandler Tests", CompletionHandlerTestSuite)

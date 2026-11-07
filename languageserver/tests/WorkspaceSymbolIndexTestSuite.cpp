@@ -4,6 +4,7 @@
 #include "TempDir.hpp"
 
 #include <atomic>
+#include <cctype>
 #include <filesystem>
 #include <thread>
 #include <vector>
@@ -91,11 +92,130 @@ void registerListAndRevertTests(LspTestHarness& harness) {
     });
 }
 
+// MYT-432 — freshness rules: one key per file whatever the client spelling,
+// a failed parse keeps the last good entries, and an open buffer wins over
+// disk until it is closed.
+void registerFreshnessTests(LspTestHarness& harness) {
+
+    harness.addTest("a c%3A URI reindexes and drops one entry", []() {
+        analysis::WorkspaceSymbolIndex index;
+        const std::string vscodeUri = "file:///c%3A/ws/Foo.mt";
+        index.reindexFile(vscodeUri, "class Foo {}\n");
+        index.reindexFile(vscodeUri, "class Foo {}\n");
+        require(index.findByName("Foo").size() == 1,
+            "expected 1 Foo, got " + std::to_string(index.findByName("Foo").size()));
+
+        index.invalidateFile(vscodeUri);
+        require(index.findByName("Foo").empty(), "invalidateFile must drop the c%3A entry");
+    });
+
+    harness.addTest("a parse error keeps the last good entries", []() {
+        analysis::WorkspaceSymbolIndex index;
+        index.reindexFile("file:///a.mt", "class Foo {}\nclass Extra {}\n");
+        index.reindexFile("file:///a.mt", "class Foo implements Bar {\n"); // unterminated
+        require(index.findByName("Foo").size() == 1, "Foo must survive a broken buffer");
+        require(index.findByName("Extra").size() == 1, "the whole last good parse survives");
+
+        index.reindexFile("file:///a.mt", "class Foo {}\n");
+        require(index.findByName("Extra").empty(), "the next good parse replaces it");
+    });
+
+    harness.addTest("an open buffer wins over a disk reindex", []() {
+        TempDir root;
+        root.createFile("Dog.mt", "class Dog {}\n");
+        analysis::WorkspaceSymbolIndex index;
+        index.buildFromWorkspace(root.path());
+        const std::string uri = uriOf(root, "Dog.mt");
+
+        index.openFile(uri, "class Puppy {}\n");
+        index.reindexFile(uri); // file-watcher event: disk still says Dog
+        require(index.findByName("Puppy").size() == 1, "the buffer's Puppy must stay");
+        require(index.findByName("Dog").empty(), "disk must not overwrite the open buffer");
+    });
+
+    harness.addTest("an open buffer outlives its file on disk until closed", []() {
+        TempDir root;
+        root.createFile("Dog.mt", "class Dog {}\n");
+        analysis::WorkspaceSymbolIndex index;
+        index.buildFromWorkspace(root.path());
+        const std::string uri = uriOf(root, "Dog.mt");
+        index.openFile(uri, "class Puppy {}\n");
+
+        std::filesystem::remove(std::filesystem::path(root.path()) / "Dog.mt");
+        index.invalidateFile(uri); // delete event while the tab is open
+        require(index.findByName("Puppy").size() == 1, "the open buffer keeps its symbols");
+
+        index.revertToDisk(uri); // the tab closes
+        require(index.findByName("Puppy").empty(), "closing a deleted file drops it");
+        require(index.findByName("Dog").empty(), "nothing comes back from disk");
+    });
+
+    harness.addTest("the workspace scan skips a file that is already open", []() {
+        TempDir root;
+        root.createFile("Dog.mt", "class Dog {}\n");
+        analysis::WorkspaceSymbolIndex index;
+        index.openFile(uriOf(root, "Dog.mt"), "class Puppy {}\n"); // a restored dirty tab
+        index.buildFromWorkspace(root.path());
+        require(index.findByName("Puppy").size() == 1, "the buffer must survive the scan");
+        require(index.findByName("Dog").empty(), "the scan must not load the disk version");
+    });
+
+    harness.addTest("after close, disk events update the file again", []() {
+        TempDir root;
+        root.createFile("Dog.mt", "class Dog {}\n");
+        analysis::WorkspaceSymbolIndex index;
+        index.buildFromWorkspace(root.path());
+        const std::string uri = uriOf(root, "Dog.mt");
+        index.openFile(uri, "class Puppy {}\n");
+        index.revertToDisk(uri);
+        require(index.findByName("Dog").size() == 1, "precondition: Dog is back after close");
+
+        root.createFile("Dog.mt", "class Wolf {}\n");
+        index.reindexFile(uri);
+        require(index.findByName("Wolf").size() == 1, "disk wins once the buffer is closed");
+        require(index.findByName("Dog").empty(), "the old disk version is replaced");
+    });
+
+    harness.addTest("closing onto a broken disk file keeps the last good entries", []() {
+        TempDir root;
+        root.createFile("Dog.mt", "class Dog {\n"); // broken on disk
+        analysis::WorkspaceSymbolIndex index;
+        index.buildFromWorkspace(root.path());
+        require(index.findByName("Dog").empty(), "precondition: the broken file indexes nothing");
+
+        const std::string uri = uriOf(root, "Dog.mt");
+        index.openFile(uri, "class Dog {}\n");
+        index.revertToDisk(uri);
+        require(index.findByName("Dog").size() == 1, "the buffer's Dog is the last good entry");
+    });
+
+    harness.addTest("a VS Code URI and a lower-case drive root share one entry", []() {
+        TempDir root;
+        root.createFile("Dog.mt", "class Dog {}\n");
+        std::string rootPath = root.path();
+        if (rootPath.size() < 2 || rootPath[1] != ':') return; // drive letters are Windows-only
+
+        // VS Code sends a lower-case root and file:///c%3A/... document URIs.
+        rootPath[0] = static_cast<char>(std::tolower(static_cast<unsigned char>(rootPath[0])));
+        const std::string upperUri = uriOf(root, "Dog.mt"); // file:///C:/...
+        const std::string vscodeUri = "file:///" + std::string(1, rootPath[0]) + "%3A" + upperUri.substr(10);
+
+        analysis::WorkspaceSymbolIndex index;
+        index.buildFromWorkspace(rootPath);
+        index.openFile(vscodeUri, "class Dog {}\nclass Puppy {}\n");
+        index.revertToDisk(vscodeUri);
+        require(index.findByName("Dog").size() == 1,
+            "expected exactly 1 Dog, got " + std::to_string(index.findByName("Dog").size()));
+        require(index.findByName("Puppy").empty(), "the closed buffer's Puppy must be gone");
+    });
+}
+
 } // namespace
 
 void WorkspaceSymbolIndexTestSuite::registerTests(LspTestHarness& harness) {
 
     registerListAndRevertTests(harness);
+    registerFreshnessTests(harness);
 
     harness.addTest("default constructor: findByName returns empty", []() {
         analysis::WorkspaceSymbolIndex index;

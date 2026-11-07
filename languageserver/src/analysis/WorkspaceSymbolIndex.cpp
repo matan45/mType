@@ -1,27 +1,17 @@
 #include "WorkspaceSymbolIndex.hpp"
 
-#include "../DocumentManager.hpp"  // full definition of SymbolLocationInfo
+#include "WorkspaceFileParser.hpp"
 #include "../utils/MtFileWalker.hpp"
 #include "../utils/StringUtils.hpp"
 #include "../utils/UriUtils.hpp"
-#include "../utils/MemoryFileReader.hpp"
-#include "SymbolRegistrationVisitor.hpp"
-
-#include "../../../mType/lexer/Lexer.hpp"
-#include "../../../mType/parser/Parser.hpp"
-#include "../../../mType/services/ImportManager.hpp"
-#include "../../../mType/services/FileReader.hpp"
-#include "../../../mType/environment/EnvironmentBuilder.hpp"
-#include "../../../mType/ast/nodes/classes/ClassNode.hpp"
-#include "../../../mType/ast/nodes/classes/InterfaceNode.hpp"
-#include "../../../mType/ast/nodes/functions/FunctionNode.hpp"
-#include "../../../mType/ast/nodes/statements/ProgramNode.hpp"
 
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <iterator>
+#include <utility>
 
 namespace fs = std::filesystem;
 
@@ -29,14 +19,6 @@ namespace mtype::lsp::analysis
 {
     namespace
     {
-        // ImportResolver / SymbolRegistrationVisitor builds qualified
-        // names like "Foo.method" for class members. The workspace
-        // index only cares about top-level names; filter the rest.
-        bool isTopLevelKey(const std::string& key)
-        {
-            return key.find('.') == std::string::npos;
-        }
-
         // toLowerAscii lives in utils/StringUtils.hpp — shared with the
         // completion handler so both call sites have one definition.
         using mtype::lsp::utils::toLowerAscii;
@@ -52,33 +34,6 @@ namespace mtype::lsp::analysis
                 if (std::tolower(a) != std::tolower(b)) return false;
             }
             return true;
-        }
-
-        // Best-effort kind detection by inspecting top-level program
-        // children. The visitor doesn't return kind, so we walk the
-        // ProgramNode children directly.
-        WorkspaceSymbolKind detectKindFromAst(
-            ast::ASTNode* program,
-            const std::string& name)
-        {
-            auto* prog = dynamic_cast<ast::ProgramNode*>(program);
-            if (!prog) return WorkspaceSymbolKind::Unknown;
-            for (const auto& stmt : prog->getStatements())
-            {
-                if (auto* cls = dynamic_cast<ast::ClassNode*>(stmt.get()))
-                {
-                    if (cls->getClassName() == name) return WorkspaceSymbolKind::Class;
-                }
-                if (auto* iface = dynamic_cast<ast::InterfaceNode*>(stmt.get()))
-                {
-                    if (iface->getName() == name) return WorkspaceSymbolKind::Interface;
-                }
-                if (auto* fn = dynamic_cast<ast::FunctionNode*>(stmt.get()))
-                {
-                    if (fn->getName() == name) return WorkspaceSymbolKind::Function;
-                }
-            }
-            return WorkspaceSymbolKind::Unknown;
         }
 
         // Orders `results` best-first and keeps at most `maxResults`: an
@@ -129,10 +84,7 @@ namespace mtype::lsp::analysis
             }
             return sorted;
         }
-    } // namespace
 
-    namespace
-    {
         // Reads a file from disk into a string. Returns false on failure
         // (caller decides whether to silently skip or report).
         bool readFileFromDisk(const std::string& filePath, std::string& outContent)
@@ -144,7 +96,7 @@ namespace mtype::lsp::analysis
                 std::istreambuf_iterator<char>());
             return true;
         }
-    }
+    } // namespace
 
     void WorkspaceSymbolIndex::setReadyFuture(std::shared_future<void> future)
     {
@@ -167,31 +119,52 @@ namespace mtype::lsp::analysis
     {
         const auto files = utils::MtFileWalker::findMtFiles(workspaceRoot);
 
-        std::lock_guard<std::mutex> lock(mutex_);
-        root_ = workspaceRoot;
-        byName_.clear();
-        byFile_.clear();
+        {
+            // A (re)scan starts from scratch, except for files open in the
+            // editor: their buffers take precedence over disk (MYT-432).
+            std::lock_guard<std::mutex> lock(mutex_);
+            root_ = workspaceRoot;
+            std::vector<std::string> stale;
+            for (const auto& key : indexedFiles_)
+            {
+                if (!bufferOwned_.count(key)) stale.push_back(key);
+            }
+            for (const auto& key : stale) dropFileLocked(key);
+        }
 
+        // One file per lock, so a didOpen or a read arriving mid-scan waits
+        // for one file, not the whole workspace.
         for (const auto& path : files)
         {
             std::string content;
             if (!readFileFromDisk(path, content)) continue;
-            indexFileLocked(path, content);
+
+            const std::string key = UriUtils::filePathToUri(path);
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (bufferOwned_.count(key)) continue;
+            indexContentLocked(key, content);
         }
+    }
+
+    void WorkspaceSymbolIndex::openFile(const std::string& fileUri, const std::string& content)
+    {
+        const std::string key = UriUtils::canonicalFileUri(fileUri);
+        std::lock_guard<std::mutex> lock(mutex_);
+        bufferOwned_.insert(key);
+        indexContentLocked(key, content);
     }
 
     void WorkspaceSymbolIndex::reindexFile(const std::string& fileUri)
     {
-        // Disk fallback path. Used when we don't have an in-memory buffer
-        // (e.g. a file the editor hasn't opened yet, or a refresh
-        // triggered by a file-system event for a closed document).
-        const std::string path = UriUtils::uriToFilePath(fileUri);
+        // Disk path: a file-system event for a document the editor doesn't
+        // own. The read happens outside the lock.
+        const std::string key = UriUtils::canonicalFileUri(fileUri);
         std::string content;
-        if (!readFileFromDisk(path, content)) return;
+        if (!readFileFromDisk(UriUtils::uriToFilePath(key), content)) return;
 
         std::lock_guard<std::mutex> lock(mutex_);
-        dropEntriesLocked(fileUri);
-        indexFileLocked(path, content);
+        if (bufferOwned_.count(key)) return; // the open buffer wins over disk
+        indexContentLocked(key, content);
     }
 
     void WorkspaceSymbolIndex::reindexFile(const std::string& fileUri,
@@ -200,21 +173,23 @@ namespace mtype::lsp::analysis
         // Buffer path. Preferred when the LSP has the live editor content
         // — without this, the auto-import quick fix would not see symbols
         // declared in unsaved files until they were saved.
-        const std::string path = UriUtils::uriToFilePath(fileUri);
-
+        const std::string key = UriUtils::canonicalFileUri(fileUri);
         std::lock_guard<std::mutex> lock(mutex_);
-        dropEntriesLocked(fileUri);
-        indexFileLocked(path, content);
+        indexContentLocked(key, content);
     }
 
     void WorkspaceSymbolIndex::invalidateFile(const std::string& fileUri)
     {
+        const std::string key = UriUtils::canonicalFileUri(fileUri);
         std::lock_guard<std::mutex> lock(mutex_);
-        dropEntriesLocked(fileUri);
+        // An open buffer outlives its file on disk; closing it drops it.
+        if (bufferOwned_.count(key)) return;
+        dropFileLocked(key);
     }
 
     void WorkspaceSymbolIndex::revertToDisk(const std::string& fileUri)
     {
+        const std::string key = UriUtils::canonicalFileUri(fileUri);
         std::string root;
         {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -224,18 +199,21 @@ namespace mtype::lsp::analysis
         // Disk I/O happens outside the lock. A file the initial scan would
         // not have picked up (outside the workspace, in a skipped folder, or
         // deleted) is dropped instead, so it doesn't linger in Ctrl+T.
-        const std::string path = UriUtils::uriToFilePath(fileUri);
+        const std::string path = UriUtils::uriToFilePath(key);
         std::string content;
         const bool keep = utils::MtFileWalker::isWorkspaceFile(root, path)
                        && readFileFromDisk(path, content);
 
         std::lock_guard<std::mutex> lock(mutex_);
-        dropEntriesLocked(fileUri);
-        // indexFileLocked keys entries by the URI it derives from the path,
-        // which a client may spell differently (e.g. "c%3A" vs "C:").
-        const std::string derivedUri = UriUtils::filePathToUri(path);
-        if (derivedUri != fileUri) dropEntriesLocked(derivedUri);
-        if (keep) indexFileLocked(path, content);
+        bufferOwned_.erase(key);
+        if (keep)
+        {
+            indexContentLocked(key, content); // a disk parse error keeps the last good entries
+        }
+        else
+        {
+            dropFileLocked(key);
+        }
     }
 
     std::vector<std::string> WorkspaceSymbolIndex::getAllIndexedFiles() const
@@ -249,9 +227,43 @@ namespace mtype::lsp::analysis
         return files;
     }
 
-    void WorkspaceSymbolIndex::dropEntriesLocked(const std::string& fileUri)
+    void WorkspaceSymbolIndex::indexContentLocked(const std::string& key,
+                                                  const std::string& content)
     {
-        auto byFileIt = byFile_.find(fileUri);
+        auto parsed = WorkspaceFileParser::parse(key, content);
+        if (!parsed) return; // parse error: keep the file's last good entries
+
+        dropSymbolsLocked(key);
+        addSymbolsLocked(key, std::move(parsed->symbols));
+        typeGraph_.replaceFile(key, std::move(parsed->types));
+        indexedFiles_.insert(key);
+    }
+
+    void WorkspaceSymbolIndex::dropFileLocked(const std::string& key)
+    {
+        dropSymbolsLocked(key);
+        typeGraph_.removeFile(key);
+        indexedFiles_.erase(key);
+    }
+
+    void WorkspaceSymbolIndex::addSymbolsLocked(const std::string& key,
+                                                std::vector<WorkspaceSymbol> symbols)
+    {
+        if (symbols.empty()) return;
+
+        std::vector<std::string> names;
+        names.reserve(symbols.size());
+        for (auto& sym : symbols)
+        {
+            names.push_back(sym.name);
+            byName_[sym.name].push_back(std::move(sym));
+        }
+        byFile_[key] = std::move(names);
+    }
+
+    void WorkspaceSymbolIndex::dropSymbolsLocked(const std::string& key)
+    {
+        auto byFileIt = byFile_.find(key);
         if (byFileIt == byFile_.end()) return;
 
         for (const auto& name : byFileIt->second)
@@ -261,8 +273,8 @@ namespace mtype::lsp::analysis
             auto& vec = byNameIt->second;
             vec.erase(
                 std::remove_if(vec.begin(), vec.end(),
-                    [&fileUri](const WorkspaceSymbol& s) {
-                        return s.fileUri == fileUri;
+                    [&key](const WorkspaceSymbol& s) {
+                        return s.fileUri == key;
                     }),
                 vec.end());
             if (vec.empty()) byName_.erase(byNameIt);
@@ -323,70 +335,6 @@ namespace mtype::lsp::analysis
         // No query, so no exact-match tier: the empty string never equals
         // a real symbol name and ranking falls through to alphabetical.
         return rankAndTake(std::move(results), std::string{}, maxResults);
-    }
-
-    void WorkspaceSymbolIndex::indexFileLocked(const std::string& filePath,
-                                                const std::string& content)
-    {
-        if (filePath.empty()) return;
-
-        // Caller supplies the content (either from disk in the
-        // buildFromWorkspace / disk-fallback path, or from the live
-        // editor buffer via the buffer overload of reindexFile). This
-        // method just runs the parse pipeline against it.
-        try
-        {
-            const std::string fileUri = UriUtils::filePathToUri(filePath);
-
-            auto memReader = std::make_unique<MemoryFileReader>();
-            memReader->setContent(fileUri, content);
-
-            lexer::Lexer lex(fileUri, std::move(memReader));
-            auto importMgr = std::make_unique<services::ImportManager>();
-            parser::Parser parser(lex, std::move(importMgr));
-
-            auto program = parser.parseProgram();
-            if (!program) return;
-
-            auto env = environment::EnvironmentBuilder::createDefault();
-            SymbolRegistrationVisitor visitor(env);
-            visitor.processProgram(program.get(), fileUri);
-
-            std::vector<std::string> indexedNames;
-            for (const auto& [key, info] : visitor.getSymbolLocations())
-            {
-                if (!isTopLevelKey(key)) continue;
-
-                WorkspaceSymbol sym;
-                sym.name = key;
-                sym.fileUri = fileUri;
-                sym.line = info.line;
-                sym.column = info.column;
-                sym.kind = detectKindFromAst(program.get(), key);
-
-                byName_[key].push_back(sym);
-                indexedNames.push_back(key);
-            }
-
-            if (!indexedNames.empty())
-            {
-                byFile_[fileUri] = std::move(indexedNames);
-            }
-        }
-        catch (const std::exception& e)
-        {
-            // Log at debug level so workspace indexing failures are
-            // diagnosable. We don't propagate — one bad file shouldn't
-            // bring down the whole index, and the user will see proper
-            // diagnostics for the file when they open it.
-            std::cerr << "[mType LSP] Workspace index parse failed for "
-                      << filePath << ": " << e.what() << std::endl;
-        }
-        catch (...)
-        {
-            std::cerr << "[mType LSP] Workspace index parse failed for "
-                      << filePath << ": unknown exception" << std::endl;
-        }
     }
 
     std::string WorkspaceSymbolIndex::computeImportSpelling(
