@@ -72,4 +72,30 @@ namespace mtype::lsp::utils
         std::sort(result.begin(), result.end());
         return result;
     }
+
+    bool MtFileWalker::isWorkspaceFile(const std::string& workspaceRoot,
+                                       const std::string& filePath)
+    {
+        if (workspaceRoot.empty() || filePath.empty()) return false;
+
+        std::error_code ec;
+        const fs::path file = fs::weakly_canonical(fs::path(filePath), ec);
+        if (ec || file.extension() != ".mt" || !fs::is_regular_file(file, ec)) return false;
+        const fs::path root = fs::weakly_canonical(fs::path(workspaceRoot), ec);
+        if (ec) return false;
+
+        // Different drives (or no common prefix) give an empty relative path.
+        const fs::path rel = file.lexically_relative(root);
+        if (rel.empty()) return false;
+
+        // Every directory between the root and the file is one the scan
+        // would have descended into; one it skips means the scan never
+        // indexed this file.
+        for (const auto& dir : rel.parent_path())
+        {
+            const std::string part = dir.string();
+            if (part == ".." || shouldSkipDir(part)) return false;
+        }
+        return true;
+    }
 }

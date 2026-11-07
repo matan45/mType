@@ -110,9 +110,19 @@ namespace mtype::lsp::analysis
 
         /**
          * Drop every entry whose `fileUri` matches. Called when a
-         * document is closed or deleted from disk.
+         * file is deleted from disk.
          */
         void invalidateFile(const std::string& fileUri);
+
+        /**
+         * Called when the editor closes a document (MYT-447). The entries
+         * may describe the unsaved buffer, so they are rebuilt from the file
+         * on disk — the file still exists, and dropping it hid its symbols
+         * from Ctrl+T and Add import. A file the workspace scan would not
+         * have indexed (outside the root, in a skipped folder, or deleted)
+         * is dropped instead.
+         */
+        void revertToDisk(const std::string& fileUri);
 
         /**
          * Top-level lookup. Returns at most `maxResults` matches; the
@@ -125,10 +135,20 @@ namespace mtype::lsp::analysis
         /**
          * Top-level prefix lookup for completion. Matches names
          * case-insensitively but returns original symbol spelling.
+         * An empty prefix returns nothing (auto-import completion relies
+         * on that); use `listAll` to enumerate.
          */
         std::vector<WorkspaceSymbol> findByPrefix(
             const std::string& prefix,
             std::size_t maxResults = 20) const;
+
+        /**
+         * Every indexed top-level symbol, ranked the same way as
+         * `findByPrefix` (alphabetical by lowercased name, then spelling,
+         * then file URI) and capped at `maxResults`. Powers the empty-query
+         * case of `workspace/symbol` (MYT-447).
+         */
+        std::vector<WorkspaceSymbol> listAll(std::size_t maxResults) const;
 
         /**
          * Return the URIs of all files currently in the index.
@@ -154,6 +174,7 @@ namespace mtype::lsp::analysis
         mutable std::mutex mutex_;
         std::unordered_map<std::string, std::vector<WorkspaceSymbol>> byName_;
         std::unordered_map<std::string, std::vector<std::string>> byFile_; // fileUri → names
+        std::string root_; // workspace root given to buildFromWorkspace; empty until then
 
         // Future of the initial workspace scan, set by setReadyFuture
         // during LSP initialise. waitForReady consults it to short-block

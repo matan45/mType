@@ -40,6 +40,9 @@
 #include "ProjectConfigProviderTestSuite.hpp"
 #include "ImportResolverTestSuite.hpp"
 #include "FormattingCorpusTestSuite.hpp"
+#include "UnresolvedTypeAnalyzerTestSuite.hpp"
+#include "UnresolvedTypeSweepTestSuite.hpp"
+#include "MissingImportEndToEndTestSuite.hpp"
 
 // Phase 6: Server smoke test
 #include "MTypeLanguageServerTestSuite.hpp"
@@ -111,6 +114,9 @@ int main(int argc, char* argv[]) {
     RUN_SUITE("projectconfig", "ProjectConfigProvider Tests", ProjectConfigProviderTestSuite)
     RUN_SUITE("importresolver", "ImportResolver Tests", ImportResolverTestSuite)
     RUN_SUITE("formattingcorpus", "Formatting Corpus Tests", FormattingCorpusTestSuite)
+    RUN_SUITE("unresolvedtypes", "Unresolved Type Diagnostics Tests", UnresolvedTypeAnalyzerTestSuite)
+    RUN_SUITE("unresolvedtypesweep", "Unresolved Type Sweep Tests", UnresolvedTypeSweepTestSuite)
+    RUN_SUITE("missingimporte2e", "Missing Import End-to-End Tests", MissingImportEndToEndTestSuite)
 
     // Phase 6: Server smoke test
     RUN_SUITE("server", "MTypeLanguageServer Tests", MTypeLanguageServerTestSuite)

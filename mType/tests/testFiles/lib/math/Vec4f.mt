@@ -1,6 +1,9 @@
 // Vec4f - 4D floating-point vector
 // Commonly used for homogeneous coordinates and RGBA colors
 
+import { Vec2f } from "Vec2f.mt";
+import { Vec3f } from "Vec3f.mt";
+
 public value class Vec4f {
     public float x;
     public float y;

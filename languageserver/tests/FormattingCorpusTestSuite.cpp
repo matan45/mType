@@ -1,5 +1,6 @@
 #include "FormattingCorpusTestSuite.hpp"
 #include "FormattingTestHelpers.hpp"
+#include "RepoRoot.hpp"
 #include "../src/utils/MemoryFileReader.hpp"
 #include "../../mType/diagnostics/SourceFileCache.hpp"
 #include "../../mType/lexer/Lexer.hpp"
@@ -161,18 +162,6 @@ void checkFile(const fs::path& file, const fs::path& root, CorpusReport& report)
         report.failures.push_back(name + ": formatting is not idempotent");
     }
     compareTokens(name, original, once, report);
-}
-
-std::optional<fs::path> findRepoRoot() {
-    std::error_code ec;
-    fs::path dir = fs::current_path(ec);
-    while (!ec && !dir.empty()) {
-        if (fs::exists(dir / "mType" / "tests" / "testFiles" / "lib", ec)) return dir;
-        fs::path parent = dir.parent_path();
-        if (parent == dir) break;
-        dir = parent;
-    }
-    return std::nullopt;
 }
 
 std::vector<fs::path> collectCorpusFiles(const fs::path& testFiles) {

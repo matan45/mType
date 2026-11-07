@@ -2,6 +2,9 @@
 // Row-major order: m[row][col] = data[row * 3 + col]
 // Used for 2D transformations, rotations, and normal transformations
 
+import { Vec2f } from "Vec2f.mt";
+import { Vec3f } from "Vec3f.mt";
+
 public value class Matrix3f {
     // Matrix elements stored in row-major order
     // | m00 m01 m02 |

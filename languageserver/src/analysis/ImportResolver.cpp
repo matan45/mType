@@ -6,13 +6,122 @@
 #include "../../../mType/parser/Parser.hpp"
 #include "../../../mType/services/ImportManager.hpp"
 #include "../../../mType/environment/EnvironmentBuilder.hpp"
+#include "../../../mType/ast/nodes/statements/ImportNode.hpp"
+#include "../../../mType/ast/nodes/statements/ProgramNode.hpp"
+#include "../../../mType/ast/nodes/classes/ClassNode.hpp"
+#include "../../../mType/ast/nodes/classes/InterfaceNode.hpp"
+#include <filesystem>
+#include <fstream>
 #include <regex>
 #include <sstream>
-#include <filesystem>
 
 namespace fs = std::filesystem;
 
 namespace mtype::lsp {
+
+namespace {
+
+using ImportSpec = ImportResolver::ImportSpec;
+
+std::string normalizePath(const std::string& path) {
+    std::error_code ec;
+    fs::path canonical = fs::weakly_canonical(fs::path(path), ec);
+    return ec ? path : canonical.string();
+}
+
+bool readFile(const std::string& path, std::string& out) {
+    std::ifstream file(path);
+    if (!file.is_open()) return false;
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    out = buffer.str();
+    return true;
+}
+
+const ast::nodes::statements::ProgramNode* asProgram(const ast::ASTNode* node) {
+    return dynamic_cast<const ast::nodes::statements::ProgramNode*>(node);
+}
+
+// The import statements of a parsed file. Multi-line imports and
+// `import lib` forms come out right, unlike the line regex below.
+std::vector<ImportSpec> collectImportSpecs(const ast::ASTNode* root) {
+    std::vector<ImportSpec> specs;
+    const auto* program = asProgram(root);
+    if (!program) return specs;
+    for (const auto& stmt : program->getStatements()) {
+        const auto* importNode = dynamic_cast<const ast::nodes::statements::ImportNode*>(stmt.get());
+        if (!importNode) continue;
+        ImportSpec spec;
+        spec.path = importNode->getFilePath();
+        spec.library = importNode->isLibraryImport();
+        spec.names = importNode->getImportedSymbols();
+        // The compiler registers both the original and the alias.
+        for (const auto& originalToAlias : importNode->getSymbolAliases()) {
+            spec.names.push_back(originalToAlias.second);
+        }
+        specs.push_back(std::move(spec));
+    }
+    return specs;
+}
+
+// Fallback for a document whose current content doesn't parse: a line
+// regex. It misses multi-line and library imports, so callers treat the
+// result as incomplete.
+std::vector<ImportSpec> regexImportSpecs(const std::string& content) {
+    std::vector<ImportSpec> specs;
+    static const std::regex importRegex("import\\s+.*\\s+from\\s+\"([^\"]+)\"");
+    std::istringstream stream(content);
+    std::string line;
+    while (std::getline(stream, line)) {
+        std::smatch match;
+        if (std::regex_search(line, match, importRegex)) {
+            ImportSpec spec;
+            spec.path = match[1].str();
+            specs.push_back(std::move(spec));
+        }
+    }
+    return specs;
+}
+
+void collectDeclaredTypeNames(const ast::ASTNode* root,
+                              std::unordered_set<std::string>& out) {
+    const auto* program = asProgram(root);
+    if (!program) return;
+    for (const auto& stmt : program->getStatements()) {
+        if (const auto* cls = dynamic_cast<const ast::nodes::classes::ClassNode*>(stmt.get())) {
+            out.insert(cls->getClassName());
+        } else if (const auto* iface =
+                       dynamic_cast<const ast::nodes::classes::InterfaceNode*>(stmt.get())) {
+            out.insert(iface->getName());
+        }
+    }
+}
+
+// Copies classes, interfaces and functions; a name the target already has
+// is kept (registration throws on duplicates, which is ignored).
+void registerAll(const environment::Environment& from, environment::Environment& to) {
+    if (auto classes = from.getClassRegistry()) {
+        for (const auto& name : classes->getAllItemNames()) {
+            if (auto def = classes->findClass(name)) {
+                try { to.registerClass(name, def); } catch (...) {}
+            }
+        }
+    }
+    if (auto interfaces = from.getInterfaceRegistry()) {
+        for (const auto& [name, def] : interfaces->getAllInterfaces()) {
+            try { to.registerInterface(name, def); } catch (...) {}
+        }
+    }
+    if (auto functions = from.getFunctionRegistry()) {
+        for (const auto& name : functions->getAllItemNames()) {
+            if (auto def = functions->findFunction(name)) {
+                try { to.registerFunction(name, def); } catch (...) {}
+            }
+        }
+    }
+}
+
+} // namespace
 
 ImportResolver::ImportResolver() {
 }
@@ -22,244 +131,138 @@ void ImportResolver::setProjectConfig(std::shared_ptr<ProjectConfigProvider> con
     clearCache();
 }
 
-void ImportResolver::resolveImports(Document* doc, DocumentManager* docManager) {
-    if (!doc || !doc->environment) {
-        return;
-    }
-
-    // Extract import paths from document
-    auto importPaths = extractImportPaths(doc->content);
-
-    // Track visited files to prevent circular dependencies
-    std::unordered_set<std::string> visited;
-    visited.insert(doc->uri); // Don't import self
-
-    // Parse each imported file
-    for (const auto& relativePath : importPaths) {
-        std::string absolutePath;
-
-        // Try project config resolution first (handles search paths and aliases)
-        if (projectConfig_ && projectConfig_->isLoaded()) {
-            std::string docPath = UriUtils::uriToFilePath(doc->uri);
-            std::string baseDir = fs::path(docPath).parent_path().string();
-            absolutePath = projectConfig_->resolveImport(baseDir, relativePath);
-        }
-
-        // Fallback: resolve relative to current file
-        if (absolutePath.empty()) {
-            absolutePath = resolveImportPath(doc->uri, relativePath);
-        }
-
-        if (fs::exists(absolutePath)) {
-            parseImportedFile(absolutePath, doc->environment, doc->symbolLocations, visited);
-        }
-    }
-}
-
 void ImportResolver::clearCache() {
-    importCache_.clear();
-    symbolLocationCache_.clear();
+    cache_.clear();
 }
 
-std::vector<std::string> ImportResolver::extractImportPaths(const std::string& content) {
-    std::vector<std::string> paths;
-
-    // Regex to match: import ... from "path"
-    std::regex importRegex("import\\s+.*\\s+from\\s+\"([^\"]+)\"");
-
-    std::istringstream stream(content);
-    std::string line;
-
-    while (std::getline(stream, line)) {
-        std::smatch match;
-        if (std::regex_search(line, match, importRegex)) {
-            std::string importPath = match[1].str();
-            paths.push_back(importPath);
-        }
+ImportSummary ImportResolver::resolveImports(Document* doc, bool astIsCurrent) {
+    ImportSummary summary;
+    if (!doc || !doc->environment) {
+        return summary;
     }
 
-    return paths;
+    // A stale AST (kept after a failed parse) must not supply the import
+    // list; the regex is all that's left, and it can miss imports.
+    bool complete = astIsCurrent && !doc->ast.empty();
+    const auto specs = complete ? collectImportSpecs(doc->ast.front().get())
+                                : regexImportSpecs(doc->content);
+
+    const std::string docPath = normalizePath(UriUtils::uriToFilePath(doc->uri));
+    std::unordered_set<std::string> visited{docPath}; // never import self
+    MergeTarget target{doc->environment, doc->symbolLocations, summary.typeNames};
+    for (const auto& spec : specs) {
+        // No short-circuit: keep merging what does resolve, for completion.
+        complete = mergeImport(spec, docPath, target, visited) && complete;
+    }
+    summary.complete = complete;
+    return summary;
 }
 
-std::string ImportResolver::resolveImportPath(const std::string& baseUri, const std::string& relativePath) {
-    std::string path = UriUtils::uriToFilePath(baseUri);
-
-    // Get directory of the base file
-    fs::path basePath(path);
-    fs::path baseDir = basePath.parent_path();
-
-    // Resolve relative path
-    fs::path targetPath = baseDir / relativePath;
-    fs::path normalizedPath = fs::weakly_canonical(targetPath);
-
-    return normalizedPath.string();
+bool ImportResolver::mergeImport(const ImportSpec& spec, const std::string& fromPath,
+                                 MergeTarget& target, std::unordered_set<std::string>& visited) {
+    target.typeNames.insert(spec.names.begin(), spec.names.end());
+    if (spec.library) {
+        return false; // native library: its types are invisible to the LS
+    }
+    const std::string path = resolveTarget(fromPath, spec.path);
+    if (path.empty()) {
+        return false;
+    }
+    return mergeFile(path, target, visited);
 }
 
-void ImportResolver::parseImportedFile(
-    const std::string& importPath,
-    std::shared_ptr<environment::Environment> targetEnv,
-    std::unordered_map<std::string, SymbolLocationInfo>& targetSymbolLocations,
-    std::unordered_set<std::string>& visited
-) {
-    // Check if already visited (circular dependency)
-    if (visited.find(importPath) != visited.end()) {
-        return;
+bool ImportResolver::mergeFile(const std::string& path, MergeTarget& target,
+                               std::unordered_set<std::string>& visited) {
+    // Mark before recursing so import cycles terminate.
+    if (!visited.insert(path).second) {
+        return true;
+    }
+    const FileEntry* entry = loadEntry(path);
+    if (!entry) {
+        return false; // unreadable or unparsable
     }
 
-    // Check cache
-    if (importCache_.find(importPath) != importCache_.end()) {
-        auto cachedEnv = importCache_[importPath];
-
-        // Copy symbols from cached environment to target environment
-        if (cachedEnv->getClassRegistry()) {
-            for (const auto& className : cachedEnv->getClassRegistry()->getAllItemNames()) {
-                auto classDef = cachedEnv->getClassRegistry()->findClass(className);
-                if (classDef) {
-                    try {
-                        targetEnv->registerClass(className, classDef);
-                    } catch (...) {
-                        // Ignore if already registered
-                    }
-                }
-            }
-        }
-
-        if (cachedEnv->getInterfaceRegistry()) {
-            auto allInterfaces = cachedEnv->getInterfaceRegistry()->getAllInterfaces();
-            for (const auto& [interfaceName, interfaceDef] : allInterfaces) {
-                try {
-                    targetEnv->registerInterface(interfaceName, interfaceDef);
-                } catch (...) {
-                    // Ignore if already registered
-                }
-            }
-        }
-
-        if (cachedEnv->getFunctionRegistry()) {
-            for (const auto& funcName : cachedEnv->getFunctionRegistry()->getAllItemNames()) {
-                auto funcDef = cachedEnv->getFunctionRegistry()->findFunction(funcName);
-                if (funcDef) {
-                    try {
-                        targetEnv->registerFunction(funcName, funcDef);
-                    } catch (...) {
-                        // Ignore if already registered
-                    }
-                }
-            }
-        }
-
-        // Copy symbol locations from cache
-        if (symbolLocationCache_.find(importPath) != symbolLocationCache_.end()) {
-            const auto& cachedLocations = symbolLocationCache_[importPath];
-            for (const auto& [symbolName, location] : cachedLocations) {
-                targetSymbolLocations[symbolName] = location;
-            }
-        }
-
-        return;
+    registerAll(*entry->env, *target.env);
+    for (const auto& [name, location] : entry->locations) {
+        target.locations[name] = location;
     }
+    target.typeNames.insert(entry->typeNames.begin(), entry->typeNames.end());
 
-    // Mark as visited
-    visited.insert(importPath);
+    bool complete = entry->selfComplete;
+    for (const auto& nested : entry->nestedPaths) {
+        complete = mergeFile(nested, target, visited) && complete;
+    }
+    return complete;
+}
 
+const ImportResolver::FileEntry* ImportResolver::loadEntry(const std::string& path) {
+    auto it = cache_.find(path);
+    if (it != cache_.end()) {
+        return &it->second;
+    }
+    // Failures aren't cached, so a broken import is retried once fixed.
+    auto entry = parseEntry(path);
+    if (!entry) {
+        return nullptr;
+    }
+    return &cache_.emplace(path, std::move(*entry)).first->second;
+}
+
+std::optional<ImportResolver::FileEntry> ImportResolver::parseEntry(const std::string& path) const {
+    std::string content;
+    if (!readFile(path, content)) {
+        return std::nullopt;
+    }
     try {
-        // Read file content
-        std::ifstream file(importPath);
-        if (!file.is_open()) {
-            return;
-        }
-
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        std::string content = buffer.str();
-        file.close();
-
-        // Create in-memory file reader
         auto fileReader = std::make_unique<MemoryFileReader>();
-        fileReader->setContent(importPath, content);
-
-        // Create lexer
-        lexer::Lexer lexer(importPath, std::move(fileReader));
-
-        // Create parser
-        auto importManager = std::make_unique<services::ImportManager>();
-        parser::Parser parser(lexer, std::move(importManager));
-
-        // Parse the file
+        fileReader->setContent(path, content);
+        lexer::Lexer lexer(path, std::move(fileReader));
+        parser::Parser parser(lexer, std::make_unique<services::ImportManager>());
         auto program = parser.parseProgram();
         if (!program) {
-            return;
+            return std::nullopt;
         }
 
-        // Create temporary environment for this import
-        auto importEnv = environment::EnvironmentBuilder::createDefault();
+        FileEntry entry;
+        entry.env = environment::EnvironmentBuilder::createDefault();
+        SymbolRegistrationVisitor visitor(entry.env);
+        visitor.processProgram(program.get(), path);
+        entry.locations = visitor.getSymbolLocations();
+        collectDeclaredTypeNames(program.get(), entry.typeNames);
 
-        // Register symbols from the parsed AST
-        auto visitor = std::make_unique<SymbolRegistrationVisitor>(importEnv);
-        visitor->processProgram(program.get(), importPath);
-
-        // Get symbol locations from the visitor
-        const auto& importSymbolLocations = visitor->getSymbolLocations();
-
-        // Cache the environment and symbol locations
-        importCache_[importPath] = importEnv;
-        symbolLocationCache_[importPath] = importSymbolLocations;
-
-        // Copy symbol locations to target
-        for (const auto& [symbolName, location] : importSymbolLocations) {
-            targetSymbolLocations[symbolName] = location;
-        }
-
-        // Copy symbols to target environment
-        if (importEnv->getClassRegistry()) {
-            for (const auto& className : importEnv->getClassRegistry()->getAllItemNames()) {
-                auto classDef = importEnv->getClassRegistry()->findClass(className);
-                if (classDef) {
-                    try {
-                        targetEnv->registerClass(className, classDef);
-                    } catch (const std::exception&) {
-                        // Ignore if already registered
-                    }
-                }
+        for (const auto& spec : collectImportSpecs(program.get())) {
+            entry.typeNames.insert(spec.names.begin(), spec.names.end());
+            const std::string nested = spec.library ? "" : resolveTarget(path, spec.path);
+            if (nested.empty()) {
+                entry.selfComplete = false;
+            } else {
+                entry.nestedPaths.push_back(nested);
             }
         }
-
-        if (importEnv->getInterfaceRegistry()) {
-            auto allInterfaces = importEnv->getInterfaceRegistry()->getAllInterfaces();
-            for (const auto& [interfaceName, interfaceDef] : allInterfaces) {
-                try {
-                    targetEnv->registerInterface(interfaceName, interfaceDef);
-                } catch (const std::exception&) {
-                    // Ignore if already registered
-                }
-            }
-        }
-
-        if (importEnv->getFunctionRegistry()) {
-            for (const auto& funcName : importEnv->getFunctionRegistry()->getAllItemNames()) {
-                auto funcDef = importEnv->getFunctionRegistry()->findFunction(funcName);
-                if (funcDef) {
-                    try {
-                        targetEnv->registerFunction(funcName, funcDef);
-                    } catch (const std::exception&) {
-                        // Ignore if already registered
-                    }
-                }
-            }
-        }
-
-        // Recursively resolve imports from this file
-        auto nestedImports = extractImportPaths(content);
-        for (const auto& nestedRelativePath : nestedImports) {
-            std::string nestedAbsolutePath = resolveImportPath("file:///" + importPath, nestedRelativePath);
-            if (fs::exists(nestedAbsolutePath)) {
-                parseImportedFile(nestedAbsolutePath, targetEnv, targetSymbolLocations, visited);
-            }
-        }
-
+        return entry;
     } catch (const std::exception&) {
-        // Silently ignore parse errors
+        return std::nullopt; // parse or registration error in the imported file
     }
+}
+
+std::string ImportResolver::resolveTarget(const std::string& fromFilePath,
+                                          const std::string& importPath) const {
+    if (importPath.empty()) {
+        return "";
+    }
+    const std::string baseDir = fs::path(fromFilePath).parent_path().string();
+    std::string resolved;
+    if (projectConfig_ && projectConfig_->isLoaded()) {
+        resolved = projectConfig_->resolveImport(baseDir, importPath);
+    }
+    if (resolved.empty()) {
+        resolved = (fs::path(baseDir) / importPath).string();
+    }
+    std::error_code ec;
+    if (!fs::is_regular_file(fs::path(resolved), ec)) {
+        return "";
+    }
+    return normalizePath(resolved);
 }
 
 } // namespace mtype::lsp

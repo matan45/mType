@@ -2,6 +2,10 @@
 // Represents rotations without gimbal lock
 // Format: q = w + xi + yj + zk (w is the scalar part, xyz is the vector part)
 
+import { Vec3f } from "Vec3f.mt";
+import { Matrix3f } from "Matrix3f.mt";
+import { Matrix4f } from "Matrix4f.mt";
+
 public value class Quaternion {
     public float x;
     public float y;

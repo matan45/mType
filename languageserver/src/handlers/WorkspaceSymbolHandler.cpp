@@ -50,7 +50,11 @@ std::vector<SymbolInformation> WorkspaceSymbolHandler::handleWorkspaceSymbol(
     //       ceiling and rationale live with the index itself.
     workspaceIndex_->waitForReady(kReadyWait);
 
-    auto matches = workspaceIndex_->findByPrefix(query, kMaxResults);
+    // MYT-447 — an empty query lists everything (capped), so a picker that
+    // opens with no text shows symbols right away instead of nothing.
+    auto matches = query.empty()
+        ? workspaceIndex_->listAll(kMaxResults)
+        : workspaceIndex_->findByPrefix(query, kMaxResults);
     out.reserve(matches.size());
 
     for (const auto& sym : matches) {

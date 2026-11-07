@@ -80,6 +80,55 @@ namespace mtype::lsp::analysis
             }
             return WorkspaceSymbolKind::Unknown;
         }
+
+        // Orders `results` best-first and keeps at most `maxResults`: an
+        // exact (case-insensitive) match of `loweredQuery` first, then by
+        // lowercased name, original spelling and file URI so the output is
+        // deterministic. Shared by findByPrefix and listAll so both rank the
+        // same way. Runs on the caller's copy, outside the index mutex.
+        std::vector<WorkspaceSymbol> rankAndTake(std::vector<WorkspaceSymbol> results,
+                                                 const std::string& loweredQuery,
+                                                 std::size_t maxResults)
+        {
+            // Pre-compute lowered names once so the comparator reduces to
+            // cached-string comparisons instead of re-lowering both sides
+            // on every call.
+            struct Ranked {
+                std::size_t idx;
+                std::string lowered;
+            };
+            std::vector<Ranked> ranked;
+            ranked.reserve(results.size());
+            for (std::size_t i = 0; i < results.size(); ++i)
+            {
+                ranked.push_back({ i, toLowerAscii(results[i].name) });
+            }
+
+            const auto better = [&loweredQuery, &results](const Ranked& a, const Ranked& b)
+            {
+                const bool aExact = a.lowered == loweredQuery;
+                const bool bExact = b.lowered == loweredQuery;
+                if (aExact != bExact) return aExact;
+                if (a.lowered != b.lowered) return a.lowered < b.lowered;
+                const auto& sa = results[a.idx];
+                const auto& sb = results[b.idx];
+                if (sa.name != sb.name) return sa.name < sb.name;
+                return sa.fileUri < sb.fileUri;
+            };
+
+            const std::size_t keep = std::min(ranked.size(), maxResults);
+            std::partial_sort(ranked.begin(),
+                              ranked.begin() + static_cast<std::ptrdiff_t>(keep),
+                              ranked.end(), better);
+
+            std::vector<WorkspaceSymbol> sorted;
+            sorted.reserve(keep);
+            for (std::size_t i = 0; i < keep; ++i)
+            {
+                sorted.push_back(std::move(results[ranked[i].idx]));
+            }
+            return sorted;
+        }
     } // namespace
 
     namespace
@@ -119,6 +168,7 @@ namespace mtype::lsp::analysis
         const auto files = utils::MtFileWalker::findMtFiles(workspaceRoot);
 
         std::lock_guard<std::mutex> lock(mutex_);
+        root_ = workspaceRoot;
         byName_.clear();
         byFile_.clear();
 
@@ -161,6 +211,31 @@ namespace mtype::lsp::analysis
     {
         std::lock_guard<std::mutex> lock(mutex_);
         dropEntriesLocked(fileUri);
+    }
+
+    void WorkspaceSymbolIndex::revertToDisk(const std::string& fileUri)
+    {
+        std::string root;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            root = root_;
+        }
+
+        // Disk I/O happens outside the lock. A file the initial scan would
+        // not have picked up (outside the workspace, in a skipped folder, or
+        // deleted) is dropped instead, so it doesn't linger in Ctrl+T.
+        const std::string path = UriUtils::uriToFilePath(fileUri);
+        std::string content;
+        const bool keep = utils::MtFileWalker::isWorkspaceFile(root, path)
+                       && readFileFromDisk(path, content);
+
+        std::lock_guard<std::mutex> lock(mutex_);
+        dropEntriesLocked(fileUri);
+        // indexFileLocked keys entries by the URI it derives from the path,
+        // which a client may spell differently (e.g. "c%3A" vs "C:").
+        const std::string derivedUri = UriUtils::filePathToUri(path);
+        if (derivedUri != fileUri) dropEntriesLocked(derivedUri);
+        if (keep) indexFileLocked(path, content);
     }
 
     std::vector<std::string> WorkspaceSymbolIndex::getAllIndexedFiles() const
@@ -230,45 +305,24 @@ namespace mtype::lsp::analysis
         }
 
         if (results.empty()) return results;
+        return rankAndTake(std::move(results), toLowerAscii(prefix), maxResults);
+    }
 
-        // Pre-compute lowered names once so the sort comparator can
-        // reduce to integer + cached-string comparisons. Without this
-        // each comparator call would re-lower both sides — O(N log N)
-        // sort × O(2) heap allocations per compare gets pricey for
-        // even small result sets.
-        struct Ranked {
-            std::size_t idx;
-            std::string lowered;
-        };
-        std::vector<Ranked> ranked;
-        ranked.reserve(results.size());
-        for (std::size_t i = 0; i < results.size(); ++i)
+    std::vector<WorkspaceSymbol> WorkspaceSymbolIndex::listAll(std::size_t maxResults) const
+    {
+        if (maxResults == 0) return {};
+
+        std::vector<WorkspaceSymbol> results;
         {
-            ranked.push_back({ i, toLowerAscii(results[i].name) });
-        }
-
-        const std::string loweredPrefix = toLowerAscii(prefix);
-        std::sort(ranked.begin(), ranked.end(),
-            [&loweredPrefix, &results](const Ranked& a, const Ranked& b)
+            std::lock_guard<std::mutex> lock(mutex_);
+            for (const auto& [name, symbols] : byName_)
             {
-                const bool aExact = a.lowered == loweredPrefix;
-                const bool bExact = b.lowered == loweredPrefix;
-                if (aExact != bExact) return aExact;
-                if (a.lowered != b.lowered) return a.lowered < b.lowered;
-                const auto& sa = results[a.idx];
-                const auto& sb = results[b.idx];
-                if (sa.name != sb.name) return sa.name < sb.name;
-                return sa.fileUri < sb.fileUri;
-            });
-
-        std::vector<WorkspaceSymbol> sorted;
-        sorted.reserve(std::min(ranked.size(), maxResults));
-        for (const auto& r : ranked)
-        {
-            sorted.push_back(std::move(results[r.idx]));
-            if (sorted.size() == maxResults) break;
+                results.insert(results.end(), symbols.begin(), symbols.end());
+            }
         }
-        return sorted;
+        // No query, so no exact-match tier: the empty string never equals
+        // a real symbol name and ranking falls through to alphabetical.
+        return rankAndTake(std::move(results), std::string{}, maxResults);
     }
 
     void WorkspaceSymbolIndex::indexFileLocked(const std::string& filePath,

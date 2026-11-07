@@ -24,6 +24,7 @@
 #include "../../mType/optimizer/base/OptimizationContext.hpp"
 #include "../../mType/optimizer/OptimizationConfig.hpp"
 #include "analysis/ImportResolver.hpp"
+#include "analysis/UnresolvedTypeAnalyzer.hpp"
 #include "analysis/ReceiverTypeResolver.hpp"
 #include "analysis/AstPositionIndex.hpp"
 #include "analysis/InterfaceHierarchyWalker.hpp"
@@ -258,6 +259,12 @@ void DocumentManager::updateDocument(const std::string& uri, const std::string& 
     }
 }
 
+void DocumentManager::clearImportCache() {
+    if (importResolver_) {
+        importResolver_->clearCache();
+    }
+}
+
 void DocumentManager::closeDocument(const std::string& uri) {
     // Drop the file's cached source so a stale snippet can't show up if
     // the same URI is reopened with different content.
@@ -353,6 +360,7 @@ void DocumentManager::parseDocument(const std::string& uri) {
         }
 
         // Build symbol tables from AST using symbol registration (only if we have new AST)
+        bool registrationOk = false;
         try {
             if (parseSucceeded && !doc->ast.empty()) {
                 // Run Lombok synthesis on the parsed AST FIRST so the members it
@@ -385,6 +393,7 @@ void DocumentManager::parseDocument(const std::string& uri) {
 
                 // Store symbol locations for go-to-definition
                 doc->symbolLocations = visitor->getSymbolLocations();
+                registrationOk = true;
             }
         } catch (const std::exception& e) {
             doc->diagnostics.push_back(diagnostics::fromException(e));
@@ -421,10 +430,12 @@ void DocumentManager::parseDocument(const std::string& uri) {
             }
         }
 
-        // Resolve and parse imported files to get their symbols
+        // Resolve and parse imported files (transitively) to get their
+        // symbols. The summary records whether every import resolved.
+        doc->importSummary = ImportSummary{};
         if (doc->environment && importResolver_) {
             try {
-                importResolver_->resolveImports(doc, this);
+                doc->importSummary = importResolver_->resolveImports(doc, parseSucceeded);
             } catch (const std::exception&) {
                 // Silently ignore import resolution errors
             }
@@ -449,6 +460,15 @@ void DocumentManager::parseDocument(const std::string& uri) {
             token = tokenLexer->getNextToken();
             doc->tokens.push_back(token);
         } while (token.type != TokenType::END);
+
+        // MYT-440 — unresolved-type diagnostics. Only for a clean parse whose
+        // imports all resolved: otherwise a type might come from a file the
+        // LS couldn't read, and a false squiggle is worse than none.
+        if (parseSucceeded && registrationOk && doc->importSummary.complete) {
+            for (auto& d : UnresolvedTypeAnalyzer::analyze(*doc)) {
+                doc->diagnostics.push_back(std::move(d));
+            }
+        }
 
         doc->isParsed = true;
 

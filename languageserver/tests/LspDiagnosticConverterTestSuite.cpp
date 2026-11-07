@@ -154,6 +154,44 @@ void LspDiagnosticConverterTestSuite::registerTests(LspTestHarness& harness) {
         require(lsp.relatedInformation[0].message == "consider adding a type annotation",
             "note message mismatch");
     });
+
+    harness.addTest("extraData entries are merged into the data blob", []() {
+        // MYT-440 — the unresolved-type diagnostic hands the quick fix the
+        // missing name next to the exception type.
+        auto core = makeCoreDiag("use of undeclared type 'Circle'", "test.mt", 1, 1, 1, 7);
+        core.sourceExceptionType = "ClassNotFoundException";
+        core.extraData.emplace_back("missingName", "Circle");
+
+        auto lsp = toLspDiagnostic(core, "file:///test.mt");
+        require(lsp.data.has_value(), "data blob should be present");
+        require((*lsp.data)["exceptionType"] == "ClassNotFoundException",
+            "exceptionType should still be emitted");
+        require((*lsp.data)["missingName"] == "Circle",
+            "extraData key should be merged into data");
+    });
+
+    harness.addTest("extraData never overrides the converter's own keys", []() {
+        auto core = makeCoreDiag("err", "test.mt", 1, 1);
+        core.sourceExceptionType = "ClassNotFoundException";
+        core.extraData.emplace_back("exceptionType", "Spoofed");
+        core.extraData.emplace_back("suggestions", "not-an-array");
+        core.extraData.emplace_back("codeId", "MT-X0000");
+
+        auto lsp = toLspDiagnostic(core, "file:///test.mt");
+        require(lsp.data.has_value(), "data blob should be present");
+        require((*lsp.data)["exceptionType"] == "ClassNotFoundException",
+            "exceptionType must keep the converter's value");
+        require(!lsp.data->contains("suggestions"),
+            "a reserved key must not be injected through extraData");
+        require(!lsp.data->contains("codeId"),
+            "codeId is reserved even when the diagnostic has no code");
+    });
+
+    harness.addTest("no code, exception or extras means no data blob", []() {
+        auto core = makeCoreDiag("plain", "test.mt", 1, 1);
+        auto lsp = toLspDiagnostic(core, "file:///test.mt");
+        require(!lsp.data.has_value(), "data should stay absent when there is nothing to carry");
+    });
 }
 
 } // namespace mtype::lsp::test

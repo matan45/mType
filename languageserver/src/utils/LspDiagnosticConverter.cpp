@@ -69,6 +69,106 @@ namespace mtype::lsp
             }
             return UriUtils::filePathToUri(filename);
         }
+
+        json suggestionToJson(const diagnostics::Suggestion& s)
+        {
+            json sj = json::object();
+            if (!s.label.empty()) sj["label"] = s.label;
+            if (!s.renderedHint.empty()) sj["hint"] = s.renderedHint;
+            if (!s.edits.empty())
+            {
+                // Convert 1-based source coordinates to 0-based LSP
+                // coordinates directly. We deliberately do NOT use
+                // toLspRange here — its point-span widening
+                // (start == end → end = start+1) would corrupt
+                // zero-width inserts (e.g. the "insert ';'" edit
+                // emitted by convertMissingSemicolon). Zero-width
+                // ranges are intentional and must round-trip verbatim
+                // so the code-action handler can apply them as inserts
+                // rather than as 1-char overwrites of the next token
+                // (MYT-364).
+                json editsArr = json::array();
+                for (const auto& e : s.edits)
+                {
+                    json ej = json::object();
+                    ej["start"] = {
+                        {"line", toLspLine(e.start.getLine())},
+                        {"character", toLspColumn(e.start.getColumn())}
+                    };
+                    ej["end"] = {
+                        {"line", toLspLine(e.end.getLine())},
+                        {"character", toLspColumn(e.end.getColumn())}
+                    };
+                    ej["newText"] = e.newText;
+                    editsArr.push_back(std::move(ej));
+                }
+                sj["edits"] = std::move(editsArr);
+            }
+            sj["applicability"] = static_cast<int>(s.applicability);
+            return sj;
+        }
+
+        // Data blob — round-trips the exception type and any extra payload
+        // through textDocument/codeAction so the action handler can dispatch
+        // on it. The converter's own keys are written first and win; a
+        // producer's extraData entry is only added under a free key.
+        json buildDataBlob(const diagnostics::Diagnostic& coreDiag)
+        {
+            json data = json::object();
+            if (coreDiag.code != nullptr)
+            {
+                data["codeId"] = std::string(coreDiag.code->id);
+            }
+            if (!coreDiag.sourceExceptionType.empty())
+            {
+                data["exceptionType"] = coreDiag.sourceExceptionType;
+            }
+            if (!coreDiag.suggestions.empty())
+            {
+                json suggestionsArr = json::array();
+                for (const auto& s : coreDiag.suggestions)
+                {
+                    suggestionsArr.push_back(suggestionToJson(s));
+                }
+                data["suggestions"] = std::move(suggestionsArr);
+            }
+            for (const auto& [key, value] : coreDiag.extraData)
+            {
+                const bool reserved = key == "codeId" || key == "exceptionType"
+                                   || key == "suggestions";
+                if (reserved || data.contains(key)) continue;
+                data[key] = value;
+            }
+            return data;
+        }
+
+        // Secondary spans and notes → relatedInformation. Notes have no
+        // location of their own, so they reuse the primary range; that makes
+        // them expandable items in VS Code's "Problems" panel.
+        void appendRelatedInformation(const diagnostics::Diagnostic& coreDiag,
+                                      const std::string& documentUri,
+                                      Diagnostic& out)
+        {
+            for (const auto& secondary : coreDiag.secondarySpans)
+            {
+                DiagnosticRelatedInformation ri;
+                ri.location.uri = filenameToUri(
+                    secondary.start.getFilename(), documentUri);
+                ri.location.range = toLspRange(secondary.start, secondary.end);
+                ri.message = secondary.label.empty()
+                    ? coreDiag.message
+                    : secondary.label;
+                out.relatedInformation.push_back(std::move(ri));
+            }
+            for (const auto& note : coreDiag.notes)
+            {
+                DiagnosticRelatedInformation ri;
+                ri.location.uri = documentUri;
+                ri.location.range = out.range;
+                ri.message = note;
+                out.relatedInformation.push_back(std::move(ri));
+            }
+        }
     } // namespace
 
     Diagnostic toLspDiagnostic(const diagnostics::Diagnostic& coreDiag,
@@ -107,89 +207,12 @@ namespace mtype::lsp
         // and the core severity-equivalent enum. Pass through verbatim.
         out.tags = coreDiag.tags;
 
-        // Secondary spans → relatedInformation. Each carries a label and
-        // a Location pointing back into the source file.
-        for (const auto& secondary : coreDiag.secondarySpans)
-        {
-            DiagnosticRelatedInformation ri;
-            ri.location.uri = filenameToUri(
-                secondary.start.getFilename(), documentUri);
-            ri.location.range = toLspRange(secondary.start, secondary.end);
-            ri.message = secondary.label.empty()
-                ? coreDiag.message
-                : secondary.label;
-            out.relatedInformation.push_back(std::move(ri));
-        }
+        appendRelatedInformation(coreDiag, documentUri, out);
 
-        // Surface notes as related information too — they don't have
-        // their own location, so they reuse the primary span. This makes
-        // them visible in VS Code's "Problems" panel as expandable items.
-        for (const auto& note : coreDiag.notes)
-        {
-            DiagnosticRelatedInformation ri;
-            ri.location.uri = documentUri;
-            ri.location.range = out.range;
-            ri.message = note;
-            out.relatedInformation.push_back(std::move(ri));
-        }
-
-        // Data blob — round-trips the exception type and any future
-        // payload through textDocument/codeAction so the action handler
-        // can dispatch on it. Keys chosen to match a stable schema.
-        json data = json::object();
-        if (coreDiag.code != nullptr)
-        {
-            data["codeId"] = std::string(coreDiag.code->id);
-        }
-        if (!coreDiag.sourceExceptionType.empty())
-        {
-            data["exceptionType"] = coreDiag.sourceExceptionType;
-        }
-        if (!coreDiag.suggestions.empty())
-        {
-            json suggestionsArr = json::array();
-            for (const auto& s : coreDiag.suggestions)
-            {
-                json sj = json::object();
-                if (!s.label.empty()) sj["label"] = s.label;
-                if (!s.renderedHint.empty()) sj["hint"] = s.renderedHint;
-                if (!s.edits.empty())
-                {
-                    // Convert 1-based source coordinates to 0-based LSP
-                    // coordinates directly. We deliberately do NOT use
-                    // toLspRange here — its point-span widening
-                    // (start == end → end = start+1) would corrupt
-                    // zero-width inserts (e.g. the "insert ';'" edit
-                    // emitted by convertMissingSemicolon). Zero-width
-                    // ranges are intentional and must round-trip verbatim
-                    // so the code-action handler can apply them as inserts
-                    // rather than as 1-char overwrites of the next token
-                    // (MYT-364).
-                    json editsArr = json::array();
-                    for (const auto& e : s.edits)
-                    {
-                        json ej = json::object();
-                        ej["start"] = {
-                            {"line", toLspLine(e.start.getLine())},
-                            {"character", toLspColumn(e.start.getColumn())}
-                        };
-                        ej["end"] = {
-                            {"line", toLspLine(e.end.getLine())},
-                            {"character", toLspColumn(e.end.getColumn())}
-                        };
-                        ej["newText"] = e.newText;
-                        editsArr.push_back(std::move(ej));
-                    }
-                    sj["edits"] = std::move(editsArr);
-                }
-                sj["applicability"] = static_cast<int>(s.applicability);
-                suggestionsArr.push_back(std::move(sj));
-            }
-            data["suggestions"] = std::move(suggestionsArr);
-        }
+        json data = buildDataBlob(coreDiag);
         if (!data.empty())
         {
-            out.data = data;
+            out.data = std::move(data);
         }
 
         return out;

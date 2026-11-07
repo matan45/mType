@@ -1,5 +1,6 @@
 #pragma once
 #include <string>
+#include <utility>
 #include <vector>
 #include "../errors/SourceLocation.hpp"
 #include "ErrorCode.hpp"
@@ -116,6 +117,13 @@ namespace diagnostics
         // LSP `data` blob and for tests. Empty when not constructed from an
         // exception.
         std::string sourceExceptionType;
+
+        // Extra key/value pairs for the LSP `data` blob, for producers that
+        // must hand a quick fix more than the exception type (e.g. the
+        // unresolved-type analyzer's "missingName", MYT-440). A key that
+        // collides with the converter's own (codeId, exceptionType,
+        // suggestions) is ignored.
+        std::vector<std::pair<std::string, std::string>> extraData;
 
         bool hasLocation() const
         {

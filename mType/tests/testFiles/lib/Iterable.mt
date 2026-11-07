@@ -2,6 +2,8 @@
 // Provides support for enhanced for-loop syntax: for (T item : collection)
 // All collections that can be iterated must implement this interface
 
+import { Iterator } from "Iterator.mt";
+
 interface Iterable<T> {
     // Returns an iterator over elements of type T
     // This enables enhanced for-loop syntax: for (T item : collection)

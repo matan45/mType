@@ -18,11 +18,13 @@ namespace mtype::lsp {
 // is reused here so workspace symbol search ranks results consistently
 // with completion.
 //
-// Empty query returns an empty list — the underlying `findByPrefix`
-// short-circuits on an empty prefix to avoid streaming the entire
-// workspace symbol pool. This matches what VS Code's Ctrl+T expects:
-// nothing is shown until the user types at least one character, the
-// same threshold completion already uses.
+// Contract (MYT-447): an empty query returns every top-level symbol,
+// sorted alphabetically (case-insensitive) and capped at 256, via
+// `WorkspaceSymbolIndex::listAll`. A non-empty query is a
+// case-insensitive prefix match on the name, ranked exact-match first,
+// with the same cap. The mType editor's Ctrl+T picker shows the
+// empty-query list when it opens and re-queries as the user types;
+// VS Code re-queries on every keystroke.
 //
 // Early requests, before the initial workspace scan has finished, fall
 // through to a 50 ms short-block via `waitForReady` (same ceiling used

@@ -1,4 +1,5 @@
 #include "CodeActionHandler.hpp"
+#include "CodeActionMerger.hpp"
 #include "AccessorCodegen.hpp"
 #include "LifecycleCodegen.hpp"
 #include "../analysis/WorkspaceSymbolIndex.hpp"
@@ -144,6 +145,35 @@ std::unordered_set<std::string> extractClassGenericParams(
     if (close == std::string::npos) return params;
     extractTypeNames(classDeclLine.substr(open + 1, close - open - 1), params);
     return params;
+}
+
+std::string getLine(const std::string& content, int lineNumber);
+
+bool isIdentifier(const std::string& text) {
+    if (text.empty()) return false;
+    const auto first = static_cast<unsigned char>(text.front());
+    if (std::isalpha(first) == 0 && text.front() != '_') return false;
+    return std::all_of(text.begin(), text.end(), [](char c) {
+        return std::isalnum(static_cast<unsigned char>(c)) != 0 || c == '_';
+    });
+}
+
+// MYT-445 — the type name a missing-import diagnostic is about. The
+// unresolved-type analyzer (MYT-440) carries it in data.missingName;
+// producers that don't fall back to the identifier at the range start.
+std::string missingIdentifier(const std::string& content,
+                              const mtype::lsp::Diagnostic& diagnostic) {
+    if (diagnostic.data && diagnostic.data->is_object()
+        && diagnostic.data->contains("missingName")) {
+        const auto& name = (*diagnostic.data)["missingName"];
+        if (name.is_string() && isIdentifier(name.get<std::string>())) {
+            return name.get<std::string>();
+        }
+    }
+    const std::string line = getLine(content, diagnostic.range.start.line);
+    const auto [wordStart, wordEnd] = wordRangeAt(line, diagnostic.range.start.character);
+    if (wordEnd <= wordStart) return "";
+    return line.substr(wordStart, wordEnd - wordStart);
 }
 
 // Pick line `lineNumber` (0-based) out of a document's content.
@@ -473,7 +503,9 @@ std::vector<CodeAction> CodeActionHandler::handleCodeAction(
     auto lifecycleActions = generateLifecycleMethodsAction(uri, range.start.line);
     actions.insert(actions.end(), lifecycleActions.begin(), lifecycleActions.end());
 
-    return actions;
+    // MYT-445 — the editor sends every diagnostic on the line, so a type used
+    // twice there (`Circle c = new Circle();`) would offer the same import twice.
+    return CodeActionMerger::mergeDuplicates(std::move(actions));
 }
 
 std::vector<CodeAction> CodeActionHandler::generateFixesForDiagnostic(
@@ -482,10 +514,12 @@ std::vector<CodeAction> CodeActionHandler::generateFixesForDiagnostic(
 ) {
     std::vector<CodeAction> actions;
 
-    // MYT-47 — missing-import quick fix. Diagnostics produced by
-    // ClassNotFoundException / UndefinedException carry their source
-    // exception type in `data.exceptionType`. Try the workspace
-    // symbol index first; the typo fix below remains as a fallback.
+    // MYT-47 — missing-import quick fix. The language server's
+    // unresolved-type analyzer (MYT-440) tags its MT-E1003 diagnostics with
+    // `data.exceptionType` "ClassNotFoundException" plus `data.missingName`;
+    // "UndefinedException" is the compiler's form of the same error. Try
+    // the workspace symbol index first; the typo fix below remains as a
+    // fallback.
     if (diagnostic.data
         && diagnostic.data->is_object()
         && diagnostic.data->contains("exceptionType"))
@@ -544,14 +578,7 @@ std::vector<CodeAction> CodeActionHandler::generateMissingImportFixes(
     auto doc = documentManager_->getDocument(uri);
     if (!doc) return actions;
 
-    // Extract the missing identifier from the source line at the
-    // diagnostic's anchor. Reuses the same word-extraction helpers as
-    // the typo fix.
-    const std::string line = getLine(doc->content, diagnostic.range.start.line);
-    const auto [wordStart, wordEnd] =
-        wordRangeAt(line, diagnostic.range.start.character);
-    if (wordEnd <= wordStart) return actions;
-    const std::string identifier = line.substr(wordStart, wordEnd - wordStart);
+    const std::string identifier = missingIdentifier(doc->content, diagnostic);
     if (identifier.empty()) return actions;
 
     // Short-block until the initial workspace scan is populated. Without

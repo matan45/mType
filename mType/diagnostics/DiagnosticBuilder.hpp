@@ -92,6 +92,13 @@ namespace diagnostics
             return *this;
         }
 
+        // Attach a key/value pair to the LSP `data` blob (see Diagnostic::extraData).
+        DiagnosticBuilder& withData(std::string key, std::string value)
+        {
+            diag_.extraData.emplace_back(std::move(key), std::move(value));
+            return *this;
+        }
+
         Diagnostic build() &&
         {
             return std::move(diag_);

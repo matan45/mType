@@ -19,5 +19,15 @@ namespace mtype::lsp::utils
     {
     public:
         static std::vector<std::string> findMtFiles(const std::string& workspaceRoot);
+
+        /**
+         * True when `filePath` is an existing `.mt` file that `findMtFiles`
+         * would return for `workspaceRoot`: it lies under the root and no
+         * directory on the way down is a skipped one (hidden, build output,
+         * `node_modules`). Used to decide whether a closed document still
+         * belongs in the workspace symbol index.
+         */
+        static bool isWorkspaceFile(const std::string& workspaceRoot,
+                                    const std::string& filePath);
     };
 }

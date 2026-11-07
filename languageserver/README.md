@@ -203,17 +203,17 @@ Then send LSP messages via stdin. For debugging, check your editor's LSP client 
 |---------|--------|-------------|
 | `textDocument/completion` | ✅ Implemented | Auto-completion |
 | `textDocument/hover` | ✅ Implemented | Hover information |
-| `textDocument/publishDiagnostics` | ✅ Implemented | Error checking |
+| `textDocument/publishDiagnostics` | ✅ Implemented | Error checking. Includes unresolved types (MT-E1003, MYT-440): a name used in a type position that neither the document nor its imports (followed transitively) declare is flagged on every occurrence. Primitives, wrapper types (`Int`/`Float`/`Bool`/`String`), builtins (`Object`/`Promise`/`Array`), generic parameters, aliases, and Lombok builders are excluded, and the check is skipped while the document doesn't parse or any import is unresolved or a library import |
 | `textDocument/definition` | 🚧 Planned | Go-to-definition |
 | `textDocument/references` | 🚧 Planned | Find references |
 | `textDocument/formatting` | 🚧 Planned | Code formatting |
 | `textDocument/semanticTokens` | 🚧 Planned | Semantic highlighting |
-| `textDocument/codeAction` | 🚧 Planned | Quick fixes |
+| `textDocument/codeAction` | ✅ Implemented | Quick fixes, including "Add import" for unresolved types (MYT-47, MYT-445). It reads the name from the diagnostic's `data.missingName` and looks it up in the workspace index. Identical actions are merged, so a type used twice on a line offers one import |
 | `textDocument/prepareRename` | ✅ Implemented | Validate rename target (MYT-294) |
 | `textDocument/rename` | ✅ Implemented | Symbol rename — boundary-safe token-driven edits; rejects keywords, builtins, literals, import paths, ambiguous symbols (MYT-294) |
 | `textDocument/inlayHint` | ✅ Implemented | Parameter-name hints for user-defined calls (function/method/constructor) and inferred-type hints for untyped lambda parameters (MYT-295) |
 | `textDocument/documentSymbol` | ✅ Implemented | Hierarchical outline of classes, interfaces, functions, constructors, methods, and fields. Powers the editor outline view and breadcrumbs (MYT-296) |
-| `workspace/symbol` | ✅ Implemented | Workspace-wide symbol search over top-level classes, interfaces, and functions; case-insensitive prefix matching shared with completion and auto-import (empty query returns no results, same as the prefix matcher). Powers VS Code's "Go to Symbol in Workspace" (Ctrl+T) (MYT-297) |
+| `workspace/symbol` | ✅ Implemented | Workspace-wide symbol search over top-level classes, interfaces, and functions. An empty query returns every symbol, sorted alphabetically and capped at 256; otherwise the query is a case-insensitive name prefix (same ranking as completion and auto-import). Closing a file keeps its on-disk symbols. Powers "Go to Symbol in Workspace" (Ctrl+T) in VS Code and the mType editor (MYT-297, MYT-447) |
 | `textDocument/prepareCallHierarchy` | ✅ Implemented | Resolves cursor to callable items (top-level functions, methods, constructors). Accepts both declarations and call sites; returns multiple items on name-only ambiguity (MYT-299) |
 | `callHierarchy/incomingCalls` | ✅ Implemented | Direct callers grouped by enclosing callable. Hybrid resolution (class-pinned for `Class::m()`, `new C()`, `super.m()`, `this.m()`; name-only otherwise). Lambdas transparent — calls inside attribute to the enclosing real callable. Scans documents loaded in the editor (MYT-299) |
 | `callHierarchy/outgoingCalls` | ✅ Implemented | Direct calls from the selected callable's body. Walks through nested lambdas; super-method calls resolve via the inheritance chain. Overloads collapse into a single hierarchy item (MYT-299) |

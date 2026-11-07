@@ -452,16 +452,19 @@ namespace mtype::lsp
             // user pauses (full lex+parse on every keystroke is wasteful).
             // The buffer is captured by value so the index sees the user's
             // unsaved changes, not whatever happens to be on disk.
-            scheduleDebouncedReindex(uri, text);
+            scheduleDebounced(uri, [uri, text](analysis::WorkspaceSymbolIndex& idx) {
+                idx.reindexFile(uri, text);
+            });
         }
     }
 
-    void MTypeLanguageServer::scheduleDebouncedReindex(const std::string& uri,
-                                                       const std::string& content)
+    void MTypeLanguageServer::scheduleDebounced(
+        const std::string& uri,
+        std::function<void(analysis::WorkspaceSymbolIndex&)> work)
     {
         if (!workspaceIndex_) return;
 
-        // Capture-by-value: shared_ptrs, a uint64, and the buffer. No
+        // Capture-by-value: shared_ptrs, a uint64, and the work item. No
         // `this` capture so an in-flight task survives LSP destruction
         // without dangling.
         auto debouncer = reindexDebouncer_;
@@ -472,7 +475,7 @@ namespace mtype::lsp
             version = ++debouncer->versions[uri];
         }
 
-        std::thread([uri, content, version, debouncer, idx]()
+        std::thread([uri, work = std::move(work), version, debouncer, idx]()
         {
             std::this_thread::sleep_for(kReindexDebounceWindow);
             {
@@ -480,12 +483,10 @@ namespace mtype::lsp
                 auto it = debouncer->versions.find(uri);
                 if (it == debouncer->versions.end() || it->second != version)
                 {
-                    return;  // a newer change came in; this task is stale.
+                    return;  // a newer request came in; this task is stale.
                 }
             }
-            // Buffer overload — workspace index sees the live editor
-            // content, not whatever's on disk.
-            idx->reindexFile(uri, content);
+            work(*idx);
         }).detach();
     }
 
@@ -493,9 +494,13 @@ namespace mtype::lsp
     {
         std::string uri = params["textDocument"]["uri"];
         documentManager_->closeDocument(uri);
-        // Drop entries for closed documents so the index doesn't
-        // accumulate stale data when the editor closes a file.
-        if (workspaceIndex_) workspaceIndex_->invalidateFile(uri);
+        // MYT-447 — the file still exists on disk, so closing its tab must
+        // not remove its symbols (that hid them from Ctrl+T and Add import).
+        // Rebuild them from disk instead. Going through the debouncer also
+        // cancels any still-queued reindex of the unsaved buffer.
+        scheduleDebounced(uri, [uri](analysis::WorkspaceSymbolIndex& idx) {
+            idx.revertToDisk(uri);
+        });
     }
 
     void MTypeLanguageServer::handleDidChangeWatchedFiles(const json& params)
@@ -537,6 +542,11 @@ namespace mtype::lsp
         }
 
         if (!mtFilesChanged && !projectConfigReloaded) return;
+
+        // Parsed imports may now be stale (a file gained a class, an alias
+        // moved); without this, unresolved-type diagnostics would keep
+        // flagging a type until the server restarted (MYT-440).
+        documentManager_->clearImportCache();
 
         // doc->diagnostics is the cached parse output; without a reparse
         // the previous import-not-found error survives even after the
@@ -890,8 +900,9 @@ namespace mtype::lsp
     void MTypeLanguageServer::handleWorkspaceSymbol(const json& id, const json& params)
     {
         // `workspace/symbol` returns a flat SymbolInformation[] of
-        // top-level declarations matching `query`. Empty query is
-        // legal per spec and returns the full (capped) symbol set.
+        // top-level declarations. Empty query is legal per spec and
+        // returns every symbol, sorted and capped at 256 (MYT-447);
+        // otherwise `query` is a case-insensitive name prefix.
         // Same defensive shape as handleDocumentSymbol: extract `query`
         // tolerantly (missing or non-string → empty) and serialise an
         // empty array on any exception so a malformed request can't

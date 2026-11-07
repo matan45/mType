@@ -79,20 +79,61 @@ void WorkspaceSymbolHandlerTestSuite::registerTests(LspTestHarness& harness) {
             "expected original spelling 'Bar' returned, got '" + syms[0].name + "'");
     });
 
-    harness.addTest("empty query returns no results", []() {
-        // Mirrors WorkspaceSymbolIndex::findByPrefix, which short-circuits
-        // on empty input rather than streaming every symbol. VS Code's
-        // Ctrl+T picker handles an empty response by waiting for the user
-        // to type — same UX as completion.
+    harness.addTest("empty query lists every symbol, sorted case-insensitively", []() {
+        // MYT-447 — the mType editor's Ctrl+T picker opens with an empty
+        // query; an empty response made it report "No workspace symbols".
         auto index = makeIndex();
         index->reindexFile("file:///a.mt",
-            "class Alpha {}\nclass Beta {}\nfunction gamma(): void {}\n");
+            "class Beta {}\nfunction gamma(): void {}\nclass Alpha {}\n");
         WorkspaceSymbolHandler handler(index);
 
         auto syms = handler.handleWorkspaceSymbol("");
-        require(syms.empty(),
-            "expected empty result for empty query, got "
+        require(syms.size() == 3,
+            "expected all 3 symbols for empty query, got "
             + std::to_string(syms.size()));
+        require(syms[0].name == "Alpha" && syms[1].name == "Beta"
+                && syms[2].name == "gamma",
+            "expected Alpha, Beta, gamma in case-insensitive order, got "
+            + syms[0].name + ", " + syms[1].name + ", " + syms[2].name);
+    });
+
+    harness.addTest("empty query is capped at 256 results", []() {
+        auto index = makeIndex();
+        std::string source;
+        for (int i = 0; i < 300; ++i) {
+            const std::string n = std::to_string(1000 + i); // fixed width keeps order obvious
+            source += "class C" + n + " {}\n";
+        }
+        index->reindexFile("file:///many.mt", source);
+        WorkspaceSymbolHandler handler(index);
+
+        auto syms = handler.handleWorkspaceSymbol("");
+        require(syms.size() == 256,
+            "expected the 256 cap, got " + std::to_string(syms.size()));
+        require(syms.front().name == "C1000" && syms.back().name == "C1255",
+            "expected the alphabetically first 256 (C1000..C1255), got "
+            + syms.front().name + ".." + syms.back().name);
+    });
+
+    harness.addTest("typing 'Do' lists Dog anchored at its declaration", []() {
+        // MYT-447 acceptance: the picker's re-query for "Do" must return
+        // Dog with a range that starts on the name token, so opening it
+        // lands the caret on the declaration (0-based: line 0, column 6).
+        auto index = makeIndex();
+        index->reindexFile("file:///zoo/Dog.mt", "class Dog {}\n");
+        index->reindexFile("file:///zoo/Cat.mt", "class Cat {}\n");
+        WorkspaceSymbolHandler handler(index);
+
+        auto syms = handler.handleWorkspaceSymbol("Do");
+        require(syms.size() == 1,
+            "expected only Dog for 'Do', got " + std::to_string(syms.size()));
+        require(syms[0].name == "Dog", "expected Dog, got " + syms[0].name);
+        require(syms[0].location.uri == "file:///zoo/Dog.mt", "expected Dog.mt uri");
+        require(syms[0].location.range.start.line == 0
+                && syms[0].location.range.start.character == 6,
+            "expected range start {0,6}, got {"
+            + std::to_string(syms[0].location.range.start.line) + ","
+            + std::to_string(syms[0].location.range.start.character) + "}");
     });
 
     harness.addTest("single-character query still matches", []() {

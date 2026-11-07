@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <future>
 #include <memory>
 #include <mutex>
@@ -119,7 +120,12 @@ private:
     };
     std::shared_ptr<ReindexDebouncer> reindexDebouncer_;
 
-    void scheduleDebouncedReindex(const std::string& uri, const std::string& content);
+    // Run `work` against the workspace index once `uri` has been quiet for
+    // the debounce window. A newer call for the same URI supersedes any task
+    // still waiting, so the last request wins (e.g. a close cancels a queued
+    // reindex of the unsaved buffer).
+    void scheduleDebounced(const std::string& uri,
+                           std::function<void(analysis::WorkspaceSymbolIndex&)> work);
 
     bool shouldExit_ = false;
 };

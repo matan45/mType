@@ -13,6 +13,7 @@
 #include "../../mType/services/ImportManager.hpp"
 #include "../../mType/ast/ASTNode.hpp"
 #include "../../mType/diagnostics/Diagnostic.hpp"
+#include "analysis/ImportSummary.hpp"
 
 namespace mtype::lsp {
 
@@ -53,6 +54,10 @@ struct Document {
 
     // Symbol location tracking for go-to-definition
     std::unordered_map<std::string, SymbolLocationInfo> symbolLocations;
+
+    // What this document's imports make visible, from the last parse
+    // (MYT-440). Unresolved-type diagnostics only run when it's complete.
+    ImportSummary importSummary;
 };
 
 class DocumentManager {
@@ -78,6 +83,10 @@ public:
 
     // Parse document with full semantic analysis
     void parseDocument(const std::string& uri);
+
+    // Forget every parsed import. Call when `.mt` files or the project
+    // configuration change on disk, before re-parsing open documents.
+    void clearImportCache();
 
     // Query methods
     std::string getWordAtPosition(const std::string& uri, int line, int character) const;

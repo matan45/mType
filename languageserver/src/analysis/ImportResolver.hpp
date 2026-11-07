@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 #include <unordered_set>
@@ -8,6 +9,7 @@
 #include "../../../mType/environment/Environment.hpp"
 #include "../DocumentManager.hpp"
 #include "../utils/ProjectConfigProvider.hpp"
+#include "ImportSummary.hpp"
 
 namespace mtype::lsp {
 
@@ -15,7 +17,15 @@ namespace mtype::lsp {
 struct Document;
 
 /**
- * Resolves and parses imported files to extract symbols
+ * Resolves a document's imports, transitively, and registers the imported
+ * symbols into the document's environment.
+ *
+ * Each imported file is parsed once and cached by canonical path. A cache
+ * entry remembers the file's own resolved imports, so a cache hit still
+ * walks the whole import graph; the compiler makes everything reachable
+ * through imports visible, and so does this resolver (MYT-440). Every
+ * depth resolves through the project config first (mt_modules aliases),
+ * then relative to the importing file.
  */
 class ImportResolver {
 public:
@@ -27,52 +37,58 @@ public:
     void setProjectConfig(std::shared_ptr<ProjectConfigProvider> config);
 
     /**
-     * Parse all imports for a document and register their symbols
-     * @param doc The document whose imports to resolve
-     * @param docManager Document manager to access other files
+     * Resolve every import of `doc`, register the imported symbols into
+     * `doc->environment` and `doc->symbolLocations`, and report what the
+     * imports make visible.
+     *
+     * @param astIsCurrent true when `doc->ast` was produced from the
+     *        current content. Otherwise the import list falls back to a
+     *        line regex and the summary is marked incomplete.
      */
-    void resolveImports(Document* doc, DocumentManager* docManager);
+    ImportSummary resolveImports(Document* doc, bool astIsCurrent);
 
     /**
-     * Clear the cache of parsed imports
+     * Drop every cached import. Call when `.mt` files or the project
+     * configuration change on disk.
      */
     void clearCache();
 
+    /** One import statement, as far as resolution cares. */
+    struct ImportSpec {
+        std::string path;                 // as written, e.g. "./shapes/Circle.mt"
+        bool library = false;             // `import lib ...`: not visible to the LS
+        std::vector<std::string> names;   // selected names plus their aliases
+    };
+
 private:
-    /**
-     * Extract import paths from document content
-     * @param content The document content
-     * @return Vector of relative import paths
-     */
-    std::vector<std::string> extractImportPaths(const std::string& content);
+    /** A parsed import target, cached by canonical path. */
+    struct FileEntry {
+        std::shared_ptr<environment::Environment> env;
+        std::unordered_map<std::string, SymbolLocationInfo> locations;
+        std::vector<std::string> nestedPaths;          // its own imports, resolved
+        std::unordered_set<std::string> typeNames;     // declared + selected + aliases
+        bool selfComplete = true;                      // all its own imports resolved
+    };
 
-    /**
-     * Resolve a relative import path to an absolute file path
-     * @param baseUri The URI of the importing file
-     * @param relativePath The relative import path
-     * @return Absolute file path
-     */
-    std::string resolveImportPath(const std::string& baseUri, const std::string& relativePath);
+    /** Where merged symbols go: the importing document's state. */
+    struct MergeTarget {
+        std::shared_ptr<environment::Environment> env;
+        std::unordered_map<std::string, SymbolLocationInfo>& locations;
+        std::unordered_set<std::string>& typeNames;
+    };
 
-    /**
-     * Parse an imported file and extract its symbols
-     * @param importPath Absolute path to the imported file
-     * @param targetEnv Environment to register symbols into
-     * @param targetSymbolLocations Symbol locations map to merge into
-     * @param visited Set of already visited files (for circular dependency detection)
-     */
-    void parseImportedFile(
-        const std::string& importPath,
-        std::shared_ptr<environment::Environment> targetEnv,
-        std::unordered_map<std::string, SymbolLocationInfo>& targetSymbolLocations,
-        std::unordered_set<std::string>& visited
-    );
+    bool mergeImport(const ImportSpec& spec, const std::string& fromPath,
+                     MergeTarget& target, std::unordered_set<std::string>& visited);
+    bool mergeFile(const std::string& path, MergeTarget& target,
+                   std::unordered_set<std::string>& visited);
+    const FileEntry* loadEntry(const std::string& path);
+    std::optional<FileEntry> parseEntry(const std::string& path) const;
+    std::string resolveTarget(const std::string& fromFilePath,
+                              const std::string& importPath) const;
 
-    // Cache of parsed import files (path -> environment with symbols)
-    std::unordered_map<std::string, std::shared_ptr<environment::Environment>> importCache_;
-
-    // Cache of symbol locations from imported files (path -> symbol locations)
-    std::unordered_map<std::string, std::unordered_map<std::string, SymbolLocationInfo>> symbolLocationCache_;
+    // Canonical path -> parsed import file. Node-based, so pointers to
+    // entries stay valid while new ones are inserted during a merge.
+    std::unordered_map<std::string, FileEntry> cache_;
 
     // Project configuration for search path resolution
     std::shared_ptr<ProjectConfigProvider> projectConfig_;

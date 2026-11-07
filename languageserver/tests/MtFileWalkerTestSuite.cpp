@@ -110,6 +110,44 @@ void MtFileWalkerTestSuite::registerTests(LspTestHarness& harness) {
         auto files = utils::MtFileWalker::findMtFiles("C:/nonexistent/path/12345");
         require(files.empty(), "expected empty for nonexistent root");
     });
+
+    harness.addTest("isWorkspaceFile accepts files the scan would index", []() {
+        TempDir tmpDir;
+        tmpDir.createFile("top.mt", "class Top {}");
+        tmpDir.createFile("sub/deep/nested.mt", "class Nested {}");
+        const fs::path root(tmpDir.path());
+
+        require(utils::MtFileWalker::isWorkspaceFile(tmpDir.path(), (root / "top.mt").string()),
+            "a root-level .mt file is a workspace file");
+        require(utils::MtFileWalker::isWorkspaceFile(tmpDir.path(),
+                (root / "sub" / "deep" / "nested.mt").string()),
+            "a nested .mt file is a workspace file");
+    });
+
+    harness.addTest("isWorkspaceFile rejects files the scan would skip", []() {
+        TempDir tmpDir;
+        tmpDir.createFile("bin/out.mt", "class Out {}");
+        tmpDir.createFile(".hidden/secret.mt", "class Secret {}");
+        tmpDir.createFile("notes.txt", "not source");
+        TempDir other;
+        other.createFile("away.mt", "class Away {}");
+        const fs::path root(tmpDir.path());
+        const std::string r = tmpDir.path();
+
+        require(!utils::MtFileWalker::isWorkspaceFile(r, (root / "bin" / "out.mt").string()),
+            "files under bin/ are skipped by the scan");
+        require(!utils::MtFileWalker::isWorkspaceFile(r, (root / ".hidden" / "secret.mt").string()),
+            "files under hidden folders are skipped by the scan");
+        require(!utils::MtFileWalker::isWorkspaceFile(r, (root / "notes.txt").string()),
+            "only .mt files count");
+        require(!utils::MtFileWalker::isWorkspaceFile(r, (root / "missing.mt").string()),
+            "a file that does not exist is not a workspace file");
+        require(!utils::MtFileWalker::isWorkspaceFile(r,
+                (fs::path(other.path()) / "away.mt").string()),
+            "a file outside the root is not a workspace file");
+        require(!utils::MtFileWalker::isWorkspaceFile("", (root / "notes.txt").string()),
+            "no root means nothing is a workspace file");
+    });
 }
 
 } // namespace mtype::lsp::test
